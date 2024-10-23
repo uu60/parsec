@@ -5,16 +5,16 @@
 #ifndef MPC_PACKAGE_COMPARISONEXECUTOR_H
 #define MPC_PACKAGE_COMPARISONEXECUTOR_H
 
-#include "../arithmetic/IntShareExecutor.h"
+#include "../int/IntExecutor.h"
 
 template<typename T>
-class ComparisonExecutor : public IntShareExecutor<T> {
+class ComparisonExecutor : public IntExecutor<T> {
 private:
     bool _sign{};
 public:
-    ComparisonExecutor(T x, T y);
+    ComparisonExecutor(T z, bool share);
 
-    ComparisonExecutor(T xi, T yi, bool dummy);
+    ComparisonExecutor(T x, T y, bool share);
 
     ComparisonExecutor *execute(bool reconstruct) override;
 

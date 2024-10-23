@@ -27,7 +27,7 @@ RsaOtExecutor<T>::RsaOtExecutor(int bits, int sender, T m0, T m1, int i) {
 template<typename T>
 RsaOtExecutor<T> *RsaOtExecutor<T>::execute(bool dummy) {
     int64_t start, end;
-    if (this->_benchmarkLevel >= Executor<T>::BenchmarkLevel::GENERAL) {
+    if (this->_benchmarkLevel >= SecureExecutor<T>::BenchmarkLevel::GENERAL) {
         start = System::currentTimeMillis();
     }
     // preparation
@@ -36,7 +36,7 @@ RsaOtExecutor<T> *RsaOtExecutor<T>::execute(bool dummy) {
 
     // process
     process();
-    if (this->_benchmarkLevel >= Executor<T>::BenchmarkLevel::GENERAL) {
+    if (this->_benchmarkLevel >= SecureExecutor<T>::BenchmarkLevel::GENERAL) {
         end = System::currentTimeMillis();
         if (this->_isLogBenchmark) {
             Log::i(tag() + " Entire computation time: " + std::to_string(end - start) + "ms.");
@@ -51,11 +51,11 @@ template<typename T>
 void RsaOtExecutor<T>::generateAndShareRsaKeys() {
     if (_isSender) {
         int64_t start, end;
-        if (this->_benchmarkLevel == Executor<T>::BenchmarkLevel::DETAILED) {
+        if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
             start = System::currentTimeMillis();
         }
         Crypto::generateRsaKeys(_bits, _pub, _pri);
-        if (this->_benchmarkLevel == Executor<T>::BenchmarkLevel::DETAILED) {
+        if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
             end = System::currentTimeMillis();
             if (this->_isLogBenchmark) {
                 Log::i(tag() + " RSA keys generation time: " + std::to_string(end - start) + " ms.");
@@ -68,7 +68,7 @@ void RsaOtExecutor<T>::generateAndShareRsaKeys() {
         return;
     }
     // receiver
-    if (this->_benchmarkLevel == Executor<T>::BenchmarkLevel::DETAILED) {
+    if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
         Mpi::srecv(&_pub, this->_mpiTime);
     } else {
         Mpi::srecv(&_pub);
@@ -82,7 +82,7 @@ void RsaOtExecutor<T>::generateAndShareRandoms() {
     if (_isSender) {
         _rand0 = Math::rand0b(1, maxLen);
         _rand1 = Math::rand0b(1, maxLen);
-        if (this->_benchmarkLevel == Executor<T>::BenchmarkLevel::DETAILED) {
+        if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
             Mpi::ssend(&_rand0, this->_mpiTime);
             Mpi::ssend(&_rand1, this->_mpiTime);
         } else {
@@ -91,7 +91,7 @@ void RsaOtExecutor<T>::generateAndShareRandoms() {
         }
     } else {
         _randK = Math::rand0b(1, maxLen);
-        if (this->_benchmarkLevel == Executor<T>::BenchmarkLevel::DETAILED) {
+        if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
             Mpi::srecv(&_rand0, this->_mpiTime);
             Mpi::srecv(&_rand1, this->_mpiTime);
         } else {
@@ -105,11 +105,11 @@ template<typename T>
 void RsaOtExecutor<T>::process() {
     if (!_isSender) {
         int64_t start, end;
-        if (this->_benchmarkLevel == Executor<T>::BenchmarkLevel::DETAILED) {
+        if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
             start = System::currentTimeMillis();
         }
         std::string ek = Crypto::rsaEncrypt(_randK, _pub);
-        if (this->_benchmarkLevel == Executor<T>::BenchmarkLevel::DETAILED) {
+        if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
             end = System::currentTimeMillis();
             if (this->_isLogBenchmark) {
                 Log::i(tag() + " RSA encryption time: " + std::to_string(end - start) + " ms.");
@@ -117,14 +117,14 @@ void RsaOtExecutor<T>::process() {
             _rsaEncryptionTime = end - start;
         }
         std::string sumStr = Math::add(ek, _i == 0 ? _rand0 : _rand1);
-        if (this->_benchmarkLevel == Executor<T>::BenchmarkLevel::DETAILED) {
+        if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
             Mpi::ssend(&sumStr, this->_mpiTime);
         } else {
             Mpi::ssend(&sumStr);
         }
 
         std::string m0, m1;
-        if (this->_benchmarkLevel == Executor<T>::BenchmarkLevel::DETAILED) {
+        if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
             Mpi::srecv(&m0);
             Mpi::srecv(&m1);
         } else {
@@ -135,13 +135,13 @@ void RsaOtExecutor<T>::process() {
         this->_result = std::stoll(Math::minus(_i == 0 ? m0 : m1, _randK));
     } else {
         std::string sumStr;
-        if (this->_benchmarkLevel == Executor<T>::BenchmarkLevel::DETAILED) {
+        if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
             Mpi::srecv(&sumStr, this->_mpiTime);
         } else {
             Mpi::srecv(&sumStr);
         }
         int64_t start, end;
-        if (this->_benchmarkLevel == Executor<T>::BenchmarkLevel::DETAILED) {
+        if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
             start = System::currentTimeMillis();
         }
         std::string k0 = Crypto::rsaDecrypt(
@@ -150,7 +150,7 @@ void RsaOtExecutor<T>::process() {
         std::string k1 = Crypto::rsaDecrypt(
                 Math::minus(sumStr, _rand1), _pri
         );
-        if (this->_benchmarkLevel == Executor<T>::BenchmarkLevel::DETAILED) {
+        if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
             end = System::currentTimeMillis();
             if (this->_isLogBenchmark) {
                 Log::i(tag() + " RSA decryption time: " + std::to_string(end - start) + " ms.");
@@ -159,7 +159,7 @@ void RsaOtExecutor<T>::process() {
         }
         std::string m0 = Math::add(std::to_string(_m0), k0);
         std::string m1 = Math::add(std::to_string(_m1), k1);
-        if (this->_benchmarkLevel == Executor<T>::BenchmarkLevel::DETAILED) {
+        if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
             Mpi::ssend(&m0, this->_mpiTime);
             Mpi::ssend(&m1, this->_mpiTime);
         } else {

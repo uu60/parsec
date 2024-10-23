@@ -6,12 +6,10 @@
 #include "utils/Mpi.h"
 
 template<typename T>
-ComparisonExecutor<T>::ComparisonExecutor(T x, T y) : IntShareExecutor<T>(x, y) {
-    this->_zi = this->_xi - this->_yi;
-}
+ComparisonExecutor<T>::ComparisonExecutor(T z, bool share) : IntExecutor<T>(z, share) {}
 
 template<typename T>
-ComparisonExecutor<T>::ComparisonExecutor(T xi, T yi, bool dummy) : IntShareExecutor<T>(xi, yi, dummy) {
+ComparisonExecutor<T>::ComparisonExecutor(T x, T y, bool share) : IntExecutor<T>(x, y, share) {
     this->_zi = this->_xi - this->_yi;
 }
 
@@ -29,7 +27,7 @@ ComparisonExecutor<T> *ComparisonExecutor<T>::execute(bool reconstruct) {
 
 template<typename T>
 ComparisonExecutor<T> *ComparisonExecutor<T>::reconstruct() {
-    bool detailed = this->_benchmarkLevel == Executor<T>::BenchmarkLevel::DETAILED;
+    bool detailed = this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED;
     if (Mpi::isServer()) {
         Mpi::send(&this->_sign, Mpi::CLIENT_RANK, this->_mpiTime, detailed);
     } else {

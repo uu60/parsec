@@ -10,11 +10,11 @@
 #include <openssl/pem.h>
 #include <openssl/err.h>
 #include <openssl/sha.h>
-#include "../Executor.h"
+#include "../SecureExecutor.h"
 
 // according to https://blog.csdn.net/qq_16763983/article/details/128055146
 template<typename T>
-class RsaOtExecutor : public Executor<T> {
+class RsaOtExecutor : public SecureExecutor<T> {
 private:
     // for benchmark
     int64_t _rsaGenerationTime{};

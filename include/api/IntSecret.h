@@ -6,7 +6,7 @@
 #define MPC_PACKAGE_INTSECRET_H
 #include "./Secret.h"
 #include "../utils/Mpi.h"
-#include "./BoolSecret.h"
+#include "./BitSecret.h"
 #include <vector>
 
 template<typename T>
@@ -16,33 +16,33 @@ private:
 public:
     explicit IntSecret(T x);
 
-    [[nodiscard]] IntSecret<T> share() const;
-    [[nodiscard]] IntSecret<T> add(T yi) const;
-    [[nodiscard]] IntSecret<T> add(IntSecret<T> yi) const;
-    [[nodiscard]] IntSecret<T> multiply(T yi) const;
-    [[nodiscard]] IntSecret<T> multiply(IntSecret<T> yi) const;
-    [[nodiscard]] IntSecret<T> reconstruct() const;
-    [[nodiscard]] IntSecret<T> convertToBool() const;
-    [[nodiscard]] IntSecret<T> convertToArithmetic() const;
-    [[nodiscard]] BoolSecret compare(T yi) const;
-    [[nodiscard]] BoolSecret compare(IntSecret<T> yi) const;
+    [[nodiscard]] IntSecret share() const;
+    [[nodiscard]] IntSecret add(T yi) const;
+    [[nodiscard]] IntSecret add(IntSecret yi) const;
+    [[nodiscard]] IntSecret mul(T yi) const;
+    [[nodiscard]] IntSecret mul(IntSecret yi) const;
+    [[nodiscard]] IntSecret reconstruct() const;
+    [[nodiscard]] IntSecret convertToBool() const;
+    [[nodiscard]] IntSecret convertToArithmetic() const;
+    [[nodiscard]] BitSecret compare(T yi) const;
+    [[nodiscard]] BitSecret compare(IntSecret yi) const;
     [[nodiscard]] T get() const;
 
     // static methods for multiple usage
-    static IntSecret<T> share(T x);
-    static IntSecret<T> share(IntSecret<T> x);
-    static IntSecret<T> add(T xi, T yi);
-    static IntSecret<T> add(IntSecret<T> xi, IntSecret<T> yi);
-    static IntSecret<T> multiply(T xi, T yi);
-    static IntSecret<T> multiply(IntSecret<T> xi, IntSecret<T> yi);
-    static IntSecret<T> sum(const std::vector<T>& xis);
-    static IntSecret<T> sum(const std::vector<IntSecret<T>>& xis);
-    static IntSecret<T> sum(const std::vector<T>& xis, const std::vector<T>& yis);
-    static IntSecret<T> sum(const std::vector<IntSecret<T>>& xis, const std::vector<IntSecret<T>>& yis);
-    static IntSecret<T> product(const std::vector<T>& xis);
-    static IntSecret<T> product(const std::vector<IntSecret<T>>& xis);
-    static IntSecret<T> dot(const std::vector<T>& xis, const std::vector<T>& yis);
-    static IntSecret<T> dot(const std::vector<IntSecret<T>>& xis, const std::vector<IntSecret<T>>& yis);
+    static IntSecret share(T x);
+    static IntSecret share(IntSecret x);
+    static IntSecret add(T xi, T yi);
+    static IntSecret add(IntSecret xi, IntSecret yi);
+    static IntSecret mul(T xi, T yi);
+    static IntSecret mul(IntSecret xi, IntSecret yi);
+    static IntSecret sum(const std::vector<T>& xis);
+    static IntSecret sum(const std::vector<IntSecret>& xis);
+    static IntSecret sum(const std::vector<T>& xis, const std::vector<T>& yis);
+    static IntSecret sum(const std::vector<IntSecret>& xis, const std::vector<IntSecret>& yis);
+    static IntSecret product(const std::vector<T>& xis);
+    static IntSecret product(const std::vector<IntSecret>& xis);
+    static IntSecret dot(const std::vector<T>& xis, const std::vector<T>& yis);
+    static IntSecret dot(const std::vector<IntSecret>& xis, const std::vector<IntSecret>& yis);
 };
 
 #endif //MPC_PACKAGE_INTSECRET_H

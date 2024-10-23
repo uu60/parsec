@@ -4,13 +4,13 @@
 
 #ifndef MPC_PACKAGE_FIXEDTRIPLEGENERATOR_H
 #define MPC_PACKAGE_FIXEDTRIPLEGENERATOR_H
-#include "./AbstractMultiplicationTripleGenerator.h"
+#include "./AbstractTripleGenerator.h"
 #include <array>
 #include <utility>  // For std::pair
 #include <tuple>   // For std::tuple
 
 template<typename T>
-class FixedTripleGenerator : public AbstractMultiplicationTripleGenerator<T> {
+class FixedTripleGenerator : public AbstractTripleGenerator<T> {
 private:
     std::tuple<std::pair<T, T>, std::pair<T, T>, std::pair<T, T>> getRandomTriple(int idx);
 public:

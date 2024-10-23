@@ -9,14 +9,14 @@ find_package(OpenSSL REQUIRED)
 add_library(${PROJECT_NAME} SHARED
         src/utils/Math.cpp
         include/utils/Math.h
-        src/Executor.cpp
-        include/Executor.h
+        src/SecureExecutor.cpp
+        include/SecureExecutor.h
         src/utils/Log.cpp
         include/utils/Log.h
-        src/arithmetic/multiplication/AbstractMultiplicationShareExecutor.cpp
-        include/arithmetic/multiplication/AbstractMultiplicationShareExecutor.h
-        src/arithmetic/addition/AdditionShareExecutor.cpp
-        include/arithmetic/addition/AdditionShareExecutor.h
+        src/int/multiplication/AbstractMulExecutor.cpp
+        include/int/multiplication/AbstractMulExecutor.h
+        src/int/addition/AddExecutor.cpp
+        include/int/addition/AddExecutor.h
         src/ot/RsaOtExecutor.cpp
         include/ot/RsaOtExecutor.h
         src/utils/Mpi.cpp
@@ -25,41 +25,43 @@ add_library(${PROJECT_NAME} SHARED
         include/utils/Crypto.h
         src/utils/System.cpp
         include/utils/System.h
-        src/arithmetic/multiplication/RsaOtMultiplicationShareExecutor.cpp
-        include/arithmetic/multiplication/RsaOtMultiplicationShareExecutor.h
-        include/arithmetic/multiplication/FixedMultiplicationShareExecutor.h
-        src/arithmetic/multiplication/FixedMultiplicationShareExecutor.cpp
-        src/boolean/xor/XorShareExecutor.cpp
-        include/boolean/xor/XorShareExecutor.h
-        src/boolean/and/AbstractAndShareExecutor.cpp
-        include/boolean/and/AbstractAndShareExecutor.h
-        src/bmt/RsaOtTripleGenerator.cpp
-        include/bmt/RsaOtTripleGenerator.h
-        src/bmt/AbstractMultiplicationTripleGenerator.cpp
-        include/bmt/AbstractMultiplicationTripleGenerator.h
+        src/int/multiplication/RsaMulExecutor.cpp
+        include/int/multiplication/RsaMulExecutor.h
+        include/int/multiplication/FixedMulExecutor.h
+        src/int/multiplication/FixedMulExecutor.cpp
+        src/bit/xor/XorExecutor.cpp
+        include/bit/xor/XorExecutor.h
+        src/bit/and/AbstractAndExecutor.cpp
+        include/bit/and/AbstractAndExecutor.h
+        src/bmt/RsaTripleGenerator.cpp
+        include/bmt/RsaTripleGenerator.h
+        src/bmt/AbstractTripleGenerator.cpp
+        include/bmt/AbstractTripleGenerator.h
         src/bmt/FixedTripleGenerator.cpp
         include/bmt/FixedTripleGenerator.h
-        src/boolean/and/RsaOtAndShareExecutor.cpp
-        include/boolean/and/RsaOtAndShareExecutor.h
-        src/boolean/and/FixedAndShareExecutor.cpp
-        include/boolean/and/FixedAndShareExecutor.h
+        src/bit/and/RsaAndExecutor.cpp
+        include/bit/and/RsaAndExecutor.h
+        src/bit/and/FixedAndExecutor.cpp
+        include/bit/and/FixedAndExecutor.h
         src/comparison/ComparisonExecutor.cpp
         include/comparison/ComparisonExecutor.h
-        src/arithmetic/IntShareExecutor.cpp
-        include/arithmetic/IntShareExecutor.h
-        src/boolean/BoolShareExecutor.cpp
-        include/boolean/BoolShareExecutor.h
+        src/int/IntExecutor.cpp
+        include/int/IntExecutor.h
+        src/bit/BitExecutor.cpp
+        include/bit/BitExecutor.h
         src/api/Secret.cpp
         include/api/Secret.h
         src/api/IntSecret.cpp
         include/api/IntSecret.h
-        src/api/BoolSecret.cpp
-        include/api/BoolSecret.h
+        src/api/BitSecret.cpp
+        include/api/BitSecret.h
+        src/comparison/MultiplexExecutor.cpp
+        include/comparison/MultiplexExecutor.h
 )
 target_include_directories(${PROJECT_NAME} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>)
-#set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER "include/executor/arithmetic/AbstractAdditionShareExecutor.h;include/executor/Executor.h")
+#set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER "include/executor/int/AbstractAdditionShareExecutor.h;include/executor/Executor.h")
 
 # install libxx.so to ${CMAKE_INSTALL_PREFIX}/lib
 install(
