@@ -60,6 +60,7 @@ which will imports the package into your project.
    - Addition Share 
    - Comparison
    - Conversion between boolean and arithmetic
+   - Multiplex
 - Boolean Share:
   - And Share with **RSA OT BMT** or **pre-generated BMT**
   - XOR Share

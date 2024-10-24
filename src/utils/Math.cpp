@@ -8,28 +8,11 @@
 #include <limits>
 #include <iomanip>
 
-int Math::rand32() {
-    return rand32(-RAND_MAX - 1, RAND_MAX);
+int64_t Math::randInt() {
+    return randInt(std::numeric_limits<int64_t>::min(), std::numeric_limits<int64_t>::max());
 }
 
-int Math::rand32(int lowest, int highest) {
-    // random engine
-    std::random_device rd;
-    std::mt19937 generator(rd());
-
-    // distribution in integer range
-    std::uniform_int_distribution<int> distribution(lowest, highest);
-
-    // generation
-    return distribution(generator);
-}
-
-
-int64_t Math::rand64() {
-    return rand64(std::numeric_limits<int64_t>::min(), std::numeric_limits<int64_t>::max());
-}
-
-int64_t Math::rand64(int64_t lowest, int64_t highest) {
+int64_t Math::randInt(int64_t lowest, int64_t highest) {
     // random engine
     std::random_device rd;
     std::mt19937 generator(rd());
@@ -94,7 +77,7 @@ std::string Math::add(const std::string &add0, int64_t add1) {
     return result;
 }
 
-std::string Math::rand0b(int bytes) {
+std::string Math::randString(int bytes) {
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<int8_t> dis(-128, 127);
@@ -135,10 +118,6 @@ std::string Math::add(const std::string &add0, const std::string &add1, bool min
 int64_t Math::ring(int64_t num, int l) {
     int64_t ring = 1LL << l;
     return ((num % ring) + ring) % ring;
-}
-
-std::string Math::rand0b(int lowBytes, int highBytes) {
-    return Math::rand0b(Math::rand32(lowBytes, highBytes));
 }
 
 int Math::normL(int l) {

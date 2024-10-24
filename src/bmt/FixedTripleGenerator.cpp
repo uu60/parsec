@@ -13,7 +13,7 @@ template<typename T>
 FixedTripleGenerator<T> *FixedTripleGenerator<T>::execute(bool dummy) {
     int idx = 0;
     if (Mpi::rank() == 0) {
-        idx = Math::rand32(0, 99);
+        idx = Math::randInt(0, 99);
         Mpi::ssend(&idx);
     } else {
         Mpi::srecv(&idx);

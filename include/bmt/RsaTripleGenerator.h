@@ -11,7 +11,7 @@
 template<typename T>
 class RsaTripleGenerator : public AbstractTripleGenerator<T> {
 private:
-    const bool _boolType = std::is_same_v<T, bool> ? true : false;
+    const int _mask = (1 << this->_l) - 1;
     // benchmark
     int64_t _otRsaGenerationTime{};
     int64_t _otRsaEncryptionTime{};

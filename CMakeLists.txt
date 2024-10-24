@@ -43,8 +43,8 @@ add_library(${PROJECT_NAME} SHARED
         include/bit/and/RsaAndExecutor.h
         src/bit/and/FixedAndExecutor.cpp
         include/bit/and/FixedAndExecutor.h
-        src/comparison/ComparisonExecutor.cpp
-        include/comparison/ComparisonExecutor.h
+        src/int/comparison/CompareExecutor.cpp
+        include/int/comparison/CompareExecutor.h
         src/int/IntExecutor.cpp
         include/int/IntExecutor.h
         src/bit/BitExecutor.cpp
@@ -55,8 +55,8 @@ add_library(${PROJECT_NAME} SHARED
         include/api/IntSecret.h
         src/api/BitSecret.cpp
         include/api/BitSecret.h
-        src/comparison/MultiplexExecutor.cpp
-        include/comparison/MultiplexExecutor.h
+        src/int/comparison/MuxExecutor.cpp
+        include/int/comparison/MuxExecutor.h
 )
 target_include_directories(${PROJECT_NAME} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

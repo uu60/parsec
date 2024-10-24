@@ -29,7 +29,7 @@ protected:
 
     // for benchmark
     BenchmarkLevel _benchmarkLevel = BenchmarkLevel::NONE;
-    bool _isLogBenchmark = false;
+    bool _isLogBenchmark{};
     int64_t _mpiTime{};
     int64_t _entireComputationTime{};
 public:
@@ -52,8 +52,6 @@ public:
     [[nodiscard]] int64_t mpiTime() const;
 
     [[nodiscard]] int64_t entireComputationTime() const;
-
-    virtual ~SecureExecutor() = default;
 
 protected:
     [[nodiscard]] virtual std::string tag() const;

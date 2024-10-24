@@ -5,7 +5,8 @@
 #include "api/IntSecret.h"
 #include "int/IntExecutor.h"
 #include "int/multiplication/RsaMulExecutor.h"
-#include "comparison/ComparisonExecutor.h"
+#include "int/comparison/CompareExecutor.h"
+#include "int/comparison/MuxExecutor.h"
 
 template<typename T>
 IntSecret<T>::IntSecret(T x) {
@@ -39,12 +40,12 @@ IntSecret<T> IntSecret<T>::reconstruct() const {
 
 template<typename T>
 IntSecret<T> IntSecret<T>::share(T x) {
-    return IntSecret(IntExecutor<T>(x, true).zi());
+    return IntSecret(x).share();
 }
 
 template<typename T>
 IntSecret<T> IntSecret<T>::mul(T xi, T yi) {
-    return IntSecret(RsaMulExecutor<T>(xi, yi, false).execute(false)->result());
+    return IntSecret(xi).mul(yi);
 }
 
 template<typename T>
@@ -82,18 +83,18 @@ IntSecret<T> IntSecret<T>::sum(const std::vector<T> &xis, const std::vector<T> &
 
 template<typename T>
 IntSecret<T> IntSecret<T>::share(IntSecret<T> x) {
-    return share(x.get());
+    return x.share();
 }
 
 
 template<typename T>
 IntSecret<T> IntSecret<T>::add(IntSecret<T> xi, IntSecret<T> yi) {
-    return add(xi.get(), yi.get());
+    return xi.add(yi);
 }
 
 template<typename T>
 IntSecret<T> IntSecret<T>::mul(IntSecret<T> xi, IntSecret<T> yi) {
-    return mul(xi.get(), yi.get());
+    return xi.mul(yi);
 }
 
 template<typename T>
@@ -147,23 +148,53 @@ IntSecret<T> IntSecret<T>::dot(const std::vector<T> &xis, const std::vector<T> &
 }
 
 template<typename T>
-IntSecret<T> IntSecret<T>::convertToBool() const {
+IntSecret<T> IntSecret<T>::boolean() const {
     return IntSecret(IntExecutor<T>(_data, false).convertZiToBool()->zi());
 }
 
 template<typename T>
-IntSecret<T> IntSecret<T>::convertToArithmetic() const {
+IntSecret<T> IntSecret<T>::arithmetic() const {
     return IntSecret(IntExecutor<T>(_data, false).convertZiToArithmetic()->zi());
 }
 
 template<typename T>
 BitSecret IntSecret<T>::compare(T yi) const {
-    return BitSecret(ComparisonExecutor<T>(_data, yi, false).execute(false)->sign());
+    return BitSecret(CompareExecutor<T>(_data, yi, false).execute(false)->sign());
 }
 
 template<typename T>
 BitSecret IntSecret<T>::compare(IntSecret yi) const {
     return compare(yi.get());
+}
+
+template<typename T>
+IntSecret<T> IntSecret<T>::mux(T yi, T ci) const {
+    return IntSecret(MuxExecutor(_data, yi, ci).execute(false)->zi());
+}
+
+template<typename T>
+IntSecret<T> IntSecret<T>::mux(IntSecret yi, IntSecret ci) const {
+    return mux(yi.get(), ci.get());
+}
+
+template<typename T>
+BitSecret IntSecret<T>::compare(T xi, T yi) {
+    return IntSecret(xi).compare(yi);
+}
+
+template<typename T>
+BitSecret IntSecret<T>::compare(IntSecret xi, IntSecret yi) {
+    return xi.compare(yi);
+}
+
+template<typename T>
+IntSecret<T> IntSecret<T>::mux(T xi, T yi, T ci) {
+    return IntSecret(xi).mux(yi, ci);
+}
+
+template<typename T>
+IntSecret<T> IntSecret<T>::mux(IntSecret xi, IntSecret yi, IntSecret ci) {
+    return xi.mux(yi, ci);
 }
 
 template

@@ -12,13 +12,8 @@ RsaTripleGenerator<T>::RsaTripleGenerator() = default;
 
 template<typename T>
 void RsaTripleGenerator<T>::generateRandomAB() {
-    if (_boolType) {
-        this->_ai = Math::rand32(0, 1);
-        this->_bi = Math::rand32(0, 1);
-        return;
-    }
-    this->_ai = Math::rand64();
-    this->_bi = Math::rand64();
+    this->_ai = Math::randInt() & this->_mask;
+    this->_bi = Math::randInt() & this->_mask;
 }
 
 template<typename T>
@@ -33,10 +28,7 @@ void RsaTripleGenerator<T>::computeV() {
 
 template<typename T>
 T RsaTripleGenerator<T>::corr(int i, T x) const {
-    if (_boolType) {
-        return ((this->_ai << i) - x) & 1;
-    }
-    return (this->_ai << i) - x;
+    return ((this->_ai << i) - x) & this->_mask;
 }
 
 template<typename T>
@@ -47,7 +39,7 @@ void RsaTripleGenerator<T>::computeMix(int sender, T &mix) {
         T s0 = 0, s1 = 0;
         int choice = 0;
         if (isSender) {
-            s0 = _boolType ? Math::rand32(0, 1) : Math::rand64();
+            s0 = Math::randInt(0, 1) & this->_mask;
             s1 = corr(i, s0);
         } else {
             choice = (int) ((this->_bi >> i) & 1);
@@ -70,13 +62,13 @@ void RsaTripleGenerator<T>::computeMix(int sender, T &mix) {
         }
 
         if (isSender) {
-            sum = _boolType ? sum ^ s0 : sum + s0;
+            sum = sum + s0;
         } else {
             T temp = r.result();
             if (choice == 0) {
-                temp = _boolType ? temp : -temp;
+                temp = (-temp) & this->_mask;
             }
-            sum = _boolType ? sum ^ temp : sum + temp;
+            sum = sum + temp;
         }
     }
     mix = sum;
@@ -84,7 +76,7 @@ void RsaTripleGenerator<T>::computeMix(int sender, T &mix) {
 
 template<typename T>
 void RsaTripleGenerator<T>::computeC() {
-    if (_boolType) {
+    if (this->_l == 1) {
         this->_ci = this->_ai & this->_bi ^ this->_ui ^ this->_vi;
         return;
     }

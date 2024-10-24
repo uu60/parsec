@@ -14,13 +14,12 @@ IntExecutor<T>::IntExecutor(T z, bool share) {
         bool detailed = this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED;
         // distribute operator
         if (Mpi::isClient()) {
-            T z1 = Math::rand64();
+            T z1 = Math::randInt();
             T z0 = z - z1;
             Mpi::send(&z0, 0, this->_mpiTime, detailed);
             Mpi::send(&z1, 1, this->_mpiTime, detailed);
         } else {
             // operator
-            Mpi::recv(&this->_zi, Mpi::CLIENT_RANK, this->_mpiTime, detailed);
             Mpi::recv(&this->_zi, Mpi::CLIENT_RANK, this->_mpiTime, detailed);
         }
     } else {
@@ -34,9 +33,9 @@ IntExecutor<T>::IntExecutor(T x, T y, bool share) {
         bool detailed = this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED;
         // distribute operator
         if (Mpi::isClient()) {
-            T x1 = Math::rand64();
+            T x1 = Math::randInt();
             T x0 = x - x1;
-            T y1 = Math::rand64();
+            T y1 = Math::randInt();
             T y0 = y - y1;
             Mpi::send(&x0, 0, this->_mpiTime, detailed);
             Mpi::send(&y0, 0, this->_mpiTime, detailed);
@@ -82,7 +81,7 @@ IntExecutor<T> *IntExecutor<T>::convertZiToBool() {
     if (Mpi::isServer()) {
         // bitwise separate zi
         // zi is xor shared into zi_i and zi_o
-        T zi_i = Math::rand64();
+        T zi_i = Math::randInt();
         T zi_o = zi_i ^ this->_zi;
         this->_zi = 0;
         bool carry_i = false;
@@ -121,7 +120,7 @@ IntExecutor<T> *IntExecutor<T>::convertZiToArithmetic() {
             T s0 = 0, s1 = 0;
             int64_t r = 0;
             if (Mpi::rank() == sender) { // Sender
-                r = Math::rand64() & ((1l << this->_l) - 1);
+                r = Math::randInt() & ((1l << this->_l) - 1);
                 s0 = (xb << i) - r;
                 s1 = ((1 - xb) << i) - r;
             }

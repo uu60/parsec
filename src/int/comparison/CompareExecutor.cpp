@@ -2,19 +2,19 @@
 // Created by 杜建璋 on 2024/9/2.
 //
 
-#include "comparison/ComparisonExecutor.h"
+#include "int/comparison/CompareExecutor.h"
 #include "utils/Mpi.h"
 
 template<typename T>
-ComparisonExecutor<T>::ComparisonExecutor(T z, bool share) : IntExecutor<T>(z, share) {}
+CompareExecutor<T>::CompareExecutor(T z, bool share) : IntExecutor<T>(z, share) {}
 
 template<typename T>
-ComparisonExecutor<T>::ComparisonExecutor(T x, T y, bool share) : IntExecutor<T>(x, y, share) {
+CompareExecutor<T>::CompareExecutor(T x, T y, bool share) : IntExecutor<T>(x, y, share) {
     this->_zi = this->_xi - this->_yi;
 }
 
 template<typename T>
-ComparisonExecutor<T> *ComparisonExecutor<T>::execute(bool reconstruct) {
+CompareExecutor<T> *CompareExecutor<T>::execute(bool reconstruct) {
     if (Mpi::isServer()) {
         this->convertZiToBool();
         this->_sign = this->_zi < 0;
@@ -26,7 +26,7 @@ ComparisonExecutor<T> *ComparisonExecutor<T>::execute(bool reconstruct) {
 }
 
 template<typename T>
-ComparisonExecutor<T> *ComparisonExecutor<T>::reconstruct() {
+CompareExecutor<T> *CompareExecutor<T>::reconstruct() {
     bool detailed = this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED;
     if (Mpi::isServer()) {
         Mpi::send(&this->_sign, Mpi::CLIENT_RANK, this->_mpiTime, detailed);
@@ -40,16 +40,16 @@ ComparisonExecutor<T> *ComparisonExecutor<T>::reconstruct() {
 }
 
 template<typename T>
-std::string ComparisonExecutor<T>::tag() const {
+std::string CompareExecutor<T>::tag() const {
     return "[Comparison]";
 }
 
 template<typename T>
-bool ComparisonExecutor<T>::sign() {
+bool CompareExecutor<T>::sign() {
     return _sign;
 }
 
-template class ComparisonExecutor<int8_t>;
-template class ComparisonExecutor<int16_t>;
-template class ComparisonExecutor<int32_t>;
-template class ComparisonExecutor<int64_t>;
+template class CompareExecutor<int8_t>;
+template class CompareExecutor<int16_t>;
+template class CompareExecutor<int32_t>;
+template class CompareExecutor<int64_t>;

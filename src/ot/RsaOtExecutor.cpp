@@ -78,10 +78,10 @@ void RsaOtExecutor<T>::generateAndShareRsaKeys() {
 template<typename T>
 void RsaOtExecutor<T>::generateAndShareRandoms() {
     // 11 for PKCS#1 v1.5 padding
-    int maxLen = (_bits >> 3) - 11;
+    int len = (_bits >> 3) - 11;
     if (_isSender) {
-        _rand0 = Math::rand0b(1, maxLen);
-        _rand1 = Math::rand0b(1, maxLen);
+        _rand0 = Math::randString(len);
+        _rand1 = Math::randString(len);
         if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
             Mpi::ssend(&_rand0, this->_mpiTime);
             Mpi::ssend(&_rand1, this->_mpiTime);
@@ -90,7 +90,7 @@ void RsaOtExecutor<T>::generateAndShareRandoms() {
             Mpi::ssend(&_rand1);
         }
     } else {
-        _randK = Math::rand0b(1, maxLen);
+        _randK = Math::randString(len);
         if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
             Mpi::srecv(&_rand0, this->_mpiTime);
             Mpi::srecv(&_rand1, this->_mpiTime);

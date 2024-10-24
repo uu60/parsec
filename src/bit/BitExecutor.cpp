@@ -9,14 +9,13 @@
 BitExecutor::BitExecutor(bool z, bool share) {
     if (share) {
         bool detailed = _benchmarkLevel == BenchmarkLevel::DETAILED;
-        if (!Mpi::isServer()) {
-            bool z1 = Math::rand32(0, 1);
+        if (Mpi::isClient()) {
+            bool z1 = Math::randInt(0, 1);
             bool z0 = z ^ z1;
             Mpi::send(&z0, 0, _mpiTime, detailed);
             Mpi::send(&z1, 1, _mpiTime, detailed);
         } else {
             // operator
-            Mpi::recv(&_zi, Mpi::CLIENT_RANK, _mpiTime, detailed);
             Mpi::recv(&_zi, Mpi::CLIENT_RANK, _mpiTime, detailed);
         }
     } else {
@@ -28,9 +27,9 @@ BitExecutor::BitExecutor(bool x, bool y, bool share) {
     if (share) {
         bool detailed = _benchmarkLevel == BenchmarkLevel::DETAILED;
         if (!Mpi::isServer()) {
-            bool x1 = Math::rand32(0, 1);
+            bool x1 = Math::randInt(0, 1);
             bool x0 = x1 ^ x;
-            bool y1 = Math::rand32(0, 1);
+            bool y1 = Math::randInt(0, 1);
             bool y0 = y1 ^ y;
             Mpi::send(&x0, 0, _mpiTime, detailed);
             Mpi::send(&y0, 0, _mpiTime, detailed);
