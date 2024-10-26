@@ -8,18 +8,18 @@ cd ../
 demo_dir="$PWD/demo"
 
 for host in "${hosts[@]}"; do
-    if [ "$host" = "${hosts[${#hosts[@]} - 1]}" ]; then
-      ssh "$host" "rm -rf ~/$(basename "$dir_to_upload") ~/demo"
-      scp -r "$dir_to_upload" "$host:~/"
-      scp -r "$demo_dir" "$host:~/"
-      ssh "$host" "export PATH=/usr/local/openmpi/bin:\$PATH && export LD_LIBRARY_PATH=/usr/local/openmpi/lib:\$LD_LIBRARY_PATH && cd ~/demo && sh ../mpc-package/shell_scripts/install.sh && cmake . && make"
-    else
-      ssh "$host" "rm -rf ~/$(basename "$dir_to_upload") ~/demo"
-            scp -r "$dir_to_upload" "$host:~/"
-            scp -r "$demo_dir" "$host:~/"
-            ssh "$host" "export PATH=/usr/local/openmpi/bin:\$PATH && export LD_LIBRARY_PATH=/usr/local/openmpi/lib:\$LD_LIBRARY_PATH && cd ~/demo && sh ../mpc-package/shell_scripts/install.sh && cmake . && make"
+    ssh "$host" "rm -rf ~/$(basename "$dir_to_upload") ~/demo"
 
+    if [ "$host" = "${hosts[0]}" ]; then
+      rsync -av --exclude '*_1.h' "$dir_to_upload" "$host:~/"
+    elif [ "$host" = "${hosts[1]}" ]; then
+      rsync -av --exclude '*_0.h' "$dir_to_upload" "$host:~/"
+    else
+      rsync -av "$dir_to_upload" "$host:~/"
     fi
+    scp -r "$demo_dir" "$host:~/"
+
+    ssh "$host" "export PATH=/usr/local/openmpi/bin:\$PATH && export LD_LIBRARY_PATH=/usr/local/openmpi/lib:\$LD_LIBRARY_PATH && cd ~/demo && sh ../mpc-package/shell_scripts/install.sh && cmake . && make"
 done
 echo "DONE"
 echo "Please run 'mpirun -np 3 -hostfile ../hostfile.txt demo -case 5' on a client."

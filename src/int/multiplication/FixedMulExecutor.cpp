@@ -4,7 +4,7 @@
 
 #include "int/multiplication/FixedMulExecutor.h"
 #include "bmt/FixedTripleGenerator.h"
-#include "utils/Mpi.h"
+#include "utils/Comm.h"
 
 template<typename T>
 FixedMulExecutor<T>::FixedMulExecutor(T z, bool share) : AbstractMulExecutor<T>(z, share) {}

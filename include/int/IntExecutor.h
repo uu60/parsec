@@ -6,6 +6,7 @@
 #define MPC_PACKAGE_INTSHAREEXECUTOR_H
 
 #include "../SecureExecutor.h"
+#include <utility>
 
 template<typename T>
 class IntExecutor : public SecureExecutor<T> {
@@ -20,14 +21,22 @@ public:
 
     IntExecutor *reconstruct() override;
 
-    // Do not use the following methods!
-    IntExecutor *execute(bool reconstruct) override;
-
-    [[nodiscard]] std::string tag() const override;
-
     IntExecutor *convertZiToBool();
 
-    IntExecutor *convertZiToArithmetic();
+    IntExecutor *convertZiToArithmetic(bool ot);
+
+    // DO NOT USE
+    IntExecutor *execute(bool reconstruct) override;
+
+    // DO NOT USE
+    [[nodiscard]] std::string tag() const override;
+
+private:
+    void doConvertByOt();
+
+    void doConvertByFixedRand();
+
+    std::pair<T, T> getPair(int idx);
 };
 
 

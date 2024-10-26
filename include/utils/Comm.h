@@ -2,8 +2,8 @@
 // Created by 杜建璋 on 2024/7/15.
 //
 
-#ifndef MPC_PACKAGE_MPI_H
-#define MPC_PACKAGE_MPI_H
+#ifndef MPC_PACKAGE_COMM_H
+#define MPC_PACKAGE_COMM_H
 #include <string>
 
 /**
@@ -11,7 +11,7 @@
  * The task publisher must be rank of 2.
  * Attention: Currently, there is no restriction in this util class.
  */
-class Mpi {
+class Comm {
 public:
     static const int CLIENT_RANK;
 private:
@@ -135,4 +135,4 @@ public:
 };
 
 
-#endif //MPC_PACKAGE_MPI_H
+#endif //MPC_PACKAGE_COMM_H

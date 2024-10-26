@@ -12,15 +12,20 @@ def rand(bits):
     return random.randint(- (1 << (bits - 1)), (1 << (bits - 1)) - 1)
 
 def format_triplets_for_cpp(bits):
-    formatted_triplets = []
+    formatted_triplets_0 = []
+    formatted_triplets_1 = []
     for i in range(100):
         a1, a2 = rand(bits), rand(bits)
         b1, b2 = rand(bits), rand(bits)
         r = rand(bits)
         c = to_signed(bits, to_signed(bits, a1 + a2) * to_signed(bits, b1 + b2))
         r1, r2 = to_signed(bits, r), to_signed(bits, c - r)
-        formatted_triplets.append(f"{{{{{a1}, {a2}}}, {{{b1}, {b2}}}, {{{r1}, {r2}}}}}")
-    return f"{{{{{', '.join(formatted_triplets)}}}}}"
+        if f"{{{a1}, {b1}, {r1}}}" not in formatted_triplets_0:
+            formatted_triplets_0.append(f"{{{a1}, {b1}, {r1}}}")
+            formatted_triplets_1.append(f"{{{a2}, {b2}, {r2}}}")
+
+    print(len(formatted_triplets_0))
+    return f"{{{{{', '.join(formatted_triplets_0)}}}}}" + f"\n{{{{{', '.join(formatted_triplets_1)}}}}}"
 
 
 if __name__ == '__main__':

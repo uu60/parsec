@@ -3,7 +3,7 @@
 //
 
 #include "int/multiplication/AbstractMulExecutor.h"
-#include "utils/Mpi.h"
+#include "utils/Comm.h"
 #include "utils/Math.h"
 #include "utils/Log.h"
 
@@ -19,7 +19,7 @@ AbstractMulExecutor<T>* AbstractMulExecutor<T>::execute(bool reconstruct) {
     if (this->_benchmarkLevel >= SecureExecutor<T>::BenchmarkLevel::GENERAL) {
         start = System::currentTimeMillis();
     }
-    if (Mpi::isServer()) {
+    if (Comm::isServer()) {
         // MT
         obtainMultiplicationTriple();
         if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
@@ -49,15 +49,15 @@ AbstractMulExecutor<T>* AbstractMulExecutor<T>::execute(bool reconstruct) {
 template<typename T>
 void AbstractMulExecutor<T>::process(bool reconstruct) {
     bool detailed = this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED;
-    if (Mpi::isServer()) {
+    if (Comm::isServer()) {
         T ei = this->_xi - _ai;
         T fi = this->_yi - _bi;
         T eo, fo;
-        Mpi::sexch(&ei, &eo, this->_mpiTime, detailed);
-        Mpi::sexch(&fi, &fo, this->_mpiTime, detailed);
+        Comm::sexch(&ei, &eo, this->_mpiTime, detailed);
+        Comm::sexch(&fi, &fo, this->_mpiTime, detailed);
         T e = ei + eo;
         T f = fi + fo;
-        this->_zi = Mpi::rank() * e * f + f * _ai + e * _bi + _ci;
+        this->_zi = Comm::rank() * e * f + f * _ai + e * _bi + _ci;
         this->_result = this->_zi;
     }
     if (reconstruct) {

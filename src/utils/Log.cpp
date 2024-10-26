@@ -4,7 +4,7 @@
 
 #include <iostream>
 #include "utils/Log.h"
-#include "utils/Mpi.h"
+#include "utils/Comm.h"
 #include <iomanip>
 #include <sstream>
 #include <unistd.h>
@@ -53,7 +53,7 @@ void Log::print(const std::string& level, const std::string& msg) {
 
     std::cout << "[" << HOSTNAME + ":" + std::to_string(getpid()) << "] "
               << "[" << getCurrentTimestampStr() << "] "
-              << "[" + std::to_string(Mpi::rank()) + "] "
+              << "[" + std::to_string(Comm::rank()) + "] "
               << "[" << std::setw(5) << level << "] "
               << msg << std::endl;
 }

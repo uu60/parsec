@@ -5,7 +5,7 @@
 #ifndef MPC_PACKAGE_SECRET_H
 #define MPC_PACKAGE_SECRET_H
 #include <iostream>
-#include "../utils/Mpi.h"
+#include "../utils/Comm.h"
 #include "../utils/Math.h"
 
 // Secret class provides with a simpler method to use this package

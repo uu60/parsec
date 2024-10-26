@@ -3,7 +3,7 @@
 //
 
 #include "ot/RsaOtExecutor.h"
-#include "utils/Mpi.h"
+#include "utils/Comm.h"
 #include "utils/Math.h"
 #include "utils/Crypto.h"
 
@@ -15,7 +15,7 @@ RsaOtExecutor<T>::RsaOtExecutor(int sender, T m0, T m1, int i)
 template<typename T>
 RsaOtExecutor<T>::RsaOtExecutor(int bits, int sender, T m0, T m1, int i) {
     _bits = bits;
-    _isSender = sender == Mpi::rank();
+    _isSender = sender == Comm::rank();
     if (_isSender) {
         _m0 = m0;
         _m1 = m1;
@@ -61,17 +61,17 @@ void RsaOtExecutor<T>::generateAndShareRsaKeys() {
                 Log::i(tag() + " RSA keys generation time: " + std::to_string(end - start) + " ms.");
             }
             _rsaGenerationTime = end - start;
-            Mpi::ssend(&_pub, this->_mpiTime);
+            Comm::ssend(&_pub, this->_mpiTime);
         } else {
-            Mpi::ssend(&_pub);
+            Comm::ssend(&_pub);
         }
         return;
     }
     // receiver
     if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
-        Mpi::srecv(&_pub, this->_mpiTime);
+        Comm::srecv(&_pub, this->_mpiTime);
     } else {
-        Mpi::srecv(&_pub);
+        Comm::srecv(&_pub);
     }
 }
 
@@ -83,20 +83,20 @@ void RsaOtExecutor<T>::generateAndShareRandoms() {
         _rand0 = Math::randString(len);
         _rand1 = Math::randString(len);
         if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
-            Mpi::ssend(&_rand0, this->_mpiTime);
-            Mpi::ssend(&_rand1, this->_mpiTime);
+            Comm::ssend(&_rand0, this->_mpiTime);
+            Comm::ssend(&_rand1, this->_mpiTime);
         } else {
-            Mpi::ssend(&_rand0);
-            Mpi::ssend(&_rand1);
+            Comm::ssend(&_rand0);
+            Comm::ssend(&_rand1);
         }
     } else {
         _randK = Math::randString(len);
         if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
-            Mpi::srecv(&_rand0, this->_mpiTime);
-            Mpi::srecv(&_rand1, this->_mpiTime);
+            Comm::srecv(&_rand0, this->_mpiTime);
+            Comm::srecv(&_rand1, this->_mpiTime);
         } else {
-            Mpi::srecv(&_rand0);
-            Mpi::srecv(&_rand1);
+            Comm::srecv(&_rand0);
+            Comm::srecv(&_rand1);
         }
     }
 }
@@ -118,27 +118,27 @@ void RsaOtExecutor<T>::process() {
         }
         std::string sumStr = Math::add(ek, _i == 0 ? _rand0 : _rand1);
         if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
-            Mpi::ssend(&sumStr, this->_mpiTime);
+            Comm::ssend(&sumStr, this->_mpiTime);
         } else {
-            Mpi::ssend(&sumStr);
+            Comm::ssend(&sumStr);
         }
 
         std::string m0, m1;
         if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
-            Mpi::srecv(&m0);
-            Mpi::srecv(&m1);
+            Comm::srecv(&m0);
+            Comm::srecv(&m1);
         } else {
-            Mpi::srecv(&m0, this->_mpiTime);
-            Mpi::srecv(&m1, this->_mpiTime);
+            Comm::srecv(&m0, this->_mpiTime);
+            Comm::srecv(&m1, this->_mpiTime);
         }
 
         this->_result = std::stoll(Math::minus(_i == 0 ? m0 : m1, _randK));
     } else {
         std::string sumStr;
         if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
-            Mpi::srecv(&sumStr, this->_mpiTime);
+            Comm::srecv(&sumStr, this->_mpiTime);
         } else {
-            Mpi::srecv(&sumStr);
+            Comm::srecv(&sumStr);
         }
         int64_t start, end;
         if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
@@ -160,11 +160,11 @@ void RsaOtExecutor<T>::process() {
         std::string m0 = Math::add(std::to_string(_m0), k0);
         std::string m1 = Math::add(std::to_string(_m1), k1);
         if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
-            Mpi::ssend(&m0, this->_mpiTime);
-            Mpi::ssend(&m1, this->_mpiTime);
+            Comm::ssend(&m0, this->_mpiTime);
+            Comm::ssend(&m1, this->_mpiTime);
         } else {
-            Mpi::ssend(&m0);
-            Mpi::ssend(&m1);
+            Comm::ssend(&m0);
+            Comm::ssend(&m1);
         }
     }
 }

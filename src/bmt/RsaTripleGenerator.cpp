@@ -5,7 +5,7 @@
 #include "bmt/RsaTripleGenerator.h"
 #include "ot/RsaOtExecutor.h"
 #include "utils/Math.h"
-#include "utils/Mpi.h"
+#include "utils/Comm.h"
 
 template<typename T>
 RsaTripleGenerator<T>::RsaTripleGenerator() = default;
@@ -33,7 +33,7 @@ T RsaTripleGenerator<T>::corr(int i, T x) const {
 
 template<typename T>
 void RsaTripleGenerator<T>::computeMix(int sender, T &mix) {
-    bool isSender = Mpi::rank() == sender;
+    bool isSender = Comm::rank() == sender;
     T sum = 0;
     for (int i = 0; i < this->_l; i++) {
         T s0 = 0, s1 = 0;

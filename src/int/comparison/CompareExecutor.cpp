@@ -3,7 +3,7 @@
 //
 
 #include "int/comparison/CompareExecutor.h"
-#include "utils/Mpi.h"
+#include "utils/Comm.h"
 
 template<typename T>
 CompareExecutor<T>::CompareExecutor(T z, bool share) : IntExecutor<T>(z, share) {}
@@ -15,7 +15,7 @@ CompareExecutor<T>::CompareExecutor(T x, T y, bool share) : IntExecutor<T>(x, y,
 
 template<typename T>
 CompareExecutor<T> *CompareExecutor<T>::execute(bool reconstruct) {
-    if (Mpi::isServer()) {
+    if (Comm::isServer()) {
         this->convertZiToBool();
         this->_sign = this->_zi < 0;
     }
@@ -28,12 +28,12 @@ CompareExecutor<T> *CompareExecutor<T>::execute(bool reconstruct) {
 template<typename T>
 CompareExecutor<T> *CompareExecutor<T>::reconstruct() {
     bool detailed = this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED;
-    if (Mpi::isServer()) {
-        Mpi::send(&this->_sign, Mpi::CLIENT_RANK, this->_mpiTime, detailed);
+    if (Comm::isServer()) {
+        Comm::send(&this->_sign, Comm::CLIENT_RANK, this->_mpiTime, detailed);
     } else {
         bool sign0, sign1;
-        Mpi::recv(&sign0, 0, this->_mpiTime, detailed);
-        Mpi::recv(&sign1, 1, this->_mpiTime, detailed);
+        Comm::recv(&sign0, 0, this->_mpiTime, detailed);
+        Comm::recv(&sign1, 1, this->_mpiTime, detailed);
         this->_result = sign0 ^ sign1;
     }
     return this;

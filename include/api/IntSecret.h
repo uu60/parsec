@@ -6,7 +6,7 @@
 #define MPC_PACKAGE_INTSECRET_H
 
 #include "./Secret.h"
-#include "../utils/Mpi.h"
+#include "../utils/Comm.h"
 #include "./BitSecret.h"
 #include <vector>
 

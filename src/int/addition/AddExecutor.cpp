@@ -3,7 +3,7 @@
 //
 
 #include "int/addition/AddExecutor.h"
-#include "utils/Mpi.h"
+#include "utils/Comm.h"
 #include "utils/System.h"
 #include <limits>
 
@@ -21,7 +21,7 @@ AddExecutor<T> *AddExecutor<T>::execute(bool reconstruct) {
     if (this->_benchmarkLevel >= SecureExecutor<T>::BenchmarkLevel::GENERAL) {
         start = System::currentTimeMillis();
     }
-    if (Mpi::isServer()) {
+    if (Comm::isServer()) {
         this->_zi = this->_xi + this->_yi;
         this->_result = this->_zi;
     }
@@ -33,7 +33,7 @@ AddExecutor<T> *AddExecutor<T>::execute(bool reconstruct) {
         if (this->_isLogBenchmark) {
             if (detailed) {
                 Log::i(tag(),
-                       "Mpi synchronization and transmission time: " + std::to_string(this->_mpiTime) + " ms.");
+                       "Comm synchronization and transmission time: " + std::to_string(this->_mpiTime) + " ms.");
             }
             Log::i(tag(), "Entire computation time: " + std::to_string(this->_entireComputationTime) + " ms.");
         }

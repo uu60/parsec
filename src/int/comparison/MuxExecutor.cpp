@@ -5,8 +5,7 @@
 #include "int/comparison/MuxExecutor.h"
 #include "int/addition/AddExecutor.h"
 #include "int/multiplication/RsaMulExecutor.h"
-#include "bit/BitExecutor.h"
-#include "utils/Mpi.h"
+#include "utils/Comm.h"
 template<typename T>
 MuxExecutor<T>::MuxExecutor(T x, T y, bool c) : IntExecutor<T>(x, y, true) {
     _ci = IntExecutor<T>(c, true).zi();
@@ -19,11 +18,10 @@ MuxExecutor<T>::MuxExecutor(T xi, T yi, T ci) : IntExecutor<T>(xi, yi, false) {
 
 template<typename T>
 MuxExecutor<T> *MuxExecutor<T>::execute(bool reconstruct) {
-    if (Mpi::isServer()) {
+    if (Comm::isServer()) {
         T cx = RsaMulExecutor(_ci, this->_xi, false).execute(false)->zi();
-        T n_cy = -RsaMulExecutor(_ci, this->_yi, false).execute(false)->zi();
-        T temp = AddExecutor(cx, this->_yi, false).execute(false)->zi();
-        this->_zi = AddExecutor(temp, n_cy, false).execute(false)->zi();
+        T cy = RsaMulExecutor(_ci, this->_yi, false).execute(false)->zi();
+        this->_zi = cx + this->_yi - cy;
     }
     if (reconstruct) {
         this->reconstruct();

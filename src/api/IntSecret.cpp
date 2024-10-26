@@ -154,7 +154,7 @@ IntSecret<T> IntSecret<T>::boolean() const {
 
 template<typename T>
 IntSecret<T> IntSecret<T>::arithmetic() const {
-    return IntSecret(IntExecutor<T>(_data, false).convertZiToArithmetic()->zi());
+    return IntSecret(IntExecutor<T>(_data, false).convertZiToArithmetic(true)->zi());
 }
 
 template<typename T>

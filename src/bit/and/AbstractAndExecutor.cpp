@@ -3,7 +3,7 @@
 //
 
 #include "bit/and/AbstractAndExecutor.h"
-#include "utils/Mpi.h"
+#include "utils/Comm.h"
 
 AbstractAndExecutor::AbstractAndExecutor(bool z, bool share) : BitExecutor(z, share) {}
 
@@ -15,7 +15,7 @@ AbstractAndExecutor* AbstractAndExecutor::execute(bool reconstruct) {
     if (_benchmarkLevel >= BenchmarkLevel::GENERAL) {
         start = System::currentTimeMillis();
     }
-    if (Mpi::isServer()) {
+    if (Comm::isServer()) {
         obtainMultiplicationTriple();
         if (_benchmarkLevel == BenchmarkLevel::DETAILED) {
             end = System::currentTimeMillis();
@@ -47,15 +47,15 @@ void AbstractAndExecutor::process(bool reconstruct) {
      * RsaOtMultiplicationShareExecution.cpp
      * */
     bool detailed = _benchmarkLevel == BenchmarkLevel::DETAILED;
-    if (Mpi::isServer()) {
+    if (Comm::isServer()) {
         bool ei = _ai ^ _xi;
         bool fi = _bi ^ _yi;
         bool eo, fo;
-        Mpi::sexch(&ei, &eo, _mpiTime, detailed);
-        Mpi::sexch(&fi, &fo, _mpiTime, detailed);
+        Comm::sexch(&ei, &eo, _mpiTime, detailed);
+        Comm::sexch(&fi, &fo, _mpiTime, detailed);
         bool e = ei ^ eo;
         bool f = fi ^ fo;
-        _zi = Mpi::rank() * e * f ^ f * _ai ^ e * _bi ^ _ci;
+        _zi = Comm::rank() * e * f ^ f * _ai ^ e * _bi ^ _ci;
         _result = _zi;
     }
     if (reconstruct) {

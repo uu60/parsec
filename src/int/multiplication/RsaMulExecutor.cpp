@@ -3,7 +3,7 @@
 //
 
 #include "int/multiplication/RsaMulExecutor.h"
-#include "utils/Mpi.h"
+#include "utils/Comm.h"
 #include "bmt/RsaTripleGenerator.h"
 
 template<typename T>

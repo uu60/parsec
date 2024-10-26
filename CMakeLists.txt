@@ -19,8 +19,8 @@ add_library(${PROJECT_NAME} SHARED
         include/int/addition/AddExecutor.h
         src/ot/RsaOtExecutor.cpp
         include/ot/RsaOtExecutor.h
-        src/utils/Mpi.cpp
-        include/utils/Mpi.h
+        src/utils/Comm.cpp
+        include/utils/Comm.h
         src/utils/Crypto.cpp
         include/utils/Crypto.h
         src/utils/System.cpp
@@ -58,6 +58,18 @@ add_library(${PROJECT_NAME} SHARED
         src/int/comparison/MuxExecutor.cpp
         include/int/comparison/MuxExecutor.h
 )
+if (EXISTS "include/bmt/fixed_triples_0.h")
+    add_library(${PROJECT_NAME} SHARED
+            include/bmt/fixed_triples_0.h
+            include/int/fixed_ab_pairs_0.h
+    )
+endif ()
+if (EXISTS "include/bmt/fixed_triples_1.h")
+    add_library(${PROJECT_NAME} SHARED
+            include/bmt/fixed_triples_1.h
+            include/int/fixed_ab_pairs_1.h
+    )
+endif ()
 target_include_directories(${PROJECT_NAME} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>)

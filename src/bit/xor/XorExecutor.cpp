@@ -3,7 +3,7 @@
 //
 
 #include "bit/xor/XorExecutor.h"
-#include "utils/Mpi.h"
+#include "utils/Comm.h"
 
 XorExecutor::XorExecutor(bool z, bool share) : BitExecutor(z, share) {}
 
@@ -12,7 +12,7 @@ XorExecutor::XorExecutor(bool x, bool y, bool share) : BitExecutor(x, y, share) 
 XorExecutor* XorExecutor::execute(bool reconstruct) {
     bool detailed = _benchmarkLevel == BenchmarkLevel::DETAILED;
     int64_t start = System::currentTimeMillis();
-    if (Mpi::isServer()) {
+    if (Comm::isServer()) {
         _zi = _xi ^ _yi;
         _result = _zi;
     }
@@ -24,7 +24,7 @@ XorExecutor* XorExecutor::execute(bool reconstruct) {
         if (_isLogBenchmark) {
             if (detailed) {
                 Log::i(tag(),
-                       "Mpi synchronization and transmission time: " + std::to_string(_mpiTime) + " ms.");
+                       "Comm synchronization and transmission time: " + std::to_string(_mpiTime) + " ms.");
             }
             Log::i(tag(), "Entire computation time: " + std::to_string(_entireComputationTime) + " ms.");
         }
