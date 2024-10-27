@@ -6,8 +6,6 @@
 #define MPC_PACKAGE_MATH_H
 
 #include <string>
-#include <openssl/bn.h>
-#include <openssl/evp.h>
 
 class Math {
 public:
@@ -34,18 +32,6 @@ public:
     // constraint l
     static int normL(int l);
 
-private:
-    // str as binary to bignum. "1" -> 49
-    static BIGNUM *bignum(const std::string &str);
-
-    static BIGNUM *bignum(const std::string &str, bool positive);
-
-    // bignum as binary to str. 49 -> 1
-    static std::string string(BIGNUM *bn);
-
-    static BIGNUM *add(BIGNUM *add0, int64_t add1);
-
-    static std::string add(const std::string &add0, const std::string &add1, bool minus);
 };
 
 

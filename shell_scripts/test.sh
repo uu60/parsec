@@ -5,21 +5,23 @@ cd "$(dirname $(readlink -f "$0"))"
 cd ../
 dir_to_upload="$PWD"
 cd ../
-demo_dir="$PWD/demo"
+demo_dir="$PWD/SMPC_database"
 
 for host in "${hosts[@]}"; do
-    ssh "$host" "rm -rf ~/$(basename "$dir_to_upload") ~/demo"
+    ssh "$host" "rm -rf ~/$(basename "$dir_to_upload") ~/SMPC_database"
 
     if [ "$host" = "${hosts[0]}" ]; then
       rsync -av --exclude '*_1.h' "$dir_to_upload" "$host:~/"
+      rsync -av --exclude 'commands.txt' "$demo_dir" "$host:~/"
     elif [ "$host" = "${hosts[1]}" ]; then
       rsync -av --exclude '*_0.h' "$dir_to_upload" "$host:~/"
+      rsync -av --exclude 'commands.txt' "$demo_dir" "$host:~/"
     else
       rsync -av "$dir_to_upload" "$host:~/"
+      rsync -av "$demo_dir" "$host:~/"
     fi
-    scp -r "$demo_dir" "$host:~/"
 
-    ssh "$host" "export PATH=/usr/local/openmpi/bin:\$PATH && export LD_LIBRARY_PATH=/usr/local/openmpi/lib:\$LD_LIBRARY_PATH && cd ~/demo && sh ../mpc-package/shell_scripts/install.sh && cmake . && make"
+    ssh "$host" "export PATH=/usr/local/openmpi/bin:\$PATH && export LD_LIBRARY_PATH=/usr/local/openmpi/lib:\$LD_LIBRARY_PATH && cd ~/SMPC_database && sh ../mpc-package/shell_scripts/install.sh && cmake . && make"
 done
 echo "DONE"
-echo "Please run 'mpirun -np 3 -hostfile ../hostfile.txt demo -case 5' on a client."
+echo "Please run 'mpirun -np 3 -hostfile ../hostfile.txt SMPC_database -case 5' on a client."

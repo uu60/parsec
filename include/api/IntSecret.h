@@ -17,7 +17,7 @@ private:
 public:
     explicit IntSecret(T x);
 
-    [[nodiscard]] IntSecret share() const;
+    IntSecret share() const;
 
     [[nodiscard]] IntSecret add(T yi) const;
 
@@ -27,7 +27,7 @@ public:
 
     [[nodiscard]] IntSecret mul(IntSecret yi) const;
 
-    [[nodiscard]] IntSecret reconstruct() const;
+    IntSecret reconstruct() const;
 
     [[nodiscard]] IntSecret mux(T yi, T ci) const;
 

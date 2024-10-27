@@ -7,24 +7,10 @@
 #include <string>
 #include <limits>
 #include <iomanip>
+#include <openssl/bn.h>
+#include <openssl/evp.h>
 
-int64_t Math::randInt() {
-    return randInt(std::numeric_limits<int64_t>::min(), std::numeric_limits<int64_t>::max());
-}
-
-int64_t Math::randInt(int64_t lowest, int64_t highest) {
-    // random engine
-    std::random_device rd;
-    std::mt19937 generator(rd());
-
-    // distribution in integer range
-    std::uniform_int_distribution<int64_t> distribution(lowest, highest);
-
-    // generation
-    return distribution(generator);
-}
-
-BIGNUM *Math::bignum(const std::string &str, const bool positive) {
+BIGNUM *bignum(const std::string &str, const bool positive) {
     std::vector<uint8_t> binaryData = std::vector<uint8_t>(str.begin(), str.end());
     BIGNUM *bn = BN_new();
     BN_bin2bn(binaryData.data(), binaryData.size(), bn);
@@ -34,7 +20,11 @@ BIGNUM *Math::bignum(const std::string &str, const bool positive) {
     return bn;
 }
 
-std::string Math::string(BIGNUM *bn) {
+BIGNUM *bignum(const std::string &str) {
+    return bignum(str, true);
+}
+
+std::string string(BIGNUM *bn) {
     int num_bytes = BN_num_bytes(bn);
     std::vector<unsigned char> bin(num_bytes);
     BN_bn2bin(bn, bin.data());
@@ -54,7 +44,7 @@ std::string Math::string(BIGNUM *bn) {
     return result;
 }
 
-BIGNUM *Math::add(BIGNUM *add0, int64_t add1) {
+BIGNUM *addBignumWithInt(BIGNUM *add0, int64_t add1) {
     BIGNUM *bn_add1 = BN_new();
     if (add1 >= 0) {
         BN_set_word(bn_add1, add1);
@@ -68,10 +58,38 @@ BIGNUM *Math::add(BIGNUM *add0, int64_t add1) {
     return result;
 }
 
+std::string addOrMinus(const std::string &add0, const std::string &add1, bool minus) {
+    BIGNUM *add0N = bignum(add0);
+    BIGNUM *add1N = bignum(add1, !minus);
+    BIGNUM *result = BN_new();
+    BN_add(result, add0N, add1N);
+    std::string resultStr = string(result);
+    BN_free(add0N);
+    BN_free(add1N);
+    BN_free(result);
+    return resultStr;
+}
+
+int64_t Math::randInt() {
+    return randInt(std::numeric_limits<int64_t>::min(), std::numeric_limits<int64_t>::max());
+}
+
+int64_t Math::randInt(int64_t lowest, int64_t highest) {
+    // random engine
+    std::random_device rd;
+    std::mt19937 generator(rd());
+
+    // distribution in integer range
+    std::uniform_int_distribution<int64_t> distribution(lowest, highest);
+
+    // generation
+    return distribution(generator);
+}
+
 std::string Math::add(const std::string &add0, int64_t add1) {
-    BIGNUM *add0N = Math::bignum(add0);
-    BIGNUM *sum = Math::add(add0N, add1);
-    std::string result = Math::string(sum);
+    BIGNUM *add0N = bignum(add0);
+    BIGNUM *sum = addBignumWithInt(add0N, add1);
+    std::string result = string(sum);
     BN_free(add0N);
     BN_free(sum);
     return result;
@@ -92,27 +110,11 @@ std::string Math::randString(int bytes) {
 }
 
 std::string Math::add(const std::string &add0, const std::string &add1) {
-    return add(add0, add1, false);
+    return addOrMinus(add0, add1, false);
 }
 
 std::string Math::minus(const std::string &add0, const std::string &add1) {
-    return add(add0, add1, true);
-}
-
-BIGNUM *Math::bignum(const std::string &str) {
-    return bignum(str, true);
-}
-
-std::string Math::add(const std::string &add0, const std::string &add1, bool minus) {
-    BIGNUM *add0N = Math::bignum(add0);
-    BIGNUM *add1N = Math::bignum(add1, !minus);
-    BIGNUM *result = BN_new();
-    BN_add(result, add0N, add1N);
-    std::string resultStr = string(result);
-    BN_free(add0N);
-    BN_free(add1N);
-    BN_free(result);
-    return resultStr;
+    return addOrMinus(add0, add1, true);
 }
 
 int64_t Math::ring(int64_t num, int l) {
@@ -135,3 +137,4 @@ int64_t Math::pow(int64_t base, int64_t exponent) {
     }
     return result;
 }
+
