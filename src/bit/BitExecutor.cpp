@@ -63,6 +63,14 @@ BitExecutor *BitExecutor::execute(bool reconstruct) {
     throw std::runtime_error("This method cannot be called!");
 }
 
+bool BitExecutor::xi() {
+    return _xi;
+}
+
+bool BitExecutor::yi() {
+    return _yi;
+}
+
 std::string BitExecutor::tag() const {
     throw std::runtime_error("This method cannot be called!");
 }

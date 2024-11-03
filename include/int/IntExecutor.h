@@ -31,6 +31,10 @@ public:
     // DO NOT USE
     [[nodiscard]] std::string tag() const override;
 
+    T xi();
+
+    T yi();
+
 private:
     void doConvertByOt();
 

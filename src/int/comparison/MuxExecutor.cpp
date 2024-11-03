@@ -3,25 +3,44 @@
 //
 
 #include "int/comparison/MuxExecutor.h"
+
+#include "api/BitSecret.h"
+#include "bit/BitExecutor.h"
+#include "bit/and/RsaAndExecutor.h"
 #include "int/addition/AddExecutor.h"
 #include "int/multiplication/RsaMulExecutor.h"
 #include "utils/Comm.h"
 template<typename T>
-MuxExecutor<T>::MuxExecutor(T x, T y, bool c) : IntExecutor<T>(x, y, true) {
-    _ci = IntExecutor<T>(c, true).zi();
-}
-
-template<typename T>
-MuxExecutor<T>::MuxExecutor(T xi, T yi, T ci) : IntExecutor<T>(xi, yi, false) {
-    _ci = ci;
+MuxExecutor<T>::MuxExecutor(T x, T y, bool c, bool share) {
+    if constexpr (std::is_same_v<T, bool>) {
+        auto e = BitExecutor(x, y, share);
+        _xi = e.xi();
+        _yi = e.yi();
+    } else {
+        auto e = IntExecutor<T>(x, y, share);
+        _xi = e.xi();
+        _yi = e.yi();
+    }
+    if (share) {
+        _ci = BitExecutor(c, true).zi();
+    } else {
+        _ci = c;
+    }
 }
 
 template<typename T>
 MuxExecutor<T> *MuxExecutor<T>::execute(bool reconstruct) {
     if (Comm::isServer()) {
-        T cx = RsaMulExecutor(_ci, this->_xi, false).execute(false)->zi();
-        T cy = RsaMulExecutor(_ci, this->_yi, false).execute(false)->zi();
-        this->_zi = cx + this->_yi - cy;
+        if constexpr (std::is_same_v<T, bool>) {
+            bool cx = RsaAndExecutor(_ci, _xi, false).execute(false)->zi();
+            bool cy = RsaAndExecutor(_ci, _yi, false).execute(false)->zi();
+            this->_zi = cx ^ this->_yi ^ cy;
+        } else {
+            auto ci = IntExecutor(static_cast<T>(_ci), false).convertZiToArithmetic(true)->zi();
+            T cx = RsaMulExecutor(ci, this->_xi, false).execute(false)->zi();
+            T cy = RsaMulExecutor(ci, this->_yi, false).execute(false)->zi();
+            this->_zi = cx + this->_yi - cy;
+        }
     }
     if (reconstruct) {
         this->reconstruct();
@@ -35,6 +54,17 @@ string MuxExecutor<T>::tag() const {
     return "[Mux]";
 }
 
+template<typename T>
+SecureExecutor<T> * MuxExecutor<T>::reconstruct() {
+    if constexpr (std::is_same_v<T, bool>) {
+        this->_result = BitExecutor(this->_zi, false).reconstruct()->result();
+    } else {
+        this->_result = IntExecutor<T>(this->_zi, false).reconstruct()->result();
+    }
+    return this;
+}
+
+template class MuxExecutor<bool>;
 template class MuxExecutor<int8_t>;
 template class MuxExecutor<int16_t>;
 template class MuxExecutor<int32_t>;

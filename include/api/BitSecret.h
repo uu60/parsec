@@ -15,6 +15,8 @@ public:
 
     BitSecret share() const;
 
+    [[nodiscard]] BitSecret not_() const;
+
     [[nodiscard]] BitSecret xor_(bool yi) const;
 
     [[nodiscard]] BitSecret xor_(BitSecret yi) const;
@@ -22,6 +24,14 @@ public:
     [[nodiscard]] BitSecret and_(bool yi) const;
 
     [[nodiscard]] BitSecret and_(BitSecret yi) const;
+
+    [[nodiscard]] BitSecret or_(bool yi) const;
+
+    [[nodiscard]] BitSecret or_(BitSecret yi) const;
+
+    [[nodiscard]] BitSecret mux(bool yi, bool ci) const;
+
+    [[nodiscard]] BitSecret mux(BitSecret yi, BitSecret ci) const;
 
     BitSecret reconstruct() const;
 
@@ -37,6 +47,14 @@ public:
     static BitSecret and_(bool xi, bool yi);
 
     static BitSecret and_(BitSecret xi, BitSecret yi);
+
+    static BitSecret or_(bool xi, bool yi);
+
+    static BitSecret or_(BitSecret xi, BitSecret yi);
+
+    static BitSecret mux(bool xi, bool yi, bool ci);
+
+    static BitSecret mux(BitSecret xi, BitSecret yi, BitSecret ci);
 };
 
 

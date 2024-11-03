@@ -168,12 +168,12 @@ BitSecret IntSecret<T>::compare(IntSecret yi) const {
 }
 
 template<typename T>
-IntSecret<T> IntSecret<T>::mux(T yi, T ci) const {
-    return IntSecret(MuxExecutor(_data, yi, ci).execute(false)->zi());
+IntSecret<T> IntSecret<T>::mux(T yi, bool ci) const {
+    return IntSecret(MuxExecutor(_data, yi, ci, false).execute(false)->zi());
 }
 
 template<typename T>
-IntSecret<T> IntSecret<T>::mux(IntSecret yi, IntSecret ci) const {
+IntSecret<T> IntSecret<T>::mux(IntSecret yi, BitSecret ci) const {
     return mux(yi.get(), ci.get());
 }
 
@@ -188,12 +188,12 @@ BitSecret IntSecret<T>::compare(IntSecret xi, IntSecret yi) {
 }
 
 template<typename T>
-IntSecret<T> IntSecret<T>::mux(T xi, T yi, T ci) {
+IntSecret<T> IntSecret<T>::mux(T xi, T yi, bool ci) {
     return IntSecret(xi).mux(yi, ci);
 }
 
 template<typename T>
-IntSecret<T> IntSecret<T>::mux(IntSecret xi, IntSecret yi, IntSecret ci) {
+IntSecret<T> IntSecret<T>::mux(IntSecret xi, IntSecret yi, BitSecret ci) {
     return xi.mux(yi, ci);
 }
 

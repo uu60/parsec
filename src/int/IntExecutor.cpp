@@ -79,6 +79,16 @@ std::string IntExecutor<T>::tag() const {
 }
 
 template<typename T>
+T IntExecutor<T>::xi() {
+    return _xi;
+}
+
+template<typename T>
+T IntExecutor<T>::yi() {
+    return _yi;
+}
+
+template<typename T>
 IntExecutor<T> *IntExecutor<T>::reconstruct() {
     bool detailed = this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED;
     if (Comm::isServer()) {

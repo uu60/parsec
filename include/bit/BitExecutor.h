@@ -21,6 +21,10 @@ public:
 
     BitExecutor *execute(bool reconstruct) override;
 
+    bool xi();
+
+    bool yi();
+
 protected:
     [[nodiscard]] std::string tag() const override;
 };

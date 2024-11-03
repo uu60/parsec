@@ -29,9 +29,9 @@ public:
 
     IntSecret reconstruct() const;
 
-    [[nodiscard]] IntSecret mux(T yi, T ci) const;
+    [[nodiscard]] IntSecret mux(T yi, bool ci) const;
 
-    [[nodiscard]] IntSecret mux(IntSecret yi, IntSecret ci) const;
+    [[nodiscard]] IntSecret mux(IntSecret yi, BitSecret ci) const;
 
     [[nodiscard]] IntSecret boolean() const;
 
@@ -76,9 +76,9 @@ public:
 
     static BitSecret compare(IntSecret xi, IntSecret yi);
 
-    static IntSecret mux(T xi, T yi, T ci);
+    static IntSecret mux(T xi, T yi, bool ci);
 
-    static IntSecret mux(IntSecret xi, IntSecret yi, IntSecret ci);
+    static IntSecret mux(IntSecret xi, IntSecret yi, BitSecret ci);
 };
 
 
