@@ -12,7 +12,7 @@ BitSecret::BitSecret(bool x) {
 }
 
 BitSecret BitSecret::share() const {
-    return BitSecret(BitExecutor(_data, true).zi());
+    return BitSecret(BitExecutor(_data, true)._zi);
 }
 
 BitSecret BitSecret::not_() const {
@@ -28,7 +28,7 @@ BitSecret BitSecret::xor_(BitSecret yi) const {
 }
 
 BitSecret BitSecret::and_(bool yi) const {
-    return BitSecret(RsaAndExecutor(_data, yi, false).execute(false)->result());
+    return BitSecret(RsaAndExecutor(_data, yi, false).execute(false)->_result);
 }
 
 BitSecret BitSecret::and_(BitSecret yi) const {
@@ -44,7 +44,7 @@ BitSecret BitSecret::or_(BitSecret yi) const {
 }
 
 BitSecret BitSecret::mux(bool yi, bool ci) const {
-    return BitSecret(MuxExecutor(_data, yi, ci, false).execute(false)->zi());
+    return BitSecret(MuxExecutor(_data, yi, ci, false).execute(false)->_zi);
 }
 
 BitSecret BitSecret::mux(BitSecret yi, BitSecret ci) const {
@@ -52,7 +52,7 @@ BitSecret BitSecret::mux(BitSecret yi, BitSecret ci) const {
 }
 
 BitSecret BitSecret::reconstruct() const {
-    return BitSecret(BitExecutor(_data, false).reconstruct()->result());
+    return BitSecret(BitExecutor(_data, false).reconstruct()->_result);
 }
 
 bool BitSecret::get() const {
@@ -60,7 +60,7 @@ bool BitSecret::get() const {
 }
 
 BitSecret BitSecret::share(bool x) {
-    return BitSecret(BitExecutor(x, true).zi());
+    return BitSecret(BitExecutor(x, true)._zi);
 }
 
 BitSecret BitSecret::xor_(bool xi, bool yi) {
@@ -93,6 +93,14 @@ BitSecret BitSecret::mux(bool xi, bool yi, bool ci) {
 
 BitSecret BitSecret::mux(BitSecret xi, BitSecret yi, BitSecret ci) {
     return mux(xi.get(), yi.get(), ci.get());
+}
+
+BitSecret BitSecret::reconstruct(bool xi) {
+    return BitSecret(xi).reconstruct();
+}
+
+BitSecret BitSecret::reconstruct(BitSecret xi) {
+    return reconstruct(xi.get());
 }
 
 

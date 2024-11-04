@@ -9,7 +9,7 @@
 
 template<typename T>
 RsaOtExecutor<T>::RsaOtExecutor(int sender, T m0, T m1, int i)
-        : RsaOtExecutor(2048, sender, m0, m1, i) {
+    : RsaOtExecutor(2048, sender, m0, m1, i) {
 }
 
 template<typename T>
@@ -54,24 +54,34 @@ void RsaOtExecutor<T>::generateAndShareRsaKeys() {
         if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
             start = System::currentTimeMillis();
         }
-        Crypto::generateRsaKeys(_bits, _pub, _pri);
-        if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
-            end = System::currentTimeMillis();
-            if (this->_isLogBenchmark) {
-                Log::i(tag() + " RSA keys generation time: " + std::to_string(end - start) + " ms.");
+
+        bool newKey = Crypto::generateRsaKeys(_bits);
+        this->_pub = Crypto::_selfPubs[_bits];
+        this->_pri = Crypto::_selfPris[_bits];
+        if (newKey) {
+            if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
+                end = System::currentTimeMillis();
+                if (this->_isLogBenchmark) {
+                    Log::i(tag() + " RSA keys generation time: " + std::to_string(end - start) + " ms.");
+                }
+                _rsaGenerationTime = end - start;
+                Comm::ssend(&_pub, this->_mpiTime);
+            } else {
+                Comm::ssend(&_pub);
             }
-            _rsaGenerationTime = end - start;
-            Comm::ssend(&_pub, this->_mpiTime);
-        } else {
-            Comm::ssend(&_pub);
         }
         return;
     }
     // receiver
-    if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
-        Comm::srecv(&_pub, this->_mpiTime);
+    if (Crypto::_otherPubs.count(_bits) > 0) {
+        _pub = Crypto::_otherPubs[_bits];
     } else {
-        Comm::srecv(&_pub);
+        if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
+            Comm::srecv(&_pub, this->_mpiTime);
+        } else {
+            Comm::srecv(&_pub);
+        }
+        Crypto::_otherPubs[_bits] = _pub;
     }
 }
 
@@ -145,10 +155,10 @@ void RsaOtExecutor<T>::process() {
             start = System::currentTimeMillis();
         }
         std::string k0 = Crypto::rsaDecrypt(
-                Math::minus(sumStr, _rand0), _pri
+            Math::minus(sumStr, _rand0), _pri
         );
         std::string k1 = Crypto::rsaDecrypt(
-                Math::minus(sumStr, _rand1), _pri
+            Math::minus(sumStr, _rand1), _pri
         );
         if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
             end = System::currentTimeMillis();
@@ -167,21 +177,6 @@ void RsaOtExecutor<T>::process() {
             Comm::ssend(&m1);
         }
     }
-}
-
-template<typename T>
-int64_t RsaOtExecutor<T>::rsaGenerationTime() const {
-    return _rsaGenerationTime;
-}
-
-template<typename T>
-int64_t RsaOtExecutor<T>::rsaEncryptionTime() const {
-    return _rsaEncryptionTime;
-}
-
-template<typename T>
-int64_t RsaOtExecutor<T>::rsaDecryptionTime() const {
-    return _rsaDecryptionTime;
 }
 
 template<typename T>

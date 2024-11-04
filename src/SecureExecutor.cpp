@@ -10,11 +10,6 @@ void SecureExecutor<T>::finalize() {
 }
 
 template<typename T>
-T SecureExecutor<T>::result() const {
-    return _result;
-}
-
-template<typename T>
 SecureExecutor<T> *SecureExecutor<T>::benchmark(BenchmarkLevel lv) {
     _benchmarkLevel = lv;
     return this;
@@ -49,11 +44,6 @@ SecureExecutor<T> *SecureExecutor<T>::execute(bool reconstruct) {
 template<typename T>
 std::string SecureExecutor<T>::tag() const {
     throw std::runtime_error("This method cannot be called!");
-}
-
-template<typename T>
-T SecureExecutor<T>::zi() {
-    return this->_zi;
 }
 
 template class SecureExecutor<bool>;

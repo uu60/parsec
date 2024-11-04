@@ -19,6 +19,8 @@ public:
 
     IntSecret share() const;
 
+    IntSecret boolShare() const;
+
     [[nodiscard]] IntSecret add(T yi) const;
 
     [[nodiscard]] IntSecret add(IntSecret yi) const;
@@ -28,6 +30,8 @@ public:
     [[nodiscard]] IntSecret mul(IntSecret yi) const;
 
     IntSecret reconstruct() const;
+
+    IntSecret boolReconstruct() const;
 
     [[nodiscard]] IntSecret mux(T yi, bool ci) const;
 
@@ -47,6 +51,10 @@ public:
     static IntSecret share(T x);
 
     static IntSecret share(IntSecret x);
+
+    static IntSecret boolShare(T x);
+
+    static IntSecret boolShare(IntSecret x);
 
     static IntSecret add(T xi, T yi);
 
@@ -79,6 +87,14 @@ public:
     static IntSecret mux(T xi, T yi, bool ci);
 
     static IntSecret mux(IntSecret xi, IntSecret yi, BitSecret ci);
+
+    static IntSecret reconstruct(T x);
+
+    static IntSecret reconstruct(IntSecret x);
+
+    static IntSecret boolReconstruct(T x);
+
+    static IntSecret boolReconstruct(IntSecret x);
 };
 
 

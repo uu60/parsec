@@ -18,7 +18,7 @@ public:
     enum class BenchmarkLevel {
         NONE, GENERAL, DETAILED
     };
-protected:
+
     // result
     T _result{};
     // unreconstructed share
@@ -32,17 +32,11 @@ protected:
     bool _isLogBenchmark{};
     int64_t _mpiTime{};
     int64_t _entireComputationTime{};
-public:
+
     // secret sharing process
     virtual SecureExecutor *execute(bool reconstruct);
 
     virtual SecureExecutor *reconstruct();
-
-    // get calculated result
-    [[nodiscard]] T result() const;
-
-    // directly set unreconstructed share
-    T zi();
 
     // for benchmark
     SecureExecutor *benchmark(BenchmarkLevel lv);

@@ -15,7 +15,7 @@
 // according to https://blog.csdn.net/qq_16763983/article/details/128055146
 template<typename T>
 class RsaOtExecutor : public SecureExecutor<T> {
-private:
+public:
     // for benchmark
     int64_t _rsaGenerationTime{};
     int64_t _rsaEncryptionTime{};
@@ -48,12 +48,6 @@ public:
     RsaOtExecutor *execute(bool dummy) override;
 
     RsaOtExecutor *reconstruct() override;
-
-    [[nodiscard]] int64_t rsaGenerationTime() const;
-
-    [[nodiscard]] int64_t rsaEncryptionTime() const;
-
-    [[nodiscard]] int64_t rsaDecryptionTime() const;
 
 protected:
     [[nodiscard]] std::string tag() const override;

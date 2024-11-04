@@ -9,9 +9,9 @@
 
 template<typename T>
 class CompareExecutor : public IntExecutor<T> {
-private:
-    bool _sign{};
 public:
+    bool _sign{};
+
     CompareExecutor(T z, bool share);
 
     CompareExecutor(T x, T y, bool share);
@@ -21,8 +21,6 @@ public:
     CompareExecutor *reconstruct() override;
 
     [[nodiscard]] std::string tag() const override;
-
-    bool sign();
 };
 
 #endif //MPC_PACKAGE_COMPAREEXECUTOR_H

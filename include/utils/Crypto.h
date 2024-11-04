@@ -8,12 +8,16 @@
 #include <unordered_map>
 
 class Crypto {
-private:
-    static std::unordered_map<int, std::string> _pubs;
-    static std::unordered_map<int, std::string> _pris;
 public:
-    static void generateRsaKeys(int bits, std::string &publicKey, std::string &privateKey);
+    static std::unordered_map<int, std::string> _selfPubs;
+    static std::unordered_map<int, std::string> _selfPris;
+    static std::unordered_map<int, std::string> _otherPubs;
+
+    // true if generated else existed
+    static bool generateRsaKeys(int bits);
+
     static std::string rsaEncrypt(const std::string &data, const std::string &publicKey);
+
     static std::string rsaDecrypt(const std::string &encryptedData, const std::string &privateKey);
 };
 

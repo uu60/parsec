@@ -69,6 +69,21 @@ IntExecutor<T>::IntExecutor(T x, T y, bool share) {
 }
 
 template<typename T>
+IntExecutor<T> *IntExecutor<T>::boolShare() {
+    bool detailed = this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED;
+    if (Comm::isClient()) {
+        T z1 = Math::randInt();
+        T z0 = this->_zi ^ z1;
+        Comm::send(&z0, 0, this->_mpiTime, detailed);
+        Comm::send(&z1, 1, this->_mpiTime, detailed);
+    } else {
+        // operator
+        Comm::recv(&this->_zi, Comm::CLIENT_RANK, this->_mpiTime, detailed);
+    }
+    return this;
+}
+
+template<typename T>
 IntExecutor<T> *IntExecutor<T>::execute(bool reconstruct) {
     throw std::runtime_error("This method cannot be called!");
 }
@@ -76,16 +91,6 @@ IntExecutor<T> *IntExecutor<T>::execute(bool reconstruct) {
 template<typename T>
 std::string IntExecutor<T>::tag() const {
     throw std::runtime_error("This method cannot be called!");
-}
-
-template<typename T>
-T IntExecutor<T>::xi() {
-    return _xi;
-}
-
-template<typename T>
-T IntExecutor<T>::yi() {
-    return _yi;
 }
 
 template<typename T>
@@ -98,6 +103,20 @@ IntExecutor<T> *IntExecutor<T>::reconstruct() {
         Comm::recv(&z0, 0, this->_mpiTime, detailed);
         Comm::recv(&z1, 1, this->_mpiTime, detailed);
         this->_result = z0 + z1;
+    }
+    return this;
+}
+
+template<typename T>
+IntExecutor<T> * IntExecutor<T>::boolReconstruct() {
+    bool detailed = this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED;
+    if (Comm::isServer()) {
+        Comm::send(&this->_zi, Comm::CLIENT_RANK, this->_mpiTime, detailed);
+    } else {
+        T z0, z1;
+        Comm::recv(&z0, 0, this->_mpiTime, detailed);
+        Comm::recv(&z1, 1, this->_mpiTime, detailed);
+        this->_result = z0 ^ z1;
     }
     return this;
 }
@@ -123,11 +142,11 @@ IntExecutor<T> *IntExecutor<T>::convertZiToBool() {
             this->_zi += ((ai ^ bi) ^ carry_i) << i;
 
             // Compute carry_i
-            bool generate_i = RsaAndExecutor(ai, bi, false).execute(false)->zi();
+            bool generate_i = RsaAndExecutor(ai, bi, false).execute(false)->_zi;
             bool propagate_i = ai ^ bi;
-            bool tempCarry_i = RsaAndExecutor(propagate_i, carry_i, false).execute(false)->zi();
+            bool tempCarry_i = RsaAndExecutor(propagate_i, carry_i, false).execute(false)->_zi;
             bool sum_i = generate_i ^ tempCarry_i;
-            bool and_i = RsaAndExecutor(generate_i, tempCarry_i, false).execute(false)->zi();
+            bool and_i = RsaAndExecutor(generate_i, tempCarry_i, false).execute(false)->_zi;
 
             carry_i = sum_i ^ and_i;
         }
@@ -157,7 +176,8 @@ void IntExecutor<T>::doConvertByOt() {
         int xb = (this->_zi >> i) & 1;
         T s0 = 0, s1 = 0;
         int64_t r = 0;
-        if (isSender) { // Sender
+        if (isSender) {
+            // Sender
             r = Math::randInt() & ((1l << this->_l) - 1);
             s0 = (xb << i) - r;
             s1 = ((1 - xb) << i) - r;
@@ -167,7 +187,7 @@ void IntExecutor<T>::doConvertByOt() {
         if (isSender) {
             xa += r;
         } else {
-            T s_xb = e.result();
+            T s_xb = e._result;
             xa += s_xb;
         }
     }
@@ -206,7 +226,6 @@ void IntExecutor<T>::doConvertByFixedRand() {
 
 template<typename T>
 std::pair<T, T> IntExecutor<T>::getPair(int idx) {
-
     const std::array<T, 100> *booleans;
     const std::array<T, 100> *ariths;
     if constexpr (std::is_same_v<T, int8_t>) {

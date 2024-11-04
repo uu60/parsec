@@ -4,21 +4,6 @@
 
 #include "bmt/AbstractTripleGenerator.h"
 
-template<typename T>
-T AbstractTripleGenerator<T>::ai() const {
-    return _ai;
-}
-
-template<typename T>
-T AbstractTripleGenerator<T>::bi() const {
-    return _bi;
-}
-
-template<typename T>
-T AbstractTripleGenerator<T>::ci() const {
-    return _ci;
-}
-
 template class AbstractTripleGenerator<bool>;
 template class AbstractTripleGenerator<int8_t>;
 template class AbstractTripleGenerator<int16_t>;

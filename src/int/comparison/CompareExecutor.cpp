@@ -44,11 +44,6 @@ std::string CompareExecutor<T>::tag() const {
     return "[Comparison]";
 }
 
-template<typename T>
-bool CompareExecutor<T>::sign() {
-    return _sign;
-}
-
 template class CompareExecutor<int8_t>;
 template class CompareExecutor<int16_t>;
 template class CompareExecutor<int32_t>;

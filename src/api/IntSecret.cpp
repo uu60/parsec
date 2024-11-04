@@ -25,17 +25,27 @@ IntSecret<T> IntSecret<T>::add(T xi, T yi) {
 
 template<typename T>
 IntSecret<T> IntSecret<T>::mul(T yi) const {
-    return IntSecret(RsaMulExecutor(_data, yi, false).execute(false)->result());
+    return IntSecret(RsaMulExecutor(_data, yi, false).execute(false)->_result);
 }
 
 template<typename T>
 IntSecret<T> IntSecret<T>::share() const {
-    return IntSecret(IntExecutor<T>(_data, true).zi());
+    return IntSecret(IntExecutor<T>(_data, true)._zi);
+}
+
+template<typename T>
+IntSecret<T> IntSecret<T>::boolShare() const {
+    return IntSecret(IntExecutor<T>(_data, false).boolShare()->_zi);
 }
 
 template<typename T>
 IntSecret<T> IntSecret<T>::reconstruct() const {
-    return IntSecret(IntExecutor<T>(_data, false).reconstruct()->result());
+    return IntSecret(IntExecutor<T>(_data, false).reconstruct()->_result);
+}
+
+template<typename T>
+IntSecret<T> IntSecret<T>::boolReconstruct() const {
+    return IntSecret(IntExecutor<T>(_data, false).boolReconstruct()->_result);
 }
 
 template<typename T>
@@ -86,6 +96,15 @@ IntSecret<T> IntSecret<T>::share(IntSecret<T> x) {
     return x.share();
 }
 
+template<typename T>
+IntSecret<T> IntSecret<T>::boolShare(T x) {
+    return IntSecret<T>(x).boolShare();
+}
+
+template<typename T>
+IntSecret<T> IntSecret<T>::boolShare(IntSecret x) {
+    return x.boolShare();
+}
 
 template<typename T>
 IntSecret<T> IntSecret<T>::add(IntSecret<T> xi, IntSecret<T> yi) {
@@ -148,18 +167,31 @@ IntSecret<T> IntSecret<T>::dot(const std::vector<T> &xis, const std::vector<T> &
 }
 
 template<typename T>
+IntSecret<T> IntSecret<T>::dot(const vector<IntSecret> &xis, const vector<IntSecret> &yis) {
+    std::vector<T> xs(xis.size());
+    for (IntSecret x: xis) {
+        xs.push_back(x.get());
+    }
+    std::vector<T> ys(yis.size());
+    for (IntSecret y: yis) {
+        ys.push_back(y.get());
+    }
+    return dot(xs, ys);
+}
+
+template<typename T>
 IntSecret<T> IntSecret<T>::boolean() const {
-    return IntSecret(IntExecutor<T>(_data, false).convertZiToBool()->zi());
+    return IntSecret(IntExecutor<T>(_data, false).convertZiToBool()->_zi);
 }
 
 template<typename T>
 IntSecret<T> IntSecret<T>::arithmetic() const {
-    return IntSecret(IntExecutor<T>(_data, false).convertZiToArithmetic(true)->zi());
+    return IntSecret(IntExecutor<T>(_data, false).convertZiToArithmetic(true)->_zi);
 }
 
 template<typename T>
 BitSecret IntSecret<T>::compare(T yi) const {
-    return BitSecret(CompareExecutor<T>(_data, yi, false).execute(false)->sign());
+    return BitSecret(CompareExecutor<T>(_data, yi, false).execute(false)->_sign);
 }
 
 template<typename T>
@@ -169,7 +201,7 @@ BitSecret IntSecret<T>::compare(IntSecret yi) const {
 
 template<typename T>
 IntSecret<T> IntSecret<T>::mux(T yi, bool ci) const {
-    return IntSecret(MuxExecutor(_data, yi, ci, false).execute(false)->zi());
+    return IntSecret(MuxExecutor(_data, yi, ci, false).execute(false)->_zi);
 }
 
 template<typename T>
@@ -195,6 +227,26 @@ IntSecret<T> IntSecret<T>::mux(T xi, T yi, bool ci) {
 template<typename T>
 IntSecret<T> IntSecret<T>::mux(IntSecret xi, IntSecret yi, BitSecret ci) {
     return xi.mux(yi, ci);
+}
+
+template<typename T>
+IntSecret<T> IntSecret<T>::reconstruct(T x) {
+    return IntSecret<T>(x).reconstruct();
+}
+
+template<typename T>
+IntSecret<T> IntSecret<T>::reconstruct(IntSecret x) {
+    return x.reconstruct();
+}
+
+template<typename T>
+IntSecret<T> IntSecret<T>::boolReconstruct(T x) {
+    return IntSecret<T>(x).boolReconstruct();
+}
+
+template<typename T>
+IntSecret<T> IntSecret<T>::boolReconstruct(IntSecret x) {
+    return x.boolReconstruct();
 }
 
 template

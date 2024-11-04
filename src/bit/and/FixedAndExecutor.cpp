@@ -15,9 +15,9 @@ void FixedAndExecutor::obtainMultiplicationTriple() {
     e.logBenchmark(false);
     e.execute(false);
 
-    _ai = e.ai();
-    _bi = e.bi();
-    _ci = e.ci();
+    _ai = e._ai;
+    _bi = e._bi;
+    _ci = e._ci;
 }
 
 std::string FixedAndExecutor::tag() const {

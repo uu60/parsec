@@ -14,15 +14,15 @@ template<typename T>
 MuxExecutor<T>::MuxExecutor(T x, T y, bool c, bool share) {
     if constexpr (std::is_same_v<T, bool>) {
         auto e = BitExecutor(x, y, share);
-        _xi = e.xi();
-        _yi = e.yi();
+        _xi = e._xi;
+        _yi = e._yi;
     } else {
         auto e = IntExecutor<T>(x, y, share);
-        _xi = e.xi();
-        _yi = e.yi();
+        _xi = e._xi;
+        _yi = e._yi;
     }
     if (share) {
-        _ci = BitExecutor(c, true).zi();
+        _ci = BitExecutor(c, true)._zi;
     } else {
         _ci = c;
     }
@@ -32,13 +32,13 @@ template<typename T>
 MuxExecutor<T> *MuxExecutor<T>::execute(bool reconstruct) {
     if (Comm::isServer()) {
         if constexpr (std::is_same_v<T, bool>) {
-            bool cx = RsaAndExecutor(_ci, _xi, false).execute(false)->zi();
-            bool cy = RsaAndExecutor(_ci, _yi, false).execute(false)->zi();
+            bool cx = RsaAndExecutor(_ci, _xi, false).execute(false)->_zi;
+            bool cy = RsaAndExecutor(_ci, _yi, false).execute(false)->_zi;
             this->_zi = cx ^ this->_yi ^ cy;
         } else {
-            auto ci = IntExecutor(static_cast<T>(_ci), false).convertZiToArithmetic(true)->zi();
-            T cx = RsaMulExecutor(ci, this->_xi, false).execute(false)->zi();
-            T cy = RsaMulExecutor(ci, this->_yi, false).execute(false)->zi();
+            auto ci = IntExecutor(static_cast<T>(_ci), false).convertZiToArithmetic(true)->_zi;
+            T cx = RsaMulExecutor(ci, this->_xi, false).execute(false)->_zi;
+            T cy = RsaMulExecutor(ci, this->_yi, false).execute(false)->_zi;
             this->_zi = cx + this->_yi - cy;
         }
     }
@@ -57,9 +57,9 @@ string MuxExecutor<T>::tag() const {
 template<typename T>
 SecureExecutor<T> * MuxExecutor<T>::reconstruct() {
     if constexpr (std::is_same_v<T, bool>) {
-        this->_result = BitExecutor(this->_zi, false).reconstruct()->result();
+        this->_result = BitExecutor(this->_zi, false).reconstruct()->_result;
     } else {
-        this->_result = IntExecutor<T>(this->_zi, false).reconstruct()->result();
+        this->_result = IntExecutor<T>(this->_zi, false).reconstruct()->_result;
     }
     return this;
 }

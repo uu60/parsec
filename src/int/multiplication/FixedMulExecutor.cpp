@@ -19,9 +19,9 @@ void FixedMulExecutor<T>::obtainMultiplicationTriple() {
     e.logBenchmark(false);
     e.execute(false);
 
-    this->_ai = e.ai();
-    this->_bi = e.bi();
-    this->_ci = e.ci();
+    this->_ai = e._ai;
+    this->_bi = e._bi;
+    this->_ci = e._ci;
 }
 
 template<typename T>

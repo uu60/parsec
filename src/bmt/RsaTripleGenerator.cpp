@@ -55,16 +55,16 @@ void RsaTripleGenerator<T>::computeMix(int sender, T &mix) {
             // add mpi time
             this->_mpiTime += r.mpiTime();
             _otMpiTime += r.mpiTime();
-            _otRsaGenerationTime += r.rsaGenerationTime();
-            _otRsaEncryptionTime += r.rsaEncryptionTime();
-            _otRsaDecryptionTime += r.rsaDecryptionTime();
+            _otRsaGenerationTime += r._rsaGenerationTime;
+            _otRsaEncryptionTime += r._rsaEncryptionTime;
+            _otRsaDecryptionTime += r._rsaDecryptionTime;
             _otEntireComputationTime += r.entireComputationTime();
         }
 
         if (isSender) {
             sum = sum + s0;
         } else {
-            T temp = r.result();
+            T temp = r._result;
             if (choice == 0) {
                 temp = (-temp) & this->_mask;
             }
@@ -91,31 +91,6 @@ RsaTripleGenerator<T> *RsaTripleGenerator<T>::execute(bool dummy) {
     computeV();
     computeC();
     return this;
-}
-
-template<typename T>
-int64_t RsaTripleGenerator<T>::otRsaGenerationTime() const {
-    return _otRsaGenerationTime;
-}
-
-template<typename T>
-int64_t RsaTripleGenerator<T>::otRsaEncryptionTime() const {
-    return _otRsaEncryptionTime;
-}
-
-template<typename T>
-int64_t RsaTripleGenerator<T>::otRsaDecryptionTime() const {
-    return _otRsaDecryptionTime;
-}
-
-template<typename T>
-int64_t RsaTripleGenerator<T>::otMpiTime() const {
-    return _otMpiTime;
-}
-
-template<typename T>
-int64_t RsaTripleGenerator<T>::otEntireComputationTime() const {
-    return _otEntireComputationTime;
 }
 
 template<typename T>

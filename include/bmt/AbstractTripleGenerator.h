@@ -9,19 +9,12 @@
 
 template<typename T>
 class AbstractTripleGenerator : public SecureExecutor<T> {
-protected:
+public:
     T _ai{};
     T _bi{};
     T _ci{};
     T _ui{};
     T _vi{};
-
-public:
-    [[nodiscard]] T ai() const;
-
-    [[nodiscard]] T bi() const;
-
-    [[nodiscard]] T ci() const;
 };
 
 

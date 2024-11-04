@@ -8,7 +8,7 @@
 #include "../SecureExecutor.h"
 
 class BitExecutor : public SecureExecutor<bool> {
-protected:
+public:
     bool _xi{};
     bool _yi{};
 
@@ -20,10 +20,6 @@ public:
     BitExecutor *reconstruct() override;
 
     BitExecutor *execute(bool reconstruct) override;
-
-    bool xi();
-
-    bool yi();
 
 protected:
     [[nodiscard]] std::string tag() const override;

@@ -8,15 +8,16 @@
 #include <vector>
 #include <string>
 
-std::unordered_map<int, std::string> Crypto::_pubs = {};
-std::unordered_map<int, std::string> Crypto::_pris = {};
+#include "utils/Log.h"
+
+std::unordered_map<int, std::string> Crypto::_selfPubs = {};
+std::unordered_map<int, std::string> Crypto::_selfPris = {};
+std::unordered_map<int, std::string> Crypto::_otherPubs = {};
 
 // copilot
-void Crypto::generateRsaKeys(int bits, std::string &publicKey, std::string &privateKey) {
-    if (_pubs.count(bits) > 0) {
-        publicKey = _pubs[bits];
-        privateKey = _pris[bits];
-        return;
+bool Crypto::generateRsaKeys(int bits) {
+    if (_selfPubs.count(bits) > 0) {
+        return false;
     }
 
     EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr);
@@ -43,15 +44,15 @@ void Crypto::generateRsaKeys(int bits, std::string &publicKey, std::string &priv
     pri_key[pri_len] = '\0';
     pub_key[pub_len] = '\0';
 
-    privateKey = std::string(pri_key);
-    publicKey = std::string(pub_key);
-    _pubs[bits] = publicKey;
-    _pris[bits] = privateKey;
+    _selfPubs[bits] = std::string(pub_key);
+    _selfPris[bits] = std::string(pri_key);
     EVP_PKEY_free(pkey);
     BIO_free_all(pub);
     BIO_free_all(pri);
     free(pri_key);
     free(pub_key);
+
+    return true;
 }
 
 // copilot
@@ -92,7 +93,6 @@ std::string Crypto::rsaDecrypt(const std::string &encryptedData, const std::stri
     EVP_PKEY_CTX_free(ctx);
     EVP_PKEY_free(pkey);
     BIO_free(keybio);
-
     return decryptedStr;
 }
 

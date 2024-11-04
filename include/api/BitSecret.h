@@ -55,6 +55,10 @@ public:
     static BitSecret mux(bool xi, bool yi, bool ci);
 
     static BitSecret mux(BitSecret xi, BitSecret yi, BitSecret ci);
+
+    static BitSecret reconstruct(bool xi);
+
+    static BitSecret reconstruct(BitSecret xi);
 };
 
 

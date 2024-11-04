@@ -10,7 +10,7 @@
 
 template<typename T>
 class IntExecutor : public SecureExecutor<T> {
-protected:
+public:
     T _xi{};
     T _yi{};
 
@@ -19,7 +19,11 @@ public:
 
     IntExecutor(T x, T y, bool share);
 
+    IntExecutor *boolShare();
+
     IntExecutor *reconstruct() override;
+
+    IntExecutor *boolReconstruct();
 
     IntExecutor *convertZiToBool();
 
@@ -30,10 +34,6 @@ public:
 
     // DO NOT USE
     [[nodiscard]] std::string tag() const override;
-
-    T xi();
-
-    T yi();
 
 private:
     void doConvertByOt();
