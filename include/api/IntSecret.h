@@ -17,84 +17,27 @@ private:
 public:
     explicit IntSecret(T x);
 
-    IntSecret share() const;
+    IntSecret arithShare() const;
 
     IntSecret boolShare() const;
 
-    [[nodiscard]] IntSecret add(T yi) const;
-
     [[nodiscard]] IntSecret add(IntSecret yi) const;
 
-    [[nodiscard]] IntSecret mul(T yi) const;
+    [[nodiscard]] IntSecret mul(IntSecret yi, T ai, T bi, T ci) const;
 
-    [[nodiscard]] IntSecret mul(IntSecret yi) const;
-
-    IntSecret reconstruct() const;
+    IntSecret arithReconstruct() const;
 
     IntSecret boolReconstruct() const;
 
-    [[nodiscard]] IntSecret mux(T yi, bool ci) const;
-
-    [[nodiscard]] IntSecret mux(IntSecret yi, BitSecret ci) const;
+    [[nodiscard]] IntSecret mux(IntSecret yi, BitSecret cond_i, T ai, T bi, T ci) const;
 
     [[nodiscard]] IntSecret boolean() const;
 
     [[nodiscard]] IntSecret arithmetic() const;
 
-    [[nodiscard]] BitSecret compare(T yi) const;
-
-    [[nodiscard]] BitSecret compare(IntSecret yi) const;
+    [[nodiscard]] BitSecret arithLessThan(IntSecret yi) const;
 
     [[nodiscard]] T get() const;
-
-    // static methods for multiple usage
-    static IntSecret share(T x);
-
-    static IntSecret share(IntSecret x);
-
-    static IntSecret boolShare(T x);
-
-    static IntSecret boolShare(IntSecret x);
-
-    static IntSecret add(T xi, T yi);
-
-    static IntSecret add(IntSecret xi, IntSecret yi);
-
-    static IntSecret mul(T xi, T yi);
-
-    static IntSecret mul(IntSecret xi, IntSecret yi);
-
-    static IntSecret sum(const std::vector<T> &xis);
-
-    static IntSecret sum(const std::vector<IntSecret> &xis);
-
-    static IntSecret sum(const std::vector<T> &xis, const std::vector<T> &yis);
-
-    static IntSecret sum(const std::vector<IntSecret> &xis, const std::vector<IntSecret> &yis);
-
-    static IntSecret product(const std::vector<T> &xis);
-
-    static IntSecret product(const std::vector<IntSecret> &xis);
-
-    static IntSecret dot(const std::vector<T> &xis, const std::vector<T> &yis);
-
-    static IntSecret dot(const std::vector<IntSecret> &xis, const std::vector<IntSecret> &yis);
-
-    static BitSecret compare(T xi, T yi);
-
-    static BitSecret compare(IntSecret xi, IntSecret yi);
-
-    static IntSecret mux(T xi, T yi, bool ci);
-
-    static IntSecret mux(IntSecret xi, IntSecret yi, BitSecret ci);
-
-    static IntSecret reconstruct(T x);
-
-    static IntSecret reconstruct(IntSecret x);
-
-    static IntSecret boolReconstruct(T x);
-
-    static IntSecret boolReconstruct(IntSecret x);
 };
 
 

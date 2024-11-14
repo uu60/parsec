@@ -2,37 +2,37 @@
 // Created by 杜建璋 on 2024/8/30.
 //
 
-#include "bmt/RsaTripleGenerator.h"
+#include "bmt/OtBmtGenerator.h"
 #include "ot/RsaOtExecutor.h"
 #include "utils/Math.h"
 #include "utils/Comm.h"
 
 template<typename T>
-RsaTripleGenerator<T>::RsaTripleGenerator() = default;
+OtBmtGenerator<T>::OtBmtGenerator() = default;
 
 template<typename T>
-void RsaTripleGenerator<T>::generateRandomAB() {
+void OtBmtGenerator<T>::generateRandomAB() {
     this->_ai = Math::randInt() & this->_mask;
     this->_bi = Math::randInt() & this->_mask;
 }
 
 template<typename T>
-void RsaTripleGenerator<T>::computeU() {
+void OtBmtGenerator<T>::computeU() {
     computeMix(0, this->_ui);
 }
 
 template<typename T>
-void RsaTripleGenerator<T>::computeV() {
+void OtBmtGenerator<T>::computeV() {
     computeMix(1, this->_vi);
 }
 
 template<typename T>
-T RsaTripleGenerator<T>::corr(int i, T x) const {
+T OtBmtGenerator<T>::corr(int i, T x) const {
     return ((this->_ai << i) - x) & this->_mask;
 }
 
 template<typename T>
-void RsaTripleGenerator<T>::computeMix(int sender, T &mix) {
+void OtBmtGenerator<T>::computeMix(int sender, T &mix) {
     bool isSender = Comm::rank() == sender;
     T sum = 0;
     for (int i = 0; i < this->_l; i++) {
@@ -45,21 +45,7 @@ void RsaTripleGenerator<T>::computeMix(int sender, T &mix) {
             choice = (int) ((this->_bi >> i) & 1);
         }
         RsaOtExecutor<T> r(sender, s0, s1, choice);
-        r.logBenchmark(false);
-        if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
-            r.benchmark(SecureExecutor<T>::BenchmarkLevel::DETAILED);
-        }
         r.execute(false);
-
-        if (this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED) {
-            // add mpi time
-            this->_mpiTime += r.mpiTime();
-            _otMpiTime += r.mpiTime();
-            _otRsaGenerationTime += r._rsaGenerationTime;
-            _otRsaEncryptionTime += r._rsaEncryptionTime;
-            _otRsaDecryptionTime += r._rsaDecryptionTime;
-            _otEntireComputationTime += r.entireComputationTime();
-        }
 
         if (isSender) {
             sum = sum + s0;
@@ -75,7 +61,7 @@ void RsaTripleGenerator<T>::computeMix(int sender, T &mix) {
 }
 
 template<typename T>
-void RsaTripleGenerator<T>::computeC() {
+void OtBmtGenerator<T>::computeC() {
     if (this->_l == 1) {
         this->_ci = this->_ai & this->_bi ^ this->_ui ^ this->_vi;
         return;
@@ -84,7 +70,7 @@ void RsaTripleGenerator<T>::computeC() {
 }
 
 template<typename T>
-RsaTripleGenerator<T> *RsaTripleGenerator<T>::execute(bool dummy) {
+OtBmtGenerator<T> *OtBmtGenerator<T>::execute(bool dummy) {
     generateRandomAB();
 
     computeU();
@@ -94,12 +80,12 @@ RsaTripleGenerator<T> *RsaTripleGenerator<T>::execute(bool dummy) {
 }
 
 template<typename T>
-std::string RsaTripleGenerator<T>::tag() const {
+std::string OtBmtGenerator<T>::tag() const {
     return "[BMT Generator]";
 }
 
-template class RsaTripleGenerator<bool>;
-template class RsaTripleGenerator<int8_t>;
-template class RsaTripleGenerator<int16_t>;
-template class RsaTripleGenerator<int32_t>;
-template class RsaTripleGenerator<int64_t>;
+template class OtBmtGenerator<bool>;
+template class OtBmtGenerator<int8_t>;
+template class OtBmtGenerator<int16_t>;
+template class OtBmtGenerator<int32_t>;
+template class OtBmtGenerator<int64_t>;

@@ -4,24 +4,21 @@
 
 #ifndef MPC_PACKAGE_ABSTRACTMULTIPLICATIONSHAREEXECUTOR_H
 #define MPC_PACKAGE_ABSTRACTMULTIPLICATIONSHAREEXECUTOR_H
-#include "../../int/IntExecutor.h"
+#include "../../int/IntArithExecutor.h"
 
 template<typename T>
-class AbstractMulExecutor : public IntExecutor<T> {
+class MulExecutor : public IntArithExecutor<T> {
 protected:
     T _ai{};
     T _bi{};
     T _ci{};
 
 public:
-    AbstractMulExecutor(T z, bool share);
+    MulExecutor(T x, T y, bool share);
 
-    AbstractMulExecutor(T x, T y, bool share);
+    MulExecutor *execute(bool reconstruct) override;
 
-    AbstractMulExecutor *execute(bool reconstruct) override;
-
-protected:
-    virtual void obtainMultiplicationTriple() = 0;
+    MulExecutor *obtainBmt(T ai, T bi, T ci);
 
 private:
     void process(bool reconstruct);

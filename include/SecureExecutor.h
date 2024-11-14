@@ -15,10 +15,6 @@ using namespace std;
 template<typename T>
 class SecureExecutor {
 public:
-    enum class BenchmarkLevel {
-        NONE, GENERAL, DETAILED
-    };
-
     // result
     T _result{};
     // unreconstructed share
@@ -27,27 +23,15 @@ public:
     // _l
     const int _l = std::is_same_v<T, bool> ? 1 : sizeof(_result) * 8;
 
-    // for benchmark
-    BenchmarkLevel _benchmarkLevel = BenchmarkLevel::NONE;
-    bool _isLogBenchmark{};
-    int64_t _mpiTime{};
-    int64_t _entireComputationTime{};
-
     // secret sharing process
+    [[deprecated("This function should not be called.")]]
     virtual SecureExecutor *execute(bool reconstruct);
 
+    [[deprecated("This function should not be called.")]]
     virtual SecureExecutor *reconstruct();
 
-    // for benchmark
-    SecureExecutor *benchmark(BenchmarkLevel lv);
-
-    SecureExecutor *logBenchmark(bool isLogBenchmark);
-
-    [[nodiscard]] int64_t mpiTime() const;
-
-    [[nodiscard]] int64_t entireComputationTime() const;
-
 protected:
+    [[deprecated("This function should not be called.")]]
     [[nodiscard]] virtual std::string tag() const;
 
     virtual void finalize();

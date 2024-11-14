@@ -8,35 +8,16 @@
 #include <limits>
 
 template<typename T>
-AddExecutor<T>::AddExecutor(T z, bool share) : IntExecutor<T>(z, share) {}
-
-template<typename T>
-AddExecutor<T>::AddExecutor(T x, T y, bool share) : IntExecutor<T>(x, y, share) {
-}
+AddExecutor<T>::AddExecutor(T x, T y, bool share) : IntArithExecutor<T>(x, y, share) {}
 
 template<typename T>
 AddExecutor<T> *AddExecutor<T>::execute(bool reconstruct) {
-    bool detailed = this->_benchmarkLevel == SecureExecutor<T>::BenchmarkLevel::DETAILED;
-    T start;
-    if (this->_benchmarkLevel >= SecureExecutor<T>::BenchmarkLevel::GENERAL) {
-        start = System::currentTimeMillis();
-    }
     if (Comm::isServer()) {
         this->_zi = this->_xi + this->_yi;
         this->_result = this->_zi;
     }
     if (reconstruct) {
         this->reconstruct();
-    }
-    if (this->_benchmarkLevel >= SecureExecutor<T>::BenchmarkLevel::GENERAL) {
-        this->_entireComputationTime = System::currentTimeMillis() - start;
-        if (this->_isLogBenchmark) {
-            if (detailed) {
-                Log::i(tag(),
-                       "Comm synchronization and transmission time: " + std::to_string(this->_mpiTime) + " ms.");
-            }
-            Log::i(tag(), "Entire computation time: " + std::to_string(this->_entireComputationTime) + " ms.");
-        }
     }
 
     return this;

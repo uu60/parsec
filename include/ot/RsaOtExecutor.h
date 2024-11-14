@@ -16,10 +16,6 @@
 template<typename T>
 class RsaOtExecutor : public SecureExecutor<T> {
 public:
-    // for benchmark
-    int64_t _rsaGenerationTime{};
-    int64_t _rsaEncryptionTime{};
-    int64_t _rsaDecryptionTime{};
     // RSA key _bits
     int _bits{};
     // correspond mpi rank

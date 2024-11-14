@@ -3,9 +3,11 @@
 //
 
 #include "api/IntSecret.h"
-#include "int/IntExecutor.h"
-#include "int/multiplication/RsaMulExecutor.h"
-#include "int/comparison/CompareExecutor.h"
+#include "int/IntArithExecutor.h"
+#include "int/IntBoolExecutor.h"
+#include "int/addition/AddExecutor.h"
+#include "int/multiplication/MulExecutor.h"
+#include "int/comparison/ArithLessThanExecutor.h"
 #include "int/comparison/MuxExecutor.h"
 
 template<typename T>
@@ -14,48 +16,23 @@ IntSecret<T>::IntSecret(T x) {
 }
 
 template<typename T>
-IntSecret<T> IntSecret<T>::add(T yi) const {
-    return IntSecret(_data + yi);
-}
-
-template<typename T>
-IntSecret<T> IntSecret<T>::add(T xi, T yi) {
-    return IntSecret(xi + yi);
-}
-
-template<typename T>
-IntSecret<T> IntSecret<T>::mul(T yi) const {
-    return IntSecret(RsaMulExecutor(_data, yi, false).execute(false)->_result);
-}
-
-template<typename T>
-IntSecret<T> IntSecret<T>::share() const {
-    return IntSecret(IntExecutor<T>(_data, true)._zi);
+IntSecret<T> IntSecret<T>::arithShare() const {
+    return IntSecret(IntArithExecutor<T>(_data, true)._zi);
 }
 
 template<typename T>
 IntSecret<T> IntSecret<T>::boolShare() const {
-    return IntSecret(IntExecutor<T>(_data, false).boolShare()->_zi);
+    return IntSecret(IntBoolExecutor<T>(_data, true)._zi);
 }
 
 template<typename T>
-IntSecret<T> IntSecret<T>::reconstruct() const {
-    return IntSecret(IntExecutor<T>(_data, false).reconstruct()->_result);
+[[nodiscard]] IntSecret<T> IntSecret<T>::arithReconstruct() const {
+    return IntSecret(IntArithExecutor<T>(_data, false).reconstruct()->_result);
 }
 
 template<typename T>
-IntSecret<T> IntSecret<T>::boolReconstruct() const {
-    return IntSecret(IntExecutor<T>(_data, false).boolReconstruct()->_result);
-}
-
-template<typename T>
-IntSecret<T> IntSecret<T>::share(T x) {
-    return IntSecret(x).share();
-}
-
-template<typename T>
-IntSecret<T> IntSecret<T>::mul(T xi, T yi) {
-    return IntSecret(xi).mul(yi);
+[[nodiscard]] IntSecret<T> IntSecret<T>::boolReconstruct() const {
+    return IntSecret(IntBoolExecutor<T>(_data, false).reconstruct()->_result);
 }
 
 template<typename T>
@@ -64,189 +41,33 @@ T IntSecret<T>::get() const {
 }
 
 template<typename T>
-IntSecret<T> IntSecret<T>::sum(const std::vector<T> &xis) {
-    IntSecret ret(0);
-    for (T x: xis) {
-        ret = ret.add(x);
-    }
-    return ret;
-}
-
-template<typename T>
 IntSecret<T> IntSecret<T>::add(IntSecret yi) const {
-    return add(yi.get());
+    return IntSecret(AddExecutor<T>(_data, yi.get(), false).execute(false)->_zi);
 }
 
 template<typename T>
-IntSecret<T> IntSecret<T>::mul(IntSecret yi) const {
-    return mul(yi.get());
-}
-
-template<typename T>
-IntSecret<T> IntSecret<T>::sum(const std::vector<T> &xis, const std::vector<T> &yis) {
-    IntSecret<T> ret(0);
-    for (int i = 0; i < xis.size(); i++) {
-        ret = ret.add(xis[i]).add(yis[i]);
-    }
-    return ret;
-}
-
-template<typename T>
-IntSecret<T> IntSecret<T>::share(IntSecret<T> x) {
-    return x.share();
-}
-
-template<typename T>
-IntSecret<T> IntSecret<T>::boolShare(T x) {
-    return IntSecret<T>(x).boolShare();
-}
-
-template<typename T>
-IntSecret<T> IntSecret<T>::boolShare(IntSecret x) {
-    return x.boolShare();
-}
-
-template<typename T>
-IntSecret<T> IntSecret<T>::add(IntSecret<T> xi, IntSecret<T> yi) {
-    return xi.add(yi);
-}
-
-template<typename T>
-IntSecret<T> IntSecret<T>::mul(IntSecret<T> xi, IntSecret<T> yi) {
-    return xi.mul(yi);
-}
-
-template<typename T>
-IntSecret<T> IntSecret<T>::sum(const std::vector<IntSecret<T> > &xis) {
-    std::vector<T> temp(xis.size());
-    for (IntSecret x: xis) {
-        temp.push_back(x.get());
-    }
-    return sum(temp);
-}
-
-template<typename T>
-IntSecret<T> IntSecret<T>::sum(const std::vector<IntSecret<T> > &xis, const std::vector<IntSecret<T> > &yis) {
-    std::vector<T> xs(xis.size());
-    for (IntSecret x: xis) {
-        xs.push_back(x.get());
-    }
-    std::vector<T> ys(yis.size());
-    for (IntSecret y: yis) {
-        ys.push_back(y.get());
-    }
-    return sum(xs, ys);
-}
-
-
-template<typename T>
-IntSecret<T> IntSecret<T>::product(const std::vector<T> &xis) {
-    IntSecret ret(xis[0]);
-    for (int i = 0; i < xis.size() - 1; i++) {
-        ret = ret.mul(xis[i + 1]);
-    }
-    return ret;
-}
-
-template<typename T>
-IntSecret<T> IntSecret<T>::product(const std::vector<IntSecret> &xis) {
-    std::vector<T> vals(xis.size());
-    for (IntSecret x: xis) {
-        vals.push_back(x.get());
-    }
-    return product(vals);
-}
-
-template<typename T>
-IntSecret<T> IntSecret<T>::dot(const std::vector<T> &xis, const std::vector<T> &yis) {
-    IntSecret ret(0);
-    for (int i = 0; i < xis.size() - 1; i++) {
-        ret = ret.add(IntSecret(xis[i]).mul(yis[i]));
-    }
-    return ret;
-}
-
-template<typename T>
-IntSecret<T> IntSecret<T>::dot(const vector<IntSecret> &xis, const vector<IntSecret> &yis) {
-    std::vector<T> xs(xis.size());
-    for (IntSecret x: xis) {
-        xs.push_back(x.get());
-    }
-    std::vector<T> ys(yis.size());
-    for (IntSecret y: yis) {
-        ys.push_back(y.get());
-    }
-    return dot(xs, ys);
+IntSecret<T> IntSecret<T>::mul(IntSecret yi, T ai, T bi, T ci) const {
+    return IntSecret(MulExecutor<T>(_data, yi.get(), false).obtainBmt(ai, bi, ci)->execute(false)->_zi);
 }
 
 template<typename T>
 IntSecret<T> IntSecret<T>::boolean() const {
-    return IntSecret(IntExecutor<T>(_data, false).convertZiToBool()->_zi);
+    return IntSecret(IntArithExecutor<T>(_data, false).convertZiToBool());
 }
 
 template<typename T>
 IntSecret<T> IntSecret<T>::arithmetic() const {
-    return IntSecret(IntExecutor<T>(_data, false).convertZiToArithmetic(true)->_zi);
+    return IntSecret(IntBoolExecutor<T>(_data, false).convertZiToArithmetic(true));
 }
 
 template<typename T>
-BitSecret IntSecret<T>::compare(T yi) const {
-    return BitSecret(CompareExecutor<T>(_data, yi, false).execute(false)->_sign);
+BitSecret IntSecret<T>::arithLessThan(IntSecret yi) const {
+    return BitSecret(ArithLessThanExecutor<T>(_data, yi.get(), false).execute(false)->_sign);
 }
 
 template<typename T>
-BitSecret IntSecret<T>::compare(IntSecret yi) const {
-    return compare(yi.get());
-}
-
-template<typename T>
-IntSecret<T> IntSecret<T>::mux(T yi, bool ci) const {
-    return IntSecret(MuxExecutor(_data, yi, ci, false).execute(false)->_zi);
-}
-
-template<typename T>
-IntSecret<T> IntSecret<T>::mux(IntSecret yi, BitSecret ci) const {
-    return mux(yi.get(), ci.get());
-}
-
-template<typename T>
-BitSecret IntSecret<T>::compare(T xi, T yi) {
-    return IntSecret(xi).compare(yi);
-}
-
-template<typename T>
-BitSecret IntSecret<T>::compare(IntSecret xi, IntSecret yi) {
-    return xi.compare(yi);
-}
-
-template<typename T>
-IntSecret<T> IntSecret<T>::mux(T xi, T yi, bool ci) {
-    return IntSecret(xi).mux(yi, ci);
-}
-
-template<typename T>
-IntSecret<T> IntSecret<T>::mux(IntSecret xi, IntSecret yi, BitSecret ci) {
-    return xi.mux(yi, ci);
-}
-
-template<typename T>
-IntSecret<T> IntSecret<T>::reconstruct(T x) {
-    return IntSecret<T>(x).reconstruct();
-}
-
-template<typename T>
-IntSecret<T> IntSecret<T>::reconstruct(IntSecret x) {
-    return x.reconstruct();
-}
-
-template<typename T>
-IntSecret<T> IntSecret<T>::boolReconstruct(T x) {
-    return IntSecret<T>(x).boolReconstruct();
-}
-
-template<typename T>
-IntSecret<T> IntSecret<T>::boolReconstruct(IntSecret x) {
-    return x.boolReconstruct();
+IntSecret<T> IntSecret<T>::mux(IntSecret yi, BitSecret cond_i, T ai, T bi, T ci) const {
+    return IntSecret(MuxExecutor<T>(_data, yi.get(), cond_i.get(), false).obtainBmt(ai, bi, ci)->execute(false)->_zi);
 }
 
 template

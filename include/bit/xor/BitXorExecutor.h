@@ -7,13 +7,13 @@
 
 #include "../../bit/BitExecutor.h"
 
-class XorExecutor : public BitExecutor {
+class BitXorExecutor : public BitExecutor {
 public:
-    XorExecutor(bool z, bool share);
+    BitXorExecutor(bool z, bool share);
 
-    XorExecutor(bool x, bool y, bool share);
+    BitXorExecutor(bool x, bool y, bool share);
 
-    XorExecutor *execute(bool reconstruct) override;
+    BitXorExecutor *execute(bool reconstruct) override;
 
 protected:
     [[nodiscard]] std::string tag() const override;

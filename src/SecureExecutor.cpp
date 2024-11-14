@@ -10,28 +10,6 @@ void SecureExecutor<T>::finalize() {
 }
 
 template<typename T>
-SecureExecutor<T> *SecureExecutor<T>::benchmark(BenchmarkLevel lv) {
-    _benchmarkLevel = lv;
-    return this;
-}
-
-template<typename T>
-int64_t SecureExecutor<T>::mpiTime() const {
-    return _mpiTime;
-}
-
-template<typename T>
-SecureExecutor<T> *SecureExecutor<T>::logBenchmark(bool isLogBenchmark) {
-    _isLogBenchmark = isLogBenchmark;
-    return this;
-}
-
-template<typename T>
-int64_t SecureExecutor<T>::entireComputationTime() const {
-    return _entireComputationTime;
-}
-
-template<typename T>
 SecureExecutor<T> *SecureExecutor<T>::reconstruct() {
     throw std::runtime_error("This method cannot be called!");
 }

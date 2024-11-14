@@ -5,14 +5,12 @@
 #ifndef MPC_PACKAGE_ADDITIONSHAREEXECUTOR_H
 #define MPC_PACKAGE_ADDITIONSHAREEXECUTOR_H
 
-#include "../../int/IntExecutor.h"
+#include "../../int/IntArithExecutor.h"
 #include <vector>
 
 template<typename T>
-class AddExecutor : public IntExecutor<T> {
+class AddExecutor : public IntArithExecutor<T> {
 public:
-    AddExecutor(T z, bool share);
-
     AddExecutor(T x, T y, bool share);
 
     AddExecutor *execute(bool reconstruct) override;

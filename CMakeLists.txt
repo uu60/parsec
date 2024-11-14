@@ -13,8 +13,8 @@ add_library(${PROJECT_NAME} SHARED
         include/SecureExecutor.h
         src/utils/Log.cpp
         include/utils/Log.h
-        src/int/multiplication/AbstractMulExecutor.cpp
-        include/int/multiplication/AbstractMulExecutor.h
+        src/int/multiplication/MulExecutor.cpp
+        include/int/multiplication/MulExecutor.h
         src/int/addition/AddExecutor.cpp
         include/int/addition/AddExecutor.h
         src/ot/RsaOtExecutor.cpp
@@ -25,28 +25,20 @@ add_library(${PROJECT_NAME} SHARED
         include/utils/Crypto.h
         src/utils/System.cpp
         include/utils/System.h
-        src/int/multiplication/RsaMulExecutor.cpp
-        include/int/multiplication/RsaMulExecutor.h
-        include/int/multiplication/FixedMulExecutor.h
-        src/int/multiplication/FixedMulExecutor.cpp
-        src/bit/xor/XorExecutor.cpp
-        include/bit/xor/XorExecutor.h
-        src/bit/and/AbstractAndExecutor.cpp
-        include/bit/and/AbstractAndExecutor.h
-        src/bmt/RsaTripleGenerator.cpp
-        include/bmt/RsaTripleGenerator.h
+        src/bit/xor/BitXorExecutor.cpp
+        include/bit/xor/BitXorExecutor.h
+        src/bit/and/BitAndExecutor.cpp
+        include/bit/and/BitAndExecutor.h
+        src/bmt/OtBmtGenerator.cpp
+        include/bmt/OtBmtGenerator.h
         src/bmt/AbstractTripleGenerator.cpp
         include/bmt/AbstractTripleGenerator.h
         src/bmt/FixedTripleGenerator.cpp
         include/bmt/FixedTripleGenerator.h
-        src/bit/and/RsaAndExecutor.cpp
-        include/bit/and/RsaAndExecutor.h
-        src/bit/and/FixedAndExecutor.cpp
-        include/bit/and/FixedAndExecutor.h
-        src/int/comparison/CompareExecutor.cpp
-        include/int/comparison/CompareExecutor.h
-        src/int/IntExecutor.cpp
-        include/int/IntExecutor.h
+        src/int/comparison/ArithLessThanExecutor.cpp
+        include/int/comparison/ArithLessThanExecutor.h
+        src/int/IntArithExecutor.cpp
+        include/int/IntArithExecutor.h
         src/bit/BitExecutor.cpp
         include/bit/BitExecutor.h
         src/api/Secret.cpp
@@ -57,6 +49,10 @@ add_library(${PROJECT_NAME} SHARED
         include/api/BitSecret.h
         src/int/comparison/MuxExecutor.cpp
         include/int/comparison/MuxExecutor.h
+        include/int/IntBoolExecutor.h
+        src/int/IntBoolExecutor.cpp
+        include/int/and/IntAndExecutor.h
+        include/int/and/IntAndExecutor.cpp
 )
 if (EXISTS "include/bmt/fixed_triples_0.h")
     add_library(${PROJECT_NAME} SHARED

@@ -9,20 +9,14 @@
 #include <iostream>
 
 template<typename T>
-class RsaTripleGenerator : public AbstractTripleGenerator<T> {
+class OtBmtGenerator : public AbstractTripleGenerator<T> {
 public:
     const int _mask = (1 << this->_l) - 1;
-    // benchmark
-    int64_t _otRsaGenerationTime{};
-    int64_t _otRsaEncryptionTime{};
-    int64_t _otRsaDecryptionTime{};
-    int64_t _otMpiTime{};
-    int64_t _otEntireComputationTime{};
 
 public:
-    explicit RsaTripleGenerator();
+    explicit OtBmtGenerator();
 
-    RsaTripleGenerator *execute(bool dummy) override;
+    OtBmtGenerator *execute(bool dummy) override;
 
 private:
     void generateRandomAB();

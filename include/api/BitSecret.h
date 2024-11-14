@@ -17,48 +17,17 @@ public:
 
     [[nodiscard]] BitSecret not_() const;
 
-    [[nodiscard]] BitSecret xor_(bool yi) const;
-
     [[nodiscard]] BitSecret xor_(BitSecret yi) const;
 
-    [[nodiscard]] BitSecret and_(bool yi) const;
+    [[nodiscard]] BitSecret and_(BitSecret yi, bool ai, bool bi, bool ci) const;
 
-    [[nodiscard]] BitSecret and_(BitSecret yi) const;
+    [[nodiscard]] BitSecret or_(BitSecret yi, bool ai, bool bi, bool ci) const;
 
-    [[nodiscard]] BitSecret or_(bool yi) const;
-
-    [[nodiscard]] BitSecret or_(BitSecret yi) const;
-
-    [[nodiscard]] BitSecret mux(bool yi, bool ci) const;
-
-    [[nodiscard]] BitSecret mux(BitSecret yi, BitSecret ci) const;
+    [[nodiscard]] BitSecret mux(BitSecret yi, BitSecret cond_i, bool ai, bool bi, bool ci) const;
 
     BitSecret reconstruct() const;
 
     [[nodiscard]] bool get() const;
-
-    // static methods for multiple usage
-    static BitSecret share(bool x);
-
-    static BitSecret xor_(bool xi, bool yi);
-
-    static BitSecret xor_(BitSecret xi, BitSecret yi);
-
-    static BitSecret and_(bool xi, bool yi);
-
-    static BitSecret and_(BitSecret xi, BitSecret yi);
-
-    static BitSecret or_(bool xi, bool yi);
-
-    static BitSecret or_(BitSecret xi, BitSecret yi);
-
-    static BitSecret mux(bool xi, bool yi, bool ci);
-
-    static BitSecret mux(BitSecret xi, BitSecret yi, BitSecret ci);
-
-    static BitSecret reconstruct(bool xi);
-
-    static BitSecret reconstruct(BitSecret xi);
 };
 
 
