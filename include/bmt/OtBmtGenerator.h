@@ -5,18 +5,19 @@
 #ifndef MPC_PACKAGE_RSAOTTRIPLEGENERATOR_H
 #define MPC_PACKAGE_RSAOTTRIPLEGENERATOR_H
 #include "../SecureExecutor.h"
-#include "./AbstractTripleGenerator.h"
 #include <iostream>
 
-template<typename T>
-class OtBmtGenerator : public AbstractTripleGenerator<T> {
-public:
-    const int _mask = (1 << this->_l) - 1;
+#include "BMT.h"
 
+class OtBmtGenerator : public SecureExecutor {
 public:
-    explicit OtBmtGenerator();
+    BMT _bmt{};
+    int64_t _ui{};
+    int64_t _vi{};
 
-    OtBmtGenerator *execute(bool dummy) override;
+    explicit OtBmtGenerator(int l);
+
+    OtBmtGenerator *execute() override;
 
 private:
     void generateRandomAB();
@@ -25,11 +26,11 @@ private:
 
     void computeV();
 
-    void computeMix(int sender, T &mix);
+    void computeMix(int sender, int64_t &mix);
 
     void computeC();
 
-    [[nodiscard]] T corr(int i, T x) const;
+    [[nodiscard]] int64_t corr(int i, int64_t x) const;
 
 protected:
     [[nodiscard]] std::string tag() const override;

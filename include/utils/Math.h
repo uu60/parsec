@@ -29,9 +29,6 @@ public:
     // divisor should be positive
     static int64_t ring(int64_t num, int l);
 
-    // constraint l
-    static int normL(int l);
-
 };
 
 

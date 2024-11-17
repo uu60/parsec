@@ -13,8 +13,7 @@
 #include "../SecureExecutor.h"
 
 // according to https://blog.csdn.net/qq_16763983/article/details/128055146
-template<typename T>
-class RsaOtExecutor : public SecureExecutor<T> {
+class RsaOtExecutor : public SecureExecutor {
 public:
     // RSA key _bits
     int _bits{};
@@ -24,8 +23,8 @@ public:
     std::string _rand0{};
     std::string _rand1{};
     std::string _pri;
-    T _m0{};
-    T _m1{};
+    int64_t _m0{};
+    int64_t _m1{};
 
     // params for receiver
     std::string _randK{};
@@ -37,11 +36,11 @@ public:
 public:
     // _m0 and _m1 are for sender (invalid for receiver)
     // i is for receiver (invalid for sender)
-    explicit RsaOtExecutor(int sender, T m0, T m1, int i);
+    explicit RsaOtExecutor(int sender, int64_t m0, int64_t m1, int l, int i);
 
-    explicit RsaOtExecutor(int bits, int sender, T m0, T m1, int i);
+    explicit RsaOtExecutor(int bits, int sender, int64_t m0, int64_t m1, int l, int i);
 
-    RsaOtExecutor *execute(bool dummy) override;
+    RsaOtExecutor *execute() override;
 
     RsaOtExecutor *reconstruct() override;
 

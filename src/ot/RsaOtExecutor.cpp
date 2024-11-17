@@ -7,25 +7,22 @@
 #include "utils/Math.h"
 #include "utils/Crypto.h"
 
-template<typename T>
-RsaOtExecutor<T>::RsaOtExecutor(int sender, T m0, T m1, int i)
-    : RsaOtExecutor(2048, sender, m0, m1, i) {
+RsaOtExecutor::RsaOtExecutor(int sender, int64_t m0, int64_t m1, int l, int i)
+    : RsaOtExecutor(2048, sender, m0, m1, l, i) {
 }
 
-template<typename T>
-RsaOtExecutor<T>::RsaOtExecutor(int bits, int sender, T m0, T m1, int i) {
+RsaOtExecutor::RsaOtExecutor(int bits, int sender, int64_t m0, int64_t m1, int l, int i) : SecureExecutor(l) {
     _bits = bits;
     _isSender = sender == Comm::rank();
     if (_isSender) {
-        _m0 = m0;
-        _m1 = m1;
+        _m0 = ring(m0);
+        _m1 = ring(m1);
     } else {
         _i = i;
     }
 }
 
-template<typename T>
-RsaOtExecutor<T> *RsaOtExecutor<T>::execute(bool dummy) {
+RsaOtExecutor *RsaOtExecutor::execute() {
     // preparation
     generateAndShareRandoms();
     generateAndShareRsaKeys();
@@ -35,12 +32,11 @@ RsaOtExecutor<T> *RsaOtExecutor<T>::execute(bool dummy) {
     return this;
 }
 
-template<typename T>
-void RsaOtExecutor<T>::generateAndShareRsaKeys() {
+void RsaOtExecutor::generateAndShareRsaKeys() {
     if (_isSender) {
         bool newKey = Crypto::generateRsaKeys(_bits);
-        this->_pub = Crypto::_selfPubs[_bits];
-        this->_pri = Crypto::_selfPris[_bits];
+        _pub = Crypto::_selfPubs[_bits];
+        _pri = Crypto::_selfPris[_bits];
         if (newKey) {
             Comm::ssend(&_pub);
         }
@@ -55,8 +51,7 @@ void RsaOtExecutor<T>::generateAndShareRsaKeys() {
     }
 }
 
-template<typename T>
-void RsaOtExecutor<T>::generateAndShareRandoms() {
+void RsaOtExecutor::generateAndShareRandoms() {
     // 11 for PKCS#1 v1.5 padding
     int len = (_bits >> 3) - 11;
     if (_isSender) {
@@ -71,8 +66,7 @@ void RsaOtExecutor<T>::generateAndShareRandoms() {
     }
 }
 
-template<typename T>
-void RsaOtExecutor<T>::process() {
+void RsaOtExecutor::process() {
     if (!_isSender) {
         std::string ek = Crypto::rsaEncrypt(_randK, _pub);
         std::string sumStr = Math::add(ek, _i == 0 ? _rand0 : _rand1);
@@ -82,7 +76,7 @@ void RsaOtExecutor<T>::process() {
         Comm::srecv(&m0);
         Comm::srecv(&m1);
 
-        this->_result = std::stoll(Math::minus(_i == 0 ? m0 : m1, _randK));
+        _result = std::stoll(Math::minus(_i == 0 ? m0 : m1, _randK));
     } else {
         std::string sumStr;
         Comm::srecv(&sumStr);
@@ -99,18 +93,10 @@ void RsaOtExecutor<T>::process() {
     }
 }
 
-template<typename T>
-std::string RsaOtExecutor<T>::tag() const {
+std::string RsaOtExecutor::tag() const {
     return "[RSA OT]";
 }
 
-template<typename T>
-RsaOtExecutor<T> *RsaOtExecutor<T>::reconstruct() {
+RsaOtExecutor *RsaOtExecutor::reconstruct() {
     return this;
 }
-
-template class RsaOtExecutor<bool>;
-template class RsaOtExecutor<int8_t>;
-template class RsaOtExecutor<int16_t>;
-template class RsaOtExecutor<int32_t>;
-template class RsaOtExecutor<int64_t>;

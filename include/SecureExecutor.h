@@ -12,29 +12,32 @@
 
 using namespace std;
 
-template<typename T>
 class SecureExecutor {
 public:
+    virtual ~SecureExecutor() = default;
+
     // result
-    T _result{};
+    int64_t _result{};
     // unreconstructed share
-    T _zi{};
+    int64_t _zi{};
 
     // _l
-    const int _l = std::is_same_v<T, bool> ? 1 : sizeof(_result) * 8;
+    int _l{};
+
+    explicit SecureExecutor(int l);
 
     // secret sharing process
     [[deprecated("This function should not be called.")]]
-    virtual SecureExecutor *execute(bool reconstruct);
+    virtual SecureExecutor *execute();
 
     [[deprecated("This function should not be called.")]]
     virtual SecureExecutor *reconstruct();
 
 protected:
+    [[nodiscard]] int64_t ring(int64_t raw) const;
+
     [[deprecated("This function should not be called.")]]
     [[nodiscard]] virtual std::string tag() const;
-
-    virtual void finalize();
 };
 
 #endif //MPC_PACKAGE_SECUREEXECUTOR_H

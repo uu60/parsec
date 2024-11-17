@@ -2,82 +2,61 @@
 // Created by 杜建璋 on 2024/9/12.
 //
 
+#include <utility>
+
 #include "api/IntSecret.h"
-#include "int/IntArithExecutor.h"
-#include "int/IntBoolExecutor.h"
-#include "int/addition/AddExecutor.h"
-#include "int/multiplication/MulExecutor.h"
-#include "int/comparison/ArithLessThanExecutor.h"
-#include "int/comparison/MuxExecutor.h"
+#include "compute/ArithExecutor.h"
+#include "compute/BoolExecutor.h"
+#include "compute/arith/AddExecutor.h"
+#include "compute/arith/MulExecutor.h"
+#include "compute/arith/LessThanArithExecutor.h"
+#include "compute/arith/MuxArithExecutor.h"
 
-template<typename T>
-IntSecret<T>::IntSecret(T x) {
+IntSecret::IntSecret(int64_t x, int l) {
     _data = x;
+    _l = l;
 }
 
-template<typename T>
-IntSecret<T> IntSecret<T>::arithShare() const {
-    return IntSecret(IntArithExecutor<T>(_data, true)._zi);
+IntSecret IntSecret::arithShare() const {
+    return {ArithExecutor(_data, _l, false)._zi, _l};
 }
 
-template<typename T>
-IntSecret<T> IntSecret<T>::boolShare() const {
-    return IntSecret(IntBoolExecutor<T>(_data, true)._zi);
+IntSecret IntSecret::boolShare() const {
+    return {BoolExecutor(_data, _l, false)._zi, _l};
 }
 
-template<typename T>
-[[nodiscard]] IntSecret<T> IntSecret<T>::arithReconstruct() const {
-    return IntSecret(IntArithExecutor<T>(_data, false).reconstruct()->_result);
+[[nodiscard]] IntSecret IntSecret::arithReconstruct() const {
+    return {ArithExecutor(_data, _l, true).reconstruct()->_result, _l};
 }
 
-template<typename T>
-[[nodiscard]] IntSecret<T> IntSecret<T>::boolReconstruct() const {
-    return IntSecret(IntBoolExecutor<T>(_data, false).reconstruct()->_result);
+[[nodiscard]] IntSecret IntSecret::boolReconstruct() const {
+    return {BoolExecutor(_data, _l, true).reconstruct()->_result, _l};
 }
 
-template<typename T>
-T IntSecret<T>::get() const {
+int64_t IntSecret::get() const {
     return _data;
 }
 
-template<typename T>
-IntSecret<T> IntSecret<T>::add(IntSecret yi) const {
-    return IntSecret(AddExecutor<T>(_data, yi.get(), false).execute(false)->_zi);
+IntSecret IntSecret::add(IntSecret yi) const {
+    return {AddExecutor(_data, yi.get(), _l, true).execute()->_zi, _l};
 }
 
-template<typename T>
-IntSecret<T> IntSecret<T>::mul(IntSecret yi, T ai, T bi, T ci) const {
-    return IntSecret(MulExecutor<T>(_data, yi.get(), false).obtainBmt(ai, bi, ci)->execute(false)->_zi);
+IntSecret IntSecret::mul(IntSecret yi, BMT bmt) const {
+    return {MulExecutor(_data, yi.get(), _l, true).setBmt(bmt)->execute()->_zi, _l};
 }
 
-template<typename T>
-IntSecret<T> IntSecret<T>::boolean() const {
-    return IntSecret(IntArithExecutor<T>(_data, false).convertZiToBool());
+IntSecret IntSecret::boolean(std::vector<BMT> bmts) const {
+    return {ArithExecutor(_data, _l, true).boolZi(std::move(bmts)), _l};
 }
 
-template<typename T>
-IntSecret<T> IntSecret<T>::arithmetic() const {
-    return IntSecret(IntBoolExecutor<T>(_data, false).convertZiToArithmetic(true));
+IntSecret IntSecret::arithmetic() const {
+    return {BoolExecutor(_data, _l, true).arithZi(), _l};
 }
 
-template<typename T>
-BitSecret IntSecret<T>::arithLessThan(IntSecret yi) const {
-    return BitSecret(ArithLessThanExecutor<T>(_data, yi.get(), false).execute(false)->_sign);
+BitSecret IntSecret::arithLessThan(IntSecret yi) const {
+    return BitSecret(LessThanArithExecutor(_data, yi.get(), _l, true).execute()->_sign);
 }
 
-template<typename T>
-IntSecret<T> IntSecret<T>::mux(IntSecret yi, BitSecret cond_i, T ai, T bi, T ci) const {
-    return IntSecret(MuxExecutor<T>(_data, yi.get(), cond_i.get(), false).obtainBmt(ai, bi, ci)->execute(false)->_zi);
+IntSecret IntSecret::mux(IntSecret yi, BitSecret cond_i, BMT bmt0, BMT bmt1) const {
+    return {MuxArithExecutor(_data, yi.get(), _l, cond_i.get(), true).setBmts(bmt0, bmt1)->execute()->_zi, _l};
 }
-
-template
-class IntSecret<int8_t>;
-
-template
-class IntSecret<int16_t>;
-
-template
-class IntSecret<int32_t>;
-
-template
-class IntSecret<int64_t>;

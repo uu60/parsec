@@ -4,28 +4,24 @@
 
 #include "SecureExecutor.h"
 
-template<typename T>
-void SecureExecutor<T>::finalize() {
-    // do nothing by default
+#include "utils/Math.h"
+
+SecureExecutor::SecureExecutor(int l) {
+    _l = l;
 }
 
-template<typename T>
-SecureExecutor<T> *SecureExecutor<T>::reconstruct() {
+SecureExecutor *SecureExecutor::reconstruct() {
     throw std::runtime_error("This method cannot be called!");
 }
 
-template<typename T>
-SecureExecutor<T> *SecureExecutor<T>::execute(bool reconstruct) {
+int64_t SecureExecutor::ring(int64_t raw) const {
+    return Math::ring(raw, _l);
+}
+
+SecureExecutor *SecureExecutor::execute() {
     throw std::runtime_error("This method cannot be called!");
 }
 
-template<typename T>
-std::string SecureExecutor<T>::tag() const {
+std::string SecureExecutor::tag() const {
     throw std::runtime_error("This method cannot be called!");
 }
-
-template class SecureExecutor<bool>;
-template class SecureExecutor<int8_t>;
-template class SecureExecutor<int16_t>;
-template class SecureExecutor<int32_t>;
-template class SecureExecutor<int64_t>;

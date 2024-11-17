@@ -59,51 +59,19 @@ public:
 
     static void srecv(std::string *target);
 
+    // send
     static void send(const int64_t *source, int receiverRank);
 
     static void send(const bool *source, int receiverRank);
 
     static void send(const std::string *source, int receiverRank);
 
+    //recv
     static void recv(int64_t *target, int senderRank);
 
     static void recv(bool *target, int senderRank);
 
     static void recv(std::string *target, int senderRank);
-
-    // for int8
-    // sexch functions for int8_t
-    static void sexch(const int8_t *source, int8_t *target);
-
-    static void ssend(const int8_t *source);
-
-    static void srecv(int8_t *target);
-
-    static void send(const int8_t *source, int receiverRank);
-
-    static void recv(int8_t *target, int senderRank);
-
-    // for int16
-    static void sexch(const int16_t *source, int16_t *target);
-
-    static void ssend(const int16_t *source);
-
-    static void srecv(int16_t *target);
-
-    static void send(const int16_t *source, int receiverRank);
-
-    static void recv(int16_t *target, int senderRank);
-
-    // for int32
-    static void sexch(const int32_t *source, int32_t *target);
-
-    static void ssend(const int32_t *source);
-
-    static void srecv(int32_t *target);
-
-    static void send(const int32_t *source, int receiverRank);
-
-    static void recv(int32_t *target, int senderRank);
 };
 
 

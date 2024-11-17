@@ -13,10 +13,10 @@ add_library(${PROJECT_NAME} SHARED
         include/SecureExecutor.h
         src/utils/Log.cpp
         include/utils/Log.h
-        src/int/multiplication/MulExecutor.cpp
-        include/int/multiplication/MulExecutor.h
-        src/int/addition/AddExecutor.cpp
-        include/int/addition/AddExecutor.h
+        src/compute/arith/MulExecutor.cpp
+        include/compute/arith/MulExecutor.h
+        src/compute/arith/AddExecutor.cpp
+        include/compute/arith/AddExecutor.h
         src/ot/RsaOtExecutor.cpp
         include/ot/RsaOtExecutor.h
         src/utils/Comm.cpp
@@ -25,51 +25,43 @@ add_library(${PROJECT_NAME} SHARED
         include/utils/Crypto.h
         src/utils/System.cpp
         include/utils/System.h
-        src/bit/xor/BitXorExecutor.cpp
-        include/bit/xor/BitXorExecutor.h
-        src/bit/and/BitAndExecutor.cpp
-        include/bit/and/BitAndExecutor.h
         src/bmt/OtBmtGenerator.cpp
         include/bmt/OtBmtGenerator.h
-        src/bmt/AbstractTripleGenerator.cpp
-        include/bmt/AbstractTripleGenerator.h
-        src/bmt/FixedTripleGenerator.cpp
-        include/bmt/FixedTripleGenerator.h
-        src/int/comparison/ArithLessThanExecutor.cpp
-        include/int/comparison/ArithLessThanExecutor.h
-        src/int/IntArithExecutor.cpp
-        include/int/IntArithExecutor.h
-        src/bit/BitExecutor.cpp
-        include/bit/BitExecutor.h
-        src/api/Secret.cpp
-        include/api/Secret.h
+        src/compute/arith/LessThanArithExecutor.cpp
+        include/compute/arith/LessThanArithExecutor.h
+        src/compute/ArithExecutor.cpp
+        include/compute/ArithExecutor.h
         src/api/IntSecret.cpp
         include/api/IntSecret.h
+        src/compute/arith/MuxArithExecutor.cpp
+        include/compute/arith/MuxArithExecutor.h
+        include/compute/BoolExecutor.h
+        src/compute/BoolExecutor.cpp
+        include/compute/bool/BitwiseAndExecutor.h
+        src/compute/bool/BitwiseAndExecutor.cpp
+        include/compute/bool/BitwiseXorExecutor.h
+        src/compute/bool/BitwiseXorExecutor.cpp
+        include/compute/bool/EqualBoolExecutor.h
+        src/compute/bool/EqualBoolExecutor.cpp
         src/api/BitSecret.cpp
-        include/api/BitSecret.h
-        src/int/comparison/MuxExecutor.cpp
-        include/int/comparison/MuxExecutor.h
-        include/int/IntBoolExecutor.h
-        src/int/IntBoolExecutor.cpp
-        include/int/and/IntAndExecutor.h
-        include/int/and/IntAndExecutor.cpp
+        include/bmt/BMT.h
 )
 if (EXISTS "include/bmt/fixed_triples_0.h")
     add_library(${PROJECT_NAME} SHARED
             include/bmt/fixed_triples_0.h
-            include/int/fixed_ab_pairs_0.h
+            include/compute/fixed_ab_pairs_0.h
     )
 endif ()
 if (EXISTS "include/bmt/fixed_triples_1.h")
     add_library(${PROJECT_NAME} SHARED
             include/bmt/fixed_triples_1.h
-            include/int/fixed_ab_pairs_1.h
+            include/compute/fixed_ab_pairs_1.h
     )
 endif ()
 target_include_directories(${PROJECT_NAME} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>)
-#set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER "include/executor/int/AbstractAdditionShareExecutor.h;include/executor/Executor.h")
+#set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER "include/executor/compute/AbstractarithShareExecutor.h;include/executor/Executor.h")
 
 # install libxx.so to ${CMAKE_INSTALL_PREFIX}/lib
 install(

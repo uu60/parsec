@@ -7,85 +7,68 @@
 #include "utils/Math.h"
 #include "utils/Comm.h"
 
-template<typename T>
-OtBmtGenerator<T>::OtBmtGenerator() = default;
+OtBmtGenerator::OtBmtGenerator(int l) : SecureExecutor(l) {}
 
-template<typename T>
-void OtBmtGenerator<T>::generateRandomAB() {
-    this->_ai = Math::randInt() & this->_mask;
-    this->_bi = Math::randInt() & this->_mask;
+void OtBmtGenerator::generateRandomAB() {
+    _bmt._a = ring(Math::randInt());
+    _bmt._b = ring(Math::randInt());
 }
 
-template<typename T>
-void OtBmtGenerator<T>::computeU() {
-    computeMix(0, this->_ui);
+void OtBmtGenerator::computeU() {
+    computeMix(0, _ui);
 }
 
-template<typename T>
-void OtBmtGenerator<T>::computeV() {
-    computeMix(1, this->_vi);
+void OtBmtGenerator::computeV() {
+    computeMix(1, _vi);
 }
 
-template<typename T>
-T OtBmtGenerator<T>::corr(int i, T x) const {
-    return ((this->_ai << i) - x) & this->_mask;
+int64_t OtBmtGenerator::corr(int i, int64_t x) const {
+    return ring((_bmt._a << i) - x);
 }
 
-template<typename T>
-void OtBmtGenerator<T>::computeMix(int sender, T &mix) {
+void OtBmtGenerator::computeMix(int sender, int64_t &mix) {
     bool isSender = Comm::rank() == sender;
-    T sum = 0;
-    for (int i = 0; i < this->_l; i++) {
-        T s0 = 0, s1 = 0;
+    int64_t sum = 0;
+    for (int i = 0; i < _l; i++) {
+        int64_t s0 = 0, s1 = 0;
         int choice = 0;
         if (isSender) {
-            s0 = Math::randInt(0, 1) & this->_mask;
+            s0 = ring(Math::randInt(0, 1));
             s1 = corr(i, s0);
         } else {
-            choice = (int) ((this->_bi >> i) & 1);
+            choice = static_cast<int>((_bmt._b >> i) & 1);
         }
-        RsaOtExecutor<T> r(sender, s0, s1, choice);
-        r.execute(false);
+        RsaOtExecutor r(sender, s0, s1, _l, choice);
+        r.execute();
 
         if (isSender) {
-            sum = sum + s0;
+            sum = ring(sum + s0);
         } else {
-            T temp = r._result;
+            int64_t temp = r._result;
             if (choice == 0) {
-                temp = (-temp) & this->_mask;
+                temp = ring(-temp);
             }
-            sum = sum + temp;
+            sum = ring(sum + temp);
         }
     }
     mix = sum;
 }
 
-template<typename T>
-void OtBmtGenerator<T>::computeC() {
-    if (this->_l == 1) {
-        this->_ci = this->_ai & this->_bi ^ this->_ui ^ this->_vi;
-        return;
-    }
-    this->_ci = this->_ai * this->_bi + this->_ui + this->_vi;
+void OtBmtGenerator::computeC() {
+    _bmt._c = ring(_bmt._a * _bmt._b + _ui + _vi);
 }
 
-template<typename T>
-OtBmtGenerator<T> *OtBmtGenerator<T>::execute(bool dummy) {
-    generateRandomAB();
+OtBmtGenerator *OtBmtGenerator::execute() {
+    if (Comm::isServer()) {
+        generateRandomAB();
 
-    computeU();
-    computeV();
-    computeC();
+        computeU();
+        computeV();
+        computeC();
+    }
     return this;
 }
 
-template<typename T>
-std::string OtBmtGenerator<T>::tag() const {
+std::string OtBmtGenerator::tag() const {
     return "[BMT Generator]";
 }
-
-template class OtBmtGenerator<bool>;
-template class OtBmtGenerator<int8_t>;
-template class OtBmtGenerator<int16_t>;
-template class OtBmtGenerator<int32_t>;
-template class OtBmtGenerator<int64_t>;
