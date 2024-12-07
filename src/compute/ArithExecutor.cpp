@@ -3,48 +3,75 @@
 //
 
 #include "compute/ArithExecutor.h"
-#include "compute/bool/BitwiseAndExecutor.h"
-#include "compute/arith/MulExecutor.h"
+
+#include <folly/futures/Future.h>
+
 #include "ot/RsaOtExecutor.h"
-#include "utils/Comm.h"
+#include "comm/IComm.h"
 #include "utils/Math.h"
 
-ArithExecutor::ArithExecutor(int64_t z, int l, bool local) : SecureExecutor(l) {
-    if (local) {
+ArithExecutor::ArithExecutor(int64_t z, int l, int32_t objTag, int8_t msgTagOffset,
+                             int clientRank) : AbstractSecureExecutor(l, objTag, msgTagOffset) {
+    if (clientRank < 0) {
         _zi = ring(z);
     } else {
         // distribute operator
-        if (Comm::isClient()) {
+        if (IComm::impl->rank() == clientRank) {
             int64_t z1 = ring(Math::randInt());
             int64_t z0 = ring(z - z1);
-            Comm::send(&z0, 0);
-            Comm::send(&z1, 1);
+            // To avoid long time waiting on network, send data in parallel.
+            auto f0 = via(&System::_threadPool, [this, z0] {
+                IComm::impl->send(&z0, 0, buildTag(_currentMsgTag));
+            });
+            auto f1 = via(&System::_threadPool, [this, z1] {
+                IComm::impl->send(&z1, 1, buildTag(_currentMsgTag));
+            });
+            // Blocking wait. (sync)
+            f0.wait();
+            f1.wait();
+            // Update tag.
+            _currentMsgTag++;
         } else {
             // operator
-            Comm::recv(&_zi, Comm::CLIENT_RANK);
+            IComm::impl->receive(&_zi, clientRank, _currentMsgTag++);
         }
     }
 }
 
-ArithExecutor::ArithExecutor(int64_t x, int64_t y, int l, bool local) : SecureExecutor(l) {
-    if (local) {
+ArithExecutor::ArithExecutor(int64_t x, int64_t y, int l, int32_t objTag, int8_t msgTagOffset,
+                             int clientRank) : AbstractSecureExecutor(l, objTag, msgTagOffset) {
+    if (clientRank < 0) {
         _xi = ring(x);
         _yi = ring(y);
     } else {
+        auto msgTags = nextMsgTags(2);
         // distribute operator
-        if (Comm::isClient()) {
+        if (IComm::impl->rank() == clientRank) {
             int64_t x1 = ring(Math::randInt());
             int64_t x0 = ring(x - x1);
             int64_t y1 = ring(Math::randInt());
             int64_t y0 = ring(y - y1);
-            Comm::send(&x0, 0);
-            Comm::send(&y0, 0);
-            Comm::send(&x1, 1);
-            Comm::send(&y1, 1);
+            std::vector<folly::Future<folly::Unit> > futures(4);
+            futures.push_back(via(&System::_threadPool, [x0, this, msgTags] {
+                IComm::impl->send(&x0, 0, buildTag(msgTags[0]));
+            }));
+            futures.push_back(via(&System::_threadPool, [y0, this, msgTags] {
+                IComm::impl->send(&y0, 0, buildTag(msgTags[1]));
+            }));
+            futures.push_back(via(&System::_threadPool, [x1, this, msgTags] {
+                IComm::impl->send(&x1, 1, buildTag(msgTags[0]));
+            }));
+            futures.push_back(via(&System::_threadPool, [y1, this, msgTags] {
+                IComm::impl->send(&y1, 1, buildTag(msgTags[1]));
+            }));
+            // sync
+            for (auto &f: futures) {
+                f.wait();
+            }
         } else {
             // operator
-            Comm::recv(&_xi, Comm::CLIENT_RANK);
-            Comm::recv(&_yi, Comm::CLIENT_RANK);
+            IComm::impl->receive(&_xi, clientRank, msgTags[0]);
+            IComm::impl->receive(&_yi, clientRank, msgTags[1]);
         }
     }
 }
@@ -53,52 +80,18 @@ ArithExecutor *ArithExecutor::execute() {
     throw std::runtime_error("This method cannot be called!");
 }
 
-std::string ArithExecutor::tag() const {
+std::string ArithExecutor::className() const {
     throw std::runtime_error("This method cannot be called!");
 }
 
-ArithExecutor *ArithExecutor::reconstruct() {
-    if (Comm::isServer()) {
-        Comm::send(&_zi, Comm::CLIENT_RANK);
-    } else {
+ArithExecutor *ArithExecutor::reconstruct(int clientRank) {
+    if (IComm::impl->isServer()) {
+        IComm::impl->send(&_zi, clientRank, buildTag(_currentMsgTag++));
+    } else if (IComm::impl->rank() == clientRank) {
         int64_t z0, z1;
-        Comm::recv(&z0, 0);
-        Comm::recv(&z1, 1);
+        IComm::impl->receive(&z0, 0, _currentMsgTag);
+        IComm::impl->receive(&z1, 1, _currentMsgTag++);
         _result = ring(z0 + z1);
     }
     return this;
-}
-
-int64_t ArithExecutor::boolZi(std::vector<BMT> bmts) const {
-    int64_t b_zi = 0;
-
-    if (Comm::isServer()) {
-        // bitwise separate zi
-        // zi is xor shared into zi_i and zi_o
-        int64_t zi_i = ring(Math::randInt());
-        int64_t zi_o = ring(zi_i ^ _zi);
-        bool carry_i = false;
-
-        for (int i = 0; i < _l; i++) {
-            bool ai, ao, bi, bo;
-            bool *self_i = Comm::rank() == 0 ? &ai : &bi;
-            bool *self_o = Comm::rank() == 0 ? &ao : &bo;
-            bool *other_i = Comm::rank() == 0 ? &bi : &ai;
-            *self_i = (zi_i >> i) & 1;
-            *self_o = (zi_o >> i) & 1;
-            Comm::sexch(self_o, other_i);
-            b_zi += ((ai ^ bi) ^ carry_i) << i;
-
-            // Compute carry_i
-            bool generate_i = BitwiseAndExecutor(ai, bi, 1, true).setBmts({bmts[3 * i]})->execute()->_zi;
-            bool propagate_i = ai ^ bi;
-            bool tempCarry_i = BitwiseAndExecutor(propagate_i, carry_i, 1, true).setBmts({bmts[3 * i + 1]})->execute()->_zi;
-            bool sum_i = generate_i ^ tempCarry_i;
-            bool and_i = BitwiseAndExecutor(generate_i, tempCarry_i, 1, true).setBmts({bmts[3 * i + 2]})->execute()->_zi;
-
-            carry_i = sum_i ^ and_i;
-        }
-    }
-
-    return b_zi;
 }

@@ -8,8 +8,6 @@
 #include <vector>
 #include <string>
 
-#include "utils/Log.h"
-
 std::unordered_map<int, std::string> Crypto::_selfPubs = {};
 std::unordered_map<int, std::string> Crypto::_selfPris = {};
 std::unordered_map<int, std::string> Crypto::_otherPubs = {};

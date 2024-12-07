@@ -6,14 +6,10 @@
 #define MPC_PACKAGE_RSAOTEXECUTOR_H
 
 #include <string>
-#include <openssl/rsa.h>
-#include <openssl/pem.h>
-#include <openssl/err.h>
-#include <openssl/sha.h>
-#include "../SecureExecutor.h"
+#include "../AbstractSecureExecutor.h"
 
 // according to https://blog.csdn.net/qq_16763983/article/details/128055146
-class RsaOtExecutor : public SecureExecutor {
+class RsaOtExecutor : public AbstractSecureExecutor {
 public:
     // RSA key _bits
     int _bits{};
@@ -36,16 +32,18 @@ public:
 public:
     // _m0 and _m1 are for sender (invalid for receiver)
     // i is for receiver (invalid for sender)
-    explicit RsaOtExecutor(int sender, int64_t m0, int64_t m1, int l, int i);
+    explicit RsaOtExecutor(int sender, int64_t m0, int64_t m1, int i, int l, int32_t objTag, int8_t msgTagOffset);
 
-    explicit RsaOtExecutor(int bits, int sender, int64_t m0, int64_t m1, int l, int i);
+    explicit RsaOtExecutor(int bits, int sender, int64_t m0, int64_t m1, int i, int l, int32_t objTag, int8_t msgTagOffset);
 
     RsaOtExecutor *execute() override;
 
-    RsaOtExecutor *reconstruct() override;
+    RsaOtExecutor *reconstruct(int clientRank) override;
+
+    [[nodiscard]] static int8_t msgNum();
 
 protected:
-    [[nodiscard]] std::string tag() const override;
+    [[nodiscard]] std::string className() const override;
 
 private:
     // methods for sender

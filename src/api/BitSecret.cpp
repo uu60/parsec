@@ -5,41 +5,39 @@
 #include "api/BitSecret.h"
 
 #include "compute/ArithExecutor.h"
-#include "compute/arith/MuxArithExecutor.h"
-#include "compute/bool/BitwiseAndExecutor.h"
-#include "compute/bool/BitwiseXorExecutor.h"
-#include "utils/Comm.h"
+#include "compute/arith/ArithMuxExecutor.h"
+#include "compute/bool/BoolAndExecutor.h"
+#include "compute/bool/BoolXorExecutor.h"
+#include "comm/IComm.h"
 
-BitSecret::BitSecret(bool x) {
-    _data = x;
-}
+BitSecret::BitSecret(bool x, int32_t objTag) : _data(x), _objTag(objTag) {}
 
 BitSecret BitSecret::share() const {
-    return BitSecret(ArithExecutor(_data, 1, false)._zi);
+    return BitSecret(BoolExecutor(_data, 1, _objTag, 0, IComm::impl->rank())._zi, _objTag);
 }
 
 BitSecret BitSecret::not_() const {
-    return BitSecret(_data ^ Comm::rank());
+    return BitSecret(_data ^ IComm::impl->rank(), _objTag);
 }
 
 BitSecret BitSecret::xor_(BitSecret yi) const {
-    return BitSecret(BitwiseXorExecutor(_data, yi.get(), 1, true).execute()->_zi);
+    return BitSecret(BoolXorExecutor(_data, yi.get(), 1, _objTag, 0, -1).execute()->_zi, _objTag);
 }
 
-BitSecret BitSecret::and_(BitSecret yi, BMT bmt) const {
-    return BitSecret(BitwiseAndExecutor(_data, yi.get(), 1, true).setBmts({bmt})->execute()->_zi);
+BitSecret BitSecret::and_(BitSecret yi) const {
+    return BitSecret(BoolAndExecutor(_data, yi.get(), 1, _objTag, 0, -1).execute()->_zi, _objTag);
 }
 
-BitSecret BitSecret::or_(BitSecret yi, BMT bmt) const {
-    return xor_(yi).xor_(and_(yi, bmt));
+BitSecret BitSecret::or_(BitSecret yi) const {
+    return xor_(yi).xor_(and_(yi));
 }
 
-BitSecret BitSecret::mux(BitSecret yi, BitSecret cond_i, BMT bmt0, BMT bmt1) const {
-    return BitSecret(MuxArithExecutor(_data, yi.get(), 1, cond_i.get(), true).setBmts(bmt0, bmt1)->execute()->_zi);
+BitSecret BitSecret::mux(BitSecret yi, BitSecret cond_i) const {
+    return BitSecret(ArithMuxExecutor(_data, yi.get(), 1, cond_i.get(), _objTag, 0, -1).execute()->_zi, _objTag);
 }
 
-BitSecret BitSecret::reconstruct() const {
-    return BitSecret(ArithExecutor(_data, 1, true).reconstruct()->_result);
+BitSecret BitSecret::reconstruct(int clientRank) const {
+    return BitSecret(ArithExecutor(_data, 1, _objTag, 0, -1).reconstruct(clientRank)->_result, _objTag);
 }
 
 bool BitSecret::get() const {

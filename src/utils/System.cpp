@@ -4,6 +4,8 @@
 
 #include "utils/System.h"
 
+folly::IOThreadPoolExecutor System::_threadPool(std::thread::hardware_concurrency() * 8);
+
 int64_t System::currentTimeMillis()  {
     auto now = std::chrono::system_clock::now();
 

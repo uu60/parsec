@@ -2,144 +2,85 @@
 // Created by 杜建璋 on 2024/11/7.
 //
 
-#include "../../include/compute/BoolExecutor.h"
-#include "../../include/utils/Comm.h"
-#include "../../include/utils/Math.h"
-#include "../../include/ot/RsaOtExecutor.h"
-#if __has_include("compute/fixed_ab_pairs_0.h")
+#include "compute/BoolExecutor.h"
 
-#include "../../include/compute/fixed_ab_pairs_0.h"
+#include <folly/futures/Future.h>
 
-#endif
+#include "comm/IComm.h"
+#include "utils/Math.h"
+#include "ot/RsaOtExecutor.h"
+#include "utils/System.h"
 
-#if __has_include("compute/fixed_ab_pairs_1.h")
-
-#include "../../include/compute/fixed_ab_pairs_1.h"
-
-#endif
-
-BoolExecutor::BoolExecutor(int64_t z, int l, bool local) : SecureExecutor(l) {
-    if (local) {
-        _zi = ring(z);
+BoolExecutor::BoolExecutor(int64_t z, int l, int32_t objTag, int8_t msgTagOffset,
+                           int clientRank) : AbstractSecureExecutor(
+    l, objTag, msgTagOffset) {
+    if (clientRank < 0) {
+        _xi = ring(z);
     } else {
         // distribute operator
-        if (Comm::isClient()) {
+        if (IComm::impl->isClient()) {
             int64_t z1 = ring(Math::randInt());
             int64_t z0 = ring(z ^ z1);
-            Comm::send(&z0, 0);
-            Comm::send(&z1, 1);
+            auto f0 = via(&System::_threadPool, [this, z0] {
+                IComm::impl->send(&z0, 0, buildTag(_currentMsgTag));
+            });
+            auto f1 = via(&System::_threadPool, [this, z1] {
+                IComm::impl->send(&z1, 1, buildTag(_currentMsgTag));
+            });
+            f0.wait();
+            f1.wait();
+            _currentMsgTag++;
         } else {
             // operator
-            Comm::recv(&_zi, Comm::CLIENT_RANK);
+            IComm::impl->receive(&_xi, clientRank, _currentMsgTag++);
         }
     }
 }
 
-BoolExecutor::BoolExecutor(int64_t x, int64_t y, int l, bool local) : SecureExecutor(l) {
-    if (local) {
+BoolExecutor::BoolExecutor(int64_t x, int64_t y, int l, int32_t objTag, int8_t msgTagOffset,
+                           int clientRank) : AbstractSecureExecutor(l, objTag, msgTagOffset) {
+    if (clientRank < 0) {
         _xi = ring(x);
         _yi = ring(y);
     } else {
+        auto msgTags = nextMsgTags(2);
         // distribute operator
-        if (Comm::isClient()) {
+        if (IComm::impl->rank() == clientRank) {
             int64_t x1 = ring(Math::randInt());
             int64_t x0 = ring(x ^ x1);
             int64_t y1 = ring(Math::randInt());
             int64_t y0 = ring(y ^ y1);
-            Comm::send(&x0, 0);
-            Comm::send(&y0, 0);
-            Comm::send(&x1, 1);
-            Comm::send(&y1, 1);
+            std::vector<folly::Future<folly::Unit> > futures(4);
+            futures.push_back(via(&System::_threadPool, [x0, this, msgTags] {
+                IComm::impl->send(&x0, 0, buildTag(msgTags[0]));
+            }));
+            futures.push_back(via(&System::_threadPool, [y0, this, msgTags] {
+                IComm::impl->send(&y0, 0, buildTag(msgTags[1]));
+            }));
+            futures.push_back(via(&System::_threadPool, [x1, this, msgTags] {
+                IComm::impl->send(&x1, 1, buildTag(msgTags[0]));
+            }));
+            futures.push_back(via(&System::_threadPool, [y1, this, msgTags] {
+                IComm::impl->send(&y1, 1, buildTag(msgTags[1]));
+            }));
+            for (auto &f: futures) {
+                f.wait();
+            }
         } else {
             // operator
-            Comm::recv(&_xi, Comm::CLIENT_RANK);
-            Comm::recv(&_yi, Comm::CLIENT_RANK);
+            IComm::impl->receive(&_xi, clientRank, msgTags[0]);
+            IComm::impl->receive(&_yi, clientRank, msgTags[1]);
         }
     }
 }
 
-int64_t BoolExecutor::arithZi() const {
-    int64_t xa = 0;
-    if (Comm::isServer()) {
-        bool isSender = Comm::rank() == 0;
-        for (int i = 0; i < _l; i++) {
-            int xb = static_cast<int>((_zi >> i) & 1);
-            int64_t s0 = 0, s1 = 0;
-            int64_t r = 0;
-            if (isSender) {
-                // Sender
-                r = ring(Math::randInt());
-                s0 = ring((xb << i) - r);
-                s1 = ring(((1 - xb) << i) - r);
-            }
-            RsaOtExecutor e(0, s0, s1, _l, xb);
-            e.execute();
-            if (isSender) {
-                xa = ring(xa + r);
-            } else {
-                int64_t s_xb = e._result;
-                xa = ring(xa + s_xb);
-            }
-        }
-    }
-    return xa;
-}
-
-// void IntBoolExecutor::doPregeneratedConvert() {
-//     int64_t res = 0;
-//     for (compute i = 0; i < _l; i++) {
-//         int64_t idx = 0;
-//         if (Comm::rank() == 0) {
-//             idx = Math::randInt(0, 99);
-//             Comm::ssend(&idx);
-//         } else {
-//             Comm::srecv(&idx);
-//         }
-//         std::pair<int64_t, int64_t> r = getPair(idx);
-//         int64_t ri_b = r.first;
-//         int64_t ri_a = r.second;
-//
-//         // Compute
-//         int64_t zi_b = ((_zi >> i) & 1) ^ ri_b;
-//         int64_t zo_b;
-//
-//         // Decrypt
-//         Comm::sexch(&zi_b, &zo_b);
-//         int64_t z = zo_b ^ zi_b;
-//         int64_t zi_a;
-//
-//         // Compute
-//         res += (ri_a + z * Comm::rank() - 2 * ri_a * z) << i;
-//     }
-//     _zi = res;
-// }
-//
-// std::pair<T, T> IntBoolExecutor::getPair(compute idx) {
-//     const std::array<T, 100> *booleans;
-//     const std::array<T, 100> *ariths;
-//     if constexpr (std::is_same_v<T, int8_t>) {
-//         booleans = &R_BOOL_8;
-//         ariths = &R_ARITH_8;
-//     } else if constexpr (std::is_same_v<T, int16_t>) {
-//         booleans = &R_BOOL_16;
-//         ariths = &R_ARITH_16;
-//     } else if constexpr (std::is_same_v<T, int32_t>) {
-//         booleans = &R_BOOL_32;
-//         ariths = &R_ARITH_32;
-//     } else {
-//         booleans = &R_BOOL_64;
-//         ariths = &R_ARITH_64;
-//     }
-//     return {(*booleans)[idx], (*ariths)[idx]};
-// }
-
-BoolExecutor *BoolExecutor::reconstruct() {
-    if (Comm::isServer()) {
-        Comm::send(&_zi, Comm::CLIENT_RANK);
+BoolExecutor *BoolExecutor::reconstruct(int clientRank) {
+    if (IComm::impl->isServer()) {
+        IComm::impl->send(&_xi, clientRank, _currentMsgTag++);
     } else {
         int64_t z0, z1;
-        Comm::recv(&z0, 0);
-        Comm::recv(&z1, 1);
+        IComm::impl->receive(&z0, 0, _currentMsgTag);
+        IComm::impl->receive(&z1, 1, _currentMsgTag++);
         _result = z0 ^ z1;
     }
     return this;
@@ -149,6 +90,6 @@ BoolExecutor *BoolExecutor::execute() {
     throw std::runtime_error("This method cannot be called!");
 }
 
-std::string BoolExecutor::tag() const {
+std::string BoolExecutor::className() const {
     throw std::runtime_error("This method cannot be called!");
 }

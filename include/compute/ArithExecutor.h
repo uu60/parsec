@@ -5,29 +5,37 @@
 #ifndef MPC_PACKAGE_INTSHAREEXECUTOR_H
 #define MPC_PACKAGE_INTSHAREEXECUTOR_H
 
-#include "../SecureExecutor.h"
+#include "../AbstractSecureExecutor.h"
 #include <vector>
-#include "../compute/BoolExecutor.h"
-#include "../bmt/BMT.h"
 
-class ArithExecutor : public SecureExecutor {
+class ArithExecutor : public AbstractSecureExecutor {
+private:
+    static int32_t _currentObjTag;
 public:
     int64_t _xi{};
     int64_t _yi{};
 
-    ArithExecutor(int64_t zi, int l, bool local);
+    /**
+     * In the constructor, data will be prepared before computing (network maybe needed).
+     * Only ArithExecutor and BoolExecutor can set zi (unreconstructed result) directly in the constructor
+     * which has an argument of z.
+     *
+     * @param z Straightly store computed unreconstructed result.
+     * @param l Length of numbers in this MPC process.
+     * @param objTag Object tag.
+     * @param clientRank If clientRank is negative, means locally set value. Else clientRank represents sharer's rank.
+     */
+    ArithExecutor(int64_t z, int l, int32_t objTag, int8_t msgTagOffset, int clientRank);
 
-    ArithExecutor(int64_t x, int64_t y, int l, bool local);
+    ArithExecutor(int64_t x, int64_t y, int l, int32_t objTag, int8_t msgTagOffset, int clientRank);
 
-    ArithExecutor *reconstruct() override;
-
-    [[nodiscard]] int64_t boolZi(std::vector<BMT> bmts) const;
+    ArithExecutor *reconstruct(int clientRank) override;
 
     [[deprecated("This function should not be called.")]]
     ArithExecutor *execute() override;
 
     [[deprecated("This function should not be called.")]]
-    [[nodiscard]] std::string tag() const override;
+    [[nodiscard]] std::string className() const override;
 };
 
 

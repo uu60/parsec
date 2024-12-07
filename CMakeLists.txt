@@ -1,67 +1,67 @@
 cmake_minimum_required(VERSION 3.22)
-project(mpc_package)
+
+project(Dekopon_SS_SMPC_package)
 
 set(CMAKE_CXX_STANDARD 17)
 
 find_package(MPI REQUIRED)
 find_package(OpenSSL REQUIRED)
+find_package(folly REQUIRED)
+find_package(gflags REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
         src/utils/Math.cpp
         include/utils/Math.h
-        src/SecureExecutor.cpp
-        include/SecureExecutor.h
-        src/utils/Log.cpp
-        include/utils/Log.h
-        src/compute/arith/MulExecutor.cpp
-        include/compute/arith/MulExecutor.h
-        src/compute/arith/AddExecutor.cpp
-        include/compute/arith/AddExecutor.h
+        src/AbstractSecureExecutor.cpp
+        include/AbstractSecureExecutor.h
+        src/compute/arith/ArithMulExecutor.cpp
+        include/compute/arith/ArithMulExecutor.h
+        src/compute/arith/ArithAddExecutor.cpp
+        include/compute/arith/ArithAddExecutor.h
         src/ot/RsaOtExecutor.cpp
         include/ot/RsaOtExecutor.h
-        src/utils/Comm.cpp
-        include/utils/Comm.h
+        src/comm/MpiComm.cpp
+        include/comm/MpiComm.h
         src/utils/Crypto.cpp
         include/utils/Crypto.h
         src/utils/System.cpp
         include/utils/System.h
-        src/bmt/OtBmtGenerator.cpp
-        include/bmt/OtBmtGenerator.h
-        src/compute/arith/LessThanArithExecutor.cpp
-        include/compute/arith/LessThanArithExecutor.h
+        src/intermediate/OtBmtGenerator.cpp
+        include/intermediate/OtBmtGenerator.h
+        src/compute/arith/ArithLessThanExecutor.cpp
+        include/compute/arith/ArithLessThanExecutor.h
         src/compute/ArithExecutor.cpp
         include/compute/ArithExecutor.h
         src/api/IntSecret.cpp
         include/api/IntSecret.h
-        src/compute/arith/MuxArithExecutor.cpp
-        include/compute/arith/MuxArithExecutor.h
+        src/compute/arith/ArithMuxExecutor.cpp
+        include/compute/arith/ArithMuxExecutor.h
         include/compute/BoolExecutor.h
         src/compute/BoolExecutor.cpp
-        include/compute/bool/BitwiseAndExecutor.h
-        src/compute/bool/BitwiseAndExecutor.cpp
-        include/compute/bool/BitwiseXorExecutor.h
-        src/compute/bool/BitwiseXorExecutor.cpp
-        include/compute/bool/EqualBoolExecutor.h
-        src/compute/bool/EqualBoolExecutor.cpp
+        include/compute/bool/BoolAndExecutor.h
+        src/compute/bool/BoolAndExecutor.cpp
+        include/compute/bool/BoolXorExecutor.h
+        src/compute/bool/BoolXorExecutor.cpp
+        include/compute/bool/BoolEqualExecutor.h
+        src/compute/bool/BoolEqualExecutor.cpp
         src/api/BitSecret.cpp
-        include/bmt/BMT.h
+        include/intermediate/BMT.h
+        include/comm/IComm.h
+        include/intermediate/IntermediateDataSupport.h
+        src/intermediate/IntermediateDataSupport.cpp
+        src/compute/arith/ArithToBoolExecutor.cpp
+        include/compute/arith/ArithToBoolExecutor.h
+        src/compute/bool/BoolToArithExecutor.cpp
+        include/compute/bool/BoolToArithExecutor.h
+        include/intermediate/ABPair.h
+        src/intermediate/ABPairGenerator.cpp
+        include/intermediate/ABPairGenerator.h
+        src/comm/IComm.cpp
 )
-if (EXISTS "include/bmt/fixed_triples_0.h")
-    add_library(${PROJECT_NAME} SHARED
-            include/bmt/fixed_triples_0.h
-            include/compute/fixed_ab_pairs_0.h
-    )
-endif ()
-if (EXISTS "include/bmt/fixed_triples_1.h")
-    add_library(${PROJECT_NAME} SHARED
-            include/bmt/fixed_triples_1.h
-            include/compute/fixed_ab_pairs_1.h
-    )
-endif ()
+
 target_include_directories(${PROJECT_NAME} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>)
-#set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER "include/executor/compute/AbstractarithShareExecutor.h;include/executor/Executor.h")
 
 # install libxx.so to ${CMAKE_INSTALL_PREFIX}/lib
 install(
@@ -71,6 +71,7 @@ install(
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin
 )
+
 # headers path
 install(DIRECTORY include/
         DESTINATION include/${PROJECT_NAME}
@@ -113,5 +114,5 @@ install(
 )
 
 target_link_libraries(
-        ${PROJECT_NAME} PUBLIC MPI::MPI_CXX OpenSSL::SSL OpenSSL::Crypto
+        ${PROJECT_NAME} PUBLIC MPI::MPI_CXX OpenSSL::SSL OpenSSL::Crypto Folly::folly gflags
 )

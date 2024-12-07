@@ -4,11 +4,12 @@
 
 #ifndef MPC_PACKAGE_SYSTEM_H
 #define MPC_PACKAGE_SYSTEM_H
-#include <iostream>
-#include <chrono>
+#include <folly/executors/IOThreadPoolExecutor.h>
 
 class System {
 public:
+    static folly::IOThreadPoolExecutor _threadPool;
+
     static int64_t currentTimeMillis();
 };
 

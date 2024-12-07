@@ -5,18 +5,16 @@
 #ifndef MPC_PACKAGE_INTSECRET_H
 #define MPC_PACKAGE_INTSECRET_H
 
-#include "../utils/Comm.h"
 #include "./BitSecret.h"
 #include <vector>
-
-#include "../bmt/BMT.h"
 
 class IntSecret {
 private:
     int64_t _data{};
     int _l{};
+    int32_t _objTag{};
 public:
-    IntSecret(int64_t x, int l);
+    IntSecret(int64_t x, int l, int32_t objTag);
 
     IntSecret arithShare() const;
 
@@ -24,16 +22,16 @@ public:
 
     [[nodiscard]] IntSecret add(IntSecret yi) const;
 
-    [[nodiscard]] IntSecret mul(IntSecret yi, BMT bmt) const;
+    [[nodiscard]] IntSecret mul(IntSecret yi) const;
 
-    IntSecret arithReconstruct() const;
+    IntSecret arithReconstruct(int clientRank) const;
 
-    IntSecret boolReconstruct() const;
+    IntSecret boolReconstruct(int clientRank) const;
 
-    [[nodiscard]] IntSecret mux(IntSecret yi, BitSecret cond_i, BMT bmt0, BMT bmt1) const;
+    [[nodiscard]] IntSecret mux(IntSecret yi, BitSecret cond_i) const;
 
     // needs 3 * _l BMTs
-    [[nodiscard]] IntSecret boolean(std::vector<BMT> bmts) const;
+    [[nodiscard]] IntSecret boolean() const;
 
     [[nodiscard]] IntSecret arithmetic() const;
 

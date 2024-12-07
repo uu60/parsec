@@ -5,32 +5,33 @@
 #include <utility>
 
 #include "api/IntSecret.h"
+
+#include "comm/IComm.h"
 #include "compute/ArithExecutor.h"
 #include "compute/BoolExecutor.h"
-#include "compute/arith/AddExecutor.h"
-#include "compute/arith/MulExecutor.h"
-#include "compute/arith/LessThanArithExecutor.h"
-#include "compute/arith/MuxArithExecutor.h"
+#include "compute/arith/ArithAddExecutor.h"
+#include "compute/arith/ArithMulExecutor.h"
+#include "compute/arith/ArithLessThanExecutor.h"
+#include "compute/arith/ArithMuxExecutor.h"
+#include "compute/arith/ArithToBoolExecutor.h"
+#include "compute/bool/BoolToArithExecutor.h"
 
-IntSecret::IntSecret(int64_t x, int l) {
-    _data = x;
-    _l = l;
-}
+IntSecret::IntSecret(int64_t x, int l, int32_t objTag) : _data(x), _l(l), _objTag(objTag) {}
 
 IntSecret IntSecret::arithShare() const {
-    return {ArithExecutor(_data, _l, false)._zi, _l};
+    return {ArithExecutor(_data, _l, _objTag, 0, IComm::impl->rank())._zi, _l, _objTag};
 }
 
 IntSecret IntSecret::boolShare() const {
-    return {BoolExecutor(_data, _l, false)._zi, _l};
+    return {BoolExecutor(_data, _l, _objTag, 0, IComm::impl->rank())._zi, _l, _objTag};
 }
 
-[[nodiscard]] IntSecret IntSecret::arithReconstruct() const {
-    return {ArithExecutor(_data, _l, true).reconstruct()->_result, _l};
+[[nodiscard]] IntSecret IntSecret::arithReconstruct(int clientRank) const {
+    return {ArithExecutor(_data, _l, _objTag, 0, -1).reconstruct(clientRank)->_result, _l, _objTag};
 }
 
-[[nodiscard]] IntSecret IntSecret::boolReconstruct() const {
-    return {BoolExecutor(_data, _l, true).reconstruct()->_result, _l};
+[[nodiscard]] IntSecret IntSecret::boolReconstruct(int clientRank) const {
+    return {BoolExecutor(_data, _l, _objTag, 0, -1).reconstruct(clientRank)->_result, _l, _objTag};
 }
 
 int64_t IntSecret::get() const {
@@ -38,25 +39,25 @@ int64_t IntSecret::get() const {
 }
 
 IntSecret IntSecret::add(IntSecret yi) const {
-    return {AddExecutor(_data, yi.get(), _l, true).execute()->_zi, _l};
+    return {ArithAddExecutor(_data, yi.get(), _l, _objTag, 0, -1).execute()->_zi, _l, _objTag};
 }
 
-IntSecret IntSecret::mul(IntSecret yi, BMT bmt) const {
-    return {MulExecutor(_data, yi.get(), _l, true).setBmt(bmt)->execute()->_zi, _l};
+IntSecret IntSecret::mul(IntSecret yi) const {
+    return {ArithMulExecutor(_data, yi.get(), _l, _objTag, 0, -1).execute()->_zi, _l, _objTag};
 }
 
-IntSecret IntSecret::boolean(std::vector<BMT> bmts) const {
-    return {ArithExecutor(_data, _l, true).boolZi(std::move(bmts)), _l};
+IntSecret IntSecret::boolean() const {
+    return {ArithToBoolExecutor(_data, _l, _objTag, 0, -1).execute()->_zi, _l, _objTag};
 }
 
 IntSecret IntSecret::arithmetic() const {
-    return {BoolExecutor(_data, _l, true).arithZi(), _l};
+    return {BoolToArithExecutor(_data, _l, _objTag, 0, -1).execute()->_zi, _l, _objTag};
 }
 
 BitSecret IntSecret::arithLessThan(IntSecret yi) const {
-    return BitSecret(LessThanArithExecutor(_data, yi.get(), _l, true).execute()->_sign);
+    return BitSecret(ArithLessThanExecutor(_data, yi.get(), _l, _objTag, 0, -1).execute()->_sign, _objTag);
 }
 
-IntSecret IntSecret::mux(IntSecret yi, BitSecret cond_i, BMT bmt0, BMT bmt1) const {
-    return {MuxArithExecutor(_data, yi.get(), _l, cond_i.get(), true).setBmts(bmt0, bmt1)->execute()->_zi, _l};
+IntSecret IntSecret::mux(IntSecret yi, BitSecret cond_i) const {
+    return {ArithMuxExecutor(_data, yi.get(), _l, cond_i.get(), _objTag, 0, -1).execute()->_zi, _l, _objTag};
 }
