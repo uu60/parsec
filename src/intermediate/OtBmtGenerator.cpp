@@ -4,8 +4,6 @@
 
 #include "intermediate/OtBmtGenerator.h"
 
-#include <folly/futures/Future.h>
-
 #include "ot/RsaOtExecutor.h"
 #include "utils/Math.h"
 #include "comm/IComm.h"
@@ -46,16 +44,16 @@ void OtBmtGenerator::computeMix(int sender, int64_t &mix) {
     std::vector<int8_t> offsets;
     offsets.reserve(_l);
 
-    std::vector<folly::Future<folly::Unit> > futures;
+    std::vector<std::future<void>> futures;
     futures.reserve(_l);
 
     for (int i = 0; i < _l; i++) {
         offsets.push_back(_currentMsgTag);
         // 6 is number of msgTag needed in RsaOtExecutor
-        _currentMsgTag = static_cast<int8_t>(_currentMsgTag + 6);
+        _currentMsgTag = static_cast<int8_t>(_currentMsgTag + RsaOtExecutor::msgNum());
     }
     for (int i = 0; i < _l; i++) {
-        futures.push_back(via(&System::_threadPool, [isSender, this, i, sender, &sum, offsets] {
+        futures.push_back(System::_threadPool.push([isSender, this, i, sender, &sum, offsets] (int _) {
             int64_t s0 = 0, s1 = 0;
             int choice = 0;
             if (isSender) {
@@ -65,24 +63,24 @@ void OtBmtGenerator::computeMix(int sender, int64_t &mix) {
                 choice = static_cast<int>((_bmt._b >> i) & 1);
             }
 
-            RsaOtExecutor r(sender, s0, s1, choice, _l, _objTag, offsets[i]);
+            RsaOtExecutor r(sender, 1 - sender, s0, s1, choice, _l, _objTag, offsets[i]);
             r.execute();
 
             if (isSender) {
-                sum = ring(sum + s0);
+                sum += s0;
             } else {
                 int64_t temp = r._result;
                 if (choice == 0) {
                     temp = ring(-temp);
                 }
-                sum = ring(sum + temp);
+                sum += temp;
             }
         }));
     }
     for (auto &f : futures) {
         f.wait();
     }
-    mix = sum;
+    mix = ring(sum);
 }
 
 void OtBmtGenerator::computeC() {

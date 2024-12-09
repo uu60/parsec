@@ -4,8 +4,6 @@
 
 #include "compute/BoolExecutor.h"
 
-#include <folly/futures/Future.h>
-
 #include "comm/IComm.h"
 #include "utils/Math.h"
 #include "ot/RsaOtExecutor.h"
@@ -21,10 +19,10 @@ BoolExecutor::BoolExecutor(int64_t z, int l, int32_t objTag, int8_t msgTagOffset
         if (IComm::impl->isClient()) {
             int64_t z1 = ring(Math::randInt());
             int64_t z0 = ring(z ^ z1);
-            auto f0 = via(&System::_threadPool, [this, z0] {
+            auto f0 = System::_threadPool.push([this, z0] (int _) {
                 IComm::impl->send(&z0, 0, buildTag(_currentMsgTag));
             });
-            auto f1 = via(&System::_threadPool, [this, z1] {
+            auto f1 = System::_threadPool.push([this, z1] (int _) {
                 IComm::impl->send(&z1, 1, buildTag(_currentMsgTag));
             });
             f0.wait();
@@ -50,17 +48,18 @@ BoolExecutor::BoolExecutor(int64_t x, int64_t y, int l, int32_t objTag, int8_t m
             int64_t x0 = ring(x ^ x1);
             int64_t y1 = ring(Math::randInt());
             int64_t y0 = ring(y ^ y1);
-            std::vector<folly::Future<folly::Unit> > futures(4);
-            futures.push_back(via(&System::_threadPool, [x0, this, msgTags] {
+            std::vector<std::future<void>> futures;
+            futures.reserve(4);
+            futures.push_back(System::_threadPool.push([x0, this, msgTags] (int _) {
                 IComm::impl->send(&x0, 0, buildTag(msgTags[0]));
             }));
-            futures.push_back(via(&System::_threadPool, [y0, this, msgTags] {
+            futures.push_back(System::_threadPool.push([y0, this, msgTags] (int _) {
                 IComm::impl->send(&y0, 0, buildTag(msgTags[1]));
             }));
-            futures.push_back(via(&System::_threadPool, [x1, this, msgTags] {
+            futures.push_back(System::_threadPool.push([x1, this, msgTags] (int _) {
                 IComm::impl->send(&x1, 1, buildTag(msgTags[0]));
             }));
-            futures.push_back(via(&System::_threadPool, [y1, this, msgTags] {
+            futures.push_back(System::_threadPool.push([y1, this, msgTags] (int _) {
                 IComm::impl->send(&y1, 1, buildTag(msgTags[1]));
             }));
             for (auto &f: futures) {

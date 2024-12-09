@@ -7,7 +7,6 @@
 #include "comm/IComm.h"
 #include "compute/bool/BoolAndExecutor.h"
 #include "utils/Math.h"
-#include <folly/futures/Future.h>
 
 ArithToBoolExecutor *ArithToBoolExecutor::execute() {
     int64_t b_zi = 0;
@@ -20,8 +19,6 @@ ArithToBoolExecutor *ArithToBoolExecutor::execute() {
         bool carry_i = false;
 
         auto objTags = nextMsgTags(_l * 4);
-        std::vector<folly::Future<folly::Unit> > futures;
-        futures.reserve(_l);
 
         for (int i = 0; i < _l; i++) {
             bool ai, ao, bi, bo;

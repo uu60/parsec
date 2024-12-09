@@ -4,8 +4,6 @@
 
 #ifndef MPC_PACKAGE_COMM_H
 #define MPC_PACKAGE_COMM_H
-#include <string>
-#include <folly/concurrency/ConcurrentHashMap.h>
 #include "./IComm.h"
 
 /**

@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <string>
+#include <set>
 #include "./utils/System.h"
 
 class AbstractSecureExecutor {

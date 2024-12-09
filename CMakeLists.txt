@@ -6,8 +6,6 @@ set(CMAKE_CXX_STANDARD 17)
 
 find_package(MPI REQUIRED)
 find_package(OpenSSL REQUIRED)
-find_package(folly REQUIRED)
-find_package(gflags REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
         src/utils/Math.cpp
@@ -57,6 +55,10 @@ add_library(${PROJECT_NAME} SHARED
         src/intermediate/ABPairGenerator.cpp
         include/intermediate/ABPairGenerator.h
         src/comm/IComm.cpp
+        src/utils/Log.cpp
+        include/utils/Log.h
+        include/third_party/ctpl_stl.h
+        include/sync/BlockingQueue.h
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC
@@ -114,5 +116,5 @@ install(
 )
 
 target_link_libraries(
-        ${PROJECT_NAME} PUBLIC MPI::MPI_CXX OpenSSL::SSL OpenSSL::Crypto Folly::folly gflags
+        ${PROJECT_NAME} PUBLIC MPI::MPI_CXX OpenSSL::SSL OpenSSL::Crypto
 )

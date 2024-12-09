@@ -4,17 +4,17 @@
 
 #ifndef BMTHOLDER_H
 #define BMTHOLDER_H
-#include <folly/MPMCQueue.h>
 #include <vector>
 
-#include "ABPair.h"
-#include "Bmt.h"
+#include "./ABPair.h"
+#include "./Bmt.h"
+#include "../sync/BlockingQueue.h"
 
 
 class IntermediateDataSupport {
 private:
-    static folly::MPMCQueue<Bmt> _bmts;
-    static folly::MPMCQueue<ABPair> _pairs;
+    static BlockingQueue<Bmt> _bmts;
+    static BlockingQueue<ABPair> _pairs;
 
 public:
     static void offerBmt(Bmt bmt);
@@ -33,7 +33,6 @@ public:
 
     static void startGenerateABPairsAsyc();
 };
-
 
 
 #endif //BMTHOLDER_H

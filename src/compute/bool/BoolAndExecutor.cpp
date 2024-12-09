@@ -4,8 +4,6 @@
 
 #include "compute/bool/BoolAndExecutor.h"
 
-#include <folly/futures/Future.h>
-
 #include "compute/arith/ArithMulExecutor.h"
 #include "comm/IComm.h"
 
@@ -22,16 +20,16 @@ BoolAndExecutor *BoolAndExecutor::execute() {
             _currentMsgTag = static_cast<int8_t>(_currentMsgTag + executors[i].msgNum());
         }
 
-        std::vector<folly::Future<int64_t>> futures;
+        std::vector<std::future<int64_t> > futures;
         futures.reserve(_l);
 
         for (int i = 0; i < _l; i++) {
-            futures.push_back(via(&System::_threadPool, [this, &executors, i] {
+            futures.push_back(System::_threadPool.push([this, &executors, i] (int _) {
                 return (executors[i].execute()->_zi) << i;
             }));
         }
-        for (auto &f : futures) {
-            _zi += f.wait().value();
+        for (auto &f: futures) {
+            _zi += f.get();
         }
     }
     return this;

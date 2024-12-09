@@ -13,8 +13,14 @@ void MpiComm::finalize() {
 }
 
 void MpiComm::init(int argc, char **argv) {
-    // init MPI env
-    MPI_Init(&argc, &argv);
+    // init
+    int provided;
+    int required = MPI_THREAD_MULTIPLE;
+    MPI_Init_thread(&argc, &argv, required, &provided);
+    if (provided < required) {
+        std::cerr << "MPI implementation does not support the required thread level!" << std::endl;
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
     // process _mpiRank and sum
     MPI_Comm_rank(MPI_COMM_WORLD, &_mpiRank);
     MPI_Comm_size(MPI_COMM_WORLD, &_mpiSize);
@@ -77,7 +83,7 @@ void MpiComm::receive(std::string *target, int senderRank, int tag) {
 }
 
 bool MpiComm::isServer() {
-    return rank() <= 2;
+    return _mpiRank == 0 or _mpiRank == 1;
 }
 
 bool MpiComm::isClient() {

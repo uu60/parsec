@@ -7,16 +7,15 @@
 #include "intermediate/ABPair.h"
 #include "intermediate/IntermediateDataSupport.h"
 #include "comm/IComm.h"
-#include <folly/futures/Future.h>
 
 BoolToArithExecutor *BoolToArithExecutor::execute() {
     std::atomic_int64_t res = 0;
     auto msgTags = nextMsgTags(_l);
-    std::vector<folly::Future<folly::Unit> > futures;
+    std::vector<std::future<void>> futures;
     futures.reserve(_l);
 
     for (int i = 0; i < _l; i++) {
-        futures.push_back(via(&System::_threadPool, [this, i, msgTags, &res] {
+        futures.push_back(System::_threadPool.push([this, i, msgTags, &res] (int _) {
             ABPair r = IntermediateDataSupport::pollABPairs(1)[0];
             int64_t ri_b = r._b;
             int64_t ri_a = r._a;
