@@ -32,7 +32,7 @@ BoolToArithExecutor *BoolToArithExecutor::execute() {
             res += (ri_a + z * IComm::impl->rank() - 2 * ri_a * z) << i;
         }));
     }
-    for (auto &f: futures) {
+    for (auto &f : futures) {
         f.wait();
     }
     _zi = res;
@@ -43,8 +43,8 @@ std::string BoolToArithExecutor::className() const {
     return "ToArithExecutor";
 }
 
-int8_t BoolToArithExecutor::msgNum(int l) {
-    return static_cast<int8_t>(l);
+int16_t BoolToArithExecutor::neededMsgTags(int l) {
+    return static_cast<int16_t>(l);
 }
 
 /*

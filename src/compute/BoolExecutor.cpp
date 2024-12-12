@@ -7,13 +7,14 @@
 #include "comm/IComm.h"
 #include "utils/Math.h"
 #include "ot/RsaOtExecutor.h"
+#include "utils/Log.h"
 #include "utils/System.h"
 
-BoolExecutor::BoolExecutor(int64_t z, int l, int32_t objTag, int8_t msgTagOffset,
+BoolExecutor::BoolExecutor(int64_t z, int l, int16_t objTag, int16_t msgTagOffset,
                            int clientRank) : AbstractSecureExecutor(
     l, objTag, msgTagOffset) {
     if (clientRank < 0) {
-        _xi = ring(z);
+        _xi = z;
     } else {
         // distribute operator
         if (IComm::impl->isClient()) {
@@ -35,11 +36,11 @@ BoolExecutor::BoolExecutor(int64_t z, int l, int32_t objTag, int8_t msgTagOffset
     }
 }
 
-BoolExecutor::BoolExecutor(int64_t x, int64_t y, int l, int32_t objTag, int8_t msgTagOffset,
+BoolExecutor::BoolExecutor(int64_t x, int64_t y, int l, int16_t objTag, int16_t msgTagOffset,
                            int clientRank) : AbstractSecureExecutor(l, objTag, msgTagOffset) {
     if (clientRank < 0) {
-        _xi = ring(x);
-        _yi = ring(y);
+        _xi = x;
+        _yi = y;
     } else {
         auto msgTags = nextMsgTags(2);
         // distribute operator
@@ -62,18 +63,19 @@ BoolExecutor::BoolExecutor(int64_t x, int64_t y, int l, int32_t objTag, int8_t m
             futures.push_back(System::_threadPool.push([y1, this, msgTags] (int _) {
                 IComm::impl->send(&y1, 1, buildTag(msgTags[1]));
             }));
-            for (auto &f: futures) {
+            for (auto &f : futures) {
                 f.wait();
             }
         } else {
             // operator
-            IComm::impl->receive(&_xi, clientRank, msgTags[0]);
-            IComm::impl->receive(&_yi, clientRank, msgTags[1]);
+            IComm::impl->receive(&_xi, clientRank, buildTag(msgTags[0]));
+            IComm::impl->receive(&_yi, clientRank, buildTag(msgTags[1]));
         }
     }
 }
 
 BoolExecutor *BoolExecutor::reconstruct(int clientRank) {
+    _currentMsgTag = _startMsgTag;
     if (IComm::impl->isServer()) {
         IComm::impl->send(&_xi, clientRank, _currentMsgTag++);
     } else {

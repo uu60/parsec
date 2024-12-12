@@ -13,7 +13,7 @@ private:
 
 public:
     // Temporarily lend zi for xi preparation in super constructor.
-    BoolToArithExecutor(int64_t xi, int l, int32_t objTag, int8_t msgTagOffset, int clientRank) : BoolExecutor(
+    BoolToArithExecutor(int64_t xi, int l, int16_t objTag, int16_t msgTagOffset, int clientRank) : BoolExecutor(
         xi, l, objTag, msgTagOffset, clientRank) {
         _xi = _zi;
     }
@@ -22,7 +22,7 @@ public:
 
     [[nodiscard]] std::string className() const override;
 
-    [[nodiscard]] static int8_t msgNum(int l);
+    [[nodiscard]] static int16_t neededMsgTags(int l);
 };
 
 

@@ -12,9 +12,9 @@ class IntSecret {
 private:
     int64_t _data{};
     int _l{};
-    int32_t _objTag{};
+    int16_t _objTag{};
 public:
-    IntSecret(int64_t x, int l, int32_t objTag);
+    IntSecret(int64_t x, int l, int16_t objTag);
 
     IntSecret arithShare() const;
 

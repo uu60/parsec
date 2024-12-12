@@ -12,15 +12,15 @@
  * 0 is preserved for OtBmtGenerator.
  * 1 is preserved for ABPairGenerator.
  */
-std::set<int32_t> AbstractSecureExecutor::_preservedObjTags = {0, 1};
-int32_t AbstractSecureExecutor::_currentObjTag = 2;
+std::set<int16_t> AbstractSecureExecutor::_preservedObjTags = {0, 1};
+int16_t AbstractSecureExecutor::_currentObjTag = 2;
 
-int AbstractSecureExecutor::buildTag(int8_t msgTag) const {
-    return (_objTag << 8) + msgTag;
+int AbstractSecureExecutor::buildTag(int16_t msgTag) const {
+    return (_objTag << 16) | msgTag;
 }
 
-std::vector<int8_t> AbstractSecureExecutor::nextMsgTags(int num) {
-    std::vector<int8_t> ret;
+std::vector<int16_t> AbstractSecureExecutor::nextMsgTags(int num) {
+    std::vector<int16_t> ret;
     ret.reserve(num);
     for (int i = 0; i < num; i++) {
         ret.push_back(_currentMsgTag++);
@@ -28,16 +28,19 @@ std::vector<int8_t> AbstractSecureExecutor::nextMsgTags(int num) {
     return ret;
 }
 
-std::vector<int32_t> AbstractSecureExecutor::nextObjTags(int num) {
-    std::vector<int32_t> ret;
+std::vector<int16_t> AbstractSecureExecutor::nextObjTags(int num) {
+    std::vector<int16_t> ret;
     ret.reserve(num);
     for (int i = 0; i < num; i++) {
+        if ((_currentObjTag << 16) < 0) {
+            _currentObjTag = 0;
+        }
         if (_preservedObjTags.count(_currentObjTag) > 0) {
-            _currentObjTag = static_cast<int32_t>(Math::ring(_currentObjTag + 1, 24));
+            _currentObjTag = static_cast<int16_t>(Math::ring(_currentObjTag + 1, 16));
             continue;
         }
         ret.push_back(_currentObjTag);
-        _currentObjTag = static_cast<int32_t>(Math::ring(_currentObjTag + 1, 24));
+        _currentObjTag = static_cast<int16_t>(Math::ring(_currentObjTag + 1, 16));
     }
     return ret;
 }

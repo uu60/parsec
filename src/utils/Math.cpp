@@ -118,6 +118,9 @@ std::string Math::minus(const std::string &add0, const std::string &add1) {
 }
 
 int64_t Math::ring(int64_t num, int l) {
+    if (l == 64) {
+        return num;
+    }
     return num & ((1LL << l) - 1);
 }
 

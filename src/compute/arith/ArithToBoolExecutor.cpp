@@ -49,6 +49,6 @@ std::string ArithToBoolExecutor::className() const {
     return "ArithToBoolExecutor";
 }
 
-int8_t ArithToBoolExecutor::msgNum() {
+int16_t ArithToBoolExecutor::neededMsgTags() {
     return 1;
 }

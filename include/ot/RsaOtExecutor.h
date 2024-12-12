@@ -33,15 +33,15 @@ public:
 public:
     // _m0 and _m1 are for sender (invalid for receiver)
     // i is for receiver (invalid for sender)
-    explicit RsaOtExecutor(int sender, int receiver, int64_t m0, int64_t m1, int i, int l, int32_t objTag, int8_t msgTagOffset);
+    explicit RsaOtExecutor(int sender, int receiver, int64_t m0, int64_t m1, int i, int l, int16_t objTag, int16_t msgTagOffset);
 
-    explicit RsaOtExecutor(int bits, int sender, int receiver, int64_t m0, int64_t m1, int i, int l, int32_t objTag, int8_t msgTagOffset);
+    explicit RsaOtExecutor(int bits, int sender, int receiver, int64_t m0, int64_t m1, int i, int l, int16_t objTag, int16_t msgTagOffset);
 
     RsaOtExecutor *execute() override;
 
     RsaOtExecutor *reconstruct(int clientRank) override;
 
-    [[nodiscard]] static int8_t msgNum();
+    [[nodiscard]] static int16_t neededMsgTags();
 
 protected:
     [[nodiscard]] std::string className() const override;

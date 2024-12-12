@@ -9,7 +9,7 @@
 #include "comm/IComm.h"
 #include "compute/arith/ArithToBoolExecutor.h"
 
-ArithLessThanExecutor::ArithLessThanExecutor(int64_t x, int64_t y, int l, int32_t objTag, int8_t msgTagOffset,
+ArithLessThanExecutor::ArithLessThanExecutor(int64_t x, int64_t y, int l, int16_t objTag, int16_t msgTagOffset,
                                              int clientRank) : ArithExecutor(
     x, y, l, objTag, msgTagOffset, clientRank) {
     _zi = ring(_xi - _yi);
@@ -18,7 +18,7 @@ ArithLessThanExecutor::ArithLessThanExecutor(int64_t x, int64_t y, int l, int32_
 ArithLessThanExecutor *ArithLessThanExecutor::execute() {
     if (IComm::impl->isServer()) {
         ArithToBoolExecutor e(_zi, _l, _objTag, _currentMsgTag, -1);
-        _currentMsgTag = static_cast<int8_t>(_currentMsgTag + ArithToBoolExecutor::msgNum());
+        _currentMsgTag = static_cast<int16_t>(_currentMsgTag + ArithToBoolExecutor::neededMsgTags());
         _zi = e.execute()->_zi;
         _sign = (_zi >> (_l - 1)) & 1;
     }
@@ -41,6 +41,6 @@ std::string ArithLessThanExecutor::className() const {
     return "[ArithLessThanExecutor]";
 }
 
-int8_t ArithLessThanExecutor::msgNum() {
-    return ArithToBoolExecutor::msgNum();
+int16_t ArithLessThanExecutor::neededMsgTags() {
+    return ArithToBoolExecutor::neededMsgTags();
 }

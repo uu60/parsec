@@ -9,22 +9,22 @@
 
 #include "Bmt.h"
 
-class OtBmtGenerator : public AbstractSecureExecutor {
+class BmtGenerator : public AbstractSecureExecutor {
 private:
-    explicit OtBmtGenerator();
+    explicit BmtGenerator();
 
 public:
     Bmt _bmt{};
     int64_t _ui{};
     int64_t _vi{};
 
-    OtBmtGenerator *execute() override;
+    BmtGenerator *execute() override;
 
-    OtBmtGenerator(const OtBmtGenerator &) = delete;
+    BmtGenerator(const BmtGenerator &) = delete;
 
-    OtBmtGenerator &operator=(const OtBmtGenerator &) = delete;
+    BmtGenerator &operator=(const BmtGenerator &) = delete;
 
-    static OtBmtGenerator &getInstance();
+    static BmtGenerator &getInstance();
 
 private:
     void generateRandomAB();

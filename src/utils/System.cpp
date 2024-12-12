@@ -6,9 +6,10 @@
 
 #include "comm/IComm.h"
 #include "intermediate/IntermediateDataSupport.h"
+#include "utils/Log.h"
 
 std::atomic_bool System::_shutdown = false;
-ctpl::thread_pool System::_threadPool(std::thread::hardware_concurrency() * 8);
+ctpl::thread_pool System::_threadPool(static_cast<int>(std::thread::hardware_concurrency() * 8));
 
 void System::init(IComm *impl, int argc, char **argv) {
     // init comm
@@ -21,16 +22,19 @@ void System::init(IComm *impl, int argc, char **argv) {
 }
 
 void System::finalize() {
+    Log::i("Prepare to shutdown...");
     // Wait all threads done
     _shutdown = true;
-    _threadPool.stop(true);
+    // Wait for generators to stop
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    _threadPool.stop(false);
     // finalize comm
     IComm::impl->finalize();
-    std::cout << "System shut down." << std::endl;
+    Log::i("System shut down.");
 }
 
 
-int64_t System::currentTimeMillis()  {
+int64_t System::currentTimeMillis() {
     auto now = std::chrono::system_clock::now();
 
     auto duration = now.time_since_epoch();

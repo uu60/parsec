@@ -1,8 +1,12 @@
 cmake_minimum_required(VERSION 3.22)
 
+set(CMAKE_C_COMPILER mpicc)
+set(CMAKE_CXX_COMPILER mpicxx)
+
 project(Dekopon_SS_SMPC_package)
 
 set(CMAKE_CXX_STANDARD 17)
+
 
 find_package(MPI REQUIRED)
 find_package(OpenSSL REQUIRED)
@@ -24,8 +28,8 @@ add_library(${PROJECT_NAME} SHARED
         include/utils/Crypto.h
         src/utils/System.cpp
         include/utils/System.h
-        src/intermediate/OtBmtGenerator.cpp
-        include/intermediate/OtBmtGenerator.h
+        src/intermediate/BmtGenerator.cpp
+        include/intermediate/BmtGenerator.h
         src/compute/arith/ArithLessThanExecutor.cpp
         include/compute/arith/ArithLessThanExecutor.h
         src/compute/ArithExecutor.cpp
@@ -43,7 +47,7 @@ add_library(${PROJECT_NAME} SHARED
         include/compute/bool/BoolEqualExecutor.h
         src/compute/bool/BoolEqualExecutor.cpp
         src/api/BitSecret.cpp
-        include/intermediate/BMT.h
+        include/intermediate/Bmt.h
         include/comm/IComm.h
         include/intermediate/IntermediateDataSupport.h
         src/intermediate/IntermediateDataSupport.cpp
@@ -55,7 +59,6 @@ add_library(${PROJECT_NAME} SHARED
         src/intermediate/ABPairGenerator.cpp
         include/intermediate/ABPairGenerator.h
         src/comm/IComm.cpp
-        src/utils/Log.cpp
         include/utils/Log.h
         include/third_party/ctpl_stl.h
         include/sync/BlockingQueue.h

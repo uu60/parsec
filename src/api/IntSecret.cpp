@@ -16,7 +16,7 @@
 #include "compute/arith/ArithToBoolExecutor.h"
 #include "compute/bool/BoolToArithExecutor.h"
 
-IntSecret::IntSecret(int64_t x, int l, int32_t objTag) : _data(x), _l(l), _objTag(objTag) {}
+IntSecret::IntSecret(int64_t x, int l, int16_t objTag) : _data(x), _l(l), _objTag(objTag) {}
 
 IntSecret IntSecret::arithShare() const {
     return {ArithExecutor(_data, _l, _objTag, 0, IComm::impl->rank())._zi, _l, _objTag};

@@ -11,9 +11,9 @@ public:
     int64_t _xi{};
     int64_t _yi{};
 
-    BoolExecutor(int64_t z, int l, int32_t objTag, int8_t msgTagOffset, int clientRank);
+    BoolExecutor(int64_t z, int l, int16_t objTag, int16_t msgTagOffset, int clientRank);
 
-    BoolExecutor(int64_t x, int64_t y, int l, int32_t objTag, int8_t msgTagOffset, int clientRank);
+    BoolExecutor(int64_t x, int64_t y, int l, int16_t objTag, int16_t msgTagOffset, int clientRank);
 
     BoolExecutor *reconstruct(int clientRank) override;
 

@@ -9,7 +9,7 @@
 #include "compute/BoolExecutor.h"
 #include "compute/bool/BoolToArithExecutor.h"
 
-ArithMuxExecutor::ArithMuxExecutor(int64_t x, int64_t y, bool c, int l, int32_t objTag, int8_t msgTagOffset,
+ArithMuxExecutor::ArithMuxExecutor(int64_t x, int64_t y, bool c, int l, int16_t objTag, int16_t msgTagOffset,
                                    int clientRank) : ArithExecutor(x, y, l, objTag, msgTagOffset, clientRank) {
     _cond_i = ArithExecutor(c, 1, _objTag, _currentMsgTag++, clientRank)._zi;
 }
@@ -20,9 +20,9 @@ ArithMuxExecutor *ArithMuxExecutor::execute() {
                                ? _cond_i
                                : BoolToArithExecutor(_cond_i, _l, _objTag, _currentMsgTag++, -1).execute()->_zi;
 
-        auto offset0 = static_cast<int8_t>(_currentMsgTag + ArithMulExecutor::msgNum());
+        auto offset0 = static_cast<int16_t>(_currentMsgTag + ArithMulExecutor::neededMsgTags());
         _currentMsgTag = offset0;
-        auto offset1 = static_cast<int8_t>(_currentMsgTag + ArithMulExecutor::msgNum());
+        auto offset1 = static_cast<int16_t>(_currentMsgTag + ArithMulExecutor::neededMsgTags());
         _currentMsgTag = offset1;
 
         int64_t cx, cy;

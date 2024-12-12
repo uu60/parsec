@@ -10,7 +10,7 @@
 #include "compute/bool/BoolXorExecutor.h"
 #include "comm/IComm.h"
 
-BitSecret::BitSecret(bool x, int32_t objTag) : _data(x), _objTag(objTag) {}
+BitSecret::BitSecret(bool x, int16_t objTag) : _data(x), _objTag(objTag) {}
 
 BitSecret BitSecret::share() const {
     return BitSecret(BoolExecutor(_data, 1, _objTag, 0, IComm::impl->rank())._zi, _objTag);

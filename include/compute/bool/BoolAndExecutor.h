@@ -8,10 +8,7 @@
 
 class BoolAndExecutor : public BoolExecutor {
 public:
-    static int _totalMsgTagNum;
-    static int32_t _currentObjTag;
-
-    BoolAndExecutor(bool x, bool y, int l, int32_t objTag, int8_t msgTagOffset,
+    BoolAndExecutor(bool x, bool y, int l, int16_t objTag, int16_t msgTagOffset,
                        int clientRank) : BoolExecutor(x, y, l, objTag, msgTagOffset, clientRank) {
     };
 
@@ -19,7 +16,7 @@ public:
 
     [[nodiscard]] std::string className() const override;
 
-    [[nodiscard]] static int8_t msgNum(int l);
+    [[nodiscard]] static int16_t neededMsgTags(int l);
 };
 
 

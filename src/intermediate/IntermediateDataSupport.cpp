@@ -6,7 +6,8 @@
 
 #include "comm/IComm.h"
 #include "intermediate//ABPairGenerator.h"
-#include "intermediate//OtBmtGenerator.h"
+#include "intermediate//BmtGenerator.h"
+#include "utils/Log.h"
 
 BlockingQueue<Bmt> IntermediateDataSupport::_bmts(10000);
 BlockingQueue<ABPair> IntermediateDataSupport::_pairs(10000);
@@ -39,7 +40,7 @@ void IntermediateDataSupport::startGenerateBmtsAsync() {
     if (IComm::impl->isServer()) {
         System::_threadPool.push([] (int _) {
             while (!System::_shutdown.load()) {
-                offerBmt(OtBmtGenerator::getInstance().execute()->_bmt);
+                offerBmt(BmtGenerator::getInstance().execute()->_bmt);
             }
         });
     }

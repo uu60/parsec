@@ -25,9 +25,9 @@ public:
      * @param objTag Object tag.
      * @param clientRank If clientRank is negative, means locally set value. Else clientRank represents sharer's rank.
      */
-    ArithExecutor(int64_t z, int l, int32_t objTag, int8_t msgTagOffset, int clientRank);
+    ArithExecutor(int64_t z, int l, int16_t objTag, int16_t msgTagOffset, int clientRank);
 
-    ArithExecutor(int64_t x, int64_t y, int l, int32_t objTag, int8_t msgTagOffset, int clientRank);
+    ArithExecutor(int64_t x, int64_t y, int l, int16_t objTag, int16_t msgTagOffset, int clientRank);
 
     ArithExecutor *reconstruct(int clientRank) override;
 

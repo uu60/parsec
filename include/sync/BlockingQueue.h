@@ -49,5 +49,9 @@ public:
         _notFull.notify_one();
         return item;
     }
+
+    size_t size() {
+        return _queue.size();
+    }
 };
 #endif //BLOCKINGQUEUE_H

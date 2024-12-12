@@ -11,7 +11,7 @@ class BoolEqualExecutor : public BoolExecutor {
 public:
     bool _sign{};
 
-    BoolEqualExecutor(int64_t x, int64_t y, int l, int32_t objTag, int8_t msgTagOffset,
+    BoolEqualExecutor(int64_t x, int64_t y, int l, int16_t objTag, int16_t msgTagOffset,
                        int clientRank) : BoolExecutor(x, y, l, objTag, msgTagOffset, clientRank) {}
 
     BoolEqualExecutor *execute() override;

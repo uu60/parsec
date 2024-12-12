@@ -11,7 +11,7 @@ class ArithLessThanExecutor : public ArithExecutor {
 public:
     bool _sign{};
 
-    ArithLessThanExecutor(int64_t x, int64_t y, int l, int32_t objTag, int8_t msgTagOffset, int clientRank);
+    ArithLessThanExecutor(int64_t x, int64_t y, int l, int16_t objTag, int16_t msgTagOffset, int clientRank);
 
     ArithLessThanExecutor *execute() override;
 
@@ -19,7 +19,7 @@ public:
 
     [[nodiscard]] std::string className() const override;
 
-    [[nodiscard]] static int8_t msgNum();
+    [[nodiscard]] static int16_t neededMsgTags();
 };
 
 #endif //MPC_PACKAGE_COMPAREEXECUTOR_H

@@ -9,13 +9,13 @@
 
 class ArithAddExecutor : public ArithExecutor {
 public:
-    ArithAddExecutor(int64_t x, int64_t y, int l, int32_t objTag, int8_t msgTagOffset,
+    ArithAddExecutor(int64_t x, int64_t y, int l, int16_t objTag, int16_t msgTagOffset,
                 int clientRank) : ArithExecutor(x, y, l, objTag, msgTagOffset, clientRank) {
     };
 
     ArithAddExecutor *execute() override;
 
-    [[nodiscard]] static int8_t msgNum();
+    [[nodiscard]] static int16_t neededMsgTags();
 
 protected:
     [[nodiscard]] std::string className() const override;

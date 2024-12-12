@@ -11,7 +11,7 @@ private:
     bool _data{};
     int32_t _objTag{};
 public:
-    explicit BitSecret(bool x, int32_t objTag);
+    explicit BitSecret(bool x, int16_t objTag);
 
     [[nodiscard]] BitSecret share() const;
 

@@ -9,12 +9,12 @@
 #include "utils/Crypto.h"
 #include "utils/Log.h"
 
-RsaOtExecutor::RsaOtExecutor(int sender, int receiver, int64_t m0, int64_t m1, int i, int l, int32_t objTag, int8_t msgTagOffset)
+RsaOtExecutor::RsaOtExecutor(int sender, int receiver, int64_t m0, int64_t m1, int i, int l, int16_t objTag, int16_t msgTagOffset)
     : RsaOtExecutor(2048, sender, receiver, m0, m1, i, l, objTag, msgTagOffset) {
 }
 
-RsaOtExecutor::RsaOtExecutor(int bits, int sender, int receiver, int64_t m0, int64_t m1, int i, int l, int32_t objTag,
-                             int8_t msgTagOffset) : AbstractSecureExecutor(l, objTag, msgTagOffset) {
+RsaOtExecutor::RsaOtExecutor(int bits, int sender, int receiver, int64_t m0, int64_t m1, int i, int l, int16_t objTag,
+                             int16_t msgTagOffset) : AbstractSecureExecutor(l, objTag, msgTagOffset) {
     _bits = bits;
     _isSender = sender == IComm::impl->rank();
     _isReceiver = receiver == IComm::impl->rank();
@@ -121,6 +121,6 @@ RsaOtExecutor *RsaOtExecutor::reconstruct(int clientRank) {
     return this;
 }
 
-int8_t RsaOtExecutor::msgNum() {
+int16_t RsaOtExecutor::neededMsgTags() {
     return 6;
 }

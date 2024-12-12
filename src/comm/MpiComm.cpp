@@ -8,6 +8,8 @@
 #include <limits>
 #include <vector>
 
+#include "utils/Log.h"
+
 void MpiComm::finalize() {
     MPI_Finalize();
 }
