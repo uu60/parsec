@@ -9,7 +9,7 @@
 #include "utils/Log.h"
 
 std::atomic_bool System::_shutdown = false;
-ctpl::thread_pool System::_threadPool(static_cast<int>(std::thread::hardware_concurrency() * 8));
+ctpl::thread_pool System::_threadPool(static_cast<int>(std::thread::hardware_concurrency() * 20));
 
 void System::init(IComm *impl, int argc, char **argv) {
     // init comm

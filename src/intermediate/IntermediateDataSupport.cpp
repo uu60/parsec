@@ -9,8 +9,8 @@
 #include "intermediate//BmtGenerator.h"
 #include "utils/Log.h"
 
-BlockingQueue<Bmt> IntermediateDataSupport::_bmts(10000);
-BlockingQueue<ABPair> IntermediateDataSupport::_pairs(10000);
+BlockingQueue<Bmt> IntermediateDataSupport::_bmts(10);
+BlockingQueue<ABPair> IntermediateDataSupport::_pairs(10);
 
 void IntermediateDataSupport::offerBmt(Bmt bmt) {
     _bmts.push(bmt);
@@ -22,6 +22,7 @@ void IntermediateDataSupport::offerABPair(ABPair pair) {
 
 std::vector<Bmt> IntermediateDataSupport::pollBmts(int num) {
     std::vector<Bmt> ret;
+    ret.reserve(num);
     for (int i = 0; i < num; i++) {
         ret.push_back(_bmts.pop());
     }
@@ -30,6 +31,7 @@ std::vector<Bmt> IntermediateDataSupport::pollBmts(int num) {
 
 std::vector<ABPair> IntermediateDataSupport::pollABPairs(int num) {
     std::vector<ABPair> ret;
+    ret.reserve(num);
     for (int i = 0; i < num; i++) {
         ret.push_back(_pairs.pop());
     }

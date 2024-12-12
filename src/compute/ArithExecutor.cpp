@@ -28,11 +28,9 @@ ArithExecutor::ArithExecutor(int64_t z, int l, int16_t objTag, int16_t msgTagOff
             // Blocking wait. (sync)
             f0.wait();
             f1.wait();
-            // Update tag.
-            _currentMsgTag++;
         } else {
             // operator
-            IComm::impl->receive(&_zi, clientRank, _currentMsgTag++);
+            IComm::impl->receive(&_zi, clientRank, _currentMsgTag);
         }
     }
 }
@@ -87,11 +85,11 @@ std::string ArithExecutor::className() const {
 ArithExecutor *ArithExecutor::reconstruct(int clientRank) {
     _currentMsgTag = _startMsgTag;
     if (IComm::impl->isServer()) {
-        IComm::impl->send(&_zi, clientRank, buildTag(_currentMsgTag++));
+        IComm::impl->send(&_zi, clientRank, buildTag(_currentMsgTag));
     } else if (IComm::impl->rank() == clientRank) {
         int64_t z0, z1;
         IComm::impl->receive(&z0, 0, buildTag(_currentMsgTag));
-        IComm::impl->receive(&z1, 1, buildTag(_currentMsgTag++));
+        IComm::impl->receive(&z1, 1, buildTag(_currentMsgTag));
         _result = ring(z0 + z1);
     }
     return this;

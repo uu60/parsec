@@ -1,12 +1,8 @@
 cmake_minimum_required(VERSION 3.22)
 
-set(CMAKE_C_COMPILER mpicc)
-set(CMAKE_CXX_COMPILER mpicxx)
-
 project(Dekopon_SS_SMPC_package)
 
 set(CMAKE_CXX_STANDARD 17)
-
 
 find_package(MPI REQUIRED)
 find_package(OpenSSL REQUIRED)

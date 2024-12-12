@@ -12,10 +12,11 @@
 ArithLessThanExecutor::ArithLessThanExecutor(int64_t x, int64_t y, int l, int16_t objTag, int16_t msgTagOffset,
                                              int clientRank) : ArithExecutor(
     x, y, l, objTag, msgTagOffset, clientRank) {
-    _zi = ring(_xi - _yi);
+    _zi = _xi - _yi;
 }
 
 ArithLessThanExecutor *ArithLessThanExecutor::execute() {
+    _currentMsgTag = _startMsgTag;
     if (IComm::impl->isServer()) {
         ArithToBoolExecutor e(_zi, _l, _objTag, _currentMsgTag, -1);
         _currentMsgTag = static_cast<int16_t>(_currentMsgTag + ArithToBoolExecutor::neededMsgTags());
@@ -26,6 +27,7 @@ ArithLessThanExecutor *ArithLessThanExecutor::execute() {
 }
 
 ArithLessThanExecutor *ArithLessThanExecutor::reconstruct(int clientRank) {
+    _currentMsgTag = _startMsgTag;
     if (IComm::impl->isServer()) {
         IComm::impl->send(&_sign, clientRank, buildTag(_currentMsgTag));
     } else {

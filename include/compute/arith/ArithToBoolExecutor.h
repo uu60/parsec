@@ -4,7 +4,7 @@
 
 #ifndef BOOLCONVERTEXECUTOR_H
 #define BOOLCONVERTEXECUTOR_H
-#include "compute/ArithExecutor.h"
+#include "../../compute/ArithExecutor.h"
 
 
 class ArithToBoolExecutor : public ArithExecutor {

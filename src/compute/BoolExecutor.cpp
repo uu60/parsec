@@ -28,10 +28,9 @@ BoolExecutor::BoolExecutor(int64_t z, int l, int16_t objTag, int16_t msgTagOffse
             });
             f0.wait();
             f1.wait();
-            _currentMsgTag++;
         } else {
             // operator
-            IComm::impl->receive(&_xi, clientRank, _currentMsgTag++);
+            IComm::impl->receive(&_xi, clientRank, _currentMsgTag);
         }
     }
 }
@@ -77,11 +76,11 @@ BoolExecutor::BoolExecutor(int64_t x, int64_t y, int l, int16_t objTag, int16_t 
 BoolExecutor *BoolExecutor::reconstruct(int clientRank) {
     _currentMsgTag = _startMsgTag;
     if (IComm::impl->isServer()) {
-        IComm::impl->send(&_xi, clientRank, _currentMsgTag++);
+        IComm::impl->send(&_xi, clientRank, _currentMsgTag);
     } else {
         int64_t z0, z1;
         IComm::impl->receive(&z0, 0, _currentMsgTag);
-        IComm::impl->receive(&z1, 1, _currentMsgTag++);
+        IComm::impl->receive(&z1, 1, _currentMsgTag);
         _result = z0 ^ z1;
     }
     return this;

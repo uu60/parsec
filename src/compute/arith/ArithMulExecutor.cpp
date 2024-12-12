@@ -6,13 +6,14 @@
 
 #include "intermediate/IntermediateDataSupport.h"
 #include "comm/IComm.h"
+#include "utils/Log.h"
 
 ArithMulExecutor *ArithMulExecutor::execute() {
     _currentMsgTag = _startMsgTag;
     // process
     auto msgTags = nextMsgTags(2);
     if (IComm::impl->isServer()) {
-        auto bmt = IntermediateDataSupport::pollBmts(1)[0];
+        Bmt bmt = _bmt != nullptr ? *_bmt : IntermediateDataSupport::pollBmts(1)[0];
         int64_t ei = ring(_xi - bmt._a);
         int64_t fi = ring(_yi - bmt._b);
         auto f0 = System::_threadPool.push([ei, this, &msgTags](int _) {
@@ -39,4 +40,9 @@ std::string ArithMulExecutor::className() const {
 
 int16_t ArithMulExecutor::neededMsgTags() {
     return 2;
+}
+
+ArithMulExecutor * ArithMulExecutor::setBmt(Bmt *bmt) {
+    _bmt = bmt;
+    return this;
 }

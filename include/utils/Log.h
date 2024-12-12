@@ -8,6 +8,7 @@
 #include <chrono>
 #include <iomanip>
 #include <unistd.h>
+#include "../comm/IComm.h"
 
 class Log {
 private:
@@ -50,6 +51,7 @@ private:
         std::string formatted_msg = format(msg, std::forward<Args>(args)...);
         std::cout << "[" << HOSTNAME + ":" + std::to_string(getpid()) << "] "
                 << "[" << getCurrentTimestampStr() << "] "
+                << "[" << IComm::impl->rank() << "] "
                 << "[" << level << "] "
                 << formatted_msg << std::endl;
     }

@@ -16,7 +16,6 @@ BoolAndExecutor *BoolAndExecutor::execute() {
         futures.reserve(_l);
 
         for (int i = 0; i < _l; i++) {
-            Log::i(std::to_string(i));
             futures.push_back(System::_threadPool.push([this, i] (int _) {
                 ArithMulExecutor e((_xi >> i) & 1, (_yi >> i) & 1, 1, _objTag, static_cast<int16_t>(_currentMsgTag + ArithMulExecutor::neededMsgTags() * i), -1);
                 return (e.execute()->_zi) << i;
@@ -26,6 +25,7 @@ BoolAndExecutor *BoolAndExecutor::execute() {
             _zi += f.get();
         }
         _currentMsgTag = static_cast<int16_t>(_currentMsgTag + ArithMulExecutor::neededMsgTags() * _l);
+        _zi = ring(_zi);
     }
     return this;
 }
