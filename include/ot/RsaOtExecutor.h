@@ -15,7 +15,6 @@ public:
     int _bits{};
     // correspond mpi rank
     bool _isSender{};
-    bool _isReceiver{};
     // params for sender
     std::string _rand0{};
     std::string _rand1{};
@@ -33,9 +32,9 @@ public:
 public:
     // _m0 and _m1 are for sender (invalid for receiver)
     // i is for receiver (invalid for sender)
-    explicit RsaOtExecutor(int sender, int receiver, int64_t m0, int64_t m1, int i, int l, int16_t objTag, int16_t msgTagOffset);
+    explicit RsaOtExecutor(int sender, int64_t m0, int64_t m1, int i, int l, int16_t objTag, int16_t msgTagOffset);
 
-    explicit RsaOtExecutor(int bits, int sender, int receiver, int64_t m0, int64_t m1, int i, int l, int16_t objTag, int16_t msgTagOffset);
+    explicit RsaOtExecutor(int bits, int sender, int64_t m0, int64_t m1, int i, int l, int16_t objTag, int16_t msgTagOffset);
 
     RsaOtExecutor *execute() override;
 

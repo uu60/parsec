@@ -40,7 +40,7 @@ private:
     [[nodiscard]] int64_t corr(int i, int64_t x) const;
 
 public:
-    AbstractSecureExecutor *reconstruct(int clientRank) override;
+    BmtGenerator *reconstruct(int clientRank) override;
 
 protected:
     [[nodiscard]] std::string className() const override;

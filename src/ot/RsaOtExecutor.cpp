@@ -9,15 +9,14 @@
 #include "utils/Crypto.h"
 #include "utils/Log.h"
 
-RsaOtExecutor::RsaOtExecutor(int sender, int receiver, int64_t m0, int64_t m1, int i, int l, int16_t objTag, int16_t msgTagOffset)
-    : RsaOtExecutor(2048, sender, receiver, m0, m1, i, l, objTag, msgTagOffset) {
+RsaOtExecutor::RsaOtExecutor(int sender, int64_t m0, int64_t m1, int i, int l, int16_t objTag, int16_t msgTagOffset)
+    : RsaOtExecutor(2048, sender, m0, m1, i, l, objTag, msgTagOffset) {
 }
 
-RsaOtExecutor::RsaOtExecutor(int bits, int sender, int receiver, int64_t m0, int64_t m1, int i, int l, int16_t objTag,
+RsaOtExecutor::RsaOtExecutor(int bits, int sender, int64_t m0, int64_t m1, int i, int l, int16_t objTag,
                              int16_t msgTagOffset) : AbstractSecureExecutor(l, objTag, msgTagOffset) {
     _bits = bits;
     _isSender = sender == IComm::impl->rank();
-    _isReceiver = receiver == IComm::impl->rank();
     if (_isSender) {
         _m0 = ring(m0);
         _m1 = ring(m1);
@@ -52,7 +51,7 @@ void RsaOtExecutor::generateAndShareRandoms() {
         });
         f0.wait();
         f1.wait();
-    } else if (_isReceiver) {
+    } else {
         _randK = Math::randString(len);
         IComm::impl->serverReceive(&_rand0, buildTag(msgTags[0]));
         IComm::impl->serverReceive(&_rand1, buildTag(msgTags[1]));
@@ -67,7 +66,7 @@ void RsaOtExecutor::generateAndShareRsaKeys() {
         if (newKey) {
             IComm::impl->serverSend(&_pub, buildTag(_currentMsgTag++));
         }
-    } else if (_isReceiver) {
+    } else {
         // receiver
         if (Crypto::_otherPubs.count(_bits) > 0) {
             _pub = Crypto::_otherPubs[_bits];
@@ -80,7 +79,7 @@ void RsaOtExecutor::generateAndShareRsaKeys() {
 
 void RsaOtExecutor::process() {
     auto msgTags = nextMsgTags(3);
-    if (_isReceiver) {
+    if (!_isSender) {
         std::string ek = Crypto::rsaEncrypt(_randK, _pub);
         std::string sumStr = Math::add(ek, _i == 0 ? _rand0 : _rand1);
         IComm::impl->serverSend(&sumStr, buildTag(msgTags[0]));
@@ -90,7 +89,7 @@ void RsaOtExecutor::process() {
         IComm::impl->serverReceive(&m1, buildTag(msgTags[2]));
 
         _result = std::stoll(Math::minus(_i == 0 ? m0 : m1, _randK));
-    } else if (_isSender) {
+    } else {
         std::string sumStr;
         IComm::impl->serverReceive(&sumStr, buildTag(msgTags[0]));
         std::string k0 = Crypto::rsaDecrypt(

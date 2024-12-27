@@ -14,7 +14,7 @@ BoolExecutor::BoolExecutor(int64_t z, int l, int16_t objTag, int16_t msgTagOffse
                            int clientRank) : AbstractSecureExecutor(
     l, objTag, msgTagOffset) {
     if (clientRank < 0) {
-        _xi = z;
+        _zi = ring(z);
     } else {
         // distribute operator
         if (IComm::impl->isClient()) {
@@ -30,7 +30,7 @@ BoolExecutor::BoolExecutor(int64_t z, int l, int16_t objTag, int16_t msgTagOffse
             f1.wait();
         } else {
             // operator
-            IComm::impl->receive(&_xi, clientRank, _currentMsgTag);
+            IComm::impl->receive(&_zi, clientRank, buildTag(_currentMsgTag));
         }
     }
 }
@@ -38,8 +38,8 @@ BoolExecutor::BoolExecutor(int64_t z, int l, int16_t objTag, int16_t msgTagOffse
 BoolExecutor::BoolExecutor(int64_t x, int64_t y, int l, int16_t objTag, int16_t msgTagOffset,
                            int clientRank) : AbstractSecureExecutor(l, objTag, msgTagOffset) {
     if (clientRank < 0) {
-        _xi = x;
-        _yi = y;
+        _xi = ring(x);
+        _yi = ring(y);
     } else {
         auto msgTags = nextMsgTags(2);
         // distribute operator
@@ -76,12 +76,12 @@ BoolExecutor::BoolExecutor(int64_t x, int64_t y, int l, int16_t objTag, int16_t 
 BoolExecutor *BoolExecutor::reconstruct(int clientRank) {
     _currentMsgTag = _startMsgTag;
     if (IComm::impl->isServer()) {
-        IComm::impl->send(&_xi, clientRank, _currentMsgTag);
+        IComm::impl->send(&_zi, clientRank, buildTag(_currentMsgTag));
     } else {
         int64_t z0, z1;
-        IComm::impl->receive(&z0, 0, _currentMsgTag);
-        IComm::impl->receive(&z1, 1, _currentMsgTag);
-        _result = z0 ^ z1;
+        IComm::impl->receive(&z0, 0, buildTag(_currentMsgTag));
+        IComm::impl->receive(&z1, 1, buildTag(_currentMsgTag));
+        _result = ring(z0 ^ z1);
     }
     return this;
 }

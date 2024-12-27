@@ -6,5 +6,5 @@ sudo rm -rf build
 mkdir build && cd build
 cmake ..
 make
-sudo rm -rf /usr/local/include/mpc_package/
+sudo rm -rf /usr/local/include/Dekopon_SS_SMPC_package/
 sudo make install

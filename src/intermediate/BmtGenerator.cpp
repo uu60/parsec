@@ -34,7 +34,7 @@ int64_t BmtGenerator::corr(int i, int64_t x) const {
     return ring((_bmt._a << i) - x);
 }
 
-AbstractSecureExecutor *BmtGenerator::reconstruct(int clientRank) {
+BmtGenerator *BmtGenerator::reconstruct(int clientRank) {
     return this;
 }
 
@@ -57,7 +57,7 @@ void BmtGenerator::computeMix(int sender, int64_t &mix) {
                 choice = static_cast<int>((_bmt._b >> i) & 1);
             }
 
-            RsaOtExecutor r(sender, 1 - sender, s0, s1, choice, _l, _objTag,
+            RsaOtExecutor r(sender, s0, s1, choice, _l, _objTag,
                             static_cast<int16_t>(_currentMsgTag + i * RsaOtExecutor::neededMsgTags()));
             r.execute();
 
@@ -86,6 +86,7 @@ void BmtGenerator::computeC() {
 }
 
 BmtGenerator *BmtGenerator::execute() {
+    _currentMsgTag = _startMsgTag;
     if (IComm::impl->isServer()) {
         generateRandomAB();
 
