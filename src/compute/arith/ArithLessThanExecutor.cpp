@@ -8,6 +8,7 @@
 
 #include "comm/IComm.h"
 #include "compute/arith/ArithToBoolExecutor.h"
+#include "utils/Log.h"
 
 ArithLessThanExecutor::ArithLessThanExecutor(int64_t x, int64_t y, int l, int16_t objTag, int16_t msgTagOffset,
                                              int clientRank) : ArithExecutor(
@@ -21,6 +22,7 @@ ArithLessThanExecutor *ArithLessThanExecutor::execute() {
         ArithToBoolExecutor e(_zi, _l, _objTag, _currentMsgTag, -1);
         _currentMsgTag = static_cast<int16_t>(_currentMsgTag + ArithToBoolExecutor::neededMsgTags());
         _zi = e.execute()->_zi;
+        Log::i("converted: {}", _zi);
         _sign = (_zi >> (_l - 1)) & 1;
     }
     return this;

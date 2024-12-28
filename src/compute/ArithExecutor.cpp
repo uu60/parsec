@@ -30,7 +30,7 @@ ArithExecutor::ArithExecutor(int64_t z, int l, int16_t objTag, int16_t msgTagOff
             f1.wait();
         } else {
             // operator
-            IComm::impl->receive(&_zi, clientRank, _currentMsgTag);
+            IComm::impl->receive(&_zi, clientRank, buildTag(_currentMsgTag));
         }
     }
 }

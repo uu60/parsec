@@ -13,7 +13,7 @@ private:
 public:
     explicit BitSecret(bool x, int16_t objTag);
 
-    [[nodiscard]] BitSecret share() const;
+    [[nodiscard]] BitSecret share(int clientRank) const;
 
     [[nodiscard]] BitSecret not_() const;
 

@@ -16,8 +16,12 @@ BoolAndExecutor *BoolAndExecutor::execute() {
         futures.reserve(_l);
 
         for (int i = 0; i < _l; i++) {
-            futures.push_back(System::_threadPool.push([this, i] (int _) {
-                ArithMulExecutor e((_xi >> i) & 1, (_yi >> i) & 1, 1, _objTag, static_cast<int16_t>(_currentMsgTag + ArithMulExecutor::neededMsgTags() * i), -1);
+            auto bmt = _bmts == nullptr ? IntermediateDataSupport::pollBmts(1)[0] : (*_bmts)[i];
+            futures.push_back(System::_threadPool.push([this, i, bmt] (int _) {
+                Bmt copy = bmt;
+                ArithMulExecutor e((_xi >> i) & 1, (_yi >> i) & 1, 1, _objTag, static_cast<int16_t>
+                    (_currentMsgTag + ArithMulExecutor::neededMsgTags() * i), -1);
+                e.setBmt(&copy);
                 return (e.execute()->_zi) << i;
             }));
         }
@@ -36,4 +40,9 @@ std::string BoolAndExecutor::className() const {
 
 int16_t BoolAndExecutor::neededMsgTags(int l) {
     return static_cast<int16_t>(l * 2);
+}
+
+BoolAndExecutor * BoolAndExecutor::setBmts(std::vector<Bmt> *bmts) {
+    _bmts = bmts;
+    return this;
 }

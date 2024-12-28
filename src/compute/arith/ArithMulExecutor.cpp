@@ -42,7 +42,7 @@ int16_t ArithMulExecutor::neededMsgTags() {
     return 2;
 }
 
-ArithMulExecutor * ArithMulExecutor::setBmt(Bmt *bmt) {
+ArithMulExecutor *ArithMulExecutor::setBmt(Bmt *bmt) {
     _bmt = bmt;
     return this;
 }

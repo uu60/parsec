@@ -12,8 +12,8 @@
 
 BitSecret::BitSecret(bool x, int16_t objTag) : _data(x), _objTag(objTag) {}
 
-BitSecret BitSecret::share() const {
-    return BitSecret(BoolExecutor(_data, 1, _objTag, 0, IComm::impl->rank())._zi, _objTag);
+BitSecret BitSecret::share(int clientRank) const {
+    return BitSecret(BoolExecutor(_data, 1, _objTag, 0, clientRank)._zi, _objTag);
 }
 
 BitSecret BitSecret::not_() const {
@@ -33,7 +33,7 @@ BitSecret BitSecret::or_(BitSecret yi) const {
 }
 
 BitSecret BitSecret::mux(BitSecret yi, BitSecret cond_i) const {
-    return BitSecret(ArithMuxExecutor(_data, yi.get(), 1, cond_i.get(), _objTag, 0, -1).execute()->_zi, _objTag);
+    return BitSecret(ArithMuxExecutor(_data, yi.get(), cond_i.get(), 1, _objTag, 0, -1).execute()->_zi, _objTag);
 }
 
 BitSecret BitSecret::reconstruct(int clientRank) const {

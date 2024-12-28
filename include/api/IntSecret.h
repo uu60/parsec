@@ -16,13 +16,17 @@ private:
 public:
     IntSecret(int64_t x, int l, int16_t objTag);
 
-    IntSecret arithShare() const;
+    IntSecret arithShare(int clientRank) const;
 
-    IntSecret boolShare() const;
+    IntSecret boolShare(int clientRank) const;
 
     [[nodiscard]] IntSecret add(IntSecret yi) const;
 
     [[nodiscard]] IntSecret mul(IntSecret yi) const;
+
+    [[nodiscard]] IntSecret xor_(IntSecret yi) const;
+
+    [[nodiscard]] IntSecret and_(IntSecret yi) const;
 
     IntSecret arithReconstruct(int clientRank) const;
 
