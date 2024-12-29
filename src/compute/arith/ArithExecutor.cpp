@@ -2,9 +2,9 @@
 // Created by 杜建璋 on 2024/9/6.
 //
 
-#include "compute/ArithExecutor.h"
+#include "compute/arith/ArithExecutor.h"
 
-#include "ot/RsaOtExecutor.h"
+#include "ot/BaseOtExecutor.h"
 #include "comm/IComm.h"
 #include "utils/Log.h"
 #include "utils/Math.h"

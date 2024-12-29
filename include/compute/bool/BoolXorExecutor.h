@@ -4,7 +4,7 @@
 
 #ifndef XOREXECUTOR_H
 #define XOREXECUTOR_H
-#include "../BoolExecutor.h"
+#include "./BoolExecutor.h"
 
 class BoolXorExecutor : public BoolExecutor {
 public:

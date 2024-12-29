@@ -5,8 +5,9 @@
 #ifndef MPC_PACKAGE_INTSHAREEXECUTOR_H
 #define MPC_PACKAGE_INTSHAREEXECUTOR_H
 
-#include "../AbstractSecureExecutor.h"
 #include <vector>
+
+#include "../../AbstractSecureExecutor.h"
 
 class ArithExecutor : public AbstractSecureExecutor {
 private:

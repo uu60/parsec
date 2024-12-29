@@ -7,7 +7,7 @@
 #include "../AbstractSecureExecutor.h"
 #include <iostream>
 
-#include "Bmt.h"
+#include "./item/Bmt.h"
 
 class BmtGenerator : public AbstractSecureExecutor {
 private:

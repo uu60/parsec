@@ -4,8 +4,8 @@
 
 #ifndef INTANDEXECUTOR_H
 #define INTANDEXECUTOR_H
-#include "../BoolExecutor.h"
-#include "../../intermediate/Bmt.h"
+#include "./BoolExecutor.h"
+#include "../../intermediate/item/Bmt.h"
 
 class BoolAndExecutor : public BoolExecutor {
 private:

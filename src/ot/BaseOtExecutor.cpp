@@ -2,40 +2,35 @@
 // Created by 杜建璋 on 2024/7/15.
 //
 
-#include "ot/RsaOtExecutor.h"
+#include "ot/BaseOtExecutor.h"
 
 #include "comm/IComm.h"
 #include "utils/Math.h"
 #include "utils/Crypto.h"
 #include "utils/Log.h"
 
-RsaOtExecutor::RsaOtExecutor(int sender, int64_t m0, int64_t m1, int i, int l, int16_t objTag, int16_t msgTagOffset)
-    : RsaOtExecutor(2048, sender, m0, m1, i, l, objTag, msgTagOffset) {
+BaseOtExecutor::BaseOtExecutor(int sender, int64_t m0, int64_t m1, int choice, int l, int16_t objTag, int16_t msgTagOffset)
+    : BaseOtExecutor(2048, sender, m0, m1, choice, l, objTag, msgTagOffset) {
 }
 
-RsaOtExecutor::RsaOtExecutor(int bits, int sender, int64_t m0, int64_t m1, int i, int l, int16_t objTag,
-                             int16_t msgTagOffset) : AbstractSecureExecutor(l, objTag, msgTagOffset) {
+BaseOtExecutor::BaseOtExecutor(int bits, int sender, int64_t m0, int64_t m1, int choice, int l, int16_t objTag,
+                             int16_t msgTagOffset) : AbstractOtExecutor(sender, m0, m1, choice, l, objTag, msgTagOffset) {
     _bits = bits;
-    _isSender = sender == IComm::impl->rank();
-    if (_isSender) {
-        _m0 = ring(m0);
-        _m1 = ring(m1);
-    } else {
-        _i = i;
-    }
 }
 
-RsaOtExecutor *RsaOtExecutor::execute() {
-    // preparation
-    generateAndShareRandoms();
-    generateAndShareRsaKeys();
+BaseOtExecutor *BaseOtExecutor::execute() {
+    if (IComm::impl->isServer()) {
+        // preparation
+        generateAndShareRandoms();
+        generateAndShareRsaKeys();
 
-    // process
-    process();
+        // process
+        process();
+    }
     return this;
 }
 
-void RsaOtExecutor::generateAndShareRandoms() {
+void BaseOtExecutor::generateAndShareRandoms() {
     // 11 for PKCS#1 v1.5 padding
     int len = (_bits >> 3) - 11;
     auto msgTags = nextMsgTags(2);
@@ -58,7 +53,7 @@ void RsaOtExecutor::generateAndShareRandoms() {
     }
 }
 
-void RsaOtExecutor::generateAndShareRsaKeys() {
+void BaseOtExecutor::generateAndShareRsaKeys() {
     if (_isSender) {
         bool newKey = Crypto::generateRsaKeys(_bits);
         _pub = Crypto::_selfPubs[_bits];
@@ -77,18 +72,18 @@ void RsaOtExecutor::generateAndShareRsaKeys() {
     }
 }
 
-void RsaOtExecutor::process() {
+void BaseOtExecutor::process() {
     auto msgTags = nextMsgTags(3);
     if (!_isSender) {
         std::string ek = Crypto::rsaEncrypt(_randK, _pub);
-        std::string sumStr = Math::add(ek, _i == 0 ? _rand0 : _rand1);
+        std::string sumStr = Math::add(ek, _choice == 0 ? _rand0 : _rand1);
         IComm::impl->serverSend(&sumStr, buildTag(msgTags[0]));
 
         std::string m0, m1;
         IComm::impl->serverReceive(&m0, buildTag(msgTags[1]));
         IComm::impl->serverReceive(&m1, buildTag(msgTags[2]));
 
-        _result = std::stoll(Math::minus(_i == 0 ? m0 : m1, _randK));
+        _result = std::stoll(Math::minus(_choice == 0 ? m0 : m1, _randK));
     } else {
         std::string sumStr;
         IComm::impl->serverReceive(&sumStr, buildTag(msgTags[0]));
@@ -112,14 +107,10 @@ void RsaOtExecutor::process() {
     }
 }
 
-std::string RsaOtExecutor::className() const {
+std::string BaseOtExecutor::className() const {
     return "RsaOtExecutor";
 }
 
-RsaOtExecutor *RsaOtExecutor::reconstruct(int clientRank) {
-    return this;
-}
-
-int16_t RsaOtExecutor::neededMsgTags() {
+int16_t BaseOtExecutor::neededMsgTags() {
     return 6;
 }

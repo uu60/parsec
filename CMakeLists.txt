@@ -12,12 +12,12 @@ add_library(${PROJECT_NAME} SHARED
         include/utils/Math.h
         src/AbstractSecureExecutor.cpp
         include/AbstractSecureExecutor.h
-        src/compute/arith/ArithMulExecutor.cpp
-        include/compute/arith/ArithMulExecutor.h
+        src/compute/arith/ArithMultiplyExecutor.cpp
+        include/compute/arith/ArithMultiplyExecutor.h
         src/compute/arith/ArithAddExecutor.cpp
         include/compute/arith/ArithAddExecutor.h
-        src/ot/RsaOtExecutor.cpp
-        include/ot/RsaOtExecutor.h
+        src/ot/BaseOtExecutor.cpp
+        include/ot/BaseOtExecutor.h
         src/comm/MpiComm.cpp
         include/comm/MpiComm.h
         src/utils/Crypto.cpp
@@ -28,14 +28,14 @@ add_library(${PROJECT_NAME} SHARED
         include/intermediate/BmtGenerator.h
         src/compute/arith/ArithLessThanExecutor.cpp
         include/compute/arith/ArithLessThanExecutor.h
-        src/compute/ArithExecutor.cpp
-        include/compute/ArithExecutor.h
+        src/compute/arith/ArithExecutor.cpp
+        include/compute/arith/ArithExecutor.h
         src/api/IntSecret.cpp
         include/api/IntSecret.h
-        src/compute/arith/ArithMuxExecutor.cpp
-        include/compute/arith/ArithMuxExecutor.h
-        include/compute/BoolExecutor.h
-        src/compute/BoolExecutor.cpp
+        src/compute/arith/ArithMutexExecutor.cpp
+        include/compute/arith/ArithMutexExecutor.h
+        include/compute/bool/BoolExecutor.h
+        src/compute/bool/BoolExecutor.cpp
         include/compute/bool/BoolAndExecutor.h
         src/compute/bool/BoolAndExecutor.cpp
         include/compute/bool/BoolXorExecutor.h
@@ -43,7 +43,7 @@ add_library(${PROJECT_NAME} SHARED
         include/compute/bool/BoolEqualExecutor.h
         src/compute/bool/BoolEqualExecutor.cpp
         src/api/BitSecret.cpp
-        include/intermediate/Bmt.h
+        include/intermediate/item/Bmt.h
         include/comm/IComm.h
         include/intermediate/IntermediateDataSupport.h
         src/intermediate/IntermediateDataSupport.cpp
@@ -51,13 +51,21 @@ add_library(${PROJECT_NAME} SHARED
         include/compute/arith/ArithToBoolExecutor.h
         src/compute/bool/BoolToArithExecutor.cpp
         include/compute/bool/BoolToArithExecutor.h
-        include/intermediate/ABPair.h
+        include/intermediate/item/ABPair.h
         src/intermediate/ABPairGenerator.cpp
         include/intermediate/ABPairGenerator.h
         src/comm/IComm.cpp
         include/utils/Log.h
         include/third_party/ctpl_stl.h
         include/sync/BlockingQueue.h
+        src/compute/bool/BoolLessThanExecutor.cpp
+        include/compute/bool/BoolLessThanExecutor.h
+        src/ot/RandOtExecutor.cpp
+        include/ot/RandOtExecutor.h
+        include/intermediate/item/SRot.h
+        include/intermediate/item/RRot.h
+        include/ot/AbstractOtExecutor.h
+        src/ot/AbstractOtExecutor.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC

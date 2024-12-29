@@ -4,7 +4,7 @@
 
 #ifndef MPC_PACKAGE_COMPAREEXECUTOR_H
 #define MPC_PACKAGE_COMPAREEXECUTOR_H
-#include "../ArithExecutor.h"
+#include "./ArithExecutor.h"
 #include <vector>
 
 class ArithLessThanExecutor : public ArithExecutor {

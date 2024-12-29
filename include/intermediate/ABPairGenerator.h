@@ -4,8 +4,8 @@
 
 #ifndef ABPAIRGENERATOR_H
 #define ABPAIRGENERATOR_H
-#include "ABPair.h"
-#include "AbstractSecureExecutor.h"
+#include "./item/ABPair.h"
+#include "../AbstractSecureExecutor.h"
 
 
 class ABPairGenerator : public AbstractSecureExecutor {

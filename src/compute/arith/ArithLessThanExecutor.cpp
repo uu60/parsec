@@ -4,8 +4,6 @@
 
 #include "compute/arith/ArithLessThanExecutor.h"
 
-#include <utility>
-
 #include "comm/IComm.h"
 #include "compute/arith/ArithToBoolExecutor.h"
 #include "utils/Log.h"

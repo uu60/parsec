@@ -4,7 +4,7 @@
 
 #ifndef INTBOOLEXECUTOR_H
 #define INTBOOLEXECUTOR_H
-#include "../AbstractSecureExecutor.h"
+#include "../../AbstractSecureExecutor.h"
 
 class BoolExecutor : public AbstractSecureExecutor {
 public:

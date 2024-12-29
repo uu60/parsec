@@ -2,13 +2,13 @@
 // Created by 杜建璋 on 2024/7/13.
 //
 
-#include "compute/arith/ArithMulExecutor.h"
+#include "compute/arith/ArithMultiplyExecutor.h"
 
 #include "intermediate/IntermediateDataSupport.h"
 #include "comm/IComm.h"
 #include "utils/Log.h"
 
-ArithMulExecutor *ArithMulExecutor::execute() {
+ArithMultiplyExecutor *ArithMultiplyExecutor::execute() {
     _currentMsgTag = _startMsgTag;
     // process
     auto msgTags = nextMsgTags(2);
@@ -34,15 +34,15 @@ ArithMulExecutor *ArithMulExecutor::execute() {
     return this;
 }
 
-std::string ArithMulExecutor::className() const {
+std::string ArithMultiplyExecutor::className() const {
     return "MulExecutor";
 }
 
-int16_t ArithMulExecutor::neededMsgTags() {
+int16_t ArithMultiplyExecutor::neededMsgTags() {
     return 2;
 }
 
-ArithMulExecutor *ArithMulExecutor::setBmt(Bmt *bmt) {
+ArithMultiplyExecutor *ArithMultiplyExecutor::setBmt(Bmt *bmt) {
     _bmt = bmt;
     return this;
 }

@@ -6,7 +6,7 @@
 
 #include "intermediate/IntermediateDataSupport.h"
 #include "comm/IComm.h"
-#include "ot/RsaOtExecutor.h"
+#include "ot/BaseOtExecutor.h"
 #include "utils/Log.h"
 #include "utils/Math.h"
 
@@ -29,8 +29,8 @@ BoolToArithExecutor *BoolToArithExecutor::execute() {
                     s0 = (xb << i) - r;
                     s1 = ((1 - xb) << i) - r;
                 }
-                RsaOtExecutor e(0, s0, s1, xb, _l, _objTag,
-                                static_cast<int16_t>(_currentMsgTag + RsaOtExecutor::neededMsgTags() * i));
+                BaseOtExecutor e(0, s0, s1, xb, _l, _objTag,
+                                static_cast<int16_t>(_currentMsgTag + BaseOtExecutor::neededMsgTags() * i));
                 e.execute();
                 if (isSender) {
                     temp = temp + r;
@@ -53,7 +53,7 @@ std::string BoolToArithExecutor::className() const {
 }
 
 int16_t BoolToArithExecutor::neededMsgTags(int l) {
-    return static_cast<int16_t>(RsaOtExecutor::neededMsgTags() * l);
+    return static_cast<int16_t>(BaseOtExecutor::neededMsgTags() * l);
 }
 
 /*

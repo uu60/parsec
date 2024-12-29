@@ -6,25 +6,23 @@
 #define MPC_PACKAGE_RSAOTEXECUTOR_H
 
 #include <string>
+
+#include "AbstractOtExecutor.h"
 #include "../AbstractSecureExecutor.h"
 
 // according to https://blog.csdn.net/qq_16763983/article/details/128055146
-class RsaOtExecutor : public AbstractSecureExecutor {
-public:
+class BaseOtExecutor : public AbstractOtExecutor {
+private:
     // RSA key _bits
     int _bits{};
-    // correspond mpi rank
-    bool _isSender{};
+
     // params for sender
     std::string _rand0{};
     std::string _rand1{};
     std::string _pri;
-    int64_t _m0{};
-    int64_t _m1{};
 
     // params for receiver
     std::string _randK{};
-    int _i; // msg choice
 
     // params for both
     std::string _pub;
@@ -32,13 +30,11 @@ public:
 public:
     // _m0 and _m1 are for sender (invalid for receiver)
     // i is for receiver (invalid for sender)
-    explicit RsaOtExecutor(int sender, int64_t m0, int64_t m1, int i, int l, int16_t objTag, int16_t msgTagOffset);
+    explicit BaseOtExecutor(int sender, int64_t m0, int64_t m1, int choice, int l, int16_t objTag, int16_t msgTagOffset);
 
-    explicit RsaOtExecutor(int bits, int sender, int64_t m0, int64_t m1, int i, int l, int16_t objTag, int16_t msgTagOffset);
+    explicit BaseOtExecutor(int bits, int sender, int64_t m0, int64_t m1, int choice, int l, int16_t objTag, int16_t msgTagOffset);
 
-    RsaOtExecutor *execute() override;
-
-    RsaOtExecutor *reconstruct(int clientRank) override;
+    BaseOtExecutor *execute() override;
 
     [[nodiscard]] static int16_t neededMsgTags();
 

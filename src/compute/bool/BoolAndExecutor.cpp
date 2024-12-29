@@ -4,7 +4,7 @@
 
 #include "compute/bool/BoolAndExecutor.h"
 
-#include "compute/arith/ArithMulExecutor.h"
+#include "compute/arith/ArithMultiplyExecutor.h"
 #include "comm/IComm.h"
 #include "intermediate/IntermediateDataSupport.h"
 #include "utils/Log.h"
@@ -19,8 +19,8 @@ BoolAndExecutor *BoolAndExecutor::execute() {
             auto bmt = _bmts == nullptr ? IntermediateDataSupport::pollBmts(1)[0] : (*_bmts)[i];
             futures.push_back(System::_threadPool.push([this, i, bmt] (int _) {
                 Bmt copy = bmt;
-                ArithMulExecutor e((_xi >> i) & 1, (_yi >> i) & 1, 1, _objTag, static_cast<int16_t>
-                    (_currentMsgTag + ArithMulExecutor::neededMsgTags() * i), -1);
+                ArithMultiplyExecutor e((_xi >> i) & 1, (_yi >> i) & 1, 1, _objTag, static_cast<int16_t>
+                    (_currentMsgTag + ArithMultiplyExecutor::neededMsgTags() * i), -1);
                 e.setBmt(&copy);
                 return (e.execute()->_zi) << i;
             }));
@@ -28,7 +28,7 @@ BoolAndExecutor *BoolAndExecutor::execute() {
         for (auto &f : futures) {
             _zi += f.get();
         }
-        _currentMsgTag = static_cast<int16_t>(_currentMsgTag + ArithMulExecutor::neededMsgTags() * _l);
+        _currentMsgTag = static_cast<int16_t>(_currentMsgTag + ArithMultiplyExecutor::neededMsgTags() * _l);
         _zi = ring(_zi);
     }
     return this;

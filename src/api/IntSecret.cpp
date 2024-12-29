@@ -7,12 +7,12 @@
 #include "api/IntSecret.h"
 
 #include "comm/IComm.h"
-#include "compute/ArithExecutor.h"
-#include "compute/BoolExecutor.h"
+#include "compute/arith/ArithExecutor.h"
+#include "compute/bool/BoolExecutor.h"
 #include "compute/arith/ArithAddExecutor.h"
-#include "compute/arith/ArithMulExecutor.h"
+#include "compute/arith/ArithMultiplyExecutor.h"
 #include "compute/arith/ArithLessThanExecutor.h"
-#include "compute/arith/ArithMuxExecutor.h"
+#include "compute/arith/ArithMutexExecutor.h"
 #include "compute/arith/ArithToBoolExecutor.h"
 #include "compute/bool/BoolAndExecutor.h"
 #include "compute/bool/BoolToArithExecutor.h"
@@ -46,7 +46,7 @@ IntSecret IntSecret::add(IntSecret yi) const {
 }
 
 IntSecret IntSecret::mul(IntSecret yi) const {
-    return {ArithMulExecutor(_data, yi.get(), _l, _objTag, 0, -1).execute()->_zi, _l, _objTag};
+    return {ArithMultiplyExecutor(_data, yi.get(), _l, _objTag, 0, -1).execute()->_zi, _l, _objTag};
 }
 
 IntSecret IntSecret::xor_(IntSecret yi) const {
@@ -70,5 +70,5 @@ BitSecret IntSecret::arithLessThan(IntSecret yi) const {
 }
 
 IntSecret IntSecret::mux(IntSecret yi, BitSecret cond_i) const {
-    return {ArithMuxExecutor(_data, yi.get(), cond_i.get(), _l, _objTag, 0, -1).execute()->_zi, _l, _objTag};
+    return {ArithMutexExecutor(_data, yi.get(), cond_i.get(), _l, _objTag, 0, -1).execute()->_zi, _l, _objTag};
 }

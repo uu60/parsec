@@ -5,7 +5,7 @@
 #ifndef MPC_PACKAGE_ADDITIONSHAREEXECUTOR_H
 #define MPC_PACKAGE_ADDITIONSHAREEXECUTOR_H
 
-#include "../ArithExecutor.h"
+#include "./ArithExecutor.h"
 
 class ArithAddExecutor : public ArithExecutor {
 public:

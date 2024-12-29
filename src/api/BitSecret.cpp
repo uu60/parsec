@@ -4,8 +4,8 @@
 
 #include "api/BitSecret.h"
 
-#include "compute/ArithExecutor.h"
-#include "compute/arith/ArithMuxExecutor.h"
+#include "compute/arith/ArithExecutor.h"
+#include "compute/arith/ArithMutexExecutor.h"
 #include "compute/bool/BoolAndExecutor.h"
 #include "compute/bool/BoolXorExecutor.h"
 #include "comm/IComm.h"
@@ -33,7 +33,7 @@ BitSecret BitSecret::or_(BitSecret yi) const {
 }
 
 BitSecret BitSecret::mux(BitSecret yi, BitSecret cond_i) const {
-    return BitSecret(ArithMuxExecutor(_data, yi.get(), cond_i.get(), 1, _objTag, 0, -1).execute()->_zi, _objTag);
+    return BitSecret(ArithMutexExecutor(_data, yi.get(), cond_i.get(), 1, _objTag, 0, -1).execute()->_zi, _objTag);
 }
 
 BitSecret BitSecret::reconstruct(int clientRank) const {
@@ -43,20 +43,3 @@ BitSecret BitSecret::reconstruct(int clientRank) const {
 bool BitSecret::get() const {
     return _data;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -4,7 +4,7 @@
 
 #ifndef TOARITHEXECUTOR_H
 #define TOARITHEXECUTOR_H
-#include "../../compute/BoolExecutor.h"
+#include "./BoolExecutor.h"
 
 
 class BoolToArithExecutor : public BoolExecutor {

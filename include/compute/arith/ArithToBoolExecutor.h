@@ -4,8 +4,8 @@
 
 #ifndef BOOLCONVERTEXECUTOR_H
 #define BOOLCONVERTEXECUTOR_H
-#include "../../compute/ArithExecutor.h"
-#include "../../intermediate/Bmt.h"
+#include "./ArithExecutor.h"
+#include "../../intermediate/item/Bmt.h"
 
 class ArithToBoolExecutor : public ArithExecutor {
 private:

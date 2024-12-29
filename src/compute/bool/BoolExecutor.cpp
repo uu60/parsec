@@ -2,11 +2,11 @@
 // Created by 杜建璋 on 2024/11/7.
 //
 
-#include "compute/BoolExecutor.h"
+#include "compute/bool/BoolExecutor.h"
 
 #include "comm/IComm.h"
 #include "utils/Math.h"
-#include "ot/RsaOtExecutor.h"
+#include "ot/BaseOtExecutor.h"
 #include "utils/Log.h"
 #include "utils/System.h"
 

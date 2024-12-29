@@ -5,7 +5,7 @@
 #ifndef BOOLEQUALEXECUTOR_H
 #define BOOLEQUALEXECUTOR_H
 #
-#include "compute/BoolExecutor.h"
+#include "./BoolExecutor.h"
 
 class BoolEqualExecutor : public BoolExecutor {
 public:

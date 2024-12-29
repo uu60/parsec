@@ -11,9 +11,10 @@
 /**
  * 0 is preserved for OtBmtGenerator.
  * 1 is preserved for ABPairGenerator.
+ * 2 is preserved for BaseOtExecutor
  */
-std::set<int16_t> AbstractSecureExecutor::_preservedObjTags = {0, 1};
-int16_t AbstractSecureExecutor::_currentObjTag = 2;
+const int16_t AbstractSecureExecutor::_preservedObjTags = 3;
+std::atomic_int16_t AbstractSecureExecutor::_currentObjTag = _preservedObjTags;
 
 int AbstractSecureExecutor::buildTag(int16_t msgTag) const {
     return (_objTag << 16) | msgTag;
@@ -35,7 +36,7 @@ std::vector<int16_t> AbstractSecureExecutor::nextObjTags(int num) {
         if ((_currentObjTag << 16) < 0) {
             _currentObjTag = 0;
         }
-        if (_preservedObjTags.count(_currentObjTag) > 0) {
+        if (_currentObjTag >= 0 && _currentObjTag < _preservedObjTags) {
             _currentObjTag = static_cast<int16_t>(Math::ring(_currentObjTag + 1, 16));
             continue;
         }
