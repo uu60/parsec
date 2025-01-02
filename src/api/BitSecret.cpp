@@ -10,22 +10,26 @@
 #include "compute/bool/BoolXorExecutor.h"
 #include "comm/IComm.h"
 
-BitSecret::BitSecret(bool x, int16_t objTag) : _data(x), _objTag(objTag) {}
+BitSecret::BitSecret(bool x, int16_t taskTag) : _data(x), _taskTag(taskTag) {}
+
+BitSecret BitSecret::task(int16_t taskTag) {
+    return BitSecret(_data, taskTag);
+}
 
 BitSecret BitSecret::share(int clientRank) const {
-    return BitSecret(BoolExecutor(_data, 1, _objTag, 0, clientRank)._zi, _objTag);
+    return BitSecret(BoolExecutor(_data, 1, _taskTag, 0, clientRank)._zi, _taskTag);
 }
 
 BitSecret BitSecret::not_() const {
-    return BitSecret(_data ^ IComm::impl->rank(), _objTag);
+    return BitSecret(_data ^ IComm::impl->rank(), _taskTag);
 }
 
 BitSecret BitSecret::xor_(BitSecret yi) const {
-    return BitSecret(BoolXorExecutor(_data, yi.get(), 1, _objTag, 0, -1).execute()->_zi, _objTag);
+    return BitSecret(BoolXorExecutor(_data, yi.get(), 1, _taskTag, 0, -1).execute()->_zi, _taskTag);
 }
 
 BitSecret BitSecret::and_(BitSecret yi) const {
-    return BitSecret(BoolAndExecutor(_data, yi.get(), 1, _objTag, 0, -1).execute()->_zi, _objTag);
+    return BitSecret(BoolAndExecutor(_data, yi.get(), 1, _taskTag, 0, -1).execute()->_zi, _taskTag);
 }
 
 BitSecret BitSecret::or_(BitSecret yi) const {
@@ -33,11 +37,11 @@ BitSecret BitSecret::or_(BitSecret yi) const {
 }
 
 BitSecret BitSecret::mux(BitSecret yi, BitSecret cond_i) const {
-    return BitSecret(ArithMutexExecutor(_data, yi.get(), cond_i.get(), 1, _objTag, 0, -1).execute()->_zi, _objTag);
+    return BitSecret(ArithMutexExecutor(_data, yi.get(), cond_i.get(), 1, _taskTag, 0, -1).execute()->_zi, _taskTag);
 }
 
 BitSecret BitSecret::reconstruct(int clientRank) const {
-    return BitSecret(ArithExecutor(_data, 1, _objTag, 0, -1).reconstruct(clientRank)->_result, _objTag);
+    return BitSecret(ArithExecutor(_data, 1, _taskTag, 0, -1).reconstruct(clientRank)->_result, _taskTag);
 }
 
 bool BitSecret::get() const {

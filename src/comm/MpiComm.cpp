@@ -31,11 +31,6 @@ void MpiComm::init(int argc, char **argv) {
     }
 }
 
-void MpiComm::serverExchange(const int64_t *source, int64_t *target, int tag) {
-    serverSend(source, tag);
-    serverReceive(target, tag);
-}
-
 void MpiComm::serverSend(const int64_t *source, int tag) {
     send(source, 1 - _mpiRank, tag);
 }
@@ -106,9 +101,4 @@ void MpiComm::serverSend(const bool *source, int tag) {
 
 void MpiComm::serverReceive(bool *target, int tag) {
     receive(target, 1 - _mpiRank, tag);
-}
-
-void MpiComm::serverExchange(const bool *source, bool *target, int tag) {
-    serverSend(source, tag);
-    serverReceive(target, tag);
 }

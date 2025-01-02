@@ -17,7 +17,7 @@ BoolEqualExecutor *BoolEqualExecutor::execute() {
         // if equal, z will be all 1.
         _sign = _zi & 1;
         for (int i = 0; i < _l - 1; i++) {
-            _sign = BoolAndExecutor(_sign, (_zi >> (i + 1)) & 1, 1, _objTag, 0, -1).execute()->_zi;
+            _sign = BoolAndExecutor(_sign, (_zi >> (i + 1)) & 1, 1, _taskTag, 0, -1).execute()->_zi;
         }
     }
     return this;

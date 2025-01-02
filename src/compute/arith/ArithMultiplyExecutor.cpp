@@ -11,19 +11,20 @@
 ArithMultiplyExecutor *ArithMultiplyExecutor::execute() {
     _currentMsgTag = _startMsgTag;
     // process
-    auto msgTags = nextMsgTags(2);
     if (IComm::impl->isServer()) {
         Bmt bmt = _bmt != nullptr ? *_bmt : IntermediateDataSupport::pollBmts(1)[0];
         int64_t ei = ring(_xi - bmt._a);
         int64_t fi = ring(_yi - bmt._b);
-        auto f0 = System::_threadPool.push([ei, this, &msgTags](int _) {
+        auto f0 = System::_threadPool.push([ei, this](int _) {
             int64_t eo;
-            IComm::impl->serverExchange(&ei, &eo, buildTag(msgTags[0]));
+            IComm::impl->serverSend(&ei, buildTag(_currentMsgTag));
+            IComm::impl->serverReceive(&eo, buildTag(_currentMsgTag));
             return eo;
         });
-        auto f1 = System::_threadPool.push([fi, this, &msgTags](int _) {
+        auto f1 = System::_threadPool.push([fi, this](int _) {
             int64_t fo;
-            IComm::impl->serverExchange(&fi, &fo, buildTag(msgTags[1]));
+            IComm::impl->serverSend(&fi, buildTag(static_cast<int16_t>(_currentMsgTag + 1)));
+            IComm::impl->serverReceive(&fo, buildTag(static_cast<int16_t>(_currentMsgTag + 1)));
             return fo;
         });
         int64_t e = ring(ei + f0.get());
@@ -35,10 +36,10 @@ ArithMultiplyExecutor *ArithMultiplyExecutor::execute() {
 }
 
 std::string ArithMultiplyExecutor::className() const {
-    return "MulExecutor";
+    return "ArithMultiplyExecutor";
 }
 
-int16_t ArithMultiplyExecutor::neededMsgTags() {
+int16_t ArithMultiplyExecutor::needsMsgTags() {
     return 2;
 }
 

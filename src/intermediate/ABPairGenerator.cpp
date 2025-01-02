@@ -15,7 +15,7 @@ ABPairGenerator &ABPairGenerator::getInstance() {
 
 ABPairGenerator *ABPairGenerator::execute() {
     _pair._b = Math::randInt();
-    _pair._a = BoolToArithExecutor(_pair._b, 64, _objTag, 0, -1).execute()->_zi;
+    _pair._a = BoolToArithExecutor(_pair._b, 64, _taskTag, 0, -1).execute()->_zi;
     return this;
 }
 

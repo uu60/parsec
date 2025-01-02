@@ -13,8 +13,8 @@ private:
 
 public:
     // Temporarily lend zi for xi preparation in super constructor.
-    ArithToBoolExecutor(int64_t xi, int l, int16_t objTag, int16_t msgTagOffset, int clientRank) : ArithExecutor(
-        xi, l, objTag, msgTagOffset, clientRank) {
+    ArithToBoolExecutor(int64_t xi, int l, int16_t taskTag, int16_t msgTagOffset, int clientRank) : ArithExecutor(
+        xi, l, taskTag, msgTagOffset, clientRank) {
         _xi = _zi;
         _zi = 0;
     }
@@ -23,9 +23,13 @@ public:
 
     [[nodiscard]] std::string className() const override;
 
-    [[nodiscard]] static int16_t neededMsgTags();
+    [[nodiscard]] static int16_t needsMsgTags(int l);
+
+    static int needsBmts(int l);
 
     ArithToBoolExecutor *setBmts(std::vector<Bmt> *bmts);
+
+    ArithToBoolExecutor *reconstruct(int clientRank) override;
 };
 
 

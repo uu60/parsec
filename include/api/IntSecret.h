@@ -8,13 +8,18 @@
 #include "./BitSecret.h"
 #include <vector>
 
-class IntSecret {
+#include "Secret.h"
+
+class IntSecret : public Secret {
 private:
     int64_t _data{};
     int _l{};
-    int16_t _objTag{};
+    int16_t _taskTag{};
+
 public:
-    IntSecret(int64_t x, int l, int16_t objTag);
+    IntSecret(int64_t x, int l, int16_t taskTag);
+
+    IntSecret task(int16_t taskTag) const;
 
     IntSecret arithShare(int clientRank) const;
 

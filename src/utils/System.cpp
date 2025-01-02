@@ -7,6 +7,7 @@
 #include "comm/IComm.h"
 #include "intermediate/IntermediateDataSupport.h"
 #include "utils/Log.h"
+#include "utils/Math.h"
 
 std::atomic_bool System::_shutdown = false;
 ctpl::thread_pool System::_threadPool(static_cast<int>(std::thread::hardware_concurrency() * 20));
@@ -33,6 +34,14 @@ void System::finalize() {
     Log::i("System shut down.");
 }
 
+int16_t System::nextTask() {
+    if (_currentTaskTag < 0 || _currentTaskTag < _preservedTaskTags) {
+        _currentTaskTag = _preservedTaskTags;
+    }
+    int16_t ret = _currentTaskTag;
+    _currentTaskTag = static_cast<int16_t>(Math::ring(_currentTaskTag + 1, 16));
+    return ret;
+}
 
 int64_t System::currentTimeMillis() {
     auto now = std::chrono::system_clock::now();

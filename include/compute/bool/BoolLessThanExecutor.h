@@ -8,9 +8,15 @@
 
 class BoolLessThanExecutor : public BoolExecutor {
 public:
-    BoolLessThanExecutor(int64_t x, int64_t y, int l, int16_t objTag, int16_t msgTagOffset, int clientRank) : BoolExecutor(x, y, l, objTag, msgTagOffset, clientRank) {};
+    bool _sign{};
+
+    BoolLessThanExecutor(int64_t x, int64_t y, int l, int16_t taskTag, int16_t msgTagOffset, int clientRank) : BoolExecutor(x, y, l, taskTag, msgTagOffset, clientRank) {};
 
     BoolLessThanExecutor *execute() override;
+
+    BoolLessThanExecutor *reconstruct(int clientRank) override;
+
+    std::string className() const override;
 };
 
 

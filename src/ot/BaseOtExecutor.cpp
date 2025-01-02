@@ -9,12 +9,12 @@
 #include "utils/Crypto.h"
 #include "utils/Log.h"
 
-BaseOtExecutor::BaseOtExecutor(int sender, int64_t m0, int64_t m1, int choice, int l, int16_t objTag, int16_t msgTagOffset)
-    : BaseOtExecutor(2048, sender, m0, m1, choice, l, objTag, msgTagOffset) {
+BaseOtExecutor::BaseOtExecutor(int sender, int64_t m0, int64_t m1, int choice, int l, int16_t taskTag, int16_t msgTagOffset)
+    : BaseOtExecutor(2048, sender, m0, m1, choice, l, taskTag, msgTagOffset) {
 }
 
-BaseOtExecutor::BaseOtExecutor(int bits, int sender, int64_t m0, int64_t m1, int choice, int l, int16_t objTag,
-                             int16_t msgTagOffset) : AbstractOtExecutor(sender, m0, m1, choice, l, objTag, msgTagOffset) {
+BaseOtExecutor::BaseOtExecutor(int bits, int sender, int64_t m0, int64_t m1, int choice, int l, int16_t taskTag,
+                             int16_t msgTagOffset) : AbstractOtExecutor(sender, m0, m1, choice, l, taskTag, msgTagOffset) {
     _bits = bits;
 }
 
@@ -33,23 +33,22 @@ BaseOtExecutor *BaseOtExecutor::execute() {
 void BaseOtExecutor::generateAndShareRandoms() {
     // 11 for PKCS#1 v1.5 padding
     int len = (_bits >> 3) - 11;
-    auto msgTags = nextMsgTags(2);
     if (_isSender) {
         _rand0 = Math::randString(len);
         _rand1 = Math::randString(len);
 
-        auto f0 = System::_threadPool.push([this, msgTags] (int _) {
-            IComm::impl->serverSend(&_rand0, buildTag(msgTags[0]));
+        auto f0 = System::_threadPool.push([this] (int _) {
+            IComm::impl->serverSend(&_rand0, buildTag(_currentMsgTag));
         });
-        auto f1 = System::_threadPool.push([this, msgTags] (int _) {
-            IComm::impl->serverSend(&_rand1, buildTag(msgTags[1]));
+        auto f1 = System::_threadPool.push([this] (int _) {
+            IComm::impl->serverSend(&_rand1, buildTag(static_cast<int16_t>(_currentMsgTag + 1)));
         });
         f0.wait();
         f1.wait();
     } else {
         _randK = Math::randString(len);
-        IComm::impl->serverReceive(&_rand0, buildTag(msgTags[0]));
-        IComm::impl->serverReceive(&_rand1, buildTag(msgTags[1]));
+        IComm::impl->serverReceive(&_rand0, buildTag(_currentMsgTag));
+        IComm::impl->serverReceive(&_rand1, buildTag(static_cast<int16_t>(_currentMsgTag + 1)));
     }
 }
 
@@ -73,20 +72,19 @@ void BaseOtExecutor::generateAndShareRsaKeys() {
 }
 
 void BaseOtExecutor::process() {
-    auto msgTags = nextMsgTags(3);
     if (!_isSender) {
         std::string ek = Crypto::rsaEncrypt(_randK, _pub);
         std::string sumStr = Math::add(ek, _choice == 0 ? _rand0 : _rand1);
-        IComm::impl->serverSend(&sumStr, buildTag(msgTags[0]));
+        IComm::impl->serverSend(&sumStr, buildTag(_currentMsgTag));
 
         std::string m0, m1;
-        IComm::impl->serverReceive(&m0, buildTag(msgTags[1]));
-        IComm::impl->serverReceive(&m1, buildTag(msgTags[2]));
+        IComm::impl->serverReceive(&m0, buildTag(static_cast<int16_t>(_currentMsgTag + 1)));
+        IComm::impl->serverReceive(&m1, buildTag(static_cast<int16_t>(_currentMsgTag + 2)));
 
         _result = std::stoll(Math::minus(_choice == 0 ? m0 : m1, _randK));
     } else {
         std::string sumStr;
-        IComm::impl->serverReceive(&sumStr, buildTag(msgTags[0]));
+        IComm::impl->serverReceive(&sumStr, buildTag(_currentMsgTag));
         std::string k0 = Crypto::rsaDecrypt(
             Math::minus(sumStr, _rand0), _pri
         );
@@ -96,11 +94,11 @@ void BaseOtExecutor::process() {
         std::string m0 = Math::add(std::to_string(_m0), k0);
         std::string m1 = Math::add(std::to_string(_m1), k1);
 
-        auto f0 = System::_threadPool.push([m0, msgTags, this] (int _) {
-            IComm::impl->serverSend(&m0, buildTag(msgTags[1]));
+        auto f0 = System::_threadPool.push([m0, this] (int _) {
+            IComm::impl->serverSend(&m0, buildTag(static_cast<int16_t>(_currentMsgTag + 1)));
         });
-        auto f1 = System::_threadPool.push([m1, msgTags, this] (int _) {
-            IComm::impl->serverSend(&m1, buildTag(msgTags[2]));
+        auto f1 = System::_threadPool.push([m1, this] (int _) {
+            IComm::impl->serverSend(&m1, buildTag(static_cast<int16_t>(_currentMsgTag + 2)));
         });
         f0.wait();
         f1.wait();
@@ -111,6 +109,6 @@ std::string BaseOtExecutor::className() const {
     return "RsaOtExecutor";
 }
 
-int16_t BaseOtExecutor::neededMsgTags() {
+int16_t BaseOtExecutor::needsMsgTags() {
     return 6;
 }

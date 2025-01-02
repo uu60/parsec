@@ -37,10 +37,6 @@ public:
     /**
      * Methods start with 'server' mean that the communication is between 2 servers. (3-Party server)
      */
-    virtual void serverExchange(const int64_t *source, int64_t *target, int tag) = 0;
-
-    virtual void serverExchange(const bool *source, bool *target, int tag) = 0;
-
     virtual void serverSend(const int64_t *source, int tag) = 0;
 
     virtual void serverSend(const bool *source, int tag) = 0;

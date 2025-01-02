@@ -11,7 +11,7 @@ BoolXorExecutor *BoolXorExecutor::execute() {
     return this;
 }
 
-int16_t BoolXorExecutor::neededMsgTags() {
+int16_t BoolXorExecutor::needsMsgTags() {
     return 0;
 }
 

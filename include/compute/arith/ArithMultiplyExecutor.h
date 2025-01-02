@@ -12,13 +12,13 @@ private:
     Bmt* _bmt{};
 
 public:
-    ArithMultiplyExecutor(int64_t x, int64_t y, int l, int16_t objTag, int16_t msgTagOffset, int clientRank) : ArithExecutor(
-        x, y, l, objTag, msgTagOffset, clientRank) {
+    ArithMultiplyExecutor(int64_t x, int64_t y, int l, int16_t taskTag, int16_t msgTagOffset, int clientRank) : ArithExecutor(
+        x, y, l, taskTag, msgTagOffset, clientRank) {
     }
 
     ArithMultiplyExecutor *execute() override;
 
-    [[nodiscard]] static int16_t neededMsgTags();
+    [[nodiscard]] static int16_t needsMsgTags();
 
     ArithMultiplyExecutor *setBmt(Bmt *bmt);
 

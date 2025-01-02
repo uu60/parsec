@@ -9,11 +9,11 @@
 
 class RandOtExecutor : public AbstractOtExecutor {
 public:
-    RandOtExecutor(int sender, int64_t m0, int64_t m1, int choice, int l, int16_t objTag, int16_t msgTagOffset) : AbstractOtExecutor(sender, m0, m1, choice, l, objTag, msgTagOffset) {}
+    RandOtExecutor(int sender, int64_t m0, int64_t m1, int choice, int l, int16_t taskTag, int16_t msgTagOffset) : AbstractOtExecutor(sender, m0, m1, choice, l, taskTag, msgTagOffset) {}
 
     RandOtExecutor *execute() override;
 
-    static int16_t neededMsgTags();
+    static int16_t needsMsgTags();
 
     std::string className() const override;
 };

@@ -11,7 +11,9 @@
 #include <thread>
 #include <optional>
 
-template <typename T>
+#include "../utils/Log.h"
+
+template<typename T>
 class BlockingQueue {
 private:
     std::queue<T> _queue;
@@ -21,9 +23,10 @@ private:
     size_t _maxSize;
 
 public:
-    explicit BlockingQueue(size_t max_size) : _maxSize(max_size) {}
+    explicit BlockingQueue(size_t max_size) : _maxSize(max_size) {
+    }
 
-    void push(const T& item) {
+    void push(const T &item) {
         std::unique_lock<std::mutex> lock(_mutex);
         _notFull.wait(lock, [this]() { return _queue.size() < _maxSize; });
         _queue.push(item);

@@ -15,7 +15,7 @@ ArithAddExecutor *ArithAddExecutor::execute() {
     return this;
 }
 
-int16_t ArithAddExecutor::neededMsgTags() {
+int16_t ArithAddExecutor::needsMsgTags() {
     return 0;
 }
 

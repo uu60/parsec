@@ -11,7 +11,7 @@
 
 class ArithExecutor : public AbstractSecureExecutor {
 private:
-    static int32_t _currentObjTag;
+    static int32_t _currenttaskTag;
 public:
     int64_t _xi{};
     int64_t _yi{};
@@ -23,12 +23,12 @@ public:
      *
      * @param z Straightly store computed unreconstructed result.
      * @param l Length of numbers in this MPC process.
-     * @param objTag Object tag.
+     * @param taskTag Object tag.
      * @param clientRank If clientRank is negative, means locally set value. Else clientRank represents sharer's rank.
      */
-    ArithExecutor(int64_t z, int l, int16_t objTag, int16_t msgTagOffset, int clientRank);
+    ArithExecutor(int64_t z, int l, int16_t taskTag, int16_t msgTagOffset, int clientRank);
 
-    ArithExecutor(int64_t x, int64_t y, int l, int16_t objTag, int16_t msgTagOffset, int clientRank);
+    ArithExecutor(int64_t x, int64_t y, int l, int16_t taskTag, int16_t msgTagOffset, int clientRank);
 
     ArithExecutor *reconstruct(int clientRank) override;
 

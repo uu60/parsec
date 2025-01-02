@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-#hosts=("ub1" "ub2" "ub3")
+#hosts=("ub1")
 hosts=("du5@ppdsa-a6000.luddy.indiana.edu")
 cd "$(dirname $(readlink -f "$0"))"
 cd ../

@@ -10,13 +10,15 @@
 #include "compute/bool/BoolToArithExecutor.h"
 #include "intermediate/IntermediateDataSupport.h"
 #include "utils/Log.h"
+#include "utils/Math.h"
 
-ArithMutexExecutor::ArithMutexExecutor(int64_t x, int64_t y, bool c, int l, int16_t objTag, int16_t msgTagOffset,
-                                   int clientRank) : ArithExecutor(x, y, l, objTag, msgTagOffset, clientRank) {
+// Please make sure that c's shares are not 1 and 1
+ArithMutexExecutor::ArithMutexExecutor(int64_t x, int64_t y, bool c, int l, int16_t taskTag, int16_t msgTagOffset,
+                                   int clientRank) : ArithExecutor(x, y, l, taskTag, msgTagOffset, clientRank) {
     if (clientRank < 0 && _l > 1) {
-        _cond_i = BoolToArithExecutor(c, 1, _objTag, _currentMsgTag, -1).execute()->_zi;
+        _cond_i = BoolToArithExecutor(c, _l, _taskTag, _currentMsgTag, -1).execute()->_zi;
     } else {
-        _cond_i = ArithExecutor(c, 1, _objTag, _currentMsgTag, clientRank)._zi;
+        _cond_i = ArithExecutor(c, _l, _taskTag, _currentMsgTag, clientRank)._zi;
     }
 }
 
@@ -26,13 +28,12 @@ ArithMutexExecutor *ArithMutexExecutor::execute() {
         auto bmts = _bmts == nullptr ? IntermediateDataSupport::pollBmts(2) : *_bmts;
         int64_t cx, cy;
         auto f0 = System::_threadPool.push([this, &bmts](int _) {
-            auto mul0 = ArithMultiplyExecutor(_cond_i, _xi, _l, _objTag,
-                                         _currentMsgTag, -1);
+            auto mul0 = ArithMultiplyExecutor(_cond_i, _xi, _l, _taskTag, _currentMsgTag, -1);
             return mul0.setBmt(&bmts[0])->execute()->_zi;
         });
         auto f1 = System::_threadPool.push([this, &bmts](int _) {
-            auto mul1 = ArithMultiplyExecutor(_cond_i, _yi, _l, _objTag,
-                                         static_cast<int16_t>(_currentMsgTag + ArithMultiplyExecutor::neededMsgTags()), -1);
+            auto mul1 = ArithMultiplyExecutor(_cond_i, _yi, _l, _taskTag,
+                                         static_cast<int16_t>(_currentMsgTag + ArithMultiplyExecutor::needsMsgTags()), -1);
             return mul1.setBmt(&bmts[1])->execute()->_zi;
         });
         cx = f0.get();
@@ -46,8 +47,11 @@ std::string ArithMutexExecutor::className() const {
     return "[MuxArithExecutor]";
 }
 
-int64_t ArithMutexExecutor::neededMsgTags() {
-    return static_cast<int16_t>(2 * ArithMultiplyExecutor::neededMsgTags());
+int16_t ArithMutexExecutor::needsMsgTags(int l, int clientRank) {
+    if (clientRank < 0 && l > 1) {
+        return std::max(static_cast<int16_t>(2 * ArithMultiplyExecutor::needsMsgTags()), BoolToArithExecutor::needsMsgTags(l));
+    }
+    return static_cast<int16_t>(2 * ArithMultiplyExecutor::needsMsgTags());
 }
 
 ArithMutexExecutor *ArithMutexExecutor::setBmts(std::vector<Bmt> *bmts) {

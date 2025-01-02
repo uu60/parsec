@@ -12,15 +12,15 @@ private:
     std::vector<Bmt> *_bmts{};
 
 public:
-    BoolAndExecutor(bool x, bool y, int l, int16_t objTag, int16_t msgTagOffset,
-                       int clientRank) : BoolExecutor(x, y, l, objTag, msgTagOffset, clientRank) {
+    BoolAndExecutor(int64_t x, int64_t y, int l, int16_t taskTag, int16_t msgTagOffset,
+                       int clientRank) : BoolExecutor(x, y, l, taskTag, msgTagOffset, clientRank) {
     };
 
     BoolAndExecutor *execute() override;
 
     [[nodiscard]] std::string className() const override;
 
-    [[nodiscard]] static int16_t neededMsgTags(int l);
+    [[nodiscard]] static int16_t needsMsgTags(int l);
 
     BoolAndExecutor *setBmts(std::vector<Bmt> *bmts);
 };

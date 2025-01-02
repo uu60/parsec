@@ -19,22 +19,26 @@
 #include "compute/bool/BoolXorExecutor.h"
 #include "utils/Log.h"
 
-IntSecret::IntSecret(int64_t x, int l, int16_t objTag) : _data(x), _l(l), _objTag(objTag) {}
+IntSecret::IntSecret(int64_t x, int l, int16_t taskTag) : _data(x), _l(l), _taskTag(taskTag) {}
+
+IntSecret IntSecret::task(int16_t taskTag) const {
+    return {_data, _l, taskTag};
+}
 
 IntSecret IntSecret::arithShare(int clientRank) const {
-    return {ArithExecutor(_data, _l, _objTag, 0, clientRank)._zi, _l, _objTag};
+    return {ArithExecutor(_data, _l, _taskTag, 0, clientRank)._zi, _l, _taskTag};
 }
 
 IntSecret IntSecret::boolShare(int clientRank) const {
-    return {BoolExecutor(_data, _l, _objTag, 0, clientRank)._zi, _l, _objTag};
+    return {BoolExecutor(_data, _l, _taskTag, 0, clientRank)._zi, _l, _taskTag};
 }
 
-[[nodiscard]] IntSecret IntSecret::arithReconstruct(int clientRank) const {
-    return {ArithExecutor(_data, _l, _objTag, 0, -1).reconstruct(clientRank)->_result, _l, _objTag};
+IntSecret IntSecret::arithReconstruct(int clientRank) const {
+    return {ArithExecutor(_data, _l, _taskTag, 0, -1).reconstruct(clientRank)->_result, _l, _taskTag};
 }
 
-[[nodiscard]] IntSecret IntSecret::boolReconstruct(int clientRank) const {
-    return {BoolExecutor(_data, _l, _objTag, 0, -1).reconstruct(clientRank)->_result, _l, _objTag};
+IntSecret IntSecret::boolReconstruct(int clientRank) const {
+    return {BoolExecutor(_data, _l, _taskTag, 0, -1).reconstruct(clientRank)->_result, _l, _taskTag};
 }
 
 int64_t IntSecret::get() const {
@@ -42,33 +46,33 @@ int64_t IntSecret::get() const {
 }
 
 IntSecret IntSecret::add(IntSecret yi) const {
-    return {ArithAddExecutor(_data, yi.get(), _l, _objTag, 0, -1).execute()->_zi, _l, _objTag};
+    return {ArithAddExecutor(_data, yi.get(), _l, _taskTag, 0, -1).execute()->_zi, _l, _taskTag};
 }
 
 IntSecret IntSecret::mul(IntSecret yi) const {
-    return {ArithMultiplyExecutor(_data, yi.get(), _l, _objTag, 0, -1).execute()->_zi, _l, _objTag};
+    return {ArithMultiplyExecutor(_data, yi.get(), _l, _taskTag, 0, -1).execute()->_zi, _l, _taskTag};
 }
 
 IntSecret IntSecret::xor_(IntSecret yi) const {
-    return {BoolXorExecutor(_data, yi.get(), _l, _objTag, 0, -1).execute()->_zi, _l, _objTag};
+    return {BoolXorExecutor(_data, yi.get(), _l, _taskTag, 0, -1).execute()->_zi, _l, _taskTag};
 }
 
 IntSecret IntSecret::and_(IntSecret yi) const {
-    return {BoolAndExecutor(_data, yi.get(), _l, _objTag, 0, -1).execute()->_zi, _l, _objTag};
+    return {BoolAndExecutor(_data, yi.get(), _l, _taskTag, 0, -1).execute()->_zi, _l, _taskTag};
 }
 
 IntSecret IntSecret::boolean() const {
-    return {ArithToBoolExecutor(_data, _l, _objTag, 0, -1).execute()->_zi, _l, _objTag};
+    return {ArithToBoolExecutor(_data, _l, _taskTag, 0, -1).execute()->_zi, _l, _taskTag};
 }
 
 IntSecret IntSecret::arithmetic() const {
-    return {BoolToArithExecutor(_data, _l, _objTag, 0, -1).execute()->_zi, _l, _objTag};
+    return {BoolToArithExecutor(_data, _l, _taskTag, 0, -1).execute()->_zi, _l, _taskTag};
 }
 
 BitSecret IntSecret::arithLessThan(IntSecret yi) const {
-    return BitSecret(ArithLessThanExecutor(_data, yi.get(), _l, _objTag, 0, -1).execute()->_sign, _objTag);
+    return BitSecret(ArithLessThanExecutor(_data, yi.get(), _l, _taskTag, 0, -1).execute()->_sign, _taskTag);
 }
 
 IntSecret IntSecret::mux(IntSecret yi, BitSecret cond_i) const {
-    return {ArithMutexExecutor(_data, yi.get(), cond_i.get(), _l, _objTag, 0, -1).execute()->_zi, _l, _objTag};
+    return {ArithMutexExecutor(_data, yi.get(), cond_i.get(), _l, _taskTag, 0, -1).execute()->_zi, _l, _taskTag};
 }

@@ -8,19 +8,17 @@
 #include "compute/arith/ArithToBoolExecutor.h"
 #include "utils/Log.h"
 
-ArithLessThanExecutor::ArithLessThanExecutor(int64_t x, int64_t y, int l, int16_t objTag, int16_t msgTagOffset,
+ArithLessThanExecutor::ArithLessThanExecutor(int64_t x, int64_t y, int l, int16_t taskTag, int16_t msgTagOffset,
                                              int clientRank) : ArithExecutor(
-    x, y, l, objTag, msgTagOffset, clientRank) {
+    x, y, l, taskTag, msgTagOffset, clientRank) {
     _zi = _xi - _yi;
 }
 
 ArithLessThanExecutor *ArithLessThanExecutor::execute() {
     _currentMsgTag = _startMsgTag;
     if (IComm::impl->isServer()) {
-        ArithToBoolExecutor e(_zi, _l, _objTag, _currentMsgTag, -1);
-        _currentMsgTag = static_cast<int16_t>(_currentMsgTag + ArithToBoolExecutor::neededMsgTags());
+        ArithToBoolExecutor e(_zi, _l, _taskTag, _currentMsgTag, -1);
         _zi = e.execute()->_zi;
-        Log::i("converted: {}", _zi);
         _sign = (_zi >> (_l - 1)) & 1;
     }
     return this;
@@ -43,6 +41,6 @@ std::string ArithLessThanExecutor::className() const {
     return "[ArithLessThanExecutor]";
 }
 
-int16_t ArithLessThanExecutor::neededMsgTags() {
-    return ArithToBoolExecutor::neededMsgTags();
+int16_t ArithLessThanExecutor::needsMsgTags(int l) {
+    return ArithToBoolExecutor::needsMsgTags(l);
 }

@@ -6,12 +6,16 @@
 #define MPC_PACKAGE_BITSECRET_H
 #include <cstdint>
 
-class BitSecret {
+#include "Secret.h"
+
+class BitSecret : public Secret {
 private:
     bool _data{};
-    int32_t _objTag{};
+    int32_t _taskTag{};
 public:
-    explicit BitSecret(bool x, int16_t objTag);
+    explicit BitSecret(bool x, int16_t taskTag);
+
+    BitSecret task(int16_t taskTag);
 
     [[nodiscard]] BitSecret share(int clientRank) const;
 

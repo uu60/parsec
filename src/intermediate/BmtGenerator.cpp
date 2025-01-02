@@ -4,9 +4,9 @@
 
 #include "intermediate/BmtGenerator.h"
 
-#include "ot/BaseOtExecutor.h"
 #include "utils/Math.h"
 #include "comm/IComm.h"
+#include "ot/RandOtExecutor.h"
 #include "utils/Log.h"
 
 BmtGenerator::BmtGenerator() : AbstractSecureExecutor(64, 0, 0) {
@@ -57,8 +57,9 @@ void BmtGenerator::computeMix(int sender, int64_t &mix) {
                 choice = static_cast<int>((_bmt._b >> i) & 1);
             }
 
-            BaseOtExecutor r(sender, s0, s1, choice, _l, _objTag,
-                            static_cast<int16_t>(_currentMsgTag + i * BaseOtExecutor::neededMsgTags()));
+            RandOtExecutor r(sender, s0, s1, choice, _l, _taskTag,
+                             static_cast<int16_t>(
+                                 _currentMsgTag + i * RandOtExecutor::needsMsgTags()));
             r.execute();
 
             if (isSender) {
@@ -73,10 +74,9 @@ void BmtGenerator::computeMix(int sender, int64_t &mix) {
         }));
     }
 
-    for (auto &f : futures) {
+    for (auto &f: futures) {
         f.wait();
     }
-    _currentMsgTag = static_cast<int16_t>(_currentMsgTag + BaseOtExecutor::neededMsgTags() * _l);
 
     mix = sum;
 }

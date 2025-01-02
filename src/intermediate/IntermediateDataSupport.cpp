@@ -24,11 +24,11 @@ void IntermediateDataSupport::offerABPair(ABPair pair) {
 
 void IntermediateDataSupport::prepareRot() {
     if (IComm::impl->isServer()) {
-        std::vector<std::future<void>> futures;
+        std::vector<std::future<void> > futures;
         futures.reserve(2);
 
         for (int i = 0; i < 2; i++) {
-            futures.push_back(System::_threadPool.push([i] (int _){
+            futures.push_back(System::_threadPool.push([i](int _) {
                 bool isSender = IComm::impl->rank() == i;
                 if (isSender) {
                     _sRot = new SRot();
@@ -38,7 +38,8 @@ void IntermediateDataSupport::prepareRot() {
                     _rRot = new RRot();
                     _rRot->_b = static_cast<int>(Math::randInt(0, 1));;
                 }
-                BaseOtExecutor e(i, isSender ? _sRot->_r0 : -1, isSender ? _sRot->_r1 : -1, !isSender ? _rRot->_b : -1, 64, 2, i * BaseOtExecutor::neededMsgTags());
+                BaseOtExecutor e(i, isSender ? _sRot->_r0 : -1, isSender ? _sRot->_r1 : -1, !isSender ? _rRot->_b : -1,
+                                 64, 2, i * BaseOtExecutor::needsMsgTags());
                 e.execute();
                 if (!isSender) {
                     _rRot->_rb = e._result;
@@ -46,7 +47,7 @@ void IntermediateDataSupport::prepareRot() {
             }));
         }
 
-        for (auto &f : futures) {
+        for (auto &f: futures) {
             f.wait();
         }
     }
@@ -54,18 +55,23 @@ void IntermediateDataSupport::prepareRot() {
 
 std::vector<Bmt> IntermediateDataSupport::pollBmts(int num) {
     std::vector<Bmt> ret;
-    ret.reserve(num);
-    for (int i = 0; i < num; i++) {
-        ret.push_back(_bmts.pop());
+    if (IComm::impl->isServer()) {
+        ret.reserve(num);
+        for (int i = 0; i < num; i++) {
+            _bmts.pop();
+            ret.push_back(_bmts.pop());
+        }
     }
     return ret;
 }
 
 std::vector<ABPair> IntermediateDataSupport::pollABPairs(int num) {
     std::vector<ABPair> ret;
-    ret.reserve(num);
-    for (int i = 0; i < num; i++) {
-        ret.push_back(_pairs.pop());
+    if (IComm::impl->isServer()) {
+        ret.reserve(num);
+        for (int i = 0; i < num; i++) {
+            ret.push_back(_pairs.pop());
+        }
     }
     return ret;
 }

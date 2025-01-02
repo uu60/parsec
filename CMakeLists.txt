@@ -66,6 +66,8 @@ add_library(${PROJECT_NAME} SHARED
         include/intermediate/item/RRot.h
         include/ot/AbstractOtExecutor.h
         src/ot/AbstractOtExecutor.cpp
+        include/api/Secret.h
+        src/api/Secret.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC

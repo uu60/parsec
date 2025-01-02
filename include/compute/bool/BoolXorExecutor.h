@@ -8,13 +8,13 @@
 
 class BoolXorExecutor : public BoolExecutor {
 public:
-    BoolXorExecutor(bool x, bool y, int l, int16_t objTag, int16_t msgTagOffset,
-                       int clientRank) : BoolExecutor(x, y, l, objTag, msgTagOffset, clientRank) {
+    BoolXorExecutor(bool x, bool y, int l, int16_t taskTag, int16_t msgTagOffset,
+                       int clientRank) : BoolExecutor(x, y, l, taskTag, msgTagOffset, clientRank) {
     };
 
     BoolXorExecutor *execute() override;
 
-    [[nodiscard]] static int16_t neededMsgTags();
+    [[nodiscard]] static int16_t needsMsgTags();
 
     [[nodiscard]] std::string className() const override;
 };

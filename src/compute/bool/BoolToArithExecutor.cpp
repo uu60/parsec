@@ -6,8 +6,8 @@
 
 #include "intermediate/IntermediateDataSupport.h"
 #include "comm/IComm.h"
-#include "ot/BaseOtExecutor.h"
-#include "utils/Log.h"
+#include "compute/arith/ArithExecutor.h"
+#include "ot/RandOtExecutor.h"
 #include "utils/Math.h"
 
 BoolToArithExecutor *BoolToArithExecutor::execute() {
@@ -29,14 +29,14 @@ BoolToArithExecutor *BoolToArithExecutor::execute() {
                     s0 = (xb << i) - r;
                     s1 = ((1 - xb) << i) - r;
                 }
-                BaseOtExecutor e(0, s0, s1, xb, _l, _objTag,
-                                static_cast<int16_t>(_currentMsgTag + BaseOtExecutor::neededMsgTags() * i));
+                RandOtExecutor e(0, s0, s1, xb, _l, _taskTag,
+                                static_cast<int16_t>(_currentMsgTag + RandOtExecutor::needsMsgTags() * i));
                 e.execute();
                 if (isSender) {
-                    temp = temp + r;
+                    temp += r;
                 } else {
                     int64_t s_xb = e._result;
-                    temp = temp + s_xb;
+                    temp += s_xb;
                 }
             }));
         }
@@ -52,8 +52,18 @@ std::string BoolToArithExecutor::className() const {
     return "ToArithExecutor";
 }
 
-int16_t BoolToArithExecutor::neededMsgTags(int l) {
-    return static_cast<int16_t>(BaseOtExecutor::neededMsgTags() * l);
+int16_t BoolToArithExecutor::needsMsgTags(int l) {
+    return static_cast<int16_t>(RandOtExecutor::needsMsgTags() * l);
+}
+
+BoolToArithExecutor * BoolToArithExecutor::reconstruct(int clientRank) {
+    _currentMsgTag = _startMsgTag;
+    ArithExecutor e(_zi, _l, _taskTag, _currentMsgTag, -1);
+    e.reconstruct(clientRank);
+    if (IComm::impl->rank() == clientRank) {
+        _result = e._result;
+    }
+    return this;
 }
 
 /*

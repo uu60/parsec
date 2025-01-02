@@ -9,17 +9,17 @@
 
 class ArithMutexExecutor : public ArithExecutor {
 private:
-    bool _cond_i{};
+    int64_t _cond_i{};
     std::vector<Bmt> *_bmts{};
 
 public:
-    ArithMutexExecutor(int64_t x, int64_t y, bool c, int l, int16_t objTag, int16_t msgTagOffset, int clientRank);
+    ArithMutexExecutor(int64_t x, int64_t y, bool c, int l, int16_t taskTag, int16_t msgTagOffset, int clientRank);
 
     ArithMutexExecutor *execute() override;
 
     [[nodiscard]] std::string className() const override;
 
-    static int64_t neededMsgTags();
+    static int16_t needsMsgTags(int l, int clientRank);
 
     ArithMutexExecutor *setBmts(std::vector<Bmt> *bmts);
 };

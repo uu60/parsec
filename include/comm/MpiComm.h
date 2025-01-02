@@ -34,11 +34,6 @@ public:
 
     bool isClient() override;
 
-    // exchange source (for rank of 0 and 1)
-    void serverExchange(const int64_t *source, int64_t *target, int tag) override;
-
-    void serverExchange(const bool *source, bool *target, int tag) override;
-
     // serverSend
     void serverSend(const int64_t *source, int tag) override;
 

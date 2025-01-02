@@ -30,13 +30,13 @@ private:
 public:
     // _m0 and _m1 are for sender (invalid for receiver)
     // i is for receiver (invalid for sender)
-    explicit BaseOtExecutor(int sender, int64_t m0, int64_t m1, int choice, int l, int16_t objTag, int16_t msgTagOffset);
+    explicit BaseOtExecutor(int sender, int64_t m0, int64_t m1, int choice, int l, int16_t taskTag, int16_t msgTagOffset);
 
-    explicit BaseOtExecutor(int bits, int sender, int64_t m0, int64_t m1, int choice, int l, int16_t objTag, int16_t msgTagOffset);
+    explicit BaseOtExecutor(int bits, int sender, int64_t m0, int64_t m1, int choice, int l, int16_t taskTag, int16_t msgTagOffset);
 
     BaseOtExecutor *execute() override;
 
-    [[nodiscard]] static int16_t neededMsgTags();
+    [[nodiscard]] static int16_t needsMsgTags();
 
 protected:
     [[nodiscard]] std::string className() const override;

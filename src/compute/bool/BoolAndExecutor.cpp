@@ -19,8 +19,8 @@ BoolAndExecutor *BoolAndExecutor::execute() {
             auto bmt = _bmts == nullptr ? IntermediateDataSupport::pollBmts(1)[0] : (*_bmts)[i];
             futures.push_back(System::_threadPool.push([this, i, bmt] (int _) {
                 Bmt copy = bmt;
-                ArithMultiplyExecutor e((_xi >> i) & 1, (_yi >> i) & 1, 1, _objTag, static_cast<int16_t>
-                    (_currentMsgTag + ArithMultiplyExecutor::neededMsgTags() * i), -1);
+                ArithMultiplyExecutor e((_xi >> i) & 1, (_yi >> i) & 1, 1, _taskTag, static_cast<int16_t>
+                    (_currentMsgTag + ArithMultiplyExecutor::needsMsgTags() * i), -1);
                 e.setBmt(&copy);
                 return (e.execute()->_zi) << i;
             }));
@@ -28,7 +28,6 @@ BoolAndExecutor *BoolAndExecutor::execute() {
         for (auto &f : futures) {
             _zi += f.get();
         }
-        _currentMsgTag = static_cast<int16_t>(_currentMsgTag + ArithMultiplyExecutor::neededMsgTags() * _l);
         _zi = ring(_zi);
     }
     return this;
@@ -38,7 +37,7 @@ std::string BoolAndExecutor::className() const {
     return "BitwiseAndExecutor";
 }
 
-int16_t BoolAndExecutor::neededMsgTags(int l) {
+int16_t BoolAndExecutor::needsMsgTags(int l) {
     return static_cast<int16_t>(l * 2);
 }
 
