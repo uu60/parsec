@@ -16,6 +16,8 @@ public:
 
     std::string className() const override;
 
+    static int needsMsgTags(int clientRank);
+
 private:
     int64_t shiftGreater(int64_t in, int r) const;
 };

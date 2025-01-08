@@ -61,6 +61,10 @@ std::string BoolLessExecutor::className() const {
     return "BoolLessThanExecutor";
 }
 
+int BoolLessExecutor::needsMsgTags(int clientRank) {
+    return clientRank == NO_CLIENT_COMPUTE ? 1 : 2;
+}
+
 int64_t BoolLessExecutor::shiftGreater(int64_t in, int r) const {
     int part_size = 1 << r;
     if (part_size > _l) {

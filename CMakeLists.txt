@@ -68,6 +68,8 @@ add_library(${PROJECT_NAME} SHARED
         src/ot/AbstractOtExecutor.cpp
         include/api/Secret.h
         src/api/Secret.cpp
+        src/compute/bool/BoolMutexExecutor.cpp
+        include/compute/bool/BoolMutexExecutor.h
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC
