@@ -30,7 +30,7 @@ std::string string(BIGNUM *bn) {
     BN_bn2bin(bn, bin.data());
 
     std::string binary_str;
-    for (unsigned char byte : bin) {
+    for (unsigned char byte: bin) {
         for (int i = 7; i >= 0; --i) {
             binary_str.push_back((byte & (1 << i)) ? '1' : '0');
         }
@@ -44,7 +44,7 @@ std::string string(BIGNUM *bn) {
     return result;
 }
 
-BIGNUM *addBignumWithInt(BIGNUM *add0, int64_t add1) {
+BIGNUM *add_bignum_with_int(BIGNUM *add0, int64_t add1) {
     BIGNUM *bn_add1 = BN_new();
     if (add1 >= 0) {
         BN_set_word(bn_add1, add1);
@@ -58,7 +58,7 @@ BIGNUM *addBignumWithInt(BIGNUM *add0, int64_t add1) {
     return result;
 }
 
-std::string addOrMinus(const std::string &add0, const std::string &add1, bool minus) {
+std::string add_or_minus(const std::string &add0, const std::string &add1, bool minus) {
     BIGNUM *add0N = bignum(add0);
     BIGNUM *add1N = bignum(add1, !minus);
     BIGNUM *result = BN_new();
@@ -88,7 +88,7 @@ int64_t Math::randInt(int64_t lowest, int64_t highest) {
 
 std::string Math::add(const std::string &add0, int64_t add1) {
     BIGNUM *add0N = bignum(add0);
-    BIGNUM *sum = addBignumWithInt(add0N, add1);
+    BIGNUM *sum = add_bignum_with_int(add0N, add1);
     std::string result = string(sum);
     BN_free(add0N);
     BN_free(sum);
@@ -110,11 +110,11 @@ std::string Math::randString(int bytes) {
 }
 
 std::string Math::add(const std::string &add0, const std::string &add1) {
-    return addOrMinus(add0, add1, false);
+    return add_or_minus(add0, add1, false);
 }
 
 std::string Math::minus(const std::string &add0, const std::string &add1) {
-    return addOrMinus(add0, add1, true);
+    return add_or_minus(add0, add1, true);
 }
 
 int64_t Math::ring(int64_t num, int l) {
@@ -122,6 +122,15 @@ int64_t Math::ring(int64_t num, int l) {
         return num;
     }
     return num & ((1LL << l) - 1);
+}
+
+bool Math::getBit(int64_t v, int i) {
+    return (v >> i) & 1;
+}
+
+int64_t Math::changeBit(int64_t v, int i, bool b) {
+    int64_t mask = ~(1LL << i);
+    return (v & mask) | ((b ? 1 : 0) << i);
 }
 
 int64_t Math::pow(int64_t base, int64_t exponent) {
@@ -135,4 +144,3 @@ int64_t Math::pow(int64_t base, int64_t exponent) {
     }
     return result;
 }
-

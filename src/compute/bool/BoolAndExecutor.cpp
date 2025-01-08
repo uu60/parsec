@@ -20,7 +20,7 @@ BoolAndExecutor *BoolAndExecutor::execute() {
             futures.push_back(System::_threadPool.push([this, i, bmt] (int _) {
                 Bmt copy = bmt;
                 ArithMultiplyExecutor e((_xi >> i) & 1, (_yi >> i) & 1, 1, _taskTag, static_cast<int16_t>
-                    (_currentMsgTag + ArithMultiplyExecutor::needsMsgTags() * i), -1);
+                    (_currentMsgTag + ArithMultiplyExecutor::needsMsgTags() * i), NO_CLIENT_COMPUTE);
                 e.setBmt(&copy);
                 return (e.execute()->_zi) << i;
             }));

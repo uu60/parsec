@@ -29,6 +29,10 @@ public:
     // divisor should be positive
     static int64_t ring(int64_t num, int l);
 
+    static bool getBit(int64_t v, int i);
+
+    static int64_t changeBit(int64_t v, int i, bool b);
+
 };
 
 

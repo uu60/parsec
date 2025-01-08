@@ -26,8 +26,8 @@ add_library(${PROJECT_NAME} SHARED
         include/utils/System.h
         src/intermediate/BmtGenerator.cpp
         include/intermediate/BmtGenerator.h
-        src/compute/arith/ArithLessThanExecutor.cpp
-        include/compute/arith/ArithLessThanExecutor.h
+        src/compute/arith/ArithLessExecutor.cpp
+        include/compute/arith/ArithLessExecutor.h
         src/compute/arith/ArithExecutor.cpp
         include/compute/arith/ArithExecutor.h
         src/api/IntSecret.cpp
@@ -58,8 +58,8 @@ add_library(${PROJECT_NAME} SHARED
         include/utils/Log.h
         include/third_party/ctpl_stl.h
         include/sync/BlockingQueue.h
-        src/compute/bool/BoolLessThanExecutor.cpp
-        include/compute/bool/BoolLessThanExecutor.h
+        src/compute/bool/BoolLessExecutor.cpp
+        include/compute/bool/BoolLessExecutor.h
         src/ot/RandOtExecutor.cpp
         include/ot/RandOtExecutor.h
         include/intermediate/item/SRot.h

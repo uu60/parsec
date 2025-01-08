@@ -12,13 +12,12 @@
 #include "utils/Log.h"
 #include "utils/Math.h"
 
-// Please make sure that c's shares are not 1 and 1
-ArithMutexExecutor::ArithMutexExecutor(int64_t x, int64_t y, bool c, int l, int16_t taskTag, int16_t msgTagOffset,
+ArithMutexExecutor::ArithMutexExecutor(int64_t x, int64_t y, bool cond, int l, int16_t taskTag, int16_t msgTagOffset,
                                    int clientRank) : ArithExecutor(x, y, l, taskTag, msgTagOffset, clientRank) {
     if (clientRank < 0 && _l > 1) {
-        _cond_i = BoolToArithExecutor(c, _l, _taskTag, _currentMsgTag, -1).execute()->_zi;
+        _cond_i = BoolToArithExecutor(cond, _l, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).execute()->_zi;
     } else {
-        _cond_i = ArithExecutor(c, _l, _taskTag, _currentMsgTag, clientRank)._zi;
+        _cond_i = ArithExecutor(cond, _l, _taskTag, _currentMsgTag, clientRank)._zi;
     }
 }
 
@@ -28,12 +27,12 @@ ArithMutexExecutor *ArithMutexExecutor::execute() {
         auto bmts = _bmts == nullptr ? IntermediateDataSupport::pollBmts(2) : *_bmts;
         int64_t cx, cy;
         auto f0 = System::_threadPool.push([this, &bmts](int _) {
-            auto mul0 = ArithMultiplyExecutor(_cond_i, _xi, _l, _taskTag, _currentMsgTag, -1);
+            auto mul0 = ArithMultiplyExecutor(_cond_i, _xi, _l, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
             return mul0.setBmt(&bmts[0])->execute()->_zi;
         });
         auto f1 = System::_threadPool.push([this, &bmts](int _) {
             auto mul1 = ArithMultiplyExecutor(_cond_i, _yi, _l, _taskTag,
-                                         static_cast<int16_t>(_currentMsgTag + ArithMultiplyExecutor::needsMsgTags()), -1);
+                                         static_cast<int16_t>(_currentMsgTag + ArithMultiplyExecutor::needsMsgTags()), NO_CLIENT_COMPUTE);
             return mul1.setBmt(&bmts[1])->execute()->_zi;
         });
         cx = f0.get();

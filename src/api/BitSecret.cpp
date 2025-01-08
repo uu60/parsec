@@ -25,11 +25,11 @@ BitSecret BitSecret::not_() const {
 }
 
 BitSecret BitSecret::xor_(BitSecret yi) const {
-    return BitSecret(BoolXorExecutor(_data, yi.get(), 1, _taskTag, 0, -1).execute()->_zi, _taskTag);
+    return BitSecret(BoolXorExecutor(_data, yi.get(), 1, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi, _taskTag);
 }
 
 BitSecret BitSecret::and_(BitSecret yi) const {
-    return BitSecret(BoolAndExecutor(_data, yi.get(), 1, _taskTag, 0, -1).execute()->_zi, _taskTag);
+    return BitSecret(BoolAndExecutor(_data, yi.get(), 1, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi, _taskTag);
 }
 
 BitSecret BitSecret::or_(BitSecret yi) const {
@@ -37,11 +37,11 @@ BitSecret BitSecret::or_(BitSecret yi) const {
 }
 
 BitSecret BitSecret::mux(BitSecret yi, BitSecret cond_i) const {
-    return BitSecret(ArithMutexExecutor(_data, yi.get(), cond_i.get(), 1, _taskTag, 0, -1).execute()->_zi, _taskTag);
+    return BitSecret(ArithMutexExecutor(_data, yi.get(), cond_i.get(), 1, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi, _taskTag);
 }
 
 BitSecret BitSecret::reconstruct(int clientRank) const {
-    return BitSecret(ArithExecutor(_data, 1, _taskTag, 0, -1).reconstruct(clientRank)->_result, _taskTag);
+    return BitSecret(ArithExecutor(_data, 1, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).reconstruct(clientRank)->_result, _taskTag);
 }
 
 bool BitSecret::get() const {

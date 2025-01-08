@@ -41,7 +41,7 @@ ArithToBoolExecutor *ArithToBoolExecutor::execute() {
                 auto vec2 = _bmts == nullptr ? IntermediateDataSupport::pollBmts(1) : std::vector<Bmt>{(*_bmts)[i * 3 + 2]};
 
                 auto f0 = System::_threadPool.push([ai, bi, this, &vec0](int _) {
-                    return BoolAndExecutor(ai, bi, 1, _taskTag, _currentMsgTag, -1).setBmts(&vec0)->execute()->_zi;
+                    return BoolAndExecutor(ai, bi, 1, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmts(&vec0)->execute()->_zi;
                 });
                 auto f1 = System::_threadPool.push([propagate_i, carry_i, this, &vec1](int _) {
                     return BoolAndExecutor(propagate_i, carry_i, 1, _taskTag,
@@ -86,7 +86,7 @@ ArithToBoolExecutor *ArithToBoolExecutor::setBmts(std::vector<Bmt> *bmts) {
 
 ArithToBoolExecutor *ArithToBoolExecutor::reconstruct(int clientRank) {
     _currentMsgTag = _startMsgTag;
-    BoolExecutor e(_zi, _l, _taskTag, _currentMsgTag, -1);
+    BoolExecutor e(_zi, _l, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
     e.reconstruct(clientRank);
     if (IComm::impl->rank() == clientRank) {
         _result = e._result;

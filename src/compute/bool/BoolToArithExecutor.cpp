@@ -58,7 +58,7 @@ int16_t BoolToArithExecutor::needsMsgTags(int l) {
 
 BoolToArithExecutor * BoolToArithExecutor::reconstruct(int clientRank) {
     _currentMsgTag = _startMsgTag;
-    ArithExecutor e(_zi, _l, _taskTag, _currentMsgTag, -1);
+    ArithExecutor e(_zi, _l, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
     e.reconstruct(clientRank);
     if (IComm::impl->rank() == clientRank) {
         _result = e._result;

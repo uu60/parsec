@@ -12,6 +12,8 @@
 
 class AbstractSecureExecutor {
 public:
+    static constexpr int NO_CLIENT_COMPUTE = -1;
+
     // result
     int64_t _result{};
     // unreconstructed share
