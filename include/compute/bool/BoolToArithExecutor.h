@@ -8,9 +8,6 @@
 
 
 class BoolToArithExecutor : public BoolExecutor {
-private:
-    static int32_t _currenttaskTag;
-
 public:
     // Temporarily lend zi for xi preparation in super constructor.
     BoolToArithExecutor(int64_t xi, int l, int16_t taskTag, int16_t msgTagOffset, int clientRank) : BoolExecutor(

@@ -64,6 +64,10 @@ int16_t BoolAndExecutor::needsMsgTags(int l) {
     return static_cast<int16_t>(l * 2);
 }
 
+int BoolAndExecutor::needsBmts(int l) {
+    return l;
+}
+
 BoolAndExecutor *BoolAndExecutor::setBmts(std::vector<Bmt> *bmts) {
     _bmts = bmts;
     return this;

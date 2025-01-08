@@ -22,6 +22,8 @@ public:
 
     [[nodiscard]] static int16_t needsMsgTags(int l);
 
+    static int needsBmts(int l);
+
     BoolAndExecutor *setBmts(std::vector<Bmt> *bmts);
 };
 
