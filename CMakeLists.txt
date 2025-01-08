@@ -30,8 +30,8 @@ add_library(${PROJECT_NAME} SHARED
         include/compute/arith/ArithLessExecutor.h
         src/compute/arith/ArithExecutor.cpp
         include/compute/arith/ArithExecutor.h
-        src/api/IntSecret.cpp
-        include/api/IntSecret.h
+        src/api/ArithSecret.cpp
+        include/api/ArithSecret.h
         src/compute/arith/ArithMutexExecutor.cpp
         include/compute/arith/ArithMutexExecutor.h
         include/compute/bool/BoolExecutor.h
@@ -70,6 +70,8 @@ add_library(${PROJECT_NAME} SHARED
         src/api/Secret.cpp
         src/compute/bool/BoolMutexExecutor.cpp
         include/compute/bool/BoolMutexExecutor.h
+        include/api/BoolSecret.h
+        src/api/BoolSecret.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC

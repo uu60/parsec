@@ -14,26 +14,29 @@ BoolLessExecutor *BoolLessExecutor::execute() {
 
     if (IComm::impl->isServer()) {
         int64_t x_xor_y = _xi ^ _yi;
-        int64_t not_x_xor_y = IComm::impl->rank() == 0 ? x_xor_y : x_xor_y ^ ((1 << _l) - 1);
+        int64_t lbs = IComm::impl->rank() == 0 ? x_xor_y : x_xor_y ^ Math::ring(-1ll, _l);
 
-        int64_t shifted_1 = shiftGreater(not_x_xor_y, 1);
-        int64_t lbs = BoolAndExecutor(not_x_xor_y, shifted_1, _l, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).execute()->_zi;
+        int64_t shifted_1 = shiftGreater(lbs, 1);
+        lbs = BoolAndExecutor(lbs, shifted_1, _l, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).execute()
+                ->_zi;
 
         int64_t diag = Math::changeBit(x_xor_y, 0, Math::getBit(_yi, 0) ^ IComm::impl->rank());
         // diag & x
         diag = BoolAndExecutor(diag, _xi, _l, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).execute()->_zi;
 
-        int rounds = (int)std::floor(std::log2(_l));
+        int rounds = (int) std::floor(std::log2(_l));
         for (int r = 2; r <= rounds; r++) {
             int64_t shifted_r = shiftGreater(lbs, r);
-            int64_t and_r = BoolAndExecutor(lbs, shifted_r, _l, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).execute()->_zi;
+            int64_t and_r = BoolAndExecutor(lbs, shifted_r, _l, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).execute()->
+                    _zi;
             lbs = and_r;
         }
 
         int64_t shifted_accum = Math::changeBit(lbs >> 1, _l - 1, IComm::impl->rank());
-        int64_t final_accum = BoolAndExecutor(shifted_accum, diag, _l, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).execute()->_zi;
+        int64_t final_accum = BoolAndExecutor(shifted_accum, diag, _l, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
+                execute()->_zi;
 
-        bool result = IComm::impl->rank();
+        bool result = false;
         for (int i = 0; i < _l; i++) {
             result = result ^ Math::getBit(final_accum, i);
         }

@@ -8,7 +8,8 @@
 
 class BoolLessExecutor : public BoolExecutor {
 public:
-    BoolLessExecutor(int64_t x, int64_t y, int l, int16_t taskTag, int16_t msgTagOffset, int clientRank) : BoolExecutor(x, y, l, taskTag, msgTagOffset, clientRank) {};
+    // reverse x and y to obey less than logic
+    BoolLessExecutor(int64_t x, int64_t y, int l, int16_t taskTag, int16_t msgTagOffset, int clientRank) : BoolExecutor(y, x, l, taskTag, msgTagOffset, clientRank) {};
 
     BoolLessExecutor *execute() override;
 

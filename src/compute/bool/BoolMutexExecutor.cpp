@@ -11,7 +11,7 @@ BoolMutexExecutor::BoolMutexExecutor(int64_t x, int64_t y, bool cond, int l, int
                                      int clientRank) : BoolExecutor(x, y, l, taskTag, msgTagOffset, clientRank) {
     _cond_i = BoolExecutor(cond, 1, _taskTag, _currentMsgTag, clientRank)._zi;
     if (_cond_i) {
-        _cond_i = (1 << _l) - 1;
+        _cond_i = ring(-1ll);
     }
 }
 
@@ -39,7 +39,7 @@ BoolMutexExecutor * BoolMutexExecutor::execute() {
         });
         auto f1 = System::_threadPool.push([this, &bmts1](int _) {
             auto mul1 = BoolAndExecutor(_cond_i, _yi, _l, _taskTag,
-                                         static_cast<int16_t>(_currentMsgTag + BoolAndExecutor::needsMsgTags(_l)), NO_CLIENT_COMPUTE);
+                                         static_cast<int16_t>(_currentMsgTag + BoolAndExecutor::needsMsgTags()), NO_CLIENT_COMPUTE);
             return mul1.setBmts(&bmts1)->execute()->_zi;
         });
         cx = f0.get();
@@ -58,6 +58,6 @@ BoolMutexExecutor * BoolMutexExecutor::setBmts(std::vector<Bmt> *bmts) {
     return this;
 }
 
-int16_t BoolMutexExecutor::needsMsgTags(int l) {
-    return static_cast<int16_t>(2 * BoolAndExecutor::needsMsgTags(l));
+int16_t BoolMutexExecutor::needsMsgTags() {
+    return static_cast<int16_t>(2 * BoolAndExecutor::needsMsgTags());
 }

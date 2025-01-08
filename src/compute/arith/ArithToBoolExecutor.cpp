@@ -45,7 +45,7 @@ ArithToBoolExecutor *ArithToBoolExecutor::execute() {
                 });
                 auto f1 = System::_threadPool.push([propagate_i, carry_i, this, &vec1](int _) {
                     return BoolAndExecutor(propagate_i, carry_i, 1, _taskTag,
-                                           static_cast<int16_t>(_currentMsgTag + BoolAndExecutor::needsMsgTags(1)),
+                                           static_cast<int16_t>(_currentMsgTag + BoolAndExecutor::needsMsgTags()),
                                            -1).setBmts(&vec1)->execute()->_zi;
                 });
                 bool generate_i = f0.get();
@@ -53,11 +53,11 @@ ArithToBoolExecutor *ArithToBoolExecutor::execute() {
                 bool sum_i = generate_i ^ tempCarry_i;
                 bool and_i = BoolAndExecutor(generate_i, tempCarry_i, 1, _taskTag,
                                              static_cast<int16_t>(
-                                                 _currentMsgTag + 2 * BoolAndExecutor::needsMsgTags(1)),
+                                                 _currentMsgTag + 2 * BoolAndExecutor::needsMsgTags()),
                                              -1).setBmts(&vec2)->execute()->_zi;
 
                 carry_i = sum_i ^ and_i;
-                _currentMsgTag = static_cast<int16_t>(_currentMsgTag + 3 * BoolAndExecutor::needsMsgTags(1));
+                _currentMsgTag = static_cast<int16_t>(_currentMsgTag + 3 * BoolAndExecutor::needsMsgTags());
             }
         }
 
@@ -72,7 +72,7 @@ std::string ArithToBoolExecutor::className() const {
 }
 
 int16_t ArithToBoolExecutor::needsMsgTags(int l) {
-    return static_cast<int16_t>(1 + (l - 1) * (1 + 3 * BoolAndExecutor::needsMsgTags(1)));
+    return static_cast<int16_t>(1 + (l - 1) * (1 + 3 * BoolAndExecutor::needsMsgTags()));
 }
 
 int ArithToBoolExecutor::needsBmts(int l) {

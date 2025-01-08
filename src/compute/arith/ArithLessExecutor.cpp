@@ -6,17 +6,26 @@
 
 #include "comm/IComm.h"
 #include "compute/arith/ArithToBoolExecutor.h"
+#include "intermediate/IntermediateDataSupport.h"
 #include "utils/Log.h"
 
 ArithLessExecutor::ArithLessExecutor(int64_t x, int64_t y, int l, int16_t taskTag, int16_t msgTagOffset,
-                                             int clientRank) : ArithExecutor(
-    x, y, l, taskTag, msgTagOffset, clientRank) {}
+                                     int clientRank) : ArithExecutor(
+    x, y, l, taskTag, msgTagOffset, clientRank) {
+}
 
 ArithLessExecutor *ArithLessExecutor::execute() {
     _currentMsgTag = _startMsgTag;
-    int64_t a_delta = _xi - _yi;
     if (IComm::impl->isServer()) {
+        int64_t a_delta = _xi - _yi;
         ArithToBoolExecutor e(a_delta, _l, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
+        std::vector<Bmt> bmts;
+        if (_bmts != nullptr) {
+            e.setBmts(_bmts);
+        } else {
+            bmts = IntermediateDataSupport::pollBmts(ArithToBoolExecutor::needsBmts(_l));
+            e.setBmts(&bmts);
+        }
         int64_t b_delta = e.execute()->_zi;
         _zi = (b_delta >> (_l - 1)) & 1;
     }
@@ -42,4 +51,13 @@ std::string ArithLessExecutor::className() const {
 
 int16_t ArithLessExecutor::needsMsgTags(int l) {
     return ArithToBoolExecutor::needsMsgTags(l);
+}
+
+int ArithLessExecutor::needsBmts(int l) {
+    return ArithToBoolExecutor::needsBmts(l);
+}
+
+ArithLessExecutor *ArithLessExecutor::setBmts(std::vector<Bmt> *bmts) {
+    _bmts = bmts;
+    return this;
 }

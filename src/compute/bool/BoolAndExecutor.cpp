@@ -57,11 +57,11 @@ BoolAndExecutor *BoolAndExecutor::execute() {
 }
 
 std::string BoolAndExecutor::className() const {
-    return "BitwiseAndExecutor";
+    return "BoolAndExecutor";
 }
 
-int16_t BoolAndExecutor::needsMsgTags(int l) {
-    return static_cast<int16_t>(l * 2);
+int16_t BoolAndExecutor::needsMsgTags() {
+    return 2;
 }
 
 int BoolAndExecutor::needsBmts(int l) {

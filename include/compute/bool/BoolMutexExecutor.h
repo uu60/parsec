@@ -22,7 +22,7 @@ public:
 
     BoolMutexExecutor *setBmts(std::vector<Bmt> *bmts);
 
-    static int16_t needsMsgTags(int l);
+    static int16_t needsMsgTags();
 };
 
 

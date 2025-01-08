@@ -7,7 +7,12 @@
 #include "./ArithExecutor.h"
 #include <vector>
 
+#include "../../intermediate/item/Bmt.h"
+
 class ArithLessExecutor : public ArithExecutor {
+private:
+    std::vector<Bmt> *_bmts{};
+
 public:
     ArithLessExecutor(int64_t x, int64_t y, int l, int16_t taskTag, int16_t msgTagOffset, int clientRank);
 
@@ -18,6 +23,10 @@ public:
     [[nodiscard]] std::string className() const override;
 
     [[nodiscard]] static int16_t needsMsgTags(int l);
+
+    static int needsBmts(int l);
+
+    ArithLessExecutor *setBmts(std::vector<Bmt> *bmts);
 };
 
 #endif //MPC_PACKAGE_COMPAREEXECUTOR_H
