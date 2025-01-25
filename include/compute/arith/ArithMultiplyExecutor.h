@@ -18,9 +18,11 @@ public:
 
     ArithMultiplyExecutor *execute() override;
 
-    [[nodiscard]] static int16_t needsMsgTags();
+    [[nodiscard]] static int16_t needMsgTags(int l);
 
     ArithMultiplyExecutor *setBmt(Bmt *bmt);
+
+    static int needBmtBits(int l);
 
 protected:
     [[nodiscard]] std::string className() const override;

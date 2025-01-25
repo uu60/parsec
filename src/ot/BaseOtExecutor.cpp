@@ -4,7 +4,7 @@
 
 #include "ot/BaseOtExecutor.h"
 
-#include "comm/IComm.h"
+#include "comm/Comm.h"
 #include "utils/Math.h"
 #include "utils/Crypto.h"
 #include "utils/Log.h"
@@ -19,7 +19,7 @@ BaseOtExecutor::BaseOtExecutor(int bits, int sender, int64_t m0, int64_t m1, int
 }
 
 BaseOtExecutor *BaseOtExecutor::execute() {
-    if (IComm::impl->isServer()) {
+    if (Comm::isServer()) {
         // preparation
         generateAndShareRandoms();
         generateAndShareRsaKeys();
@@ -37,18 +37,14 @@ void BaseOtExecutor::generateAndShareRandoms() {
         _rand0 = Math::randString(len);
         _rand1 = Math::randString(len);
 
-        auto f0 = System::_threadPool.push([this] (int _) {
-            IComm::impl->serverSend(&_rand0, buildTag(_currentMsgTag));
-        });
-        auto f1 = System::_threadPool.push([this] (int _) {
-            IComm::impl->serverSend(&_rand1, buildTag(static_cast<int16_t>(_currentMsgTag + 1)));
-        });
-        f0.wait();
-        f1.wait();
+        std::string comb = _rand0 + _rand1;
+        Comm::serverSend(comb, buildTag(_currentMsgTag));
     } else {
         _randK = Math::randString(len);
-        IComm::impl->serverReceive(&_rand0, buildTag(_currentMsgTag));
-        IComm::impl->serverReceive(&_rand1, buildTag(static_cast<int16_t>(_currentMsgTag + 1)));
+        std::string comb;
+        Comm::serverReceive(comb, buildTag(_currentMsgTag));
+        _rand0 = comb.substr(0, len);
+        _rand1 = comb.substr(len, len);
     }
 }
 
@@ -58,14 +54,14 @@ void BaseOtExecutor::generateAndShareRsaKeys() {
         _pub = Crypto::_selfPubs[_bits];
         _pri = Crypto::_selfPris[_bits];
         if (newKey) {
-            IComm::impl->serverSend(&_pub, buildTag(_currentMsgTag++));
+            Comm::serverSend(_pub, buildTag(_currentMsgTag++));
         }
     } else {
         // receiver
         if (Crypto::_otherPubs.count(_bits) > 0) {
             _pub = Crypto::_otherPubs[_bits];
         } else {
-            IComm::impl->serverReceive(&_pub, buildTag(_currentMsgTag++));
+            Comm::serverReceive(_pub, buildTag(_currentMsgTag++));
             Crypto::_otherPubs[_bits] = _pub;
         }
     }
@@ -75,16 +71,16 @@ void BaseOtExecutor::process() {
     if (!_isSender) {
         std::string ek = Crypto::rsaEncrypt(_randK, _pub);
         std::string sumStr = Math::add(ek, _choice == 0 ? _rand0 : _rand1);
-        IComm::impl->serverSend(&sumStr, buildTag(_currentMsgTag));
+        Comm::serverSend(sumStr, buildTag(_currentMsgTag));
 
         std::string m0, m1;
-        IComm::impl->serverReceive(&m0, buildTag(static_cast<int16_t>(_currentMsgTag + 1)));
-        IComm::impl->serverReceive(&m1, buildTag(static_cast<int16_t>(_currentMsgTag + 2)));
+        Comm::serverReceive(m0, buildTag(static_cast<int16_t>(_currentMsgTag + 1)));
+        Comm::serverReceive(m1, buildTag(static_cast<int16_t>(_currentMsgTag + 2)));
 
         _result = std::stoll(Math::minus(_choice == 0 ? m0 : m1, _randK));
     } else {
         std::string sumStr;
-        IComm::impl->serverReceive(&sumStr, buildTag(_currentMsgTag));
+        Comm::serverReceive(sumStr, buildTag(_currentMsgTag));
         std::string k0 = Crypto::rsaDecrypt(
             Math::minus(sumStr, _rand0), _pri
         );
@@ -95,10 +91,10 @@ void BaseOtExecutor::process() {
         std::string m1 = Math::add(std::to_string(_m1), k1);
 
         auto f0 = System::_threadPool.push([m0, this] (int _) {
-            IComm::impl->serverSend(&m0, buildTag(static_cast<int16_t>(_currentMsgTag + 1)));
+            Comm::serverSend(m0, buildTag(static_cast<int16_t>(_currentMsgTag + 1)));
         });
         auto f1 = System::_threadPool.push([m1, this] (int _) {
-            IComm::impl->serverSend(&m1, buildTag(static_cast<int16_t>(_currentMsgTag + 2)));
+            Comm::serverSend(m1, buildTag(static_cast<int16_t>(_currentMsgTag + 2)));
         });
         f0.wait();
         f1.wait();
@@ -109,6 +105,6 @@ std::string BaseOtExecutor::className() const {
     return "RsaOtExecutor";
 }
 
-int16_t BaseOtExecutor::needsMsgTags() {
+int16_t BaseOtExecutor::needMsgTags() {
     return 6;
 }

@@ -5,19 +5,23 @@
 #ifndef BOOLLESSTHANEXECUTOR_H
 #define BOOLLESSTHANEXECUTOR_H
 #include "./BoolExecutor.h"
+#include "../../intermediate/item/Bmt.h"
 
 class BoolLessExecutor : public BoolExecutor {
+private:
+    Bmt *_bmt{};
+
 public:
     // reverse x and y to obey less than logic
     BoolLessExecutor(int64_t x, int64_t y, int l, int16_t taskTag, int16_t msgTagOffset, int clientRank) : BoolExecutor(y, x, l, taskTag, msgTagOffset, clientRank) {};
 
     BoolLessExecutor *execute() override;
 
-    BoolLessExecutor *reconstruct(int clientRank) override;
-
     std::string className() const override;
 
-    static int needsMsgTags(int clientRank);
+    static int needMsgTags(int clientRank);
+
+    BoolLessExecutor *setBmt(Bmt *bmt);
 
 private:
     int64_t shiftGreater(int64_t in, int r) const;

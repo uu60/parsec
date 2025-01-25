@@ -3,19 +3,19 @@
 //
 
 #include "compute/arith/ArithAddExecutor.h"
-#include "comm/IComm.h"
+#include "comm/Comm.h"
 #include "utils/System.h"
 #include <limits>
 
 ArithAddExecutor *ArithAddExecutor::execute() {
-    if (IComm::impl->isServer()) {
+    if (Comm::isServer()) {
         _zi = ring(_xi + _yi);
     }
 
     return this;
 }
 
-int16_t ArithAddExecutor::needsMsgTags() {
+int16_t ArithAddExecutor::needMsgTags() {
     return 0;
 }
 

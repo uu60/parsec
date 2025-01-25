@@ -6,7 +6,9 @@
 #define RROT_H
 #include <cstdint>
 
-
+/*
+ * Used by receiver in a Random OT process.
+ */
 class RRot {
 public:
     int64_t _rb{};

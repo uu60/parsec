@@ -13,13 +13,14 @@ public:
     BoolToArithExecutor(int64_t xi, int l, int16_t taskTag, int16_t msgTagOffset, int clientRank) : BoolExecutor(
         xi, l, taskTag, msgTagOffset, clientRank) {
         _xi = _zi;
+        _zi = 0;
     }
 
     BoolToArithExecutor *execute() override;
 
     [[nodiscard]] std::string className() const override;
 
-    [[nodiscard]] static int16_t needsMsgTags(int l);
+    [[nodiscard]] static int16_t needMsgTags(int l);
 
     BoolToArithExecutor *reconstruct(int clientRank) override;
 };

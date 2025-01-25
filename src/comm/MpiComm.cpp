@@ -10,11 +10,11 @@
 
 #include "utils/Log.h"
 
-void MpiComm::finalize() {
+void MpiComm::finalize_() {
     MPI_Finalize();
 }
 
-void MpiComm::init(int argc, char **argv) {
+void MpiComm::init_(int argc, char **argv) {
     // init
     int provided;
     int required = MPI_THREAD_MULTIPLE;
@@ -31,43 +31,30 @@ void MpiComm::init(int argc, char **argv) {
     }
 }
 
-void MpiComm::serverSend(const int64_t *source, int tag) {
-    send(source, 1 - _mpiRank, tag);
-}
-
-void MpiComm::serverSend(const std::string *source, int tag) {
-    send(source, 1 - _mpiRank, tag);
-}
-
-void MpiComm::serverReceive(int64_t *target, int tag) {
-    receive(target, 1 - _mpiRank, tag);
-}
-
-void MpiComm::serverReceive(std::string *target, int tag) {
-    receive(target, 1 - _mpiRank, tag);
-}
-
-int MpiComm::rank() {
+int MpiComm::rank_() {
     return _mpiRank;
 }
 
-void MpiComm::send(const int64_t *source, int receiverRank, int tag) {
-    MPI_Send(source, 1, MPI_INT64_T, receiverRank, tag, MPI_COMM_WORLD);
+void MpiComm::send_(const std::vector<int64_t> &source, int receiverRank, int tag) {
+    MPI_Send(source.data(), source.size(), MPI_INT64_T, receiverRank, tag, MPI_COMM_WORLD);
 }
 
-void MpiComm::send(const std::string *source, int receiverRank, int tag) {
-    if (source->length() > static_cast<size_t>(std::numeric_limits<int>::max())) {
-        std::cerr << "String size exceeds MPI_Send limit." << std::endl;
-        MPI_Abort(MPI_COMM_WORLD, 1);
-    }
-    MPI_Send(source->data(), static_cast<int>(source->length()), MPI_CHAR, receiverRank, tag, MPI_COMM_WORLD);
+void MpiComm::send_(const std::string &source, int receiverRank, int tag) {
+    MPI_Send(source.data(), static_cast<int>(source.length()), MPI_CHAR, receiverRank, tag, MPI_COMM_WORLD);
 }
 
-void MpiComm::receive(int64_t *target, int senderRank, int tag) {
-    MPI_Recv(target, 1, MPI_INT64_T, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+void MpiComm::receive_(std::vector<int64_t> &source, int senderRank, int tag) {
+    MPI_Status status;
+    MPI_Probe(senderRank, tag, MPI_COMM_WORLD, &status);
+
+    int count;
+    MPI_Get_count(&status, MPI_INT64_T, &count);
+
+    source.resize(count);
+    MPI_Recv(source.data(), count, MPI_INT64_T, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 }
 
-void MpiComm::receive(std::string *target, int senderRank, int tag) {
+void MpiComm::receive_(std::string &target, int senderRank, int tag) {
     MPI_Status status;
     MPI_Probe(senderRank, tag, MPI_COMM_WORLD, &status);
 
@@ -76,29 +63,13 @@ void MpiComm::receive(std::string *target, int senderRank, int tag) {
 
     std::vector<char> buffer(count);
     MPI_Recv( buffer.data(), count, MPI_CHAR, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    *target = std::string(buffer.data(), count);
+    target = std::string(buffer.data(), count);
 }
 
-bool MpiComm::isServer() {
+bool MpiComm::isServer_() {
     return _mpiRank == 0 or _mpiRank == 1;
 }
 
-bool MpiComm::isClient() {
-    return !isServer();
-}
-
-void MpiComm::send(const bool *source, int receiverRank, int tag) {
-    MPI_Send(source, 1, MPI_CXX_BOOL, receiverRank, tag, MPI_COMM_WORLD);
-}
-
-void MpiComm::receive(bool *target, int senderRank, int tag) {
-    MPI_Recv(target, 1, MPI_CXX_BOOL, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-}
-
-void MpiComm::serverSend(const bool *source, int tag) {
-    send(source, 1 - _mpiRank, tag);
-}
-
-void MpiComm::serverReceive(bool *target, int tag) {
-    receive(target, 1 - _mpiRank, tag);
+bool MpiComm::isClient_() {
+    return !isServer_();
 }

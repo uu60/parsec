@@ -10,21 +10,16 @@
 #include "./item/Bmt.h"
 
 class BmtGenerator : public AbstractSecureExecutor {
-private:
-    explicit BmtGenerator();
-
 public:
+    explicit BmtGenerator(int l, int16_t taskTag, int16_t msgTagOffset) : AbstractSecureExecutor(
+        l, taskTag, msgTagOffset) {
+    };
+
     Bmt _bmt{};
     int64_t _ui{};
     int64_t _vi{};
 
     BmtGenerator *execute() override;
-
-    BmtGenerator(const BmtGenerator &) = delete;
-
-    BmtGenerator &operator=(const BmtGenerator &) = delete;
-
-    static BmtGenerator &getInstance();
 
 private:
     void generateRandomAB();
@@ -41,6 +36,8 @@ private:
 
 public:
     BmtGenerator *reconstruct(int clientRank) override;
+
+    static int16_t needMsgTags(int l);
 
 protected:
     [[nodiscard]] std::string className() const override;

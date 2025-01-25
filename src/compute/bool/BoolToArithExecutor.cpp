@@ -5,38 +5,37 @@
 #include "compute/bool/BoolToArithExecutor.h"
 
 #include "intermediate/IntermediateDataSupport.h"
-#include "comm/IComm.h"
+#include "comm/Comm.h"
 #include "compute/arith/ArithExecutor.h"
 #include "ot/RandOtExecutor.h"
 #include "utils/Math.h"
 
 BoolToArithExecutor *BoolToArithExecutor::execute() {
     _currentMsgTag = _startMsgTag;
-    if (IComm::impl->isServer()) {
+    if (Comm::isServer()) {
         std::atomic_int64_t temp = 0;
         std::vector<std::future<void> > futures;
         futures.reserve(_l);
 
-        bool isSender = IComm::impl->rank() == 0;
+        bool isSender = Comm::rank() == 0;
         for (int i = 0; i < _l; i++) {
-            futures.push_back(System::_threadPool.push([this, isSender, &temp, i](int _) {
+            futures.push_back(System::_threadPool.push([&, i](int _) {
                 int xb = static_cast<int>((_xi >> i) & 1);
                 int64_t s0 = 0, s1 = 0;
                 int64_t r = 0;
                 if (isSender) {
                     // Sender
                     r = Math::randInt();
-                    s0 = (xb << i) - r;
-                    s1 = ((1 - xb) << i) - r;
+                    s0 = (static_cast<int64_t>(xb) << i) - r;
+                    s1 = (static_cast<int64_t>(1 - xb) << i) - r;
                 }
                 RandOtExecutor e(0, s0, s1, xb, _l, _taskTag,
-                                static_cast<int16_t>(_currentMsgTag + RandOtExecutor::needsMsgTags() * i));
+                                static_cast<int16_t>(_currentMsgTag + RandOtExecutor::needMsgTags() * i));
                 e.execute();
                 if (isSender) {
                     temp += r;
                 } else {
-                    int64_t s_xb = e._result;
-                    temp += s_xb;
+                    temp += e._result;
                 }
             }));
         }
@@ -49,18 +48,18 @@ BoolToArithExecutor *BoolToArithExecutor::execute() {
 }
 
 std::string BoolToArithExecutor::className() const {
-    return "ToArithExecutor";
+    return "BoolToArithExecutor";
 }
 
-int16_t BoolToArithExecutor::needsMsgTags(int l) {
-    return static_cast<int16_t>(RandOtExecutor::needsMsgTags() * l);
+int16_t BoolToArithExecutor::needMsgTags(int l) {
+    return static_cast<int16_t>(RandOtExecutor::needMsgTags() * l);
 }
 
 BoolToArithExecutor * BoolToArithExecutor::reconstruct(int clientRank) {
     _currentMsgTag = _startMsgTag;
     ArithExecutor e(_zi, _l, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
     e.reconstruct(clientRank);
-    if (IComm::impl->rank() == clientRank) {
+    if (Comm::rank() == clientRank) {
         _result = e._result;
     }
     return this;
@@ -71,7 +70,7 @@ BoolToArithExecutor * BoolToArithExecutor::reconstruct(int clientRank) {
  */
 // ToArithE *ToArithE::execute() {
 //     _currentMsgTag = _startMsgTag;
-//     if (IComm::impl->isServer()) {
+//     if (IComm::isServer()) {
 //         std::atomic_int64_t res = 0;
 //         auto msgTags = nextMsgTags(_l);
 //         std::vector<std::future<void> > futures;
@@ -88,11 +87,11 @@ BoolToArithExecutor * BoolToArithExecutor::reconstruct(int clientRank) {
 //                 int64_t zo_b;
 //
 //                 // Decrypt
-//                 IComm::impl->serverExchange(&zi_b, &zo_b, buildTag(msgTags[i]));
+//                 IComm::serverExchange(&zi_b, &zo_b, buildTag(msgTags[i]));
 //                 int64_t z = zo_b ^ zi_b;
 //
 //                 // Compute
-//                 res += (ri_a + z * IComm::impl->rank() - 2 * ri_a * z) << i;
+//                 res += (ri_a + z * IComm::rank() - 2 * ri_a * z) << i;
 //             }));
 //         }
 //         for (auto &f: futures) {

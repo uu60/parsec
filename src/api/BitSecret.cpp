@@ -8,7 +8,7 @@
 #include "compute/arith/ArithMutexExecutor.h"
 #include "compute/bool/BoolAndExecutor.h"
 #include "compute/bool/BoolXorExecutor.h"
-#include "comm/IComm.h"
+#include "comm/Comm.h"
 
 BitSecret::BitSecret(bool x, int16_t taskTag) : _data(x), _taskTag(taskTag) {}
 
@@ -21,7 +21,7 @@ BitSecret BitSecret::share(int clientRank) const {
 }
 
 BitSecret BitSecret::not_() const {
-    return BitSecret(_data ^ IComm::impl->rank(), _taskTag);
+    return BitSecret(_data ^ Comm::rank(), _taskTag);
 }
 
 BitSecret BitSecret::xor_(BitSecret yi) const {

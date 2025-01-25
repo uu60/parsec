@@ -44,7 +44,7 @@ add_library(${PROJECT_NAME} SHARED
         src/compute/bool/BoolEqualExecutor.cpp
         src/api/BitSecret.cpp
         include/intermediate/item/Bmt.h
-        include/comm/IComm.h
+        include/comm/Comm.h
         include/intermediate/IntermediateDataSupport.h
         src/intermediate/IntermediateDataSupport.cpp
         src/compute/arith/ArithToBoolExecutor.cpp
@@ -54,10 +54,10 @@ add_library(${PROJECT_NAME} SHARED
         include/intermediate/item/ABPair.h
         src/intermediate/ABPairGenerator.cpp
         include/intermediate/ABPairGenerator.h
-        src/comm/IComm.cpp
+        src/comm/Comm.cpp
         include/utils/Log.h
         include/third_party/ctpl_stl.h
-        include/sync/BlockingQueue.h
+        include/sync/LockBlockingQueue.h
         src/compute/bool/BoolLessExecutor.cpp
         include/compute/bool/BoolLessExecutor.h
         src/ot/RandOtExecutor.cpp
@@ -72,6 +72,9 @@ add_library(${PROJECT_NAME} SHARED
         include/compute/bool/BoolMutexExecutor.h
         include/api/BoolSecret.h
         src/api/BoolSecret.cpp
+        include/sync/BlockingQueue.h
+        include/sync/CasBlockingQueue.h
+        include/conf/Conf.h
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC
@@ -131,3 +134,17 @@ install(
 target_link_libraries(
         ${PROJECT_NAME} PUBLIC MPI::MPI_CXX OpenSSL::SSL OpenSSL::Crypto
 )
+
+add_executable(test_target
+        test/main.cpp
+        test/test_cases.h
+)
+
+target_include_directories(test_target PUBLIC
+        ${Dekopon_SS_SMPC_package_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/test
+)
+
+target_link_libraries(test_target PUBLIC Dekopon_SS_SMPC_package)
+target_link_directories(test_target PUBLIC ${Dekopon_SS_SMPC_package_LIBRARY_DIRS})

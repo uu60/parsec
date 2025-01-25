@@ -130,7 +130,7 @@ bool Math::getBit(int64_t v, int i) {
 
 int64_t Math::changeBit(int64_t v, int i, bool b) {
     int64_t mask = ~(1LL << i);
-    return (v & mask) | ((b ? 1 : 0) << i);
+    return (v & mask) | ((b ? 1ll : 0ll) << i);
 }
 
 int64_t Math::pow(int64_t base, int64_t exponent) {

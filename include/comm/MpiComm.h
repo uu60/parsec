@@ -4,14 +4,14 @@
 
 #ifndef MPC_PACKAGE_COMM_H
 #define MPC_PACKAGE_COMM_H
-#include "./IComm.h"
+#include "./Comm.h"
 
 /**
  * For sender, mpi rank must be 0 or 1.
  * The task publisher must be rank of 2.
  * Attention: Currently, there is no restriction in this util class.
  */
-class MpiComm : public IComm {
+class MpiComm : public Comm {
 public:
     static const int CLIENT_RANK;
 
@@ -22,45 +22,27 @@ private:
     int _mpiRank{};
 
 public:
-    int rank() override;
+    int rank_() override;
 
     // init env
-    void init(int argc, char **argv) override;
+    void init_(int argc, char **argv) override;
 
-    void finalize() override;
+    void finalize_() override;
 
     // judge identity
-    bool isServer() override;
+    bool isServer_() override;
 
-    bool isClient() override;
-
-    // serverSend
-    void serverSend(const int64_t *source, int tag) override;
-
-    void serverSend(const bool *source, int tag) override;
-
-    void serverSend(const std::string *source, int tag) override;
-
-    // serverReceive
-    void serverReceive(int64_t *target, int tag) override;
-
-    void serverReceive(bool *target, int tag) override;
-
-    void serverReceive(std::string *target, int tag) override;
+    bool isClient_() override;
 
     // send
-    void send(const int64_t *source, int receiverRank, int tag) override;
+    void send_(const std::vector<int64_t> &source, int receiverRank, int tag) override;
 
-    void send(const bool *source, int receiverRank, int tag) override;
-
-    void send(const std::string *source, int receiverRank, int tag) override;
+    void send_(const std::string &source, int receiverRank, int tag) override;
 
     //receive
-    void receive(int64_t *target, int senderRank, int tag) override;
+    void receive_(std::vector<int64_t> &source, int senderRank, int tag) override;
 
-    void receive(bool *target, int senderRank, int tag) override;
-
-    void receive(std::string *target, int senderRank, int tag) override;
+    void receive_(std::string &target, int senderRank, int tag) override;
 };
 
 

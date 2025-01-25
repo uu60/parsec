@@ -9,37 +9,35 @@
 
 RandOtExecutor *RandOtExecutor::execute() {
     _currentMsgTag = _startMsgTag;
-    if (IComm::impl->isServer()) {
+    if (Comm::isServer()) {
         int64_t k, y0, y1;
         if (_isSender) {
-            IComm::impl->serverReceive(&k, buildTag(_currentMsgTag));
+            std::vector<int64_t> temp;
+            Comm::serverReceive(temp, buildTag(_currentMsgTag));
+            k = temp[0];
 
             y0 = _m0 ^ (k == 0 ? IntermediateDataSupport::_sRot->_r0 : IntermediateDataSupport::_sRot->_r1);
             y1 = _m1 ^ (k == 0 ? IntermediateDataSupport::_sRot->_r1 : IntermediateDataSupport::_sRot->_r0);
 
-            auto f0 = System::_threadPool.push([this, y0](int _) {
-                IComm::impl->serverSend(&y0, buildTag(static_cast<int16_t>(_currentMsgTag + 1)));
-            });
-            auto f1 = System::_threadPool.push([this, y1](int _) {
-                IComm::impl->serverSend(&y1, buildTag(static_cast<int16_t>(_currentMsgTag + 2)));
-            });
-
-            f0.wait();
-            f1.wait();
+            std::vector y01 = {y0, y1};
+            Comm::serverSend(y01, buildTag(_currentMsgTag));
         } else {
             k = IntermediateDataSupport::_rRot->_b ^ _choice;
-            IComm::impl->serverSend(&k, buildTag(_currentMsgTag));
 
-            IComm::impl->serverReceive(&y0, buildTag(static_cast<int16_t>(_currentMsgTag + 1)));
-            IComm::impl->serverReceive(&y1, buildTag(static_cast<int16_t>(_currentMsgTag + 2)));
-            _result = (_choice == 0 ? y0 : y1) ^ IntermediateDataSupport::_rRot->_rb;
+            std::vector kv = {k};
+            Comm::serverSend(kv, buildTag(_currentMsgTag));
+
+            std::vector<int64_t> y01;
+            Comm::serverReceive(y01, buildTag(_currentMsgTag));
+
+            _result = y01[_choice] ^ IntermediateDataSupport::_rRot->_rb;
         }
     }
     return this;
 }
 
-int16_t RandOtExecutor::needsMsgTags() {
-    return 3;
+int16_t RandOtExecutor::needMsgTags() {
+    return 1;
 }
 
 std::string RandOtExecutor::className() const {

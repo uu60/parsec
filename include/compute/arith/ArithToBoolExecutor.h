@@ -9,7 +9,7 @@
 
 class ArithToBoolExecutor : public ArithExecutor {
 private:
-    std::vector<Bmt> *_bmts = nullptr;
+    std::vector<Bmt> *_bmts{};
 
 public:
     // Temporarily lend zi for xi preparation in super constructor.
@@ -23,9 +23,9 @@ public:
 
     [[nodiscard]] std::string className() const override;
 
-    [[nodiscard]] static int16_t needsMsgTags(int l);
+    [[nodiscard]] static int16_t needMsgTags();
 
-    static int needsBmts(int l);
+    static std::pair<int, int> needBmtsWithBits(int l);
 
     ArithToBoolExecutor *setBmts(std::vector<Bmt> *bmts);
 

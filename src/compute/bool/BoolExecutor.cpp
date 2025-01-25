@@ -4,7 +4,7 @@
 
 #include "compute/bool/BoolExecutor.h"
 
-#include "comm/IComm.h"
+#include "comm/Comm.h"
 #include "utils/Math.h"
 #include "ot/BaseOtExecutor.h"
 #include "utils/Log.h"
@@ -17,20 +17,22 @@ BoolExecutor::BoolExecutor(int64_t z, int l, int16_t taskTag, int16_t msgTagOffs
         _zi = ring(z);
     } else {
         // distribute operator
-        if (IComm::impl->isClient()) {
+        if (Comm::rank() == clientRank) {
             int64_t z1 = ring(Math::randInt());
             int64_t z0 = ring(z ^ z1);
-            auto f0 = System::_threadPool.push([this, z0] (int _) {
-                IComm::impl->send(&z0, 0, buildTag(_currentMsgTag));
+
+            std::vector zv0 = {z0};
+            std::vector zv1 = {z1};
+            auto f = System::_threadPool.push([&] (int) {
+                Comm::send(zv0, 0, buildTag(_currentMsgTag));
             });
-            auto f1 = System::_threadPool.push([this, z1] (int _) {
-                IComm::impl->send(&z1, 1, buildTag(_currentMsgTag));
-            });
-            f0.wait();
-            f1.wait();
+            Comm::send(zv1, 1, buildTag(_currentMsgTag));
+            f.wait();
         } else {
             // operator
-            IComm::impl->receive(&_zi, clientRank, buildTag(_currentMsgTag));
+            std::vector<int64_t> temp;
+            Comm::receive(temp, clientRank, buildTag(_currentMsgTag));
+            _zi = temp[0];
         }
     }
 }
@@ -42,45 +44,39 @@ BoolExecutor::BoolExecutor(int64_t x, int64_t y, int l, int16_t taskTag, int16_t
         _yi = ring(y);
     } else {
         // distribute operator
-        if (IComm::impl->rank() == clientRank) {
+        if (Comm::rank() == clientRank) {
             int64_t x1 = ring(Math::randInt());
             int64_t x0 = ring(x ^ x1);
             int64_t y1 = ring(Math::randInt());
             int64_t y0 = ring(y ^ y1);
-            std::vector<std::future<void>> futures;
-            futures.reserve(4);
-            futures.push_back(System::_threadPool.push([x0, this] (int _) {
-                IComm::impl->send(&x0, 0, buildTag(_currentMsgTag));
-            }));
-            futures.push_back(System::_threadPool.push([y0, this] (int _) {
-                IComm::impl->send(&y0, 0, buildTag(static_cast<int16_t>(_currentMsgTag + 1)));
-            }));
-            futures.push_back(System::_threadPool.push([x1, this] (int _) {
-                IComm::impl->send(&x1, 1, buildTag(_currentMsgTag));
-            }));
-            futures.push_back(System::_threadPool.push([y1, this] (int _) {
-                IComm::impl->send(&y1, 1, buildTag(static_cast<int16_t>(_currentMsgTag + 1)));
-            }));
-            for (auto &f : futures) {
-                f.wait();
-            }
+            std::vector xy0 = {x0, y0};
+            std::vector xy1 = {x1, y1};
+            auto f = System::_threadPool.push([this, &xy0](int _) {
+                Comm::send(xy0, 0, buildTag(_currentMsgTag));
+            });
+            Comm::send(xy1, 1, buildTag(_currentMsgTag));
+            // sync
+            f.wait();
         } else {
             // operator
-            IComm::impl->receive(&_xi, clientRank, buildTag(_currentMsgTag));
-            IComm::impl->receive(&_yi, clientRank, buildTag(static_cast<int16_t>(_currentMsgTag + 1)));
+            std::vector<int64_t> temp;
+            Comm::receive(temp, clientRank, buildTag(_currentMsgTag));
+            _xi = temp[0];
+            _yi = temp[1];
         }
     }
 }
 
 BoolExecutor *BoolExecutor::reconstruct(int clientRank) {
     _currentMsgTag = _startMsgTag;
-    if (IComm::impl->isServer()) {
-        IComm::impl->send(&_zi, clientRank, buildTag(_currentMsgTag));
-    } else {
-        int64_t z0, z1;
-        IComm::impl->receive(&z0, 0, buildTag(_currentMsgTag));
-        IComm::impl->receive(&z1, 1, buildTag(_currentMsgTag));
-        _result = ring(z0 ^ z1);
+    if (Comm::isServer()) {
+        std::vector temp = {_zi};
+        Comm::send(temp, clientRank, buildTag(_currentMsgTag));
+    } else if (Comm::rank() == clientRank) {
+        std::vector<int64_t> temp0, temp1;
+        Comm::receive(temp0, 0, buildTag(_currentMsgTag));
+        Comm::receive(temp1, 1, buildTag(_currentMsgTag));
+        _result = ring(temp0[0] ^ temp1[0]);
     }
     return this;
 }

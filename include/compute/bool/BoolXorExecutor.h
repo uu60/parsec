@@ -14,7 +14,7 @@ public:
 
     BoolXorExecutor *execute() override;
 
-    [[nodiscard]] static int16_t needsMsgTags();
+    [[nodiscard]] static int16_t needMsgTags();
 
     [[nodiscard]] std::string className() const override;
 };

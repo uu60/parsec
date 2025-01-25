@@ -22,9 +22,9 @@ public:
 
     [[nodiscard]] std::string className() const override;
 
-    [[nodiscard]] static int16_t needsMsgTags(int l);
+    [[nodiscard]] static int16_t needMsgTags();
 
-    static int needsBmts(int l);
+    static std::pair<int, int> needBmtsWithBits(int l);
 
     ArithLessExecutor *setBmts(std::vector<Bmt> *bmts);
 };

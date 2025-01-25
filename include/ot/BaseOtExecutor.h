@@ -36,7 +36,7 @@ public:
 
     BaseOtExecutor *execute() override;
 
-    [[nodiscard]] static int16_t needsMsgTags();
+    [[nodiscard]] static int16_t needMsgTags();
 
 protected:
     [[nodiscard]] std::string className() const override;

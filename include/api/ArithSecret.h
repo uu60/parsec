@@ -31,7 +31,7 @@ public:
 
     [[nodiscard]] ArithSecret mux(ArithSecret yi, BitSecret cond_i) const;
 
-    // needs 3 * _l BMTs
+    // need 3 * _l BMTs
     [[nodiscard]] ArithSecret boolean() const;
 
     [[nodiscard]] BitSecret lessThan(ArithSecret yi) const;

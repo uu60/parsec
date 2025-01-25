@@ -13,7 +13,7 @@ public:
 
     RandOtExecutor *execute() override;
 
-    static int16_t needsMsgTags();
+    static int16_t needMsgTags();
 
     std::string className() const override;
 };

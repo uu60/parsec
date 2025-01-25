@@ -10,8 +10,6 @@
 #include "../../AbstractSecureExecutor.h"
 
 class ArithExecutor : public AbstractSecureExecutor {
-private:
-    static int32_t _currenttaskTag;
 public:
     int64_t _xi{};
     int64_t _yi{};

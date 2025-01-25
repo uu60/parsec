@@ -6,7 +6,7 @@
 
 #include "api/ArithSecret.h"
 
-#include "comm/IComm.h"
+#include "comm/Comm.h"
 #include "compute/arith/ArithExecutor.h"
 #include "compute/bool/BoolExecutor.h"
 #include "compute/arith/ArithAddExecutor.h"

@@ -8,7 +8,7 @@
 #include <chrono>
 #include <iomanip>
 #include <unistd.h>
-#include "../comm/IComm.h"
+#include "../comm/Comm.h"
 
 class Log {
 private:
@@ -17,6 +17,7 @@ private:
     static inline const std::string WARN = "WARN";
     static inline const std::string ERROR = "ERROR";
     static inline std::string HOSTNAME = "";
+    static inline std::mutex logMutex;
 
 public:
     // Variadic template functions for logging
@@ -42,7 +43,9 @@ public:
 
 private:
     template<typename... Args>
-    static void log(const std::string &level, const std::string &msg, Args &&... args) {
+    static void
+    log(const std::string &level, const std::string &msg, Args &&... args) {
+        std::lock_guard<std::mutex> lock(logMutex);
         if (HOSTNAME.empty()) {
             char hostName[128];
             gethostname(hostName, sizeof(hostName));
@@ -51,24 +54,22 @@ private:
         std::string formatted_msg = format(msg, std::forward<Args>(args)...);
         std::cout << "[" << HOSTNAME + ":" + std::to_string(getpid()) << "] "
                 << "[" << getCurrentTimestampStr() << "] "
-                << "[" << IComm::impl->rank() << "] "
+                << "[" << Comm::rank() << "] "
                 << "[" << level << "] "
                 << formatted_msg << std::endl;
     }
 
     template<typename T>
-    static std::string toString(T &&value) {
-        if constexpr (std::is_same_v<std::decay_t<T>, std::string>) {
-            return value;
-        } else {
-            return std::to_string(std::forward<T>(value));
-        }
+    static std::string to_string_any(T &&value) {
+        std::ostringstream oss;
+        oss << value;
+        return oss.str();
     }
 
     template<typename... Args>
     static std::string format(const std::string &msg, Args &&... args) {
         std::string formatted_msg = msg;
-        std::vector<std::string> arg_strings = {toString(std::forward<Args>(args))...};
+        std::vector<std::string> arg_strings = {to_string_any(std::forward<Args>(args))...};
         for (const auto &arg: arg_strings) {
             replaceFirstPlaceholder(formatted_msg, arg);
         }

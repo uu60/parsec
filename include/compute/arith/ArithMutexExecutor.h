@@ -19,9 +19,11 @@ public:
 
     [[nodiscard]] std::string className() const override;
 
-    static int16_t needsMsgTags(int l, int clientRank);
+    static int16_t needMsgTags(int l);
 
     ArithMutexExecutor *setBmts(std::vector<Bmt> *bmts);
+
+    static std::pair<int, int> needBmtsAndBits(int l);
 };
 
 #endif //MPC_PACKAGE_MUXEXECUTOR_H

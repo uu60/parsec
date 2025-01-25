@@ -7,6 +7,9 @@
 
 #include <cstdint>
 
+/*
+ * Used by sender in a Random OT process.
+ */
 class SRot {
 public:
     int64_t _r0{};
