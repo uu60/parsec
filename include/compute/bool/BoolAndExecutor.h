@@ -20,7 +20,7 @@ public:
 
     [[nodiscard]] std::string className() const override;
 
-    [[nodiscard]] static int16_t needMsgTags();
+    [[nodiscard]] static int16_t needMsgTags(int l);
 
     static std::pair<int, int> needBmtsWithBits(int l);
 

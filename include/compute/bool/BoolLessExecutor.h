@@ -20,11 +20,11 @@ public:
 
     std::string className() const override;
 
-    static int needMsgTags();
+    static int needMsgTags(int l);
 
     BoolLessExecutor *setBmts(std::vector<Bmt> *bmts);
 
-    static std::pair<int, int> needBmtsAndBits(int l);
+    static std::pair<int, int> needBmtsWithBits(int l);
 
 private:
     int64_t shiftGreater(int64_t in, int r) const;

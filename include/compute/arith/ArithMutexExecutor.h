@@ -23,7 +23,7 @@ public:
 
     ArithMutexExecutor *setBmts(std::vector<Bmt> *bmts);
 
-    static std::pair<int, int> needBmtsAndBits(int l);
+    static std::pair<int, int> needBmtsWithBits(int l);
 };
 
 #endif //MPC_PACKAGE_MUXEXECUTOR_H

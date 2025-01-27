@@ -20,7 +20,7 @@ BoolLessExecutor *BoolLessExecutor::execute() {
         int64_t shifted_1 = shiftGreater(lbs, 1);
 
         std::vector<Bmt> temp;
-        int needed = BoolAndExecutor::needBmtsWithBits(_l).first;
+        auto [needed, _] = BoolAndExecutor::needBmtsWithBits(_l);
         if (_bmts != nullptr) {
             temp.reserve(needed);
             for (int i = 0; i < needed; i++) {
@@ -81,8 +81,8 @@ std::string BoolLessExecutor::className() const {
     return "BoolLessThanExecutor";
 }
 
-int BoolLessExecutor::needMsgTags() {
-    return BoolAndExecutor::needMsgTags();
+int BoolLessExecutor::needMsgTags(int l) {
+    return BoolAndExecutor::needMsgTags(l);
 }
 
 BoolLessExecutor *BoolLessExecutor::setBmts(std::vector<Bmt> *bmts) {
@@ -90,10 +90,11 @@ BoolLessExecutor *BoolLessExecutor::setBmts(std::vector<Bmt> *bmts) {
     return this;
 }
 
-std::pair<int, int> BoolLessExecutor::needBmtsAndBits(int l) {
+std::pair<int, int> BoolLessExecutor::needBmtsWithBits(int l) {
+    auto needed = BoolAndExecutor::needBmtsWithBits(l);
     return {
-        (static_cast<int>(std::floor(std::log2(l))) + 2) * BoolAndExecutor::needBmtsWithBits(l).first,
-        BoolAndExecutor::needBmtsWithBits(l).second
+        (static_cast<int>(std::floor(std::log2(l))) + 2) * needed.first,
+        needed.second
     };
 }
 

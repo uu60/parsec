@@ -274,7 +274,7 @@ atomic_int64_t compareTime = 0;
 atomic_int64_t muxTime = 0;
 
 // compareAndSwap 逻辑：决定两个位置 arr[i] 和 arr[j] 是否交换
-void compareAndSwap(std::vector<BoolSecret> &arr, size_t i, size_t j, bool dir) {
+inline void compareAndSwap(std::vector<BoolSecret> &arr, size_t i, size_t j, bool dir) {
     // swap = arr[i] < arr[j] 的结果，但这里取 not_()，表示若 arr[i] >= arr[j] 则 swap=1
 
     auto start = System::currentTimeMillis();
@@ -296,7 +296,7 @@ void compareAndSwap(std::vector<BoolSecret> &arr, size_t i, size_t j, bool dir) 
 }
 
 // bitonicMerge 逻辑：先做一次 compareAndSwap 分区，然后对子分区再递归 merge
-void bitonicMerge(std::vector<BoolSecret> &arr, size_t low, size_t length, bool dir) {
+inline void bitonicMerge(std::vector<BoolSecret> &arr, size_t low, size_t length, bool dir) {
     if (length > 1) {
         size_t mid = length / 2;
         // 对 [low, low+mid) 和 [low+mid, low+length) 中的元素，两两做 compareAndSwap
@@ -310,7 +310,7 @@ void bitonicMerge(std::vector<BoolSecret> &arr, size_t low, size_t length, bool 
 }
 
 // bitonicSort 逻辑：递归拆分，前半段按照升序排序，后半段按照降序排序，最后 merge
-void bitonicSort(std::vector<BoolSecret> &arr, size_t low, size_t length, bool dir) {
+inline void bitonicSort(std::vector<BoolSecret> &arr, size_t low, size_t length, bool dir) {
     if (length > 1) {
         size_t mid = length / 2;
         // 前一半升序
@@ -325,7 +325,7 @@ void bitonicSort(std::vector<BoolSecret> &arr, size_t low, size_t length, bool d
 
 //================== 测试函数：递归版 Bitonic Sort ==================//
 
-void test_Sort_10() {
+inline void test_Sort_10() {
     // 1. 预备工作
     IntermediateDataSupport::prepareRot();
     IntermediateDataSupport::startGenerateBmtsAsync();
@@ -369,7 +369,7 @@ void test_Sort_10() {
     }
 }
 
-void test_bool_comp_11() {
+inline void test_bool_comp_11() {
     IntermediateDataSupport::prepareRot();
     IntermediateDataSupport::startGenerateBmtsAsync();
     for (int i = 0; i < 100; i++) {
@@ -389,29 +389,51 @@ void test_bool_comp_11() {
     }
 }
 
-void test_bool_MuxExecutor_12() {
+inline void test_bool_mux_12() {
     IntermediateDataSupport::prepareRot();
     IntermediateDataSupport::startGenerateBmtsAsync();
 
+    std::vector<std::future<void> > futures;
     auto t = System::nextTask();
-    int x, y;
-    bool c0, c1;
-    if (Comm::isClient()) {
-        x = 40;
-        y = 20;
-        c0 = 0;
-        c1 = 1;
-    }
-
-    BoolMutexExecutor e1(x, y, c0, 32, t, 0, 2);
-    e1.execute()->reconstruct(2);
-    auto r = e1._result;
-    if (Comm::isClient()) {
-        if (r != 20) {
-            Log::i("Wrong = " + std::to_string(r));
-        } else {
-            Log::i("Right: " + std::to_string(r));
+    futures.reserve(100);
+    for (int i = 0; i < 100; i++) {
+//        futures.push_back(System::_threadPool.push([t, i](int _) {
+//            int64_t x, y;
+//            bool c;
+//            if (Comm::isClient()) {
+//                x = Math::randInt();
+//                y = Math::randInt();
+//                c = Math::randInt(0, 1);
+//            }
+//
+//            BoolMutexExecutor e1(x, y, c, 64, t + i, 0, 2);
+//            e1.execute()->reconstruct(2);
+//            auto r = e1._result;
+//            if (Comm::isClient()) {
+//                if (r != (c ? x : y)) {
+//                    Log::i("Wrong, x: {}, y:{}, c:{}, r:{}", x, y, c, std::to_string(r));
+//                }
+//            }
+//        }));
+        int64_t x, y;
+        bool c;
+        if (Comm::isClient()) {
+            x = Math::randInt();
+            y = Math::randInt();
+            c = Math::randInt(0, 1);
         }
+
+        BoolMutexExecutor e1(x, y, c, 64, t + i, 0, 2);
+        e1.execute()->reconstruct(2);
+        auto r = e1._result;
+        if (Comm::isClient()) {
+            if (r != (c ? x : y)) {
+                Log::i("Wrong, x: {}, y:{}, c:{}, r:{}", x, y, c, std::to_string(r));
+            }
+        }
+    }
+    for (auto &f: futures) {
+        f.wait();
     }
 }
 

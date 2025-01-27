@@ -53,29 +53,23 @@ ArithToBoolExecutor *ArithToBoolExecutor::execute() {
                         !Conf::INTERM_PREGENERATED ? nullptr : &vec0)->execute()->_zi;
                 });
 
-                _currentMsgTag += BoolAndExecutor::needMsgTags();
+                _currentMsgTag += BoolAndExecutor::needMsgTags(1);
 
                 // bmtLimit -= 1;
                 if (_bmts != nullptr) {
                     vec1 = {_bmts->at(i * 3 + 1)};
-                } else if (Conf::INTERM_PREGENERATED) {
-                    vec1 = IntermediateDataSupport::pollBmts(1, 1);
                 }
-
                 bool tempCarry_i = BoolAndExecutor(propagate_i, carry_i, 1, _taskTag, _currentMsgTag, -1).setBmts(
-                            !Conf::INTERM_PREGENERATED ? nullptr : &vec1)->execute()->_zi;
+                            _bmts == nullptr ? nullptr : &vec1)->execute()->_zi;
                 // bmtLimit -= 1;
                 bool generate_i = f.get();
                 bool sum_i = generate_i ^ tempCarry_i;
 
                 if (_bmts != nullptr) {
                     vec2 = {_bmts->at(i * 3 + 2)};
-                } else if (Conf::INTERM_PREGENERATED) {
-                    vec2 = IntermediateDataSupport::pollBmts(1, 1);
                 }
-
                 bool and_i = BoolAndExecutor(generate_i, tempCarry_i, 1, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
-                        setBmts(!Conf::INTERM_PREGENERATED ? nullptr : &vec2)->execute()->_zi;
+                        setBmts(_bmts == nullptr ? nullptr : &vec2)->execute()->_zi;
 
                 carry_i = sum_i ^ and_i;
             }
@@ -90,8 +84,8 @@ std::string ArithToBoolExecutor::className() const {
     return "ArithToBoolExecutor";
 }
 
-int16_t ArithToBoolExecutor::needMsgTags() {
-    return static_cast<int16_t>(2 * BoolAndExecutor::needMsgTags());
+int16_t ArithToBoolExecutor::needMsgTags(int l) {
+    return static_cast<int16_t>(2 * BoolAndExecutor::needMsgTags(l));
 }
 
 std::pair<int, int> ArithToBoolExecutor::needBmtsWithBits(int l) {

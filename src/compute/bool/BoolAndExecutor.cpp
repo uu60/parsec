@@ -70,8 +70,8 @@ std::string BoolAndExecutor::className() const {
     return "BoolAndExecutor";
 }
 
-int16_t BoolAndExecutor::needMsgTags() {
-    return 2;
+int16_t BoolAndExecutor::needMsgTags(int l) {
+    return static_cast<int16_t>(std::ceil(static_cast<double>(l) / Conf::BMT_USAGE_LIMIT) * BmtGenerator::needMsgTags(l));
 }
 
 std::pair<int, int> BoolAndExecutor::needBmtsWithBits(int l) {

@@ -40,13 +40,13 @@ ArithMutexExecutor *ArithMutexExecutor::execute() {
         Bmt bmt1;
         if (_bmts != nullptr) {
             bmt1 = _bmts->at(1);
-        } else if (Conf::INTERM_PREGENERATED) {
+        }/* else if (Conf::INTERM_PREGENERATED) {
             bmt1 = IntermediateDataSupport::pollBmts(1, _l)[0];
-        }
+        }*/
         auto mul1 = ArithMultiplyExecutor(_cond_i, _yi, _l, _taskTag,
                                           static_cast<int16_t>(_currentMsgTag + ArithMultiplyExecutor::needMsgTags(_l)),
                                           NO_CLIENT_COMPUTE);
-        cy = mul1.setBmt((_bmts == nullptr && !Conf::INTERM_PREGENERATED) ? nullptr : &bmt1)->execute()->_zi;
+        cy = mul1.setBmt(_bmts == nullptr ? nullptr : &bmt1)->execute()->_zi;
         cx = f.get();
         _zi = ring(cx + _yi - cy);
     }
@@ -67,6 +67,6 @@ ArithMutexExecutor *ArithMutexExecutor::setBmts(std::vector<Bmt> *bmts) {
     return this;
 }
 
-std::pair<int, int> ArithMutexExecutor::needBmtsAndBits(int l) {
+std::pair<int, int> ArithMutexExecutor::needBmtsWithBits(int l) {
     return {2, l};
 }

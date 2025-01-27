@@ -53,8 +53,8 @@ std::string ArithLessExecutor::className() const {
     return "[ArithLessThanExecutor]";
 }
 
-int16_t ArithLessExecutor::needMsgTags() {
-    return ArithToBoolExecutor::needMsgTags();
+int16_t ArithLessExecutor::needMsgTags(int l) {
+    return ArithToBoolExecutor::needMsgTags(l);
 }
 
 std::pair<int, int> ArithLessExecutor::needBmtsWithBits(int l) {

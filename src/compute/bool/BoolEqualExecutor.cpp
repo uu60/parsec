@@ -34,6 +34,6 @@ BoolEqualExecutor *BoolEqualExecutor::setBmts(std::vector<Bmt> *bmts) {
     return this;
 }
 
-std::pair<int, int> BoolEqualExecutor::needBmtsAndBits(int l) {
+std::pair<int, int> BoolEqualExecutor::needBmtsWithBits(int l) {
     return {l - 1, 1};
 }
