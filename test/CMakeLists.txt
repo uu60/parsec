@@ -8,11 +8,11 @@ project(demo)
 
 set(CMAKE_CXX_STANDARD 17)
 
-find_package(Dekopon_SS_SMPC_package REQUIRED)
+find_package(secure_2pc_package REQUIRED)
 
 add_executable(demo main.cpp
         test_cases.h)
 
-target_link_libraries(demo Dekopon_SS_SMPC_package)
-target_link_directories(demo PUBLIC ${Dekopon_SS_SMPC_package_LIBRARY_DIRS})
-target_include_directories(demo PUBLIC ${Dekopon_SS_SMPC_package_INCLUDE_DIRS})
+target_link_libraries(demo secure_2pc_package)
+target_link_directories(demo PUBLIC ${secure_2pc_package_LIBRARY_DIRS})
+target_include_directories(demo PUBLIC ${secure_2pc_package_INCLUDE_DIRS})

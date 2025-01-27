@@ -9,7 +9,8 @@
 
 class BoolLessExecutor : public BoolExecutor {
 private:
-    Bmt *_bmt{};
+    // Bmt *_bmt{};
+    std::vector<Bmt> *_bmts{};
 
 public:
     // reverse x and y to obey less than logic
@@ -19,9 +20,11 @@ public:
 
     std::string className() const override;
 
-    static int needMsgTags(int clientRank);
+    static int needMsgTags();
 
-    BoolLessExecutor *setBmt(Bmt *bmt);
+    BoolLessExecutor *setBmts(std::vector<Bmt> *bmts);
+
+    static std::pair<int, int> needBmtsAndBits(int l);
 
 private:
     int64_t shiftGreater(int64_t in, int r) const;

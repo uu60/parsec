@@ -372,24 +372,18 @@ void test_Sort_10() {
 void test_bool_comp_11() {
     IntermediateDataSupport::prepareRot();
     IntermediateDataSupport::startGenerateBmtsAsync();
-    for (int i = 0; i < 20; i++) {
+    for (int i = 0; i < 100; i++) {
         int x, y;
         int len = 64;
         if (Comm::isClient()) {
-            x = Math::ring(Math::randInt(1, 1000), len);
-            y = Math::ring(Math::randInt(1, 1000), len);
-            Log::i("x: {}, y: {}", x, y);
+            x = Math::ring(Math::randInt(), len);
+            y = Math::ring(Math::randInt(), len);
         }
         BoolLessExecutor e(x, y, len, System::nextTask(), 0, 2);
         e.execute()->reconstruct(2);
-        // if (IComm::isServer()) {
-        //     Log::i("ri: {}", e._zi);
-        // }
         if (Comm::isClient()) {
-            if (x < y != e._result) {
+            if (static_cast<uint64_t>(x) < static_cast<uint64_t>(y) != e._result) {
                 Log::i("Wrong result: {}", e._result);
-            } else {
-                Log::i("Correct: {}", e._result);
             }
         }
     }

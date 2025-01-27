@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(Dekopon_SS_SMPC_package)
+project(secure_2pc_package)
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -134,17 +134,3 @@ install(
 target_link_libraries(
         ${PROJECT_NAME} PUBLIC MPI::MPI_CXX OpenSSL::SSL OpenSSL::Crypto
 )
-
-add_executable(test_target
-        test/main.cpp
-        test/test_cases.h
-)
-
-target_include_directories(test_target PUBLIC
-        ${Dekopon_SS_SMPC_package_INCLUDE_DIRS}
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/test
-)
-
-target_link_libraries(test_target PUBLIC Dekopon_SS_SMPC_package)
-target_link_directories(test_target PUBLIC ${Dekopon_SS_SMPC_package_LIBRARY_DIRS})
