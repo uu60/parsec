@@ -15,16 +15,24 @@ void Comm::init(int argc, char **argv) {
     impl->init_(argc, argv);
 }
 
-void Comm::serverSend_(const std::vector<int64_t> &source, int tag) {
-    send_(source, 1 - rank_(), tag);
+void Comm::serverSend_(const int64_t &source, int width, int tag) {
+    send_(source, width, 1 - rank_(), tag);
+}
+
+void Comm::serverSend_(const std::vector<int64_t> &source, int width, int tag) {
+    send_(source, width, 1 - rank_(), tag);
 }
 
 void Comm::serverSend_(const std::string &source, int tag) {
     send_(source, 1 - rank_(), tag);
 }
 
-void Comm::serverReceive_(std::vector<int64_t> &source, int tag) {
-    receive_(source, 1 - rank_(), tag);
+void Comm::serverReceive_(int64_t &source, int width, int tag) {
+    receive_(source, width, 1 - rank_(), tag);
+}
+
+void Comm::serverReceive_(std::vector<int64_t> &source, int width, int tag) {
+    receive_(source, width, 1 - rank_(), tag);
 }
 
 void Comm::serverReceive_(std::string &target, int tag) {

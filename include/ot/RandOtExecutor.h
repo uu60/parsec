@@ -13,9 +13,7 @@ public:
 
     RandOtExecutor *execute() override;
 
-    static int16_t needMsgTags();
-
-    std::string className() const override;
+    static int16_t msgTagCount();
 };
 
 #endif //RANDOTEXECUTOR_H

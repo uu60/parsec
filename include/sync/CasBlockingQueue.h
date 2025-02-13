@@ -11,10 +11,10 @@
 #include <mutex>
 #include <iostream>
 
-#include "BlockingQueue.h"
+#include "AbstractBlockingQueue.h"
 
 template<typename T>
-class CasBlockingQueue : public BlockingQueue<T> {
+class CasBlockingQueue : public AbstractBlockingQueue<T> {
 public:
     explicit CasBlockingQueue(size_t capacity)
         : _capacity(capacity), _head(0), _tail(0), _size(0) {

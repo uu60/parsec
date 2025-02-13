@@ -4,10 +4,10 @@
 
 #include "api/BitSecret.h"
 
-#include "compute/arith/ArithExecutor.h"
-#include "compute/arith/ArithMutexExecutor.h"
-#include "compute/bool/BoolAndExecutor.h"
-#include "compute/bool/BoolXorExecutor.h"
+#include "compute/single/arith/ArithExecutor.h"
+#include "compute/single/arith/ArithMutexExecutor.h"
+#include "compute/single/bool/BoolAndExecutor.h"
+#include "compute/single/bool/BoolXorExecutor.h"
 #include "comm/Comm.h"
 
 BitSecret::BitSecret(bool x, int16_t taskTag) : _data(x), _taskTag(taskTag) {}

@@ -27,7 +27,7 @@ public:
 
     // dividend % divisor
     // divisor should be positive
-    static int64_t ring(int64_t num, int l);
+    static int64_t ring(int64_t num, int width);
 
     static bool getBit(int64_t v, int i);
 

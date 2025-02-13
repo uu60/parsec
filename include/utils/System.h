@@ -11,10 +11,11 @@ class System {
 private:
     /**
      * 0 is preserved for BmtGenerator.
-     * 1 is preserved for ABPairGenerator.
-     * 2 is preserved for BaseOtExecutor
+     * 1 is preserved for BitwiseBmtGenerator.
+     * 2 is preserved for BaseOtExecutor.
+     * 3 is preserved for ABPairGenerator.
      */
-    static constexpr int16_t PRESERVED_TASK_TAGS = 3;
+    static constexpr int16_t PRESERVED_TASK_TAGS = 4;
     inline static std::atomic_int16_t _currentTaskTag = PRESERVED_TASK_TAGS;
 
 public:

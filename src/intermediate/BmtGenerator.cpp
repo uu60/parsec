@@ -6,6 +6,8 @@
 
 #include "utils/Math.h"
 #include "comm/Comm.h"
+#include "conf/Conf.h"
+#include "ot/RandOtBatchExecutor.h"
 #include "ot/RandOtExecutor.h"
 #include "utils/Log.h"
 
@@ -14,91 +16,66 @@ void BmtGenerator::generateRandomAB() {
     _bmt._b = ring(Math::randInt());
 }
 
-void BmtGenerator::computeU() {
-    computeMix(0, _ui);
-}
-
-void BmtGenerator::computeV() {
-    computeMix(1, _vi);
-}
-
 int64_t BmtGenerator::corr(int i, int64_t x) const {
     return ring((_bmt._a << i) - x);
 }
 
 BmtGenerator *BmtGenerator::reconstruct(int clientRank) {
-    return this;
+    throw std::runtime_error("Not support.");
 }
 
-int16_t BmtGenerator::needMsgTags(int l) {
-    return l * RandOtExecutor::needMsgTags();
+int16_t BmtGenerator::msgTagCount(int width) {
+    return static_cast<int16_t>(2 * RandOtBatchExecutor::msgTagCount());
 }
 
-void BmtGenerator::computeMix(int sender, int64_t &mix) {
+void BmtGenerator::computeMix(int sender) {
     // atomic integer needed for multiple-thread computation
-    std::atomic_int64_t sum = 0;
+    int64_t sum = 0;
+    bool isSender = Comm::rank() == sender;
 
-    std::vector<std::future<void> > futures;
-    futures.reserve(_l);
+    std::vector<int64_t> ss0, ss1;
+    std::vector<int> choices;
 
-    for (int i = 0; i < _l; i++) {
-        // futures.push_back(System::_threadPool.push([this, i, sender, &sum](int _) {
-        //     bool isSender = Comm::rank() == sender;
-        //     int64_t s0 = 0, s1 = 0;
-        //     int choice = 0;
-        //     if (isSender) {
-        //         s0 = Math::randInt(0, 1);
-        //         s1 = corr(i, s0);
-        //     } else {
-        //         choice = static_cast<int>((_bmt._b >> i) & 1);
-        //     }
-        //
-        //     RandOtExecutor r(sender, s0, s1, choice, _l, _taskTag,
-        //                      static_cast<int16_t>(
-        //                          _currentMsgTag + i * RandOtExecutor::needMsgTags()));
-        //     r.execute();
-        //
-        //     if (isSender) {
-        //         sum += s0;
-        //     } else {
-        //         int64_t temp = r._result;
-        //         if (choice == 0) {
-        //             temp = -temp;
-        //         }
-        //         sum += temp;
-        //     }
-        // }));
-        bool isSender = Comm::rank() == sender;
-        int64_t s0 = 0, s1 = 0;
-        int choice = 0;
-        if (isSender) {
-            s0 = Math::randInt(0, 1);
-            s1 = corr(i, s0);
-        } else {
-            choice = static_cast<int>((_bmt._b >> i) & 1);
+    if (isSender) {
+        ss0.reserve(_width);
+        ss1.reserve(_width);
+        for (int i = 0; i < _width; ++i) {
+            ss0.push_back(Math::randInt());
+            ss1.push_back(corr(i, ss0[i]));
         }
+    } else {
+        choices.reserve(_width);
+        for (int i = 0; i < _width; ++i) {
+            choices.push_back(static_cast<int>((_bmt._b >> i) & 1));
+        }
+    }
 
-        RandOtExecutor r(sender, s0, s1, choice, _l, _taskTag,
-                         static_cast<int16_t>(
-                             _currentMsgTag + i * RandOtExecutor::needMsgTags()));
-        r.execute();
+    RandOtBatchExecutor r(sender, &ss0, &ss1, &choices, _width, _taskTag, static_cast<int16_t>(
+                              _currentMsgTag + sender * RandOtBatchExecutor::msgTagCount()));
+    r.execute();
 
-        if (isSender) {
-            sum += s0;
-        } else {
-            int64_t temp = r._result;
-            if (choice == 0) {
+    if (isSender) {
+        for (int i = 0; i < ss0.size(); ++i) {
+            sum += ss0[i];
+        }
+        // for (auto s0 : ss0) {
+        //     sum += s0;
+        // }
+    } else {
+        for (int i = 0; i < choices.size(); ++i) {
+            int64_t temp = r._results[i];
+            if (choices[i] == 0) {
                 temp = -temp;
             }
             sum += temp;
         }
     }
 
-    for (auto &f: futures) {
-        f.wait();
+    if (sender == 0) {
+        _ui = ring(sum);
+    } else {
+        _vi = ring(sum);
     }
-
-    mix = ring(sum);
 }
 
 void BmtGenerator::computeC() {
@@ -109,13 +86,9 @@ BmtGenerator *BmtGenerator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isServer()) {
         generateRandomAB();
-        computeU();
-        computeV();
+        computeMix(0);
+        computeMix(1);
         computeC();
     }
     return this;
-}
-
-std::string BmtGenerator::className() const {
-    return "OtBmtGenerator";
 }

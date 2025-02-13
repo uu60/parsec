@@ -11,7 +11,7 @@
 class BitSecret : public Secret {
 private:
     bool _data{};
-    int32_t _taskTag{};
+    int16_t _taskTag{};
 public:
     explicit BitSecret(bool x, int16_t taskTag);
 

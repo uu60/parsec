@@ -6,6 +6,7 @@
 
 #include "comm/Comm.h"
 #include "intermediate/ABPairGenerator.h"
+#include "intermediate/BitwiseBmtGenerator.h"
 #include "intermediate/BmtGenerator.h"
 #include "ot/BaseOtExecutor.h"
 #include "utils/Log.h"
@@ -13,6 +14,10 @@
 
 void IntermediateDataSupport::offerBmt(Bmt bmt) {
     _bmts->offer(bmt);
+}
+
+void IntermediateDataSupport::offerBitwiseBmt(BitwiseBmt bmt) {
+    _bitwiseBmts->offer(bmt);
 }
 
 // void IntermediateDataSupport::offerABPair(ABPair pair) {
@@ -36,7 +41,7 @@ void IntermediateDataSupport::prepareRot() {
                     _rRot->_b = static_cast<int>(Math::randInt(0, 1));;
                 }
                 BaseOtExecutor e(i, isSender ? _sRot->_r0 : -1, isSender ? _sRot->_r1 : -1, !isSender ? _rRot->_b : -1,
-                                 64, 2, i * BaseOtExecutor::needMsgTags());
+                                 64, 2, i * BaseOtExecutor::msgTagCount());
                 e.execute();
                 if (!isSender) {
                     _rRot->_rb = e._result;
@@ -50,7 +55,7 @@ void IntermediateDataSupport::prepareRot() {
     }
 }
 
-std::vector<Bmt> IntermediateDataSupport::pollBmts(int count, int l) {
+std::vector<Bmt> IntermediateDataSupport::pollBmts(int count, int width) {
     std::vector<Bmt> result;
     if (Comm::isServer()) {
         result.reserve(count);
@@ -61,9 +66,9 @@ std::vector<Bmt> IntermediateDataSupport::pollBmts(int count, int l) {
             if (currentBmt == nullptr || left == 0) {
                 delete currentBmt;
                 Bmt newBmt = _bmts->poll();
-                newBmt._a = Math::ring(newBmt._a, l);
-                newBmt._b = Math::ring(newBmt._b, l);
-                newBmt._c = Math::ring(newBmt._c, l);
+                newBmt._a = Math::ring(newBmt._a, width);
+                newBmt._b = Math::ring(newBmt._b, width);
+                newBmt._c = Math::ring(newBmt._c, width);
                 currentBmt = new Bmt(newBmt);
                 currentBmtLeftTimes = Conf::BMT_USAGE_LIMIT;
                 left = Conf::BMT_USAGE_LIMIT;
@@ -83,6 +88,39 @@ std::vector<Bmt> IntermediateDataSupport::pollBmts(int count, int l) {
     return result;
 }
 
+std::vector<BitwiseBmt> IntermediateDataSupport::pollBitwiseBmts(int count, int width) {
+    std::vector<BitwiseBmt> result;
+    if (Comm::isServer()) {
+        result.reserve(count);
+
+        while (count > 0) {
+            int left = currentBitwiseBmtLeftTimes;
+
+            if (currentBitwiseBmt == nullptr || left == 0) {
+                delete currentBitwiseBmt;
+                BitwiseBmt newBmt = _bitwiseBmts->poll();
+                newBmt._a = Math::ring(newBmt._a, width);
+                newBmt._b = Math::ring(newBmt._b, width);
+                newBmt._c = Math::ring(newBmt._c, width);
+                currentBitwiseBmt = new BitwiseBmt(newBmt);
+                currentBmtLeftTimes = Conf::BMT_USAGE_LIMIT;
+                left = Conf::BMT_USAGE_LIMIT;
+            }
+
+            int useCount = std::min(count, left);
+
+            for (int i = 0; i < useCount; ++i) {
+                result.push_back(*currentBitwiseBmt);
+            }
+
+            currentBitwiseBmtLeftTimes -= useCount;
+            count -= useCount;
+        }
+    }
+
+    return result;
+}
+
 // std::vector<ABPair> IntermediateDataSupport::pollABPairs(int num) {
 //     std::vector<ABPair> ret;
 //     if (Comm::isServer()) {
@@ -95,7 +133,7 @@ std::vector<Bmt> IntermediateDataSupport::pollBmts(int count, int l) {
 // }
 
 void IntermediateDataSupport::startGenerateBmtsAsync() {
-    if (Comm::isServer() && Conf::INTERM_PREGENERATED) {
+    if (Comm::isServer() && Conf::BMT_BACKGROUND) {
         System::_threadPool.push([](int _) {
             while (!System::_shutdown.load()) {
                 offerBmt(BmtGenerator(64, 0, 0).execute()->_bmt);
@@ -103,6 +141,17 @@ void IntermediateDataSupport::startGenerateBmtsAsync() {
         });
     }
 }
+
+void IntermediateDataSupport::startGenerateBitwiseBmtsAsync() {
+    if (Comm::isServer() && Conf::BMT_BACKGROUND) {
+        System::_threadPool.push([](int _) {
+            while (!System::_shutdown.load()) {
+                offerBitwiseBmt(BitwiseBmtGenerator(64, 1, 0).execute()->_bmt);
+            }
+        });
+    }
+}
+
 
 // void IntermediateDataSupport::startGenerateABPairsAsyc() {
 //     if (Comm::isServer()) {

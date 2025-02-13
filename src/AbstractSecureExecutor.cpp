@@ -2,10 +2,7 @@
 // Created by 杜建璋 on 2024/7/7.
 //
 
-#include "AbstractSecureExecutor.h"
-
-#include <iostream>
-
+#include "base/AbstractSecureExecutor.h"
 #include "utils/Math.h"
 
 int AbstractSecureExecutor::buildTag(int16_t msgTag) const {
@@ -13,5 +10,5 @@ int AbstractSecureExecutor::buildTag(int16_t msgTag) const {
 }
 
 int64_t AbstractSecureExecutor::ring(int64_t raw) const {
-    return Math::ring(raw, _l);
+    return Math::ring(raw, _width);
 }

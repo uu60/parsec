@@ -117,11 +117,11 @@ std::string Math::minus(const std::string &add0, const std::string &add1) {
     return add_or_minus(add0, add1, true);
 }
 
-int64_t Math::ring(int64_t num, int l) {
-    if (l == 64) {
+int64_t Math::ring(int64_t num, int width) {
+    if (width == 64) {
         return num;
     }
-    return num & ((1LL << l) - 1);
+    return num & ((1LL << width) - 1);
 }
 
 bool Math::getBit(int64_t v, int i) {

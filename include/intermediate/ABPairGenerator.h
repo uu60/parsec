@@ -5,12 +5,12 @@
 #ifndef ABPAIRGENERATOR_H
 #define ABPAIRGENERATOR_H
 #include "./item/ABPair.h"
-#include "../AbstractSecureExecutor.h"
+#include "../base/AbstractSingleExecutor.h"
 
 
-class ABPairGenerator : public AbstractSecureExecutor {
+class ABPairGenerator : public AbstractSingleExecutor {
 private:
-    explicit ABPairGenerator() : AbstractSecureExecutor(64, 1, 0) {
+    explicit ABPairGenerator() : AbstractSingleExecutor(64, 1, 0) {
     }
 
 public:
@@ -25,9 +25,6 @@ public:
     ABPairGenerator *execute() override;
 
     ABPairGenerator *reconstruct(int clientRank) override;
-
-protected:
-    [[nodiscard]] std::string className() const override;
 };
 
 

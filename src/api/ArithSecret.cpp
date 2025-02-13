@@ -6,18 +6,13 @@
 
 #include "api/ArithSecret.h"
 
-#include "comm/Comm.h"
-#include "compute/arith/ArithExecutor.h"
-#include "compute/bool/BoolExecutor.h"
-#include "compute/arith/ArithAddExecutor.h"
-#include "compute/arith/ArithMultiplyExecutor.h"
-#include "compute/arith/ArithLessExecutor.h"
-#include "compute/arith/ArithMutexExecutor.h"
-#include "compute/arith/ArithToBoolExecutor.h"
-#include "compute/bool/BoolAndExecutor.h"
-#include "compute/bool/BoolLessExecutor.h"
-#include "compute/bool/BoolToArithExecutor.h"
-#include "compute/bool/BoolXorExecutor.h"
+#include "compute/single/arith/ArithExecutor.h"
+#include "compute/single/bool/BoolExecutor.h"
+#include "compute/single/arith/ArithAddExecutor.h"
+#include "compute/single/arith/ArithMultiplyExecutor.h"
+#include "compute/single/arith/ArithLessExecutor.h"
+#include "compute/single/arith/ArithMutexExecutor.h"
+#include "compute/single/arith/ArithToBoolExecutor.h"
 #include "utils/Log.h"
 
 ArithSecret::ArithSecret(int64_t x, int l, int16_t taskTag) : _data(x), _l(l), _taskTag(taskTag) {}

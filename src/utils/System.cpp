@@ -19,9 +19,12 @@ void System::init(Comm *impl, int argc, char **argv) {
     Comm::init(argc, argv);
 
     // start produce
-    if (Conf::INTERM_PREGENERATED) {
+    if (Conf::BMT_BACKGROUND) {
         IntermediateDataSupport::startGenerateBmtsAsync();
+        IntermediateDataSupport::startGenerateBitwiseBmtsAsync();
     }
+
+    IntermediateDataSupport::prepareRot();
     // IntermediateDataSupport::startGenerateABPairsAsyc();
 }
 

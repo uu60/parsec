@@ -4,10 +4,10 @@
 
 #ifndef ABSTRACTOTEXECUTOR_H
 #define ABSTRACTOTEXECUTOR_H
-#include "../AbstractSecureExecutor.h"
+#include "../base/AbstractSingleExecutor.h"
 
 
-class AbstractOtExecutor : public AbstractSecureExecutor {
+class AbstractOtExecutor : public AbstractSingleExecutor {
 protected:
     int64_t _m0{};
     int64_t _m1{};

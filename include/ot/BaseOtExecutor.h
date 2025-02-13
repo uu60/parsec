@@ -8,7 +8,6 @@
 #include <string>
 
 #include "AbstractOtExecutor.h"
-#include "../AbstractSecureExecutor.h"
 
 // according to https://blog.csdn.net/qq_16763983/article/details/128055146
 class BaseOtExecutor : public AbstractOtExecutor {
@@ -36,10 +35,7 @@ public:
 
     BaseOtExecutor *execute() override;
 
-    [[nodiscard]] static int16_t needMsgTags();
-
-protected:
-    [[nodiscard]] std::string className() const override;
+    [[nodiscard]] static int16_t msgTagCount();
 
 private:
     // methods for sender

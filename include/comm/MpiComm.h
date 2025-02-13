@@ -34,13 +34,17 @@ public:
 
     bool isClient_() override;
 
+    void send_(int64_t source, int width, int receiverRank, int tag) override;
+
     // send
-    void send_(const std::vector<int64_t> &source, int receiverRank, int tag) override;
+    void send_(const std::vector<int64_t> &source, int width, int receiverRank, int tag) override;
 
     void send_(const std::string &source, int receiverRank, int tag) override;
 
+    void receive_(int64_t &source, int width, int senderRank, int tag) override;
+
     //receive
-    void receive_(std::vector<int64_t> &source, int senderRank, int tag) override;
+    void receive_(std::vector<int64_t> &source, int width, int senderRank, int tag) override;
 
     void receive_(std::string &target, int senderRank, int tag) override;
 };

@@ -8,22 +8,22 @@
 #include "../include/utils/Log.h"
 #include "../include/comm/Comm.h"
 #include "../include/utils/Math.h"
-#include "../include/AbstractSecureExecutor.h"
-#include "../include/compute/arith/ArithAddExecutor.h"
-#include "../include/compute/arith/ArithMultiplyExecutor.h"
+#include "../include/compute/single/arith/ArithAddExecutor.h"
+#include "../include/compute/single/arith/ArithMultiplyExecutor.h"
 #include "../include/intermediate/BmtGenerator.h"
 #include "../include/intermediate/IntermediateDataSupport.h"
 #include "../include/ot/BaseOtExecutor.h"
 #include "../include/ot/RandOtExecutor.h"
-#include "../include/compute/arith/ArithLessExecutor.h"
-#include "../include/compute/bool/BoolAndExecutor.h"
-#include "../include/compute/bool/BoolToArithExecutor.h"
-#include "../include/compute/arith/ArithToBoolExecutor.h"
+#include "../include/ot/RandOtBatchExecutor.h"
+#include "../include/compute/single/arith/ArithLessExecutor.h"
+#include "../include/compute/single/bool/BoolAndExecutor.h"
+#include "../include/compute/single/bool/BoolToArithExecutor.h"
+#include "../include/compute/single/arith/ArithToBoolExecutor.h"
 #include "../include/api/BoolSecret.h"
 #include "../include/api/ArithSecret.h"
-#include "../include/compute/arith/ArithMutexExecutor.h"
-#include "../include/compute/bool/BoolLessExecutor.h"
-#include "../include/compute/bool/BoolMutexExecutor.h"
+#include "../include/compute/single/arith/ArithMutexExecutor.h"
+#include "../include/compute/single/bool/BoolLessExecutor.h"
+#include "../include/compute/single/bool/BoolMutexExecutor.h"
 
 using namespace std;
 
@@ -42,9 +42,6 @@ inline void test_arith_add_0() {
 }
 
 inline void test_arith_mul_parallel_1() {
-    IntermediateDataSupport::prepareRot();
-    IntermediateDataSupport::startGenerateBmtsAsync();
-
     int num = 20;
     std::vector<std::future<void> > futures;
     futures.reserve(num);
@@ -54,27 +51,6 @@ inline void test_arith_mul_parallel_1() {
     auto start = System::currentTimeMillis();
     int i = 0;
     while (i++ < num) {
-        // auto bmt = Comm::isClient() ? Bmt{} : IntermediateDataSupport::pollBmts(1, l)[0];
-        // futures.push_back(System::_threadPool.push([i, l/*, bmt*/](int _) {
-        //     // auto b = bmt;
-        //     int64_t x, y;
-        //     if (Comm::isClient()) {
-        //         x = Math::randInt(0, 100);
-        //         y = Math::randInt(0, 100);
-        //     }
-        //     ArithMultiplyExecutor e(x, y, l, 2 + i, 0, 2);
-        //     // if (Comm::isServer()) {
-        //     //     e.setBmt(&b);
-        //     // }
-        //     e.execute()->reconstruct(2);
-        //     if (Comm::isClient()) {
-        //         if (e._result != Math::ring(x * y, l)) {
-        //             Log::e("Wrong answer: {} (should be {} * {} = {}), index: {}", e._result, x, y,
-        //                    Math::ring(x * y, l), i);
-        //         }
-        //     }
-        // }));
-        // auto b = bmt;
         int64_t x, y;
         if (Comm::isClient()) {
             x = Math::randInt(0, 100);
@@ -143,17 +119,17 @@ inline void test_bitwise_bool_and_3() {
 
 
 inline void test_arith_less_4() {
-    IntermediateDataSupport::prepareRot();
-    IntermediateDataSupport::startGenerateBmtsAsync();
+    // IntermediateDataSupport::prepareRot();
+    // IntermediateDataSupport::startGenerateBmtsAsync();
 
-    std::vector<std::future<void> > futures;
+    // std::vector<std::future<void> > futures;
     auto t = System::nextTask();
-    futures.reserve(100);
+    // futures.reserve(100);
     for (int i = 0; i < 100; i++) {
         // auto bmts = Comm::isClient()
         //                 ? std::vector<Bmt>()
         //                 : IntermediateDataSupport::pollBmts(ArithLessExecutor::needBmtsWithBits(32).first, 32);
-        futures.push_back(System::_threadPool.push([i, t/*, &bmts*/](int _) {
+        // futures.push_back(System::_threadPool.push([i, t/*, &bmts*/](int _) {
             int64_t x, y;
             if (Comm::isClient()) {
                 x = Math::randInt(-1000, 1000);
@@ -168,43 +144,44 @@ inline void test_arith_less_4() {
                     Log::i("Wrong idx: {}", i);
                 }
             }
-        }));
+        // }));
     }
-    for (auto &f: futures) {
-        f.wait();
-    }
+    // for (auto &f: futures) {
+    //     f.wait();
+    // }
 }
 
 inline void test_convertion_5() {
-    IntermediateDataSupport::prepareRot();
-    IntermediateDataSupport::startGenerateBmtsAsync();
+    // IntermediateDataSupport::prepareRot();
+    // IntermediateDataSupport::startGenerateBmtsAsync();
     // IntermediateDataSupport::startGenerateABPairsAsyc();
-    std::vector<std::future<void> > futures;
+    // std::vector<std::future<void> > futures;
     int i = 0;
     auto t = System::nextTask();
-    int num = 100;
+    int num = 1;
     while (i++ < num) {
         // auto bmts = Comm::isClient()
         //                 ? std::vector<Bmt>()
         //                 : IntermediateDataSupport::pollBmts(ArithToBoolExecutor::needBmtsWithBits(32).first, 32);
-        futures.push_back(System::_threadPool.push([i, t/*, bmts*/](int _) {
+        // futures.push_back(System::_threadPool.push([i, t/*, bmts*/](int _) {
             // auto bc = bmts;
             int64_t x;
             if (Comm::isClient()) {
                 x = Math::randInt();
             }
             auto bx = ArithToBoolExecutor(x, 64, t + i, 0, 2)./*setBmts(&bc)->*/execute()->_zi;
+            Log::i("bx: {}", bx);
             auto ret = BoolToArithExecutor(bx, 64, t + i, 0, -1).execute()->reconstruct(2)->_result;
             if (Comm::isClient()) {
                 if (ret != x) {
                     Log::i("Wrong, x: {}, ret: {}", x, ret);
                 }
             }
-        }));
+        // }));
     }
-    for (auto &f: futures) {
-        f.wait();
-    }
+    // for (auto &f: futures) {
+    //     f.wait();
+    // }
 }
 
 inline void test_int_mux_7() {
@@ -241,27 +218,50 @@ inline void test_int_mux_7() {
 
 inline void test_ot_9() {
     int i = 0;
-    IntermediateDataSupport::prepareRot();
+    // IntermediateDataSupport::prepareRot();
     std::vector<std::future<void> > futures;
-    while (i++ < 100) {
+    while (i++ < 1) {
         auto t = System::nextTask();
-        futures.push_back(System::_threadPool.push([t, i](int _) {
-            if (Comm::rank() <= 1) {
-                int64_t m0;
-                int64_t m1;
-                if (Comm::rank() == 0) {
-                    m0 = 20;
-                    m1 = 40;
+        // futures.push_back(System::_threadPool.push([t, i](int _) {
+        //     if (Comm::rank() <= 1) {
+        //         int64_t m0;
+        //         int64_t m1;
+        //         if (Comm::rank() == 0) {
+        //             m0 = 20;
+        //             m1 = 40;
+        //         }
+        //         BaseOtExecutor e(0, m0, m1, 1, 32, t, 0);
+        //         e.execute();
+        //         if (Comm::rank() == 1) {
+        //             if (e._result != 40) {
+        //                 Log::e("Wrong: " + to_string(e._result));
+        //             }
+        //         }
+        //     }
+        // }));
+        if (Comm::isServer()) {
+            std::vector<int64_t> m0;
+            std::vector<int64_t> m1;
+            std::vector<int> c;
+            m0 = {20};
+            m1 = {40};
+            c = {1};
+            RandOtBatchExecutor e(0, &m0, &m1, &c, 32, t, 0);
+            e.execute();
+            RandOtExecutor e1(0, 20, 40, 1, 32, t + 1, 0);
+            e1.execute();
+            if (Comm::rank() == 1) {
+                // if (e._result != 40) {
+                //     Log::e("Wrong: " + to_string(e._result));
+                // }
+                if (e1._result != 40) {
+                    Log::i("Wrong: {}", e1._result);
                 }
-                RandOtExecutor e(0, m0, m1, 1, 32, t, 0);
-                e.execute();
-                if (Comm::rank() == 1) {
-                    if (e._result != 40) {
-                        Log::e("Wrong: " + to_string(e._result));
-                    }
+                if (e._results[0] != 40) {
+                    Log::e("Wrong batch: " + to_string(e._results[0]));
                 }
             }
-        }));
+        }
     }
     if (Comm::isServer()) {
         for (auto &f: futures) {
@@ -397,24 +397,6 @@ inline void test_bool_mux_12() {
     auto t = System::nextTask();
     futures.reserve(100);
     for (int i = 0; i < 100; i++) {
-//        futures.push_back(System::_threadPool.push([t, i](int _) {
-//            int64_t x, y;
-//            bool c;
-//            if (Comm::isClient()) {
-//                x = Math::randInt();
-//                y = Math::randInt();
-//                c = Math::randInt(0, 1);
-//            }
-//
-//            BoolMutexExecutor e1(x, y, c, 64, t + i, 0, 2);
-//            e1.execute()->reconstruct(2);
-//            auto r = e1._result;
-//            if (Comm::isClient()) {
-//                if (r != (c ? x : y)) {
-//                    Log::i("Wrong, x: {}, y:{}, c:{}, r:{}", x, y, c, std::to_string(r));
-//                }
-//            }
-//        }));
         int64_t x, y;
         bool c;
         if (Comm::isClient()) {
@@ -495,7 +477,7 @@ void test_ArithSort_13() {
     IntermediateDataSupport::prepareRot();
     IntermediateDataSupport::startGenerateBmtsAsync();
     std::vector<ArithSecret> arr;
-    int num = 16;
+    int num = 128;
 
     // 2. 构造测试数据
     auto t = System::nextTask();

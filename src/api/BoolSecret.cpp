@@ -4,12 +4,12 @@
 
 #include "api/BoolSecret.h"
 
-#include "compute/bool/BoolAndExecutor.h"
-#include "compute/bool/BoolExecutor.h"
-#include "compute/bool/BoolLessExecutor.h"
-#include "compute/bool/BoolMutexExecutor.h"
-#include "compute/bool/BoolToArithExecutor.h"
-#include "compute/bool/BoolXorExecutor.h"
+#include "compute/single/bool/BoolAndExecutor.h"
+#include "compute/single/bool/BoolExecutor.h"
+#include "compute/single/bool/BoolLessExecutor.h"
+#include "compute/single/bool/BoolMutexExecutor.h"
+#include "compute/single/bool/BoolToArithExecutor.h"
+#include "compute/single/bool/BoolXorExecutor.h"
 
 BoolSecret::BoolSecret(int64_t x, int l, int16_t taskTag) : _data(x), _l(l), _taskTag(taskTag) {}
 

@@ -9,11 +9,11 @@
 #include <mutex>
 #include <condition_variable>
 
-#include "BlockingQueue.h"
+#include "AbstractBlockingQueue.h"
 #include "../utils/Log.h"
 
 template<typename T>
-class LockBlockingQueue : public BlockingQueue<T> {
+class LockBlockingQueue : public AbstractBlockingQueue<T> {
 private:
     std::queue<T> _queue;
     std::mutex _mutex;

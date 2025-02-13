@@ -101,10 +101,6 @@ void BaseOtExecutor::process() {
     }
 }
 
-std::string BaseOtExecutor::className() const {
-    return "RsaOtExecutor";
-}
-
-int16_t BaseOtExecutor::needMsgTags() {
+int16_t BaseOtExecutor::msgTagCount() {
     return 6;
 }

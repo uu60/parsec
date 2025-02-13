@@ -14,29 +14,37 @@
 #include "./item/RRot.h"
 #include "../sync/CasBlockingQueue.h"
 #include "../conf/Conf.h"
+#include "item/BitwiseBmt.h"
 
 
 class IntermediateDataSupport {
 private:
-    inline static BlockingQueue<Bmt> *_bmts = Conf::BMT_QUEUE;
+    inline static AbstractBlockingQueue<Bmt> *_bmts = Conf::BMT_QUEUE;
+    inline static AbstractBlockingQueue<BitwiseBmt> *_bitwiseBmts = Conf::BITWISE_BMT_QUEUE;
     // static LockBlockingQueue<Bmt> _bmts;
     // static LockBlockingQueue<ABPair> _pairs;
     inline static Bmt *currentBmt{};
+    inline static BitwiseBmt *currentBitwiseBmt{};
     inline static int currentBmtLeftTimes = Conf::BMT_USAGE_LIMIT;
-    inline static std::atomic_bool generatingBmts{false};
+    inline static int currentBitwiseBmtLeftTimes = Conf::BMT_USAGE_LIMIT;
 
 public:
     inline static SRot *_sRot = nullptr;
     inline static RRot *_rRot = nullptr;
 
-public:
+private:
     static void offerBmt(Bmt bmt);
 
+    static void offerBitwiseBmt(BitwiseBmt bmt);
+
+public:
     // static void offerABPair(ABPair pair);
 
     static void prepareRot();
 
-    static std::vector<Bmt> pollBmts(int count, int l);
+    static std::vector<Bmt> pollBmts(int count, int width);
+
+    static std::vector<BitwiseBmt> pollBitwiseBmts(int count, int width);
 
     // static std::vector<ABPair> pollABPairs(int num);
 
@@ -45,6 +53,8 @@ public:
      * ASYNCHRONOUSLY
      */
     static void startGenerateBmtsAsync();
+
+    static void startGenerateBitwiseBmtsAsync();
 
     // static void startGenerateABPairsAsyc();
 };
