@@ -2,7 +2,7 @@
 // Created by 杜建璋 on 2025/1/8.
 //
 
-#include "api/BoolSecret.h"
+#include "secret/item/BoolSecret.h"
 
 #include "compute/single/bool/BoolAndExecutor.h"
 #include "compute/single/bool/BoolExecutor.h"
@@ -10,6 +10,8 @@
 #include "compute/single/bool/BoolMutexExecutor.h"
 #include "compute/single/bool/BoolToArithExecutor.h"
 #include "compute/single/bool/BoolXorExecutor.h"
+
+BoolSecret::BoolSecret() = default;
 
 BoolSecret::BoolSecret(int64_t x, int l, int16_t taskTag) : _data(x), _l(l), _taskTag(taskTag) {}
 

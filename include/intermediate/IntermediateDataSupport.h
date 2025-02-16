@@ -14,7 +14,7 @@
 #include "./item/RRot.h"
 #include "../sync/CasBlockingQueue.h"
 #include "../conf/Conf.h"
-#include "item/BitwiseBmt.h"
+#include "./item/BitwiseBmt.h"
 
 
 class IntermediateDataSupport {

@@ -29,7 +29,7 @@ public:
 
     // ---------------Settings for threads---------------
     // Enable multiple-thread computation in each single executor
-    inline static bool INTRA_OPERATOR_PARALLELISM = false;
+    inline static bool INTRA_OPERATOR_PARALLELISM = true;
     // Sum of threads in a process
     inline static int LOCAL_THREADS = static_cast<int>(std::thread::hardware_concurrency() * 100);
     // Separate thread groups for computation and networks
@@ -46,6 +46,9 @@ public:
     inline static Comm *COMM_IMPL = new MpiComm;
     // Batch communicate or execute by elements
     inline static bool BATCH_COMM = true;
+
+    // ---------------Settings for benchmark---------------
+    inline static bool CLASS_WISE_TIMING = true;
 };
 
 

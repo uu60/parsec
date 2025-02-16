@@ -12,6 +12,8 @@ private:
     // BitwiseBmt *_bmt{};
     std::vector<BitwiseBmt> *_bmts{};
 
+public:
+    inline static std::atomic_int64_t _totalTime = 0;
 
 public:
     // reverse x and y to obey less than logic

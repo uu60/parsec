@@ -6,8 +6,8 @@
 #define BOOLSECRET_H
 #include <cstdint>
 
-#include "BitSecret.h"
-#include "Secret.h"
+#include "./BitSecret.h"
+#include "./Secret.h"
 
 class BoolSecret : public Secret {
 private:
@@ -16,6 +16,8 @@ private:
     int16_t _taskTag{};
 
 public:
+    BoolSecret();
+
     BoolSecret(int64_t x, int l, int16_t taskTag);
 
     BoolSecret task(int16_t taskTag) const;

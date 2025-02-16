@@ -8,6 +8,8 @@
 
 
 class Secret {
+public:
+    bool _padding{};
 };
 
 

@@ -4,7 +4,7 @@
 
 #ifndef ABSTRACTBATCHEXECUTOR_H
 #define ABSTRACTBATCHEXECUTOR_H
-#include "AbstractSecureExecutor.h"
+#include "./AbstractSecureExecutor.h"
 
 
 class AbstractBatchExecutor : public AbstractSecureExecutor {

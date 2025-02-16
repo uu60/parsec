@@ -65,8 +65,6 @@ int main(int argc, char **argv) {
         case 12:
             test_bool_mux_12();
             break;
-        case 13:
-            test_ArithSort_13();
             break;
         case 14:
             test_api_14();

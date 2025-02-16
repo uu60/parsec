@@ -18,39 +18,54 @@ BoolMutexExecutor::BoolMutexExecutor(int64_t x, int64_t y, bool cond, int width,
 
 BoolMutexExecutor *BoolMutexExecutor::execute() {
     _currentMsgTag = _startMsgTag;
-    if (Comm::isServer()) {
-        BitwiseBmt bmt0, bmt1;
-        if (_bmts != nullptr) {
-            bmt0 = _bmts->at(0);
-            bmt1 = _bmts->at(1);
-        } else if (Conf::BMT_BACKGROUND) {
-            auto bs = IntermediateDataSupport::pollBitwiseBmts(2, _width);
-            bmt0 = bs[0];
-            bmt1 = bs[1];
-        }
 
-        int64_t cx, cy;
-        std::future<int64_t> f;
-        auto bp0 = _bmts == nullptr && !Conf::BMT_BACKGROUND ? nullptr : &bmt0;
-        auto bp1 = _bmts == nullptr && !Conf::BMT_BACKGROUND ? nullptr : &bmt1;
-
-        if (Conf::INTRA_OPERATOR_PARALLELISM) {
-            f = System::_threadPool.push([&](int) {
-                return BoolAndExecutor(_cond_i, _xi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmt(bp0)->execute()->_zi;
-            });
-        } else {
-            cx = BoolAndExecutor(_cond_i, _xi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmt(bp0)->execute()->_zi;
-        }
-
-        cy = BoolAndExecutor(_cond_i, _yi, _width, _taskTag,
-                             static_cast<int16_t>(_currentMsgTag + BoolAndExecutor::msgTagCount(_width)),
-                             NO_CLIENT_COMPUTE).setBmt(bp1)->execute()->_zi;
-        if (Conf::INTRA_OPERATOR_PARALLELISM) {
-            cx = f.get();
-        }
-
-        _zi = ring(cx ^ _yi ^ cy);
+    if (Comm::isClient()) {
+        return this;
     }
+
+    int64_t start;
+    if (Conf::CLASS_WISE_TIMING) {
+        start = System::currentTimeMillis();
+    }
+
+    BitwiseBmt bmt0, bmt1;
+    if (_bmts != nullptr) {
+        bmt0 = _bmts->at(0);
+        bmt1 = _bmts->at(1);
+    } else if (Conf::BMT_BACKGROUND) {
+        auto bs = IntermediateDataSupport::pollBitwiseBmts(2, _width);
+        bmt0 = bs[0];
+        bmt1 = bs[1];
+    }
+
+    int64_t cx, cy;
+    std::future<int64_t> f;
+    auto bp0 = _bmts == nullptr && !Conf::BMT_BACKGROUND ? nullptr : &bmt0;
+    auto bp1 = _bmts == nullptr && !Conf::BMT_BACKGROUND ? nullptr : &bmt1;
+
+    if (Conf::INTRA_OPERATOR_PARALLELISM) {
+        f = System::_threadPool.push([&](int) {
+            return BoolAndExecutor(_cond_i, _xi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmt(bp0)->
+                    execute()->_zi;
+        });
+    } else {
+        cx = BoolAndExecutor(_cond_i, _xi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmt(bp0)->execute()->
+                _zi;
+    }
+
+    cy = BoolAndExecutor(_cond_i, _yi, _width, _taskTag,
+                         static_cast<int16_t>(_currentMsgTag + BoolAndExecutor::msgTagCount(_width)),
+                         NO_CLIENT_COMPUTE).setBmt(bp1)->execute()->_zi;
+    if (Conf::INTRA_OPERATOR_PARALLELISM) {
+        cx = f.get();
+    }
+
+    _zi = ring(cx ^ _yi ^ cy);
+
+    if (Conf::CLASS_WISE_TIMING) {
+        _totalTime += System::currentTimeMillis() - start;
+    }
+
     return this;
 }
 

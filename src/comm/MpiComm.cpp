@@ -22,7 +22,7 @@ void MpiComm::init_(int argc, char **argv) {
     int required = MPI_THREAD_MULTIPLE;
     MPI_Init_thread(&argc, &argv, required, &provided);
     if (provided < required) {
-        std::cerr << "MPI implementation does not support the required thread level!" << std::endl;
+        std::cerr << "MPI implementation does not support the required thread level." << std::endl;
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
     // process _mpiRank and sum

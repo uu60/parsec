@@ -17,6 +17,8 @@ private:
     int16_t _taskTag{};
 
 public:
+    ArithSecret();
+
     ArithSecret(int64_t x, int l, int16_t taskTag);
 
     ArithSecret task(int16_t taskTag) const;

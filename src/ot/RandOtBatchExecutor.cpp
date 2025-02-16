@@ -11,6 +11,12 @@ RandOtBatchExecutor *RandOtBatchExecutor::execute() {
     if (Comm::isClient()) {
         return this;
     }
+
+    int64_t start;
+    if (Conf::CLASS_WISE_TIMING) {
+        start = System::currentTimeMillis();
+    }
+
     if (_isSender) {
         std::vector<int64_t> ks;
         ks.reserve(_ms0->size());
@@ -45,6 +51,11 @@ RandOtBatchExecutor *RandOtBatchExecutor::execute() {
             _results.push_back(ring(toRecv[i * 2 + _choices->at(i)] ^ IntermediateDataSupport::_rRot->_rb));
         }
     }
+
+    if (Conf::CLASS_WISE_TIMING) {
+        _totalTime += System::currentTimeMillis() - start;
+    }
+
     return this;
 }
 

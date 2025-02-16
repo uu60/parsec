@@ -6,7 +6,7 @@
 #define MPC_PACKAGE_BITSECRET_H
 #include <cstdint>
 
-#include "Secret.h"
+#include "./Secret.h"
 
 class BitSecret : public Secret {
 private:

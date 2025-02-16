@@ -20,7 +20,7 @@ void BoolLessExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
         if (Conf::BMT_BACKGROUND) {
             bmts = IntermediateDataSupport::pollBitwiseBmts(bc, _width);
         } else {
-            if (!Conf::INTRA_OPERATOR_PARALLELISM) {
+            if (Conf::INTRA_OPERATOR_PARALLELISM) {
                 std::vector<std::future<BitwiseBmt> > futures;
                 futures.reserve(bc);
                 for (int i = 0; i < bc; i++) {
@@ -46,45 +46,55 @@ void BoolLessExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
 
 BoolLessExecutor *BoolLessExecutor::execute() {
     _currentMsgTag = _startMsgTag;
-    if (Comm::isServer()) {
-        std::vector<BitwiseBmt> bmts;
-        prepareBmts(bmts);
+    if (Comm::isClient()) {
+        return this;
+    }
 
-        int bmtI = 0;
-        int64_t x_xor_y = _xi ^ _yi;
-        int64_t lbs = Comm::rank() == 0 ? x_xor_y : x_xor_y ^ Math::ring(-1ll, _width);
+    int64_t start;
+    if (Conf::CLASS_WISE_TIMING) {
+        start = System::currentTimeMillis();
+    }
+    std::vector<BitwiseBmt> bmts;
+    prepareBmts(bmts);
 
-        int64_t shifted_1 = shiftGreater(lbs, 1);
+    int bmtI = 0;
+    int64_t x_xor_y = _xi ^ _yi;
+    int64_t lbs = Comm::rank() == 0 ? x_xor_y : x_xor_y ^ Math::ring(-1ll, _width);
 
-        lbs = BoolAndExecutor(lbs, shifted_1, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
-                .setBmt(&bmts[bmtI++])->execute()->_zi;
+    int64_t shifted_1 = shiftGreater(lbs, 1);
 
-        int64_t diag = Math::changeBit(x_xor_y, 0, Math::getBit(_yi, 0) ^ Comm::rank());
-        // diag & x
+    lbs = BoolAndExecutor(lbs, shifted_1, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
+            .setBmt(&bmts[bmtI++])->execute()->_zi;
 
-        diag = BoolAndExecutor(diag, _xi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmt(
-            &bmts[bmtI++])->execute()->_zi;
+    int64_t diag = Math::changeBit(x_xor_y, 0, Math::getBit(_yi, 0) ^ Comm::rank());
+    // diag & x
 
-        int rounds = static_cast<int>(std::floor(std::log2(_width)));
-        for (int r = 2; r <= rounds; r++) {
-            int64_t shifted_r = shiftGreater(lbs, r);
+    diag = BoolAndExecutor(diag, _xi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmt(
+        &bmts[bmtI++])->execute()->_zi;
 
-            int64_t and_r = BoolAndExecutor(lbs, shifted_r, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
-                    setBmt(&bmts[bmtI++])->execute()->_zi;
-            lbs = and_r;
-        }
+    int rounds = static_cast<int>(std::floor(std::log2(_width)));
+    for (int r = 2; r <= rounds; r++) {
+        int64_t shifted_r = shiftGreater(lbs, r);
 
-        int64_t shifted_accum = Math::changeBit(lbs >> 1, _width - 1, Comm::rank());
-
-        int64_t final_accum = BoolAndExecutor(shifted_accum, diag, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
+        int64_t and_r = BoolAndExecutor(lbs, shifted_r, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
                 setBmt(&bmts[bmtI++])->execute()->_zi;
+        lbs = and_r;
+    }
 
-        bool result = false;
-        for (int i = 0; i < _width; i++) {
-            result = result ^ Math::getBit(final_accum, i);
-        }
+    int64_t shifted_accum = Math::changeBit(lbs >> 1, _width - 1, Comm::rank());
 
-        _zi = result;
+    int64_t final_accum = BoolAndExecutor(shifted_accum, diag, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
+            setBmt(&bmts[bmtI++])->execute()->_zi;
+
+    bool result = false;
+    for (int i = 0; i < _width; i++) {
+        result = result ^ Math::getBit(final_accum, i);
+    }
+
+    _zi = result;
+
+    if (Conf::CLASS_WISE_TIMING) {
+        _totalTime += System::currentTimeMillis() - start;
     }
 
     return this;

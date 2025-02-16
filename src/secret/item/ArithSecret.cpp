@@ -4,7 +4,7 @@
 
 #include <utility>
 
-#include "api/ArithSecret.h"
+#include "secret/item/ArithSecret.h"
 
 #include "compute/single/arith/ArithExecutor.h"
 #include "compute/single/bool/BoolExecutor.h"
@@ -14,6 +14,8 @@
 #include "compute/single/arith/ArithMutexExecutor.h"
 #include "compute/single/arith/ArithToBoolExecutor.h"
 #include "utils/Log.h"
+
+ArithSecret::ArithSecret() = default;
 
 ArithSecret::ArithSecret(int64_t x, int l, int16_t taskTag) : _data(x), _l(l), _taskTag(taskTag) {}
 

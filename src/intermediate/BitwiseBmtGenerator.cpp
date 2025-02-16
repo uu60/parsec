@@ -8,15 +8,27 @@
 
 #include "../../include/ot/RandOtBatchExecutor.h"
 #include "../../include/utils/Math.h"
+#include "conf/Conf.h"
 
 BitwiseBmtGenerator *BitwiseBmtGenerator::execute() {
     _currentMsgTag = _startMsgTag;
-    if (Comm::isServer()) {
-        generateRandomAB();
+    if (Comm::isClient()) {
+        return this;
+    }
 
-        computeMix(0);
-        computeMix(1);
-        computeC();
+    int64_t start;
+    if (Conf::CLASS_WISE_TIMING) {
+        start = System::currentTimeMillis();
+    }
+
+    generateRandomAB();
+
+    computeMix(0);
+    computeMix(1);
+    computeC();
+
+    if (Conf::CLASS_WISE_TIMING) {
+        _totalTime += System::currentTimeMillis() - start;
     }
     return this;
 }
@@ -79,7 +91,7 @@ int64_t BitwiseBmtGenerator::corr(int i, int64_t x) const {
     return (Math::getBit(_bmt._a, i) - x) & 1;
 }
 
-AbstractSecureExecutor * BitwiseBmtGenerator::reconstruct(int clientRank) {
+AbstractSecureExecutor *BitwiseBmtGenerator::reconstruct(int clientRank) {
     throw std::runtime_error("Not support.");
 }
 

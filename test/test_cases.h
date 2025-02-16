@@ -19,11 +19,13 @@
 #include "../include/compute/single/bool/BoolAndExecutor.h"
 #include "../include/compute/single/bool/BoolToArithExecutor.h"
 #include "../include/compute/single/arith/ArithToBoolExecutor.h"
-#include "../include/api/BoolSecret.h"
-#include "../include/api/ArithSecret.h"
+#include "../include/secret/item/BoolSecret.h"
+#include "../include/secret/item/ArithSecret.h"
 #include "../include/compute/single/arith/ArithMutexExecutor.h"
 #include "../include/compute/single/bool/BoolLessExecutor.h"
 #include "../include/compute/single/bool/BoolMutexExecutor.h"
+#include "../include/secret/Secrets.h"
+#include "../include/intermediate/BitwiseBmtGenerator.h"
 
 using namespace std;
 
@@ -270,67 +272,14 @@ inline void test_ot_9() {
     }
 }
 
-atomic_int64_t compareTime = 0;
-atomic_int64_t muxTime = 0;
-
-// compareAndSwap 逻辑：决定两个位置 arr[i] 和 arr[j] 是否交换
-inline void compareAndSwap(std::vector<BoolSecret> &arr, size_t i, size_t j, bool dir) {
-    // swap = arr[i] < arr[j] 的结果，但这里取 not_()，表示若 arr[i] >= arr[j] 则 swap=1
-
-    auto start = System::currentTimeMillis();
-    BitSecret swap = arr[i].lessThan(arr[j]).not_();
-    compareTime += System::currentTimeMillis() - start;
-
-    // 如果是「降序」(dir == false)，就反转 swap
-    if (!dir) {
-        swap = swap.not_();
-    }
-
-    start = System::currentTimeMillis();
-    // 通过 mux 选择性交换
-    auto tempI = arr[j].mux(arr[i], swap);
-    auto tempJ = arr[i].mux(arr[j], swap);
-    compareTime += System::currentTimeMillis() - start;
-    arr[i] = tempI;
-    arr[j] = tempJ;
-}
-
-// bitonicMerge 逻辑：先做一次 compareAndSwap 分区，然后对子分区再递归 merge
-inline void bitonicMerge(std::vector<BoolSecret> &arr, size_t low, size_t length, bool dir) {
-    if (length > 1) {
-        size_t mid = length / 2;
-        // 对 [low, low+mid) 和 [low+mid, low+length) 中的元素，两两做 compareAndSwap
-        for (size_t i = low; i < low + mid; i++) {
-            compareAndSwap(arr, i, i + mid, dir);
-        }
-        // 递归处理子区间
-        bitonicMerge(arr, low, mid, dir);
-        bitonicMerge(arr, low + mid, mid, dir);
-    }
-}
-
-// bitonicSort 逻辑：递归拆分，前半段按照升序排序，后半段按照降序排序，最后 merge
-inline void bitonicSort(std::vector<BoolSecret> &arr, size_t low, size_t length, bool dir) {
-    if (length > 1) {
-        size_t mid = length / 2;
-        // 前一半升序
-        bitonicSort(arr, low, mid, true);
-        // 后一半降序
-        bitonicSort(arr, low + mid, mid, false);
-        // 归并
-        bitonicMerge(arr, low, length, dir);
-    }
-}
-
-
 //================== 测试函数：递归版 Bitonic Sort ==================//
 
 inline void test_Sort_10() {
     // 1. 预备工作
-    IntermediateDataSupport::prepareRot();
-    IntermediateDataSupport::startGenerateBmtsAsync();
+    // IntermediateDataSupport::prepareRot();
+    // IntermediateDataSupport::startGenerateBmtsAsync();
     std::vector<BoolSecret> arr;
-    int num = 16;
+    int num = 1000;
 
     // 2. 构造测试数据
     auto t = System::nextTask();
@@ -348,11 +297,15 @@ inline void test_Sort_10() {
 
         // 直接调用递归版本
         // dir = true 表示最后整体是升序
-        bitonicSort(arr, 0, arr.size(), true);
+        Secrets::sort(arr, true);
 
-        Log::i("time: {}ms", System::currentTimeMillis() - start);
-        Log::i("compareTime: {}ms", compareTime);
-        Log::i("muxTime: {}ms", muxTime);
+        Log::i("total time: {}ms", System::currentTimeMillis() - start);
+        Log::i("less than: {}ms", BoolLessExecutor::_totalTime);
+        Log::i("comm: {}ms", Comm::_totalTime);
+        Log::i("mux time: {}ms", BoolMutexExecutor::_totalTime);
+        Log::i("bmt gen: {}ms", BitwiseBmtGenerator::_totalTime);
+        Log::i("ot: {}ms", RandOtBatchExecutor::_totalTime);
+        Log::i("bool and: {}ms", BoolAndExecutor::_totalTime);
     }
 
     // 4. 进行重构 (arithReconstruct) 取结果
@@ -363,8 +316,13 @@ inline void test_Sort_10() {
 
     // 5. 客户端输出最终结果
     if (Comm::isClient()) {
+        int last = INT_MIN;
         for (auto s: res) {
-            Log::i("{}", s.get());
+            if (s.get() < last) {
+                Log::i("Wrong: {}", s.get());
+            }
+            last = s.get();
+            // Log::i("{}", s.get());
         }
     }
 }
@@ -419,102 +377,7 @@ inline void test_bool_mux_12() {
     }
 }
 
-
-// compareAndSwap 逻辑：决定两个位置 arr[i] 和 arr[j] 是否交换
-void compareAndSwap1(std::vector<ArithSecret> &arr, size_t i, size_t j, bool dir) {
-    // swap = arr[i] < arr[j] 的结果，但这里取 not_()，表示若 arr[i] >= arr[j] 则 swap=1
-
-    auto start = System::currentTimeMillis();
-    BitSecret swap = arr[i].lessThan(arr[j]).not_();
-    compareTime += System::currentTimeMillis() - start;
-
-    // 如果是「降序」(dir == false)，就反转 swap
-    if (!dir) {
-        swap = swap.not_();
-    }
-
-    start = System::currentTimeMillis();
-    // 通过 mux 选择性交换
-    auto tempI = arr[j].mux(arr[i], swap);
-    auto tempJ = arr[i].mux(arr[j], swap);
-    compareTime += System::currentTimeMillis() - start;
-    arr[i] = tempI;
-    arr[j] = tempJ;
-}
-
-// bitonicMerge 逻辑：先做一次 compareAndSwap 分区，然后对子分区再递归 merge
-void bitonicMerge1(std::vector<ArithSecret> &arr, size_t low, size_t length, bool dir) {
-    if (length > 1) {
-        size_t mid = length / 2;
-        // 对 [low, low+mid) 和 [low+mid, low+length) 中的元素，两两做 compareAndSwap
-        for (size_t i = low; i < low + mid; i++) {
-            compareAndSwap1(arr, i, i + mid, dir);
-        }
-        // 递归处理子区间
-        bitonicMerge1(arr, low, mid, dir);
-        bitonicMerge1(arr, low + mid, mid, dir);
-    }
-}
-
-// bitonicSort 逻辑：递归拆分，前半段按照升序排序，后半段按照降序排序，最后 merge
-void bitonicSort1(std::vector<ArithSecret> &arr, size_t low, size_t length, bool dir) {
-    if (length > 1) {
-        size_t mid = length / 2;
-        // 前一半升序
-        bitonicSort1(arr, low, mid, true);
-        // 后一半降序
-        bitonicSort1(arr, low + mid, mid, false);
-        // 归并
-        bitonicMerge1(arr, low, length, dir);
-    }
-}
-
-
-//================== 测试函数：递归版 Bitonic Sort ==================//
-
-void test_ArithSort_13() {
-    // 1. 预备工作
-    IntermediateDataSupport::prepareRot();
-    IntermediateDataSupport::startGenerateBmtsAsync();
-    std::vector<ArithSecret> arr;
-    int num = 128;
-
-    // 2. 构造测试数据
-    auto t = System::nextTask();
-    for (int i = 0; i < num; i++) {
-        // 这里简单构造 16,15,14,13,... 的序列
-        arr.push_back(ArithSecret(num - i, 32, t).share(2));
-    }
-
-    // 测试计数用
-    atomic_int a;
-
-    // 3. 服务端执行「递归版 Bitonic Sort」
-    if (Comm::isServer()) {
-        auto start = System::currentTimeMillis();
-
-        // 直接调用递归版本
-        // dir = true 表示最后整体是升序
-        bitonicSort1(arr, 0, arr.size(), true);
-
-        Log::i("time: {}ms", System::currentTimeMillis() - start);
-        Log::i("compareTime: {}ms", compareTime);
-        Log::i("muxTime: {}ms", muxTime);
-    }
-
-    // 4. 进行重构 (arithReconstruct) 取结果
-    std::vector<ArithSecret> res;
-    for (int i = 0; i < num; i++) {
-        res.push_back(arr[i].task(3).reconstruct(2));
-    }
-
-    // 5. 客户端输出最终结果
-    if (Comm::isClient()) {
-        for (auto s: res) {
-            Log::i("{}", s.get());
-        }
-    }
-}
+//================== 测试函数：递归版 Bitonic Sort ==================/
 
 void test_api_14() {
     IntermediateDataSupport::prepareRot();

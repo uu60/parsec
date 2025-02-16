@@ -6,9 +6,12 @@
 #define ICOMM_H
 #include <cstdint>
 #include <string>
-
+#include <vector>
 
 class Comm {
+public:
+    inline static std::atomic_int64_t _totalTime = 0;
+
 public:
     /**
      * 'impl' field is used to save implementation object of IComm.
@@ -24,73 +27,43 @@ public:
 
     static void init(int argc, char **argv);
 
-    static void finalize() {
-        impl->finalize_();
-    }
+    static void finalize();
 
-    static bool isServer() {
-        return impl->isServer_();
-    }
+    static bool isServer();
 
-    static bool isClient() {
-        return impl->isClient_();
-    }
+    static bool isClient();
 
-    static void serverSend(const int64_t &source, int width, int tag) {
-        impl->serverSend_(source, width, tag);
-    }
+    static void serverSend(const int64_t &source, int width, int tag);
 
-    static void serverSend(const std::vector<int64_t> &source, int width, int tag) {
-        impl->serverSend_(source, width, tag);
-    }
+    static void serverSend(const std::vector<int64_t> &source, int width, int tag);
 
-    static void serverSend(const std::string &source, int tag) {
-        impl->serverSend_(source, tag);
-    }
+    static void serverSend(const std::string &source, int tag);
 
-    static void serverReceive(int64_t &source, int width, int tag) {
-        impl->serverReceive_(source, width, tag);
-    }
+    static void serverReceive(int64_t &source, int width, int tag);
 
-    static void serverReceive(std::vector<int64_t> &source, int width, int tag) {
-        impl->serverReceive_(source, width, tag);
-    }
+    static void serverReceive(std::vector<int64_t> &source, int width, int tag);
 
-    static void serverReceive(std::string &target, int tag) {
-        impl->serverReceive_(target, tag);
-    }
+    static void serverReceive(std::string &target, int tag);
 
-    static void send(const int64_t &source, int width, int receiverRank, int tag) {
-        impl->send_(source, width, receiverRank, tag);
-    }
+    static void send(const int64_t &source, int width, int receiverRank, int tag);
 
-    static void send(const std::vector<int64_t> &source, int width, int receiverRank, int tag) {
-        impl->send_(source, width, receiverRank, tag);
-    }
+    static void send(const std::vector<int64_t> &source, int width, int receiverRank, int tag);
 
-    static void send(const std::string &source, int receiverRank, int tag) {
-        impl->send_(source, receiverRank, tag);
-    }
+    static void send(const std::string &source, int receiverRank, int tag);
 
-    static void receive(int64_t &source, int width, int senderRank, int tag) {
-        impl->receive_(source, width, senderRank, tag);
-    }
+    static void receive(int64_t &source, int width, int senderRank, int tag);
 
-    static void receive(std::vector<int64_t> &source, int width, int senderRank, int tag) {
-        impl->receive_(source, width, senderRank, tag);
-    }
+    static void receive(std::vector<int64_t> &source, int width, int senderRank, int tag);
 
-    static void receive(std::string &target, int senderRank, int tag) {
-        impl->receive_(target, senderRank, tag);
-    }
+    static void receive(std::string &target, int senderRank, int tag);
 
 protected:
-
     /**
      * rank() should return the rank of the machine in this cluster.
      * Commonly, two computing servers should be 0 and 1. Other clients should be 2 or larger numbers.
      */
     virtual int rank_() = 0;
+
     // init env
     virtual void init_(int argc, char **argv) = 0;
 
@@ -129,7 +102,6 @@ protected:
     virtual void receive_(std::vector<int64_t> &source, int width, int senderRank, int tag) = 0;
 
     virtual void receive_(std::string &target, int senderRank, int tag) = 0;
-
 };
 
 

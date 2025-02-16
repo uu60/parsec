@@ -13,6 +13,9 @@ private:
     BitwiseBmt* _bmt{};
 
 public:
+    inline static std::atomic_int64_t _totalTime = 0;
+
+public:
     BoolAndExecutor(int64_t x, int64_t y, int l, int16_t taskTag, int16_t msgTagOffset,
                        int clientRank) : BoolExecutor(x, y, l, taskTag, msgTagOffset, clientRank) {
     }
