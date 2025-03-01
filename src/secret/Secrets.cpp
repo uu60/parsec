@@ -6,6 +6,8 @@
 #include "utils/System.h"
 #include <cmath>
 
+#include "utils/Log.h"
+
 template<typename SecretT>
 void compareAndSwap(std::vector<SecretT> &secrets, size_t i, size_t j, bool dir) {
     if (secrets[i]._padding && secrets[j]._padding) {

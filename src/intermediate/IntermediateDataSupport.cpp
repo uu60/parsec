@@ -9,6 +9,7 @@
 #include "intermediate/BitwiseBmtGenerator.h"
 #include "intermediate/BmtGenerator.h"
 #include "ot/BaseOtExecutor.h"
+#include "parallel/ThreadPoolSupport.h"
 #include "utils/Log.h"
 #include "utils/Math.h"
 
@@ -18,6 +19,38 @@ void IntermediateDataSupport::offerBmt(Bmt bmt) {
 
 void IntermediateDataSupport::offerBitwiseBmt(BitwiseBmt bmt) {
     _bitwiseBmts->offer(bmt);
+}
+
+void IntermediateDataSupport::prepareBmt() {
+    if (Conf::BMT_METHOD == Consts::BMT_FIXED) {
+        _fixedBmt = BmtGenerator(64, 0, 0).execute()->_bmt;
+        _fixedBitwiseBmt = BitwiseBmtGenerator(64, 0, 0).execute()->_bmt;
+    } else if (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
+        if (Conf::BMT_QUEUE_TYPE == Consts::LOCK_QUEUE) {
+            _bmts = new LockBlockingQueue<Bmt>(Conf::MAX_BMTS);
+        } else {
+            _bmts = new BoostLockFreeQueue<Bmt>(Conf::MAX_BMTS);
+        }
+
+        if (Conf::BMT_QUEUE_TYPE == Consts::LOCK_QUEUE) {
+            _bitwiseBmts = new LockBlockingQueue<BitwiseBmt>(Conf::MAX_BMTS);
+        } else {
+            _bitwiseBmts = new BoostLockFreeQueue<BitwiseBmt>(Conf::MAX_BMTS);
+        }
+
+        startGenerateBmtsAsync();
+        startGenerateBitwiseBmtsAsync();
+    }
+}
+
+void IntermediateDataSupport::init() {
+    if (Comm::isClient()) {
+        return;
+    }
+
+    prepareRot();
+
+    prepareBmt();
 }
 
 // void IntermediateDataSupport::offerABPair(ABPair pair) {
@@ -30,7 +63,7 @@ void IntermediateDataSupport::prepareRot() {
         futures.reserve(2);
 
         for (int i = 0; i < 2; i++) {
-            futures.push_back(System::_threadPool.push([i](int _) {
+            auto f = [i] {
                 bool isSender = Comm::rank() == i;
                 if (isSender) {
                     _sRot = new SRot();
@@ -46,7 +79,8 @@ void IntermediateDataSupport::prepareRot() {
                 if (!isSender) {
                     _rRot->_rb = e._result;
                 }
-            }));
+            };
+            futures.push_back(ThreadPoolSupport::submit(f));
         }
 
         for (auto &f: futures) {
@@ -57,32 +91,38 @@ void IntermediateDataSupport::prepareRot() {
 
 std::vector<Bmt> IntermediateDataSupport::pollBmts(int count, int width) {
     std::vector<Bmt> result;
-    if (Comm::isServer()) {
-        result.reserve(count);
+    if (Comm::isClient()) {
+        return result;
+    }
 
-        while (count > 0) {
-            int left = currentBmtLeftTimes;
+    result.reserve(count);
+    if (Conf::BMT_USAGE_LIMIT == 1) {
+        result.push_back(_bmts->poll());
+        return result;
+    }
 
-            if (currentBmt == nullptr || left == 0) {
-                delete currentBmt;
-                Bmt newBmt = _bmts->poll();
-                newBmt._a = Math::ring(newBmt._a, width);
-                newBmt._b = Math::ring(newBmt._b, width);
-                newBmt._c = Math::ring(newBmt._c, width);
-                currentBmt = new Bmt(newBmt);
-                currentBmtLeftTimes = Conf::BMT_USAGE_LIMIT;
-                left = Conf::BMT_USAGE_LIMIT;
-            }
+    while (count > 0) {
+        int left = _currentBmtLeftTimes;
 
-            int useCount = std::min(count, left);
-
-            for (int i = 0; i < useCount; ++i) {
-                result.push_back(*currentBmt);
-            }
-
-            currentBmtLeftTimes -= useCount;
-            count -= useCount;
+        if (_currentBmt == nullptr || left == 0) {
+            delete _currentBmt;
+            Bmt newBmt = _bmts->poll();
+            newBmt._a = Math::ring(newBmt._a, width);
+            newBmt._b = Math::ring(newBmt._b, width);
+            newBmt._c = Math::ring(newBmt._c, width);
+            _currentBmt = new Bmt(newBmt);
+            _currentBmtLeftTimes = Conf::BMT_USAGE_LIMIT;
+            left = Conf::BMT_USAGE_LIMIT;
         }
+
+        int useCount = std::min(count, left);
+
+        for (int i = 0; i < useCount; ++i) {
+            result.push_back(*_currentBmt);
+        }
+
+        _currentBmtLeftTimes -= useCount;
+        count -= useCount;
     }
 
     return result;
@@ -90,32 +130,38 @@ std::vector<Bmt> IntermediateDataSupport::pollBmts(int count, int width) {
 
 std::vector<BitwiseBmt> IntermediateDataSupport::pollBitwiseBmts(int count, int width) {
     std::vector<BitwiseBmt> result;
-    if (Comm::isServer()) {
-        result.reserve(count);
+    if (Comm::isClient()) {
+        return result;
+    }
 
-        while (count > 0) {
-            int left = currentBitwiseBmtLeftTimes;
+    result.reserve(count);
+    if (Conf::BMT_USAGE_LIMIT == 1) {
+        result.push_back(_bitwiseBmts->poll());
+        return result;
+    }
 
-            if (currentBitwiseBmt == nullptr || left == 0) {
-                delete currentBitwiseBmt;
-                BitwiseBmt newBmt = _bitwiseBmts->poll();
-                newBmt._a = Math::ring(newBmt._a, width);
-                newBmt._b = Math::ring(newBmt._b, width);
-                newBmt._c = Math::ring(newBmt._c, width);
-                currentBitwiseBmt = new BitwiseBmt(newBmt);
-                currentBmtLeftTimes = Conf::BMT_USAGE_LIMIT;
-                left = Conf::BMT_USAGE_LIMIT;
-            }
+    while (count > 0) {
+        int left = _currentBitwiseBmtLeftTimes;
 
-            int useCount = std::min(count, left);
-
-            for (int i = 0; i < useCount; ++i) {
-                result.push_back(*currentBitwiseBmt);
-            }
-
-            currentBitwiseBmtLeftTimes -= useCount;
-            count -= useCount;
+        if (_currentBitwiseBmt == nullptr || left == 0) {
+            delete _currentBitwiseBmt;
+            BitwiseBmt newBmt = _bitwiseBmts->poll();
+            newBmt._a = Math::ring(newBmt._a, width);
+            newBmt._b = Math::ring(newBmt._b, width);
+            newBmt._c = Math::ring(newBmt._c, width);
+            _currentBitwiseBmt = new BitwiseBmt(newBmt);
+            _currentBitwiseBmtLeftTimes = Conf::BMT_USAGE_LIMIT;
+            left = Conf::BMT_USAGE_LIMIT;
         }
+
+        int useCount = std::min(count, left);
+
+        for (int i = 0; i < useCount; ++i) {
+            result.push_back(*_currentBitwiseBmt);
+        }
+
+        _currentBitwiseBmtLeftTimes -= useCount;
+        count -= useCount;
     }
 
     return result;
@@ -133,18 +179,18 @@ std::vector<BitwiseBmt> IntermediateDataSupport::pollBitwiseBmts(int count, int 
 // }
 
 void IntermediateDataSupport::startGenerateBmtsAsync() {
-    if (Comm::isServer() && Conf::BMT_BACKGROUND) {
-        System::_threadPool.push([](int _) {
+    if (Comm::isServer() && Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
+        ThreadPoolSupport::submit([] {
             while (!System::_shutdown.load()) {
-                offerBmt(BmtGenerator(64, 0, 0).execute()->_bmt);
+                offerBmt(BmtGenerator(8, 0, 0).execute()->_bmt);
             }
         });
     }
 }
 
 void IntermediateDataSupport::startGenerateBitwiseBmtsAsync() {
-    if (Comm::isServer() && Conf::BMT_BACKGROUND) {
-        System::_threadPool.push([](int _) {
+    if (Comm::isServer() && Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
+        ThreadPoolSupport::submit([] {
             while (!System::_shutdown.load()) {
                 offerBitwiseBmt(BitwiseBmtGenerator(64, 1, 0).execute()->_bmt);
             }

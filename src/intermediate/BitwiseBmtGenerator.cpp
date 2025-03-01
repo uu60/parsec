@@ -3,12 +3,11 @@
 //
 
 #include "../../include/intermediate/BitwiseBmtGenerator.h"
-
-#include <openssl/asn1.h>
-
 #include "../../include/ot/RandOtBatchExecutor.h"
 #include "../../include/utils/Math.h"
 #include "conf/Conf.h"
+#include "ot/RandOtExecutor.h"
+#include "parallel/ThreadPoolSupport.h"
 
 BitwiseBmtGenerator *BitwiseBmtGenerator::execute() {
     _currentMsgTag = _startMsgTag;
@@ -22,9 +21,16 @@ BitwiseBmtGenerator *BitwiseBmtGenerator::execute() {
     }
 
     generateRandomAB();
-
-    computeMix(0);
-    computeMix(1);
+    if (Conf::INTRA_OPERATOR_PARALLELISM) {
+        auto f = ThreadPoolSupport::submit([&] {
+            computeMix(0);
+        });
+        computeMix(1);
+        f.wait();
+    } else {
+        computeMix(0);
+        computeMix(1);
+    }
     computeC();
 
     if (Conf::CLASS_WISE_TIMING) {
@@ -62,9 +68,7 @@ void BitwiseBmtGenerator::computeMix(int sender) {
         }
     }
 
-    RandOtBatchExecutor r(sender, &ss0, &ss1, &choices, _width, _taskTag, static_cast<int16_t>(
-                              _currentMsgTag + sender * RandOtBatchExecutor::msgTagCount()));
-    r.execute();
+    auto results = handleOt(sender, ss0, ss1, choices);
 
     if (isSender) {
         for (int i = 0; i < _width; ++i) {
@@ -72,7 +76,7 @@ void BitwiseBmtGenerator::computeMix(int sender) {
         }
     } else {
         for (int i = 0; i < _width; ++i) {
-            sum += r._results[i] << i;
+            sum += results[i] << i;
         }
     }
 
@@ -96,5 +100,5 @@ AbstractSecureExecutor *BitwiseBmtGenerator::reconstruct(int clientRank) {
 }
 
 int16_t BitwiseBmtGenerator::msgTagCount(int width) {
-    return static_cast<int16_t>(2 * RandOtBatchExecutor::msgTagCount());
+    return static_cast<int16_t>(2 * width * RandOtExecutor::msgTagCount(width));
 }

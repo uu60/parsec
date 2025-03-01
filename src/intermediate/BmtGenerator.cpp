@@ -9,6 +9,7 @@
 #include "conf/Conf.h"
 #include "ot/RandOtBatchExecutor.h"
 #include "ot/RandOtExecutor.h"
+#include "parallel/ThreadPoolSupport.h"
 #include "utils/Log.h"
 
 void BmtGenerator::generateRandomAB() {
@@ -25,7 +26,7 @@ BmtGenerator *BmtGenerator::reconstruct(int clientRank) {
 }
 
 int16_t BmtGenerator::msgTagCount(int width) {
-    return static_cast<int16_t>(2 * RandOtBatchExecutor::msgTagCount());
+    return static_cast<int16_t>(2 * width * RandOtExecutor::msgTagCount(width));
 }
 
 void BmtGenerator::computeMix(int sender) {
@@ -50,20 +51,15 @@ void BmtGenerator::computeMix(int sender) {
         }
     }
 
-    RandOtBatchExecutor r(sender, &ss0, &ss1, &choices, _width, _taskTag, static_cast<int16_t>(
-                              _currentMsgTag + sender * RandOtBatchExecutor::msgTagCount()));
-    r.execute();
+    auto results = handleOt(sender, ss0, ss1, choices);
 
     if (isSender) {
         for (int i = 0; i < ss0.size(); ++i) {
             sum += ss0[i];
         }
-        // for (auto s0 : ss0) {
-        //     sum += s0;
-        // }
     } else {
         for (int i = 0; i < choices.size(); ++i) {
-            int64_t temp = r._results[i];
+            int64_t temp = results[i];
             if (choices[i] == 0) {
                 temp = -temp;
             }
@@ -84,11 +80,24 @@ void BmtGenerator::computeC() {
 
 BmtGenerator *BmtGenerator::execute() {
     _currentMsgTag = _startMsgTag;
-    if (Comm::isServer()) {
-        generateRandomAB();
+
+    if (Comm::isClient()) {
+        return this;
+    }
+
+    generateRandomAB();
+
+    if (Conf::INTRA_OPERATOR_PARALLELISM) {
+        auto f = ThreadPoolSupport::submit([&] {
+            computeMix(0);
+        });
+        computeMix(1);
+        f.wait();
+    } else {
         computeMix(0);
         computeMix(1);
-        computeC();
     }
+    computeC();
+
     return this;
 }

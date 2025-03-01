@@ -6,18 +6,15 @@
 #define MPC_PACKAGE_RSAOTTRIPLEGENERATOR_H
 #include <iostream>
 
+#include "AbstractBmtSingleGenerator.h"
 #include "./item/Bmt.h"
 #include "../base/AbstractSingleExecutor.h"
 
-class BmtGenerator : public AbstractSingleExecutor {
+class BmtGenerator : public AbstractBmtSingleGenerator<Bmt> {
 public:
-    explicit BmtGenerator(int l, int16_t taskTag, int16_t msgTagOffset) : AbstractSingleExecutor(
-        l, taskTag, msgTagOffset) {
+    explicit BmtGenerator(int width, int16_t taskTag, int16_t msgTagOffset) : AbstractBmtSingleGenerator(
+        width, taskTag, msgTagOffset) {
     };
-
-    Bmt _bmt{};
-    int64_t _ui{};
-    int64_t _vi{};
 
     BmtGenerator *execute() override;
 

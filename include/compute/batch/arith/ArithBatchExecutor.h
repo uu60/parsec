@@ -9,16 +9,12 @@
 
 class ArithBatchExecutor : public AbstractBatchExecutor {
 public:
-    std::vector<int64_t> _xis{};
-    std::vector<int64_t> _yis{};
-
     ArithBatchExecutor(std::vector<int64_t>& zs, int width, int16_t taskTag, int16_t msgTagOffset, int clientRank);
 
-    ArithBatchExecutor(std::vector<int64_t>& x, std::vector<int64_t>& y, int width, int16_t taskTag, int16_t msgTagOffset, int clientRank);
+    ArithBatchExecutor(std::vector<int64_t>& xs, std::vector<int64_t>& ys, int width, int16_t taskTag, int16_t msgTagOffset, int clientRank);
 
     ArithBatchExecutor *reconstruct(int clientRank) override;
 
-    [[deprecated("This function should not be called.")]]
     ArithBatchExecutor *execute() override;
 };
 

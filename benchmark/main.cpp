@@ -11,8 +11,7 @@
 #include "../include/utils/System.h"
 
 int main(int argc, char **argv) {
-    Comm::init(argc, argv);
-    //System::init(impl, argc, argv);
+    System::init(argc, argv);
     Log::i("Beginning...");
 
     std::string caseIdx;

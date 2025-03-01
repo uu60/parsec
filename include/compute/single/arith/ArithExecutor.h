@@ -12,9 +12,6 @@
 
 class ArithExecutor : public AbstractSingleExecutor {
 public:
-    int64_t _xi{};
-    int64_t _yi{};
-
     /**
      * In the constructor, data will be prepared before computing (network maybe needed).
      * Only ArithExecutor and BoolExecutor can set zi (unreconstructed result) directly in the constructor

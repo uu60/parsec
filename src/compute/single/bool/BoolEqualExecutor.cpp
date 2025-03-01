@@ -20,11 +20,11 @@ BoolEqualExecutor *BoolEqualExecutor::execute() {
         auto bmt = _bmt == nullptr ? IntermediateDataSupport::pollBitwiseBmts(1, _width)[0] : *_bmt;
         if (_bmt != nullptr) {
             bmt = *_bmt;
-        } else if (Conf::BMT_BACKGROUND) {
+        } else if (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
             bmt = IntermediateDataSupport::pollBitwiseBmts(1, _width)[0];
         }
         for (int i = 0; i < _width - 1; i++) {
-            _zi = BoolAndExecutor(_zi, (diff >> (i + 1)) & 1, 1, _taskTag, 0, NO_CLIENT_COMPUTE).setBmt(_bmt != nullptr || Conf::BMT_BACKGROUND ? &bmt : nullptr)->execute()->_zi;
+            _zi = BoolAndExecutor(_zi, (diff >> (i + 1)) & 1, 1, _taskTag, 0, NO_CLIENT_COMPUTE).setBmt(_bmt != nullptr || Conf::BMT_METHOD == Consts::BMT_BACKGROUND ? &bmt : nullptr)->execute()->_zi;
         }
     }
     return this;

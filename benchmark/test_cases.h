@@ -26,6 +26,8 @@
 #include "../include/compute/single/bool/BoolMutexExecutor.h"
 #include "../include/secret/Secrets.h"
 #include "../include/intermediate/BitwiseBmtGenerator.h"
+#include "../include/parallel/ThreadPoolSupport.h"
+
 
 using namespace std;
 
@@ -44,12 +46,12 @@ inline void test_arith_add_0() {
 }
 
 inline void test_arith_mul_parallel_1() {
-    int num = 20;
+    int num = 3;
     std::vector<std::future<void> > futures;
     futures.reserve(num);
 
     vector<Bmt> bmts;
-    int l = 64;
+    int l = 8;
     auto start = System::currentTimeMillis();
     int i = 0;
     while (i++ < num) {
@@ -79,10 +81,9 @@ inline void test_arith_mul_parallel_1() {
 
 inline void test_bmt_generation_2() {
     if (Comm::isServer()) {
-        IntermediateDataSupport::prepareRot();
         int i = 0;
         while (i++ < 20) {
-            auto b = BmtGenerator(8, 0, 0).execute()->_bmt;
+            auto b = BmtGenerator(8, 10, 0).execute()->_bmt;
             Log::i("ai: " + std::to_string(static_cast<int8_t>(b._a)) + " bi: " + std::to_string(
                        static_cast<int8_t>(b._b)) + " ci: " + std::to_string(static_cast<int8_t>(b._c)));
         }
@@ -91,15 +92,13 @@ inline void test_bmt_generation_2() {
 
 
 inline void test_bitwise_bool_and_3() {
-    IntermediateDataSupport::prepareRot();
-    IntermediateDataSupport::startGenerateBmtsAsync();
     int i = 0;
     int num = 1;
     auto t = System::nextTask();
     std::vector<std::future<void> > futures;
     futures.reserve(num);
     while (i++ < num) {
-        futures.push_back(System::_threadPool.push([t, i](int _) {
+        futures.push_back(ThreadPoolSupport::submit([t, i] {
             int64_t x, y;
             if (Comm::isClient()) {
                 x = Math::randInt();
@@ -187,14 +186,11 @@ inline void test_convertion_5() {
 }
 
 inline void test_int_mux_7() {
-    IntermediateDataSupport::prepareRot();
-    IntermediateDataSupport::startGenerateBmtsAsync();
-
     std::vector<std::future<void> > futures;
     auto t = System::nextTask();
     futures.reserve(100);
     for (int i = 0; i < 50; i++) {
-        futures.push_back(System::_threadPool.push([t, i](int _) {
+        futures.push_back(ThreadPoolSupport::submit([t, i] {
             int64_t x, y;
             bool c;
             if (Comm::isClient()) {
@@ -279,7 +275,7 @@ inline void test_Sort_10() {
     // IntermediateDataSupport::prepareRot();
     // IntermediateDataSupport::startGenerateBmtsAsync();
     std::vector<BoolSecret> arr;
-    int num = 1000;
+    int num = 1000000;
 
     // 2. 构造测试数据
     auto t = System::nextTask();
@@ -328,8 +324,6 @@ inline void test_Sort_10() {
 }
 
 inline void test_bool_comp_11() {
-    IntermediateDataSupport::prepareRot();
-    IntermediateDataSupport::startGenerateBmtsAsync();
     for (int i = 0; i < 100; i++) {
         int x, y;
         int len = 64;
@@ -348,9 +342,6 @@ inline void test_bool_comp_11() {
 }
 
 inline void test_bool_mux_12() {
-    IntermediateDataSupport::prepareRot();
-    IntermediateDataSupport::startGenerateBmtsAsync();
-
     std::vector<std::future<void> > futures;
     auto t = System::nextTask();
     futures.reserve(100);
@@ -380,9 +371,6 @@ inline void test_bool_mux_12() {
 //================== 测试函数：递归版 Bitonic Sort ==================/
 
 void test_api_14() {
-    IntermediateDataSupport::prepareRot();
-    IntermediateDataSupport::startGenerateBmtsAsync();
-
     int a, b;
     if (Comm::isClient()) {
         a = 40;

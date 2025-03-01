@@ -5,6 +5,7 @@
 #include "ot/BaseOtExecutor.h"
 
 #include "comm/Comm.h"
+#include "parallel/ThreadPoolSupport.h"
 #include "utils/Math.h"
 #include "utils/Crypto.h"
 #include "utils/Log.h"
@@ -90,10 +91,10 @@ void BaseOtExecutor::process() {
         std::string m0 = Math::add(std::to_string(_m0), k0);
         std::string m1 = Math::add(std::to_string(_m1), k1);
 
-        auto f0 = System::_threadPool.push([m0, this] (int _) {
+        auto f0 = ThreadPoolSupport::submit([m0, this] {
             Comm::serverSend(m0, buildTag(static_cast<int16_t>(_currentMsgTag + 1)));
         });
-        auto f1 = System::_threadPool.push([m1, this] (int _) {
+        auto f1 = ThreadPoolSupport::submit([m1, this] {
             Comm::serverSend(m1, buildTag(static_cast<int16_t>(_currentMsgTag + 2)));
         });
         f0.wait();

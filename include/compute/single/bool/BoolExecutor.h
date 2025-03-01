@@ -8,9 +8,6 @@
 
 class BoolExecutor : public AbstractSingleExecutor {
 public:
-    int64_t _xi{};
-    int64_t _yi{};
-
     BoolExecutor(int64_t z, int l, int16_t taskTag, int16_t msgTagOffset, int clientRank);
 
     BoolExecutor(int64_t x, int64_t y, int l, int16_t taskTag, int16_t msgTagOffset, int clientRank);

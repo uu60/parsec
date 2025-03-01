@@ -5,27 +5,23 @@
 #include "utils/System.h"
 
 #include "comm/Comm.h"
+#include "comm/MpiComm.h"
 #include "conf/Conf.h"
 #include "intermediate/IntermediateDataSupport.h"
+#include "parallel/ThreadPoolSupport.h"
 #include "utils/Log.h"
 #include "utils/Math.h"
 
-std::atomic_bool System::_shutdown = false;
-ctpl::thread_pool System::_threadPool(Conf::LOCAL_THREADS);
+void System::init(int argc, char **argv) {
+    // prepare structures
+    ThreadPoolSupport::init();
 
-void System::init(Comm *impl, int argc, char **argv) {
     // init comm
-    Comm::impl = impl;
     Comm::init(argc, argv);
 
     // start produce
-    if (Conf::BMT_BACKGROUND) {
-        IntermediateDataSupport::startGenerateBmtsAsync();
-        IntermediateDataSupport::startGenerateBitwiseBmtsAsync();
-    }
-
-    IntermediateDataSupport::prepareRot();
-    // IntermediateDataSupport::startGenerateABPairsAsyc();
+    IntermediateDataSupport::init();
+    Log::i("System initialized.");
 }
 
 void System::finalize() {
@@ -34,7 +30,6 @@ void System::finalize() {
     _shutdown = true;
     // Wait for generators to stop
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    _threadPool.stop(false);
     // finalize comm
     Comm::finalize();
     Log::i("System shut down.");

@@ -4,20 +4,17 @@
 
 #ifndef BITWISEBMTGENERATOR_H
 #define BITWISEBMTGENERATOR_H
+#include "AbstractBmtSingleGenerator.h"
 #include "./item/Bmt.h"
 #include "../base/AbstractSingleExecutor.h"
 #include "./item/BitwiseBmt.h"
 
 
-class BitwiseBmtGenerator : public AbstractSingleExecutor {
+class BitwiseBmtGenerator : public AbstractBmtSingleGenerator<BitwiseBmt> {
 public:
-    BitwiseBmt _bmt{};
-    int64_t _ui{};
-    int64_t _vi{};
-
     inline static std::atomic_int64_t _totalTime = 0;
 
-    explicit BitwiseBmtGenerator(int l, int16_t taskTag, int16_t msgTagOffset) : AbstractSingleExecutor(
+    explicit BitwiseBmtGenerator(int l, int16_t taskTag, int16_t msgTagOffset) : AbstractBmtSingleGenerator(
         l, taskTag, msgTagOffset) {
     };
 

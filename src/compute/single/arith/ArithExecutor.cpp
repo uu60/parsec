@@ -7,6 +7,7 @@
 #include "ot/BaseOtExecutor.h"
 #include "comm/Comm.h"
 #include "conf/Conf.h"
+#include "parallel/ThreadPoolSupport.h"
 #include "utils/Math.h"
 
 ArithExecutor::ArithExecutor(int64_t z, int width, int16_t taskTag, int16_t msgTagOffset,
@@ -21,7 +22,7 @@ ArithExecutor::ArithExecutor(int64_t z, int width, int16_t taskTag, int16_t msgT
             std::future<void> f;
             if (Conf::INTRA_OPERATOR_PARALLELISM) {
                 // To avoid long time waiting on network, send data in parallel.
-                f = System::_threadPool.push([&](int) {
+                f = ThreadPoolSupport::submit([&] {
                     Comm::send(z0, _width, 0, buildTag(_currentMsgTag));
                 });
             } else {
@@ -54,7 +55,7 @@ ArithExecutor::ArithExecutor(int64_t x, int64_t y, int width, int16_t taskTag, i
             std::vector xy1 = {x1, y1};
             std::future<void> f;
             if (Conf::INTRA_OPERATOR_PARALLELISM) {
-                f = System::_threadPool.push([&](int) {
+                f = ThreadPoolSupport::submit([&] {
                     Comm::send(xy0, _width, 0, buildTag(_currentMsgTag));
                 });
             } else {
@@ -76,7 +77,7 @@ ArithExecutor::ArithExecutor(int64_t x, int64_t y, int width, int16_t taskTag, i
 }
 
 ArithExecutor *ArithExecutor::execute() {
-    throw std::runtime_error("This method cannot be called!");
+    throw std::runtime_error("Needs implementation.");
 }
 
 ArithExecutor *ArithExecutor::reconstruct(int clientRank) {

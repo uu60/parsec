@@ -32,6 +32,6 @@ RandOtExecutor *RandOtExecutor::execute() {
     return this;
 }
 
-int16_t RandOtExecutor::msgTagCount() {
+int16_t RandOtExecutor::msgTagCount(int width) {
     return 1;
 }

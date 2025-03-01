@@ -12,7 +12,6 @@ class BoolMutexExecutor : public BoolExecutor {
 private:
     int64_t _cond_i{};
     std::vector<BitwiseBmt> *_bmts{};
-    // Bmt* _bmt{};
 
 public:
     inline static std::atomic_int64_t _totalTime = 0;

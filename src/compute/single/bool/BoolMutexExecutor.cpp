@@ -6,6 +6,7 @@
 
 #include "compute/single/bool/BoolAndExecutor.h"
 #include "intermediate/IntermediateDataSupport.h"
+#include "parallel/ThreadPoolSupport.h"
 
 BoolMutexExecutor::BoolMutexExecutor(int64_t x, int64_t y, bool cond, int width, int16_t taskTag, int16_t msgTagOffset,
                                      int clientRank) : BoolExecutor(x, y, width, taskTag, msgTagOffset, clientRank) {
@@ -29,22 +30,29 @@ BoolMutexExecutor *BoolMutexExecutor::execute() {
     }
 
     BitwiseBmt bmt0, bmt1;
+    bool gotBmt = false;
     if (_bmts != nullptr) {
+        gotBmt = true;
         bmt0 = _bmts->at(0);
         bmt1 = _bmts->at(1);
-    } else if (Conf::BMT_BACKGROUND) {
+    } else if (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
+        gotBmt = true;
         auto bs = IntermediateDataSupport::pollBitwiseBmts(2, _width);
         bmt0 = bs[0];
         bmt1 = bs[1];
+    } else if (Conf::BMT_METHOD == Consts::BMT_FIXED) {
+        gotBmt = true;
+        bmt0 = IntermediateDataSupport::_fixedBitwiseBmt;
+        bmt1 = IntermediateDataSupport::_fixedBitwiseBmt;
     }
 
     int64_t cx, cy;
     std::future<int64_t> f;
-    auto bp0 = _bmts == nullptr && !Conf::BMT_BACKGROUND ? nullptr : &bmt0;
-    auto bp1 = _bmts == nullptr && !Conf::BMT_BACKGROUND ? nullptr : &bmt1;
+    auto bp0 = gotBmt ? &bmt0 : nullptr;
+    auto bp1 = gotBmt ? &bmt1 : nullptr;
 
     if (Conf::INTRA_OPERATOR_PARALLELISM) {
-        f = System::_threadPool.push([&](int) {
+        f = ThreadPoolSupport::submit([&] {
             return BoolAndExecutor(_cond_i, _xi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmt(bp0)->
                     execute()->_zi;
         });

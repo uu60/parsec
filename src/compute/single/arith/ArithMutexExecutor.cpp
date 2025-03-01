@@ -11,6 +11,7 @@
 #include "intermediate/BitwiseBmtGenerator.h"
 #include "intermediate/BmtGenerator.h"
 #include "intermediate/IntermediateDataSupport.h"
+#include "parallel/ThreadPoolSupport.h"
 #include "utils/Log.h"
 #include "utils/Math.h"
 
@@ -30,18 +31,18 @@ ArithMutexExecutor *ArithMutexExecutor::execute() {
         if (_bmts != nullptr) {
             bmt0 = _bmts->at(0);
             bmt1 = _bmts->at(1);
-        } else if (Conf::BMT_BACKGROUND) {
+        } else if (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
             auto bs = IntermediateDataSupport::pollBitwiseBmts(2, _width);
             bmt0 = bs[0];
             bmt1 = bs[1];
         }
         int64_t cx, cy;
         std::future<int64_t> f;
-        auto bp0 = _bmts == nullptr && !Conf::BMT_BACKGROUND ? nullptr : &bmt0;
-        auto bp1 = _bmts == nullptr && !Conf::BMT_BACKGROUND ? nullptr : &bmt1;
+        auto bp0 = _bmts == nullptr && Conf::BMT_METHOD == Consts::BMT_JIT ? nullptr : &bmt0;
+        auto bp1 = _bmts == nullptr && Conf::BMT_METHOD == Consts::BMT_JIT ? nullptr : &bmt1;
 
         if (Conf::INTRA_OPERATOR_PARALLELISM) {
-            f = System::_threadPool.push([&](int) {
+            f = ThreadPoolSupport::submit([&] {
                 auto mul0 = ArithMultiplyExecutor(_cond_i, _xi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
                 int64_t ret = mul0.setBmt(bp0)->execute()->_zi;
                 return ret;

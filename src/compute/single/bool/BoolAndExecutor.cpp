@@ -23,7 +23,7 @@ BoolAndExecutor *BoolAndExecutor::execute() {
     BitwiseBmt bmt;
     if (_bmt != nullptr) {
         bmt = *_bmt;
-    } else if (Conf::BMT_BACKGROUND) {
+    } else if (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
         bmt = IntermediateDataSupport::pollBitwiseBmts(1, 64)[0];
     } else {
         bmt = BitwiseBmtGenerator(_width, _taskTag, _currentMsgTag).execute()->_bmt;

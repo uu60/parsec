@@ -8,6 +8,7 @@
 
 #include <vector>
 
+#include "comm/MpiComm.h"
 #include "conf/Conf.h"
 #include "utils/System.h"
 
@@ -22,7 +23,9 @@ _totalTime += System::currentTimeMillis() - start; \
 }
 
 void Comm::init(int argc, char **argv) {
-    impl = Conf::COMM_IMPL;
+    if (Conf::COMM_TYPE == Consts::MPI) {
+        impl = new MpiComm();
+    }
     impl->init_(argc, argv);
 }
 

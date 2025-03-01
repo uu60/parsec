@@ -10,6 +10,8 @@
 class AbstractBatchExecutor : public AbstractSecureExecutor {
 public:
     std::vector<int64_t> _results{};
+    std::vector<int64_t> _xis{};
+    std::vector<int64_t> _yis{};
     std::vector<int64_t> _zis{};
 
     AbstractBatchExecutor(int width, int16_t taskTag, int16_t msgTagOffset)

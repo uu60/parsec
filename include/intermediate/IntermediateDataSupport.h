@@ -12,21 +12,25 @@
 #include "./item/SRot.h"
 #include "../sync/LockBlockingQueue.h"
 #include "./item/RRot.h"
-#include "../sync/CasBlockingQueue.h"
+#include "../sync/BoostLockFreeQueue.h"
 #include "../conf/Conf.h"
 #include "./item/BitwiseBmt.h"
 
 
 class IntermediateDataSupport {
 private:
-    inline static AbstractBlockingQueue<Bmt> *_bmts = Conf::BMT_QUEUE;
-    inline static AbstractBlockingQueue<BitwiseBmt> *_bitwiseBmts = Conf::BITWISE_BMT_QUEUE;
+    inline static AbstractBlockingQueue<Bmt> *_bmts;
+    inline static AbstractBlockingQueue<BitwiseBmt> *_bitwiseBmts;
     // static LockBlockingQueue<Bmt> _bmts;
     // static LockBlockingQueue<ABPair> _pairs;
-    inline static Bmt *currentBmt{};
-    inline static BitwiseBmt *currentBitwiseBmt{};
-    inline static int currentBmtLeftTimes = Conf::BMT_USAGE_LIMIT;
-    inline static int currentBitwiseBmtLeftTimes = Conf::BMT_USAGE_LIMIT;
+    inline static Bmt *_currentBmt{};
+    inline static BitwiseBmt *_currentBitwiseBmt{};
+    inline static int _currentBmtLeftTimes = Conf::BMT_USAGE_LIMIT;
+    inline static int _currentBitwiseBmtLeftTimes = Conf::BMT_USAGE_LIMIT;
+
+public:
+    inline static Bmt _fixedBmt;
+    inline static BitwiseBmt _fixedBitwiseBmt;
 
 public:
     inline static SRot *_sRot = nullptr;
@@ -37,24 +41,28 @@ private:
 
     static void offerBitwiseBmt(BitwiseBmt bmt);
 
-public:
-    // static void offerABPair(ABPair pair);
+    static void prepareBmt();
 
     static void prepareRot();
+
+    /**
+      * Loop forever to insert bmts into queue.
+      * ASYNCHRONOUSLY
+    */
+    static void startGenerateBmtsAsync();
+
+    static void startGenerateBitwiseBmtsAsync();
+
+public:
+    static void init();
+
+    // static void offerABPair(ABPair pair);
 
     static std::vector<Bmt> pollBmts(int count, int width);
 
     static std::vector<BitwiseBmt> pollBitwiseBmts(int count, int width);
 
     // static std::vector<ABPair> pollABPairs(int num);
-
-    /**
-     * Loop forever to insert bmts into queue.
-     * ASYNCHRONOUSLY
-     */
-    static void startGenerateBmtsAsync();
-
-    static void startGenerateBitwiseBmtsAsync();
 
     // static void startGenerateABPairsAsyc();
 };

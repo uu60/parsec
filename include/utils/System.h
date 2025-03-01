@@ -19,10 +19,10 @@ private:
     inline static std::atomic_int16_t _currentTaskTag = PRESERVED_TASK_TAGS;
 
 public:
-    static std::atomic_bool _shutdown;
-    static ctpl::thread_pool _threadPool;
+    inline static std::atomic_bool _shutdown = false;
 
-    static void init(Comm *impl, int argc, char **argv);
+public:
+    static void init(int argc, char **argv);
 
     static void finalize();
 

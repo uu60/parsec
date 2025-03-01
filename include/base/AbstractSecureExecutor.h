@@ -57,6 +57,9 @@ protected:
     [[nodiscard]] int64_t ring(int64_t raw) const;
 
     [[nodiscard]] int buildTag(int16_t msgTag) const;
+
+    std::vector<int64_t> handleOt(int sender, std::vector<int64_t> &ss0, std::vector<int64_t> &ss1,
+                                  std::vector<int> &choices);
 };
 
 #endif //MPC_PACKAGE_SECUREEXECUTOR_H

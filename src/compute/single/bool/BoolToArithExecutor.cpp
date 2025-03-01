@@ -9,6 +9,7 @@
 #include "compute/single/arith/ArithExecutor.h"
 #include "ot/RandOtBatchExecutor.h"
 #include "ot/RandOtExecutor.h"
+#include "parallel/ThreadPoolSupport.h"
 #include "utils/Math.h"
 
 BoolToArithExecutor *BoolToArithExecutor::execute() {
@@ -23,7 +24,7 @@ BoolToArithExecutor *BoolToArithExecutor::execute() {
     std::vector<std::future<void> > futures;
     futures.reserve(_width);
 
-    if (Conf::BATCH_COMM) {
+    if (Conf::TASK_BATCHING) {
         std::vector<int64_t> ss0, ss1;
         std::vector<int> choices;
         std::vector<int64_t> rs;
@@ -59,11 +60,6 @@ BoolToArithExecutor *BoolToArithExecutor::execute() {
             }
         } else {
             for (int i = 0; i < _width; ++i) {
-                // int64_t result = batchExecutor._results[i];
-                // if (choices[i] == 0) {
-                //     result = -result;
-                // }
-                // temp += result;
                 temp += e._results[i];
             }
         }
@@ -79,7 +75,7 @@ BoolToArithExecutor *BoolToArithExecutor::execute() {
                 s1 = (static_cast<int64_t>(1 - xb) << i) - r;
             }
             RandOtExecutor e(0, s0, s1, xb, _width, _taskTag,
-                             static_cast<int16_t>(_currentMsgTag + RandOtExecutor::msgTagCount() * i));
+                             static_cast<int16_t>(_currentMsgTag + RandOtExecutor::msgTagCount(_width) * i));
             e.execute();
             if (isSender) {
                 temp += r;
@@ -89,7 +85,7 @@ BoolToArithExecutor *BoolToArithExecutor::execute() {
         };
         if (Conf::INTRA_OPERATOR_PARALLELISM) {
             for (int i = 0; i < _width; i++) {
-                futures.push_back(System::_threadPool.push([&, i](int _) {
+                futures.push_back(ThreadPoolSupport::submit([&, i] {
                     process(i);
                 }));
             }
@@ -106,8 +102,8 @@ BoolToArithExecutor *BoolToArithExecutor::execute() {
     return this;
 }
 
-int16_t BoolToArithExecutor::msgTagCount(int l) {
-    return static_cast<int16_t>(RandOtExecutor::msgTagCount() * l);
+int16_t BoolToArithExecutor::msgTagCount(int width) {
+    return static_cast<int16_t>(RandOtExecutor::msgTagCount(width) * width);
 }
 
 BoolToArithExecutor *BoolToArithExecutor::reconstruct(int clientRank) {

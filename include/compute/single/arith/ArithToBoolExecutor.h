@@ -10,9 +10,6 @@
 class ArithToBoolExecutor : public ArithExecutor {
 private:
     std::vector<BitwiseBmt> *_bmts{};
-    // BitwiseBmt *_bmt0{};
-    // BitwiseBmt *_bmt1{};
-    // BitwiseBmt *_bmt2{};
 
 public:
     // Temporarily lend zi for xi preparation in super constructor.

@@ -8,6 +8,7 @@
 #include "conf/Conf.h"
 #include "utils/Math.h"
 #include "ot/BaseOtExecutor.h"
+#include "parallel/ThreadPoolSupport.h"
 #include "utils/Log.h"
 #include "utils/System.h"
 
@@ -24,7 +25,7 @@ BoolExecutor::BoolExecutor(int64_t z, int l, int16_t taskTag, int16_t msgTagOffs
 
             std::future<void> f;
             if (Conf::INTRA_OPERATOR_PARALLELISM) {
-                f = System::_threadPool.push([&](int) {
+                f = ThreadPoolSupport::submit([&] {
                     Comm::send(z0, _width, 0, buildTag(_currentMsgTag));
                 });
             } else {
@@ -57,7 +58,7 @@ BoolExecutor::BoolExecutor(int64_t x, int64_t y, int l, int16_t taskTag, int16_t
             std::vector xy1 = {x1, y1};
             std::future<void> f;
             if (Conf::INTRA_OPERATOR_PARALLELISM) {
-                f = System::_threadPool.push([this, &xy0](int _) {
+                f = ThreadPoolSupport::submit([this, &xy0] {
                     Comm::send(xy0, _width, 0, buildTag(_currentMsgTag));
                 });
             } else {

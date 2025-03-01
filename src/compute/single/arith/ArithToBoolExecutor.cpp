@@ -6,9 +6,11 @@
 
 #include "comm/Comm.h"
 #include "compute/single/bool/BoolAndExecutor.h"
+#include "intermediate/BitwiseBmtBatchGenerator.h"
 #include "intermediate/BitwiseBmtGenerator.h"
 #include "intermediate/BmtGenerator.h"
 #include "intermediate/IntermediateDataSupport.h"
+#include "parallel/ThreadPoolSupport.h"
 #include "utils/Log.h"
 #include "utils/Math.h"
 
@@ -17,21 +19,26 @@ void ArithToBoolExecutor::prepareBmts(BitwiseBmt &b0, BitwiseBmt &b1, BitwiseBmt
         b0 = _bmts->at(0);
         b1 = _bmts->at(1);
         b2 = _bmts->at(2);
-    } else if (Conf::BMT_BACKGROUND) {
+    } else if (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
         auto bs = IntermediateDataSupport::pollBitwiseBmts(3, _width);
         b0 = bs[0];
         b1 = bs[1];
         b2 = bs[2];
     } else {
-        if (!Conf::INTRA_OPERATOR_PARALLELISM) {
+        if (Conf::TASK_BATCHING) {
+            auto bmts = BitwiseBmtBatchGenerator(3, _width, _taskTag, _currentMsgTag).execute()->_bmts;
+            b0 = bmts[0];
+            b1 = bmts[1];
+            b2 = bmts[2];
+        } else if (!Conf::INTRA_OPERATOR_PARALLELISM) {
             b0 = BitwiseBmtGenerator(_width, _taskTag, _currentMsgTag).execute()->_bmt;
             b1 = BitwiseBmtGenerator(_width, _taskTag, _currentMsgTag).execute()->_bmt;
             b2 = BitwiseBmtGenerator(_width, _taskTag, _currentMsgTag).execute()->_bmt;
         } else {
-            auto f0 = System::_threadPool.push([&](int) {
+            auto f0 = ThreadPoolSupport::submit([&] {
                 return BitwiseBmtGenerator(_width, _taskTag, _currentMsgTag).execute()->_bmt;
             });
-            auto f1 = System::_threadPool.push([&](int) {
+            auto f1 = ThreadPoolSupport::submit([&] {
                 return BitwiseBmtGenerator(_width, _taskTag,
                                            static_cast<int16_t>(
                                                _currentMsgTag + BitwiseBmtGenerator::msgTagCount(1))).execute()->_bmt;
@@ -80,7 +87,7 @@ ArithToBoolExecutor *ArithToBoolExecutor::execute() {
                 bool generate_i;
 
                 if (Conf::INTRA_OPERATOR_PARALLELISM) {
-                    f = System::_threadPool.push([&](int) {
+                    f = ThreadPoolSupport::submit([&] {
                         auto bmt = b0.extract(i);
                         return BoolAndExecutor(ai, bi, 1, _taskTag, cm, NO_CLIENT_COMPUTE).setBmt(
                             &bmt)->execute()->_zi;

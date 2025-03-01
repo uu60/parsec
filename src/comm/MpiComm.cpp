@@ -31,13 +31,6 @@ void MpiComm::init_(int argc, char **argv) {
     if (_mpiSize != 3) {
         throw std::runtime_error("3 parties restricted.");
     }
-
-    IntermediateDataSupport::prepareRot();
-
-    if (Conf::BMT_BACKGROUND) {
-        IntermediateDataSupport::startGenerateBmtsAsync();
-        IntermediateDataSupport::startGenerateBitwiseBmtsAsync();
-    }
 }
 
 int MpiComm::rank_() {

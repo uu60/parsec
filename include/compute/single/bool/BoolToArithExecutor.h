@@ -18,7 +18,7 @@ public:
 
     BoolToArithExecutor *execute() override;
 
-    [[nodiscard]] static int16_t msgTagCount(int l);
+    [[nodiscard]] static int16_t msgTagCount(int width);
 
     BoolToArithExecutor *reconstruct(int clientRank) override;
 };
