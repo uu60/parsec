@@ -10,8 +10,8 @@
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Math.h"
 
-int AbstractSecureExecutor::buildTag(int16_t msgTag) const {
-    return (_taskTag << 16) | msgTag;
+int AbstractSecureExecutor::buildTag(int msgTag) const {
+    return (static_cast<unsigned int>(_taskTag) << 28) | static_cast<unsigned int>(msgTag & ((1 << 28) - 1));
 }
 
 std::vector<int64_t> AbstractSecureExecutor::handleOt(int sender, std::vector<int64_t> &ss0, std::vector<int64_t> &ss1,
@@ -19,7 +19,7 @@ std::vector<int64_t> AbstractSecureExecutor::handleOt(int sender, std::vector<in
     std::vector<int64_t> results;
     size_t all = sender == Comm::rank() ? ss0.size() : choices.size();
     if (Conf::TASK_BATCHING) {
-        RandOtBatchExecutor r(sender, &ss0, &ss1, &choices, _width, _taskTag, static_cast<int16_t>(
+        RandOtBatchExecutor r(sender, &ss0, &ss1, &choices, _width, _taskTag, static_cast<int>(
                                   _currentMsgTag + sender * RandOtBatchExecutor::msgTagCount()));
         results = r.execute()->_results;
     } else if (Conf::INTRA_OPERATOR_PARALLELISM) {
@@ -31,8 +31,8 @@ std::vector<int64_t> AbstractSecureExecutor::handleOt(int sender, std::vector<in
                 auto s0 = isSender ? ss0[i] : 0;
                 auto s1 = isSender ? ss1[i] : 0;
                 auto choice = isSender ? 0 : choices[i];
-                auto baseOffset = static_cast<int16_t>(sender * all * RandOtExecutor::msgTagCount(_width));
-                auto offset = static_cast<int16_t>(
+                auto baseOffset = static_cast<int>(sender * all * RandOtExecutor::msgTagCount(_width));
+                auto offset = static_cast<int>(
                     _currentMsgTag + RandOtExecutor::msgTagCount(_width) * i + baseOffset);
                 RandOtExecutor r(sender, s0, s1, choice, _width, _taskTag, offset);
                 return r.execute()->_result;
@@ -42,7 +42,7 @@ std::vector<int64_t> AbstractSecureExecutor::handleOt(int sender, std::vector<in
         auto s1 = isSender ? ss1[all - 1] : 0;
         auto choice = isSender ? 0 : choices[all - 1];
         RandOtExecutor r(sender, s0, s1, choice, _width, _taskTag,
-                         static_cast<int16_t>(
+                         static_cast<int>(
                              _currentMsgTag + RandOtExecutor::msgTagCount(_width) * (all - 1) + sender * all *
                              RandOtExecutor::msgTagCount(_width)));
         r.execute();

@@ -21,7 +21,7 @@ public:
 
     // ---------------Settings for threads---------------
     // Enable multiple-thread computation in each single executor
-    constexpr static bool INTRA_OPERATOR_PARALLELISM = true;
+    constexpr static bool INTRA_OPERATOR_PARALLELISM = false;
     // Sum of threads in a process
     inline static int LOCAL_THREADS = static_cast<int>(std::thread::hardware_concurrency() * 10);
     // Index of thread pool type (0 = ctpl, 1 = tbb)
@@ -34,8 +34,8 @@ public:
     inline static int NETWORK_THREADS = static_cast<int>(std::thread::hardware_concurrency());
     // Thread pool task queue separation
     constexpr static bool JOB_QUEUE_SEPARATION = false;
-    // Sort in parallel
-    constexpr static bool SORT_IN_PARALLEL = true;
+    // Thread pool abort policy is CallerRunsPolicy
+    constexpr static bool CALLER_RUNS_POLICY = true;
 
     // ---------------Settings for networks---------------
     // Communication object index (0 = OpenMpi)
@@ -46,7 +46,13 @@ public:
     constexpr static int BATCH_SIZE = 10;
 
     // ---------------Settings for benchmark---------------
-    constexpr static bool CLASS_WISE_TIMING = true;
+    constexpr static bool CLASS_WISE_TIMING = false;
+
+    // ---------------Settings for sort---------------
+    // Sort method
+    constexpr static int SORT_METHOD = Consts::BITONIC;
+    // Sort in parallel
+    constexpr static bool SORT_IN_PARALLEL = false;
 };
 
 

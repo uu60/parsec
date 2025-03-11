@@ -35,7 +35,7 @@ ArithMultiplyExecutor *ArithMultiplyExecutor::execute() {
     return this;
 }
 
-int16_t ArithMultiplyExecutor::msgTagCount(int width) {
+int ArithMultiplyExecutor::msgTagCount(int width) {
     return BmtGenerator::msgTagCount(width);
 }
 

@@ -14,7 +14,7 @@ class BitwiseBmtGenerator : public AbstractBmtSingleGenerator<BitwiseBmt> {
 public:
     inline static std::atomic_int64_t _totalTime = 0;
 
-    explicit BitwiseBmtGenerator(int l, int16_t taskTag, int16_t msgTagOffset) : AbstractBmtSingleGenerator(
+    explicit BitwiseBmtGenerator(int l, int taskTag, int msgTagOffset) : AbstractBmtSingleGenerator(
         l, taskTag, msgTagOffset) {
     };
 
@@ -33,7 +33,7 @@ private:
 public:
     AbstractSecureExecutor * reconstruct(int clientRank) override;
 
-    static int16_t msgTagCount(int width);
+    static int msgTagCount(int width);
 };
 
 

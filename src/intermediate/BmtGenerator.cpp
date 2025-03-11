@@ -25,8 +25,8 @@ BmtGenerator *BmtGenerator::reconstruct(int clientRank) {
     throw std::runtime_error("Not support.");
 }
 
-int16_t BmtGenerator::msgTagCount(int width) {
-    return static_cast<int16_t>(2 * width * RandOtExecutor::msgTagCount(width));
+int BmtGenerator::msgTagCount(int width) {
+    return static_cast<int>(2 * width * RandOtExecutor::msgTagCount(width));
 }
 
 void BmtGenerator::computeMix(int sender) {

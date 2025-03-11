@@ -13,40 +13,65 @@
 
 BoolSecret::BoolSecret() = default;
 
-BoolSecret::BoolSecret(int64_t x, int l, int16_t taskTag) : _data(x), _l(l), _taskTag(taskTag) {}
+BoolSecret::BoolSecret(int64_t x, int l, int taskTag, int msgTagOffset) : _data(x), _width(l),
+    _taskTag(taskTag), _currentMsgTag(msgTagOffset) {
+}
 
-BoolSecret BoolSecret::task(int16_t taskTag) const {
-    return {_data, _l, taskTag};
+BoolSecret BoolSecret::task(int taskTag) const {
+    return {_data, _width, taskTag, _currentMsgTag};
+}
+
+BoolSecret BoolSecret::msg(int msgTagOffset) const {
+    return {_data, _width, _taskTag, msgTagOffset};
 }
 
 BoolSecret BoolSecret::share(int clientRank) const {
-    return {BoolExecutor(_data, _l, _taskTag, 0, clientRank)._zi, _l, _taskTag};
+    return {BoolExecutor(_data, _width, _taskTag, _currentMsgTag, clientRank)._zi, _width, _taskTag, _currentMsgTag};
 }
 
 BoolSecret BoolSecret::reconstruct(int clientRank) const {
-    return {BoolExecutor(_data, _l, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).reconstruct(clientRank)->_result, _l, _taskTag};
-}
-
-int64_t BoolSecret::get() const {
-    return _data;
+    return {
+        BoolExecutor(_data, _width, _taskTag, _currentMsgTag, AbstractSecureExecutor::NO_CLIENT_COMPUTE).reconstruct(clientRank)->
+        _result,
+        _width, _taskTag, _currentMsgTag
+    };
 }
 
 BoolSecret BoolSecret::xor_(BoolSecret yi) const {
-    return {BoolXorExecutor(_data, yi.get(), _l, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi, _l, _taskTag};
+    return {
+        BoolXorExecutor(_data, yi._data, _width, _taskTag, _currentMsgTag, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi,
+        _width, _taskTag, _currentMsgTag
+    };
 }
 
 BoolSecret BoolSecret::and_(BoolSecret yi) const {
-    return {BoolAndExecutor(_data, yi.get(), _l, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi, _l, _taskTag};
+    return {
+        BoolAndExecutor(_data, yi._data, _width, _taskTag, _currentMsgTag, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi,
+        _width, _taskTag, _currentMsgTag
+    };
 }
 
 BoolSecret BoolSecret::arithmetic() const {
-    return {BoolToArithExecutor(_data, _l, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi, _l, _taskTag};
+    return {
+        BoolToArithExecutor(_data, _width, _taskTag, _currentMsgTag, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi,
+        _width, _taskTag, _currentMsgTag
+    };
 }
 
 BitSecret BoolSecret::lessThan(BoolSecret yi) const {
-    return BitSecret(BoolLessExecutor(_data, yi.get(), _l, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi, _taskTag);
+    return BitSecret(
+        BoolLessExecutor(_data, yi._data, _width, _taskTag, _currentMsgTag, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->
+        _zi, _taskTag);
+}
+
+BitSecret BoolSecret::getBit(int n) const {
+    return BitSecret(Math::getBit(_data, n), _taskTag);
 }
 
 BoolSecret BoolSecret::mux(BoolSecret yi, BitSecret cond_i) const {
-    return {BoolMutexExecutor(_data, yi.get(), cond_i.get(), _l, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi, _l, _taskTag};
+    return {
+        BoolMutexExecutor(_data, yi._data, cond_i._data, _width, _taskTag, _currentMsgTag,
+                          AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi,
+        _width, _taskTag, _currentMsgTag
+    };
 }

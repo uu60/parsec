@@ -75,7 +75,7 @@ BoolToArithExecutor *BoolToArithExecutor::execute() {
                 s1 = (static_cast<int64_t>(1 - xb) << i) - r;
             }
             RandOtExecutor e(0, s0, s1, xb, _width, _taskTag,
-                             static_cast<int16_t>(_currentMsgTag + RandOtExecutor::msgTagCount(_width) * i));
+                             static_cast<int>(_currentMsgTag + RandOtExecutor::msgTagCount(_width) * i));
             e.execute();
             if (isSender) {
                 temp += r;
@@ -102,8 +102,8 @@ BoolToArithExecutor *BoolToArithExecutor::execute() {
     return this;
 }
 
-int16_t BoolToArithExecutor::msgTagCount(int width) {
-    return static_cast<int16_t>(RandOtExecutor::msgTagCount(width) * width);
+int BoolToArithExecutor::msgTagCount(int width) {
+    return static_cast<int>(RandOtExecutor::msgTagCount(width) * width);
 }
 
 BoolToArithExecutor *BoolToArithExecutor::reconstruct(int clientRank) {

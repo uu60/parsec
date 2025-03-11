@@ -8,7 +8,7 @@
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Math.h"
 
-BoolBatchExecutor::BoolBatchExecutor(std::vector<int64_t>& zs, int width, int16_t taskTag, int16_t msgTagOffset,
+BoolBatchExecutor::BoolBatchExecutor(std::vector<int64_t>& zs, int width, int taskTag, int msgTagOffset,
                                      int clientRank) : AbstractBatchExecutor(width, taskTag, msgTagOffset) {
     if (clientRank < 0) {
         _zis = std::move(zs);
@@ -19,8 +19,8 @@ BoolBatchExecutor::BoolBatchExecutor(std::vector<int64_t>& zs, int width, int16_
             zv0.reserve(zs.size());
             zv1.reserve(zs.size());
             for (auto z : zs) {
-                int64_t z1 = Math::randInt();
-                int64_t z0 = z ^ z1;
+                int64_t z1 = ring(Math::randInt());
+                int64_t z0 = ring(z ^ z1);
                 zv0.push_back(z0);
                 zv1.push_back(z1);
             }
@@ -45,8 +45,8 @@ BoolBatchExecutor::BoolBatchExecutor(std::vector<int64_t>& zs, int width, int16_
     }
 }
 
-BoolBatchExecutor::BoolBatchExecutor(std::vector<int64_t> &xs, std::vector<int64_t> &ys, int width, int16_t taskTag,
-    int16_t msgTagOffset, int clientRank) : AbstractBatchExecutor(width, taskTag, msgTagOffset) {
+BoolBatchExecutor::BoolBatchExecutor(std::vector<int64_t> &xs, std::vector<int64_t> &ys, int width, int taskTag,
+    int msgTagOffset, int clientRank) : AbstractBatchExecutor(width, taskTag, msgTagOffset) {
     if (clientRank < 0) {
         _xis = std::move(xs);
         _yis = std::move(ys);
@@ -59,14 +59,14 @@ BoolBatchExecutor::BoolBatchExecutor(std::vector<int64_t> &xs, std::vector<int64
             v1.reserve(2 * size);
 
             for (auto x : xs) {
-                int64_t x1 = Math::randInt();
-                int64_t x0 = x ^ x1;
+                int64_t x1 = ring(Math::randInt());
+                int64_t x0 = ring(x ^ x1);
                 v0.push_back(x0);
                 v1.push_back(x1);
             }
             for (auto y : ys) {
-                int64_t y1 = Math::randInt();
-                int64_t y0 = y ^ y1;
+                int64_t y1 = ring(Math::randInt());
+                int64_t y0 = ring(y ^ y1);
                 v0.push_back(y0);
                 v1.push_back(y1);
             }

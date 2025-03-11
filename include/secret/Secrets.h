@@ -15,9 +15,9 @@
  */
 class Secrets {
 public:
-    static void sort(std::vector<ArithSecret> &secrets, bool asc);
+    static void sort(std::vector<ArithSecret> &secrets, bool asc, int taskTag);
 
-    static void sort(std::vector<BoolSecret> &secrets, bool asc);
+    static void sort(std::vector<BoolSecret> &secrets, bool asc, int taskTag);
 };
 
 

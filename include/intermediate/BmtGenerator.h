@@ -12,7 +12,7 @@
 
 class BmtGenerator : public AbstractBmtSingleGenerator<Bmt> {
 public:
-    explicit BmtGenerator(int width, int16_t taskTag, int16_t msgTagOffset) : AbstractBmtSingleGenerator(
+    explicit BmtGenerator(int width, int taskTag, int msgTagOffset) : AbstractBmtSingleGenerator(
         width, taskTag, msgTagOffset) {
     };
 
@@ -30,7 +30,7 @@ protected:
 public:
     BmtGenerator *reconstruct(int clientRank) override;
 
-    static int16_t msgTagCount(int width);
+    static int msgTagCount(int width);
 };
 
 

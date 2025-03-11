@@ -5,7 +5,7 @@
 #include "ot/base/AbstractOtBatchExecutor.h"
 
 AbstractOtBatchExecutor::AbstractOtBatchExecutor(int sender, std::vector<int64_t> *ms0, std::vector<int64_t> *ms1,
-                                                 std::vector<int> *choices, int l, int16_t taskTag, int16_t msgTagOffset) : AbstractBatchExecutor(
+                                                 std::vector<int> *choices, int l, int taskTag, int msgTagOffset) : AbstractBatchExecutor(
 l, taskTag, msgTagOffset) {
     _isSender = sender == Comm::rank();
     if (_isSender) {

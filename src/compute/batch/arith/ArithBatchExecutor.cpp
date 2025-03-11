@@ -8,7 +8,7 @@
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Math.h"
 
-ArithBatchExecutor::ArithBatchExecutor(std::vector<int64_t>& zs, int width, int16_t taskTag, int16_t msgTagOffset,
+ArithBatchExecutor::ArithBatchExecutor(std::vector<int64_t>& zs, int width, int taskTag, int msgTagOffset,
                                        int clientRank) : AbstractBatchExecutor(width, taskTag, msgTagOffset) {
     if (clientRank < 0) {
         _zis = std::move(zs);
@@ -45,8 +45,8 @@ ArithBatchExecutor::ArithBatchExecutor(std::vector<int64_t>& zs, int width, int1
     }
 }
 
-ArithBatchExecutor::ArithBatchExecutor(std::vector<int64_t> &xs, std::vector<int64_t> &ys, int width, int16_t taskTag,
-    int16_t msgTagOffset, int clientRank) : AbstractBatchExecutor(width, taskTag, msgTagOffset) {
+ArithBatchExecutor::ArithBatchExecutor(std::vector<int64_t> &xs, std::vector<int64_t> &ys, int width, int taskTag,
+    int msgTagOffset, int clientRank) : AbstractBatchExecutor(width, taskTag, msgTagOffset) {
     if (clientRank < 0) {
         _xis = std::move(xs);
         _yis = std::move(ys);

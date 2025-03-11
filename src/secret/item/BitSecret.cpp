@@ -9,15 +9,20 @@
 #include "compute/single/bool/BoolAndExecutor.h"
 #include "compute/single/bool/BoolXorExecutor.h"
 #include "comm/Comm.h"
+#include "compute/single/bool/BoolLessExecutor.h"
 
-BitSecret::BitSecret(bool x, int16_t taskTag) : _data(x), _taskTag(taskTag) {}
+BitSecret::BitSecret(bool x, int taskTag) : _data(x), _taskTag(taskTag) {}
 
-BitSecret BitSecret::task(int16_t taskTag) {
+BitSecret BitSecret::task(int taskTag) {
     return BitSecret(_data, taskTag);
 }
 
 BitSecret BitSecret::share(int clientRank) const {
     return BitSecret(BoolExecutor(_data, 1, _taskTag, 0, clientRank)._zi, _taskTag);
+}
+
+BitSecret BitSecret::lessThan(BitSecret yi) const {
+    return BitSecret(BoolLessExecutor(_data, yi.get(), 1, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi, _taskTag);
 }
 
 BitSecret BitSecret::not_() const {

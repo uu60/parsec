@@ -9,8 +9,8 @@
 #include "ot/RandOtExecutor.h"
 #include "parallel/ThreadPoolSupport.h"
 
-BitwiseBmtBatchGenerator::BitwiseBmtBatchGenerator(int count, int l, int16_t taskTag,
-                                                   int16_t msgTagOffset) : AbstractBmtBatchGenerator(count,
+BitwiseBmtBatchGenerator::BitwiseBmtBatchGenerator(int count, int l, int taskTag,
+                                                   int msgTagOffset) : AbstractBmtBatchGenerator(count,
                                                                                                      l, taskTag, msgTagOffset) {}
 
 BitwiseBmtBatchGenerator *BitwiseBmtBatchGenerator::execute() {
@@ -121,6 +121,6 @@ AbstractSecureExecutor *BitwiseBmtBatchGenerator::reconstruct(int clientRank) {
     throw std::runtime_error("Not support.");
 }
 
-int16_t BitwiseBmtBatchGenerator::msgTagCount(int bmtCount, int width) {
-    return static_cast<int16_t>(2 * width * bmtCount * RandOtExecutor::msgTagCount(width));
+int BitwiseBmtBatchGenerator::msgTagCount(int bmtCount, int width) {
+    return static_cast<int>(2 * width * bmtCount * RandOtExecutor::msgTagCount(width));
 }

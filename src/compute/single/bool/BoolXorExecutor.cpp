@@ -11,6 +11,6 @@ BoolXorExecutor *BoolXorExecutor::execute() {
     return this;
 }
 
-int16_t BoolXorExecutor::msgTagCount() {
+int BoolXorExecutor::msgTagCount() {
     return 0;
 }

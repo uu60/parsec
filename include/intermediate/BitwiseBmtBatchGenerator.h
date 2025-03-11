@@ -13,7 +13,7 @@ class BitwiseBmtBatchGenerator : public AbstractBmtBatchGenerator<BitwiseBmt> {
 public:
     inline static std::atomic_int64_t _totalTime = 0;
 
-    explicit BitwiseBmtBatchGenerator(int count, int l, int16_t taskTag, int16_t msgTagOffset);
+    explicit BitwiseBmtBatchGenerator(int count, int l, int taskTag, int msgTagOffset);
 
 
     BitwiseBmtBatchGenerator *execute() override;
@@ -30,7 +30,7 @@ private:
 public:
     AbstractSecureExecutor * reconstruct(int clientRank) override;
 
-    static int16_t msgTagCount(int bmtCount, int width);
+    static int msgTagCount(int bmtCount, int width);
 };
 
 

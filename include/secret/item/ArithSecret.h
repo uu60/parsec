@@ -11,17 +11,20 @@
 #include "Secret.h"
 
 class ArithSecret : public Secret {
-private:
+public:
     int64_t _data{};
-    int _l{};
-    int16_t _taskTag{};
+    int _width{};
+    int _taskTag{};
+    int _currentMsgTag{};
 
 public:
     ArithSecret();
 
-    ArithSecret(int64_t x, int l, int16_t taskTag);
+    ArithSecret(int64_t x, int l, int taskTag);
 
-    ArithSecret task(int16_t taskTag) const;
+    ArithSecret task(int taskTag) const;
+
+    ArithSecret msg(int msgTagOffset) const;
 
     ArithSecret share(int clientRank) const;
 
@@ -38,7 +41,7 @@ public:
 
     [[nodiscard]] BitSecret lessThan(ArithSecret yi) const;
 
-    [[nodiscard]] int64_t get() const;
+    BitSecret getBit(int n) const;
 };
 
 

@@ -13,45 +13,46 @@
 #include "utils/Log.h"
 #include "utils/Math.h"
 
-void BoolLessExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
+bool BoolLessExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     if (_bmts != nullptr) {
-        bmts = *_bmts;
-    } else {
-        int bc = bmtCount(_width);
-        if (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
-            bmts = IntermediateDataSupport::pollBitwiseBmts(bc, _width);
-        } else if (Conf::BMT_METHOD == Consts::BMT_JIT) { // JIT BMT
-            if (!Conf::TASK_BATCHING) {
-                bmts = BitwiseBmtBatchGenerator(bc, _width, _taskTag, _currentMsgTag).execute()->_bmts;
-            } else if (Conf::INTRA_OPERATOR_PARALLELISM) {
-                std::vector<std::future<BitwiseBmt> > futures;
-                futures.reserve(bc);
-                for (int i = 0; i < bc; i++) {
-                    futures.push_back(ThreadPoolSupport::submit([&, i] {
-                        return BitwiseBmtGenerator(_width, _taskTag,
-                                                   static_cast<int16_t>(
-                                                       _currentMsgTag + i *
-                                                       BitwiseBmtGenerator::msgTagCount(_width))).
-                                execute()->_bmt;
-                    }));
-                }
-                bmts.reserve(bc);
-                for (auto &f: futures) {
-                    bmts.push_back(f.get());
-                }
-            } else {
-                bmts.reserve(bc);
-                for (int i = 0; i < bc; i++) {
-                    bmts.push_back(BitwiseBmtGenerator(_width, _taskTag, _currentMsgTag).execute()->_bmt);
-                }
+        bmts = std::move(*_bmts);
+        return true;
+    }
+
+    int bc = bmtCount(_width);
+    if (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
+        bmts = IntermediateDataSupport::pollBitwiseBmts(bc, _width);
+        return true;
+    }
+    if (Conf::BMT_METHOD == Consts::BMT_JIT) {
+        // JIT BMT
+        if (!Conf::TASK_BATCHING) {
+            bmts = BitwiseBmtBatchGenerator(bc, _width, _taskTag, _currentMsgTag).execute()->_bmts;
+        } else if (Conf::INTRA_OPERATOR_PARALLELISM) {
+            std::vector<std::future<BitwiseBmt> > futures;
+            futures.reserve(bc);
+            for (int i = 0; i < bc; i++) {
+                futures.push_back(ThreadPoolSupport::submit([&, i] {
+                    return BitwiseBmtGenerator(_width, _taskTag,
+                                               static_cast<int>(
+                                                   _currentMsgTag + i *
+                                                   BitwiseBmtGenerator::msgTagCount(_width))).
+                            execute()->_bmt;
+                }));
             }
-        } else if (Conf::BMT_METHOD == Consts::BMT_FIXED) {
+            bmts.reserve(bc);
+            for (auto &f: futures) {
+                bmts.push_back(f.get());
+            }
+        } else {
             bmts.reserve(bc);
             for (int i = 0; i < bc; i++) {
-                bmts.push_back(IntermediateDataSupport::_fixedBitwiseBmt);
+                bmts.push_back(BitwiseBmtGenerator(_width, _taskTag, _currentMsgTag).execute()->_bmt);
             }
         }
+        return true;
     }
+    return false;
 }
 
 BoolLessExecutor *BoolLessExecutor::execute() {
@@ -65,7 +66,7 @@ BoolLessExecutor *BoolLessExecutor::execute() {
         start = System::currentTimeMillis();
     }
     std::vector<BitwiseBmt> bmts;
-    prepareBmts(bmts);
+    bool gotBmt = prepareBmts(bmts);
 
     int bmtI = 0;
     int64_t x_xor_y = _xi ^ _yi;
@@ -74,27 +75,27 @@ BoolLessExecutor *BoolLessExecutor::execute() {
     int64_t shifted_1 = shiftGreater(lbs, 1);
 
     lbs = BoolAndExecutor(lbs, shifted_1, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
-            .setBmt(&bmts[bmtI++])->execute()->_zi;
+            .setBmt(gotBmt ? &bmts[bmtI++] : nullptr)->execute()->_zi;
 
     int64_t diag = Math::changeBit(x_xor_y, 0, Math::getBit(_yi, 0) ^ Comm::rank());
-    // diag & x
 
+    // diag & x
     diag = BoolAndExecutor(diag, _xi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmt(
-        &bmts[bmtI++])->execute()->_zi;
+        gotBmt ? &bmts[bmtI++] : nullptr)->execute()->_zi;
 
     int rounds = static_cast<int>(std::floor(std::log2(_width)));
     for (int r = 2; r <= rounds; r++) {
         int64_t shifted_r = shiftGreater(lbs, r);
 
         int64_t and_r = BoolAndExecutor(lbs, shifted_r, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
-                setBmt(&bmts[bmtI++])->execute()->_zi;
+                setBmt(gotBmt ? &bmts[bmtI++] : nullptr)->execute()->_zi;
         lbs = and_r;
     }
 
     int64_t shifted_accum = Math::changeBit(lbs >> 1, _width - 1, Comm::rank());
 
     int64_t final_accum = BoolAndExecutor(shifted_accum, diag, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
-            setBmt(&bmts[bmtI++])->execute()->_zi;
+            setBmt(gotBmt ? &bmts[bmtI++] : nullptr)->execute()->_zi;
 
     bool result = false;
     for (int i = 0; i < _width; i++) {
@@ -118,8 +119,8 @@ BoolLessExecutor *BoolLessExecutor::setBmts(std::vector<BitwiseBmt> *bmts) {
     return this;
 }
 
-int16_t BoolLessExecutor::msgTagCount(int width) {
-    return static_cast<int16_t>(bmtCount(width) * BoolAndExecutor::msgTagCount(width));
+int BoolLessExecutor::msgTagCount(int width) {
+    return static_cast<int>(bmtCount(width) * BoolAndExecutor::msgTagCount(width));
 }
 
 int BoolLessExecutor::bmtCount(int width) {

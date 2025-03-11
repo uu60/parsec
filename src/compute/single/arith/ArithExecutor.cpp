@@ -10,7 +10,7 @@
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Math.h"
 
-ArithExecutor::ArithExecutor(int64_t z, int width, int16_t taskTag, int16_t msgTagOffset,
+ArithExecutor::ArithExecutor(int64_t z, int width, int taskTag, int msgTagOffset,
                              int clientRank) : AbstractSingleExecutor(width, taskTag, msgTagOffset) {
     if (clientRank < 0) {
         _zi = z;
@@ -39,7 +39,7 @@ ArithExecutor::ArithExecutor(int64_t z, int width, int16_t taskTag, int16_t msgT
     }
 }
 
-ArithExecutor::ArithExecutor(int64_t x, int64_t y, int width, int16_t taskTag, int16_t msgTagOffset,
+ArithExecutor::ArithExecutor(int64_t x, int64_t y, int width, int taskTag, int msgTagOffset,
                              int clientRank) : AbstractSingleExecutor(width, taskTag, msgTagOffset) {
     if (clientRank < 0) {
         _xi = x;

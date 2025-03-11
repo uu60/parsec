@@ -27,6 +27,8 @@
 #include "../include/secret/Secrets.h"
 #include "../include/intermediate/BitwiseBmtGenerator.h"
 #include "../include/parallel/ThreadPoolSupport.h"
+#include "../include/compute/batch/bool/BoolAndBatchExecutor.h"
+#include "../include/compute/batch/bool/BoolMutexBatchExecutor.h"
 
 
 using namespace std;
@@ -131,20 +133,20 @@ inline void test_arith_less_4() {
         //                 ? std::vector<Bmt>()
         //                 : IntermediateDataSupport::pollBmts(ArithLessExecutor::needBmtsWithBits(32).first, 32);
         // futures.push_back(System::_threadPool.push([i, t/*, &bmts*/](int _) {
-            int64_t x, y;
-            if (Comm::isClient()) {
-                x = Math::randInt(-1000, 1000);
-                y = Math::randInt(-1000, 1000);
-            }
-            ArithLessExecutor e(x, y, 32, t + i, 0, 2);
-            e./*setBmts(&bmts)->*/execute()->reconstruct(2);
+        int64_t x, y;
+        if (Comm::isClient()) {
+            x = Math::randInt(-1000, 1000);
+            y = Math::randInt(-1000, 1000);
+        }
+        ArithLessExecutor e(x, y, 32, t + i, 0, 2);
+        e./*setBmts(&bmts)->*/execute()->reconstruct(2);
 
-            if (Comm::isClient()) {
-                bool r = e._result;
-                if (r != (x < y)) {
-                    Log::i("Wrong idx: {}", i);
-                }
+        if (Comm::isClient()) {
+            bool r = e._result;
+            if (r != (x < y)) {
+                Log::i("Wrong idx: {}", i);
             }
+        }
         // }));
     }
     // for (auto &f: futures) {
@@ -165,19 +167,19 @@ inline void test_convertion_5() {
         //                 ? std::vector<Bmt>()
         //                 : IntermediateDataSupport::pollBmts(ArithToBoolExecutor::needBmtsWithBits(32).first, 32);
         // futures.push_back(System::_threadPool.push([i, t/*, bmts*/](int _) {
-            // auto bc = bmts;
-            int64_t x;
-            if (Comm::isClient()) {
-                x = Math::randInt();
+        // auto bc = bmts;
+        int64_t x;
+        if (Comm::isClient()) {
+            x = Math::randInt();
+        }
+        auto bx = ArithToBoolExecutor(x, 64, t + i, 0, 2)./*setBmts(&bc)->*/execute()->_zi;
+        Log::i("bx: {}", bx);
+        auto ret = BoolToArithExecutor(bx, 64, t + i, 0, -1).execute()->reconstruct(2)->_result;
+        if (Comm::isClient()) {
+            if (ret != x) {
+                Log::i("Wrong, x: {}, ret: {}", x, ret);
             }
-            auto bx = ArithToBoolExecutor(x, 64, t + i, 0, 2)./*setBmts(&bc)->*/execute()->_zi;
-            Log::i("bx: {}", bx);
-            auto ret = BoolToArithExecutor(bx, 64, t + i, 0, -1).execute()->reconstruct(2)->_result;
-            if (Comm::isClient()) {
-                if (ret != x) {
-                    Log::i("Wrong, x: {}, ret: {}", x, ret);
-                }
-            }
+        }
         // }));
     }
     // for (auto &f: futures) {
@@ -275,17 +277,14 @@ inline void test_Sort_10() {
     // IntermediateDataSupport::prepareRot();
     // IntermediateDataSupport::startGenerateBmtsAsync();
     std::vector<BoolSecret> arr;
-    int num = 1000000;
+    int num = 10000;
 
     // 2. 构造测试数据
     auto t = System::nextTask();
     for (int i = 0; i < num; i++) {
         // 这里简单构造 16,15,14,13,... 的序列
-        arr.push_back(BoolSecret(num - i, 32, t).share(2));
+        arr.push_back(BoolSecret(num - i, 64, t, 0).share(2));
     }
-
-    // 测试计数用
-    atomic_int a;
 
     // 3. 服务端执行「递归版 Bitonic Sort」
     if (Comm::isServer()) {
@@ -293,7 +292,7 @@ inline void test_Sort_10() {
 
         // 直接调用递归版本
         // dir = true 表示最后整体是升序
-        Secrets::sort(arr, true);
+        Secrets::sort(arr, true, t);
 
         Log::i("total time: {}ms", System::currentTimeMillis() - start);
         Log::i("less than: {}ms", BoolLessExecutor::_totalTime);
@@ -314,11 +313,11 @@ inline void test_Sort_10() {
     if (Comm::isClient()) {
         int last = INT_MIN;
         for (auto s: res) {
-            if (s.get() < last) {
-                Log::i("Wrong: {}", s.get());
+            if (s._data <= last) {
+                Log::i("Wrong: {}", s._data);
             }
-            last = s.get();
-            // Log::i("{}", s.get());
+            last = s._data;
+            // Log::i("{}", s._data);
         }
     }
 }
@@ -379,12 +378,55 @@ void test_api_14() {
     auto t = System::nextTask();
     BitSecret res = ArithSecret(a, 32, t).share(2).lessThan(ArithSecret(b, 32, t).share(2)).reconstruct(2);
     if (Comm::isClient()) {
-        Log::i("arith res: {}", res.get());
+        Log::i("arith res: {}", res._data);
     }
 
-    res = BoolSecret(a, 32, t).share(2).lessThan(BoolSecret(b, 32, t).share(2)).reconstruct(2);
+    res = BoolSecret(a, 32, t, 0).share(2).lessThan(BoolSecret(b, 32, t, 0).share(2)).reconstruct(2);
     if (Comm::isClient()) {
-        Log::i("bool res: {}", res.get());
+        Log::i("bool res: {}", res._data);
+    }
+}
+
+void test_batch_and_15() {
+    std::vector<int64_t> a, b;
+    if (Comm::isClient()) {
+        a = {0b1111, 0b0000, 0b0011, Math::randInt(), Math::randInt()};
+        b = {0b1010, 0b1111, 0b0101, Math::randInt(), Math::randInt()};
+    }
+    auto t = System::nextTask();
+    auto r = BoolAndBatchExecutor(a, b, 64, t, 0, 2).execute()->reconstruct(2)->_results;
+    if (Comm::isClient()) {
+        for (int i = 0; i < r.size(); i++) {
+            if ((a[i] & b[i]) != r[i]) {
+                Log::i("Wrong: {}", r[i]);
+            } else {
+                Log::i("Correct: {}", r[i]);
+            }
+        }
+    }
+}
+
+void test_batch_bool_mux_16() {
+    std::vector<int64_t> a, b, c;
+    if (Comm::isClient()) {
+        a = {0b1111, 0b0000, 0b0011, Math::randInt(), Math::randInt()};
+        b = {0b1010, 0b1111, 0b0101, Math::randInt(), Math::randInt()};
+        c = {0, 1, 0, Math::randInt(0, 1), Math::randInt(0, 1)};
+    }
+    auto t = System::nextTask();
+    // BoolMutexBatchExecutor e(a, b, c, 64, t, 0, 2);
+    // auto r = e.execute()->reconstruct(2);
+    // Log::i("?? {}", r == &e);
+    auto r = BoolMutexBatchExecutor(a, b, c, 64, t, 0, 2).execute()->reconstruct(2)->_results;
+
+    if (Comm::isClient()) {
+        for (int i = 0; i < r.size(); i++) {
+            if ((c[i] ? a[i] : b[i]) != r[i]) {
+                Log::i("Wrong: {}", r[i]);
+            } else {
+                Log::i("Correct: {}", r[i]);
+            }
+        }
     }
 }
 

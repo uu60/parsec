@@ -4,8 +4,8 @@
 
 #include "ot/base/AbstractOtExecutor.h"
 
-AbstractOtExecutor::AbstractOtExecutor(int sender, int64_t m0, int64_t m1, int choice, int l, int16_t taskTag,
-                                       int16_t msgTagOffset) : AbstractSingleExecutor(l, taskTag, msgTagOffset) {
+AbstractOtExecutor::AbstractOtExecutor(int sender, int64_t m0, int64_t m1, int choice, int l, int taskTag,
+                                       int msgTagOffset) : AbstractSingleExecutor(l, taskTag, msgTagOffset) {
     _isSender = sender == Comm::rank();
     if (_isSender) {
         _m0 = ring(m0);

@@ -15,7 +15,7 @@
 #include "utils/Log.h"
 #include "utils/Math.h"
 
-ArithMutexExecutor::ArithMutexExecutor(int64_t x, int64_t y, bool cond, int l, int16_t taskTag, int16_t msgTagOffset,
+ArithMutexExecutor::ArithMutexExecutor(int64_t x, int64_t y, bool cond, int l, int taskTag, int msgTagOffset,
                                        int clientRank) : ArithExecutor(x, y, l, taskTag, msgTagOffset, clientRank) {
     if (clientRank < 0 && _width > 1) {
         _cond_i = BoolToArithExecutor(cond, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).execute()->_zi;
@@ -53,7 +53,7 @@ ArithMutexExecutor *ArithMutexExecutor::execute() {
         }
 
         auto mul1 = ArithMultiplyExecutor(_cond_i, _yi, _width, _taskTag,
-                                          static_cast<int16_t>(_currentMsgTag + ArithMultiplyExecutor::msgTagCount(
+                                          static_cast<int>(_currentMsgTag + ArithMultiplyExecutor::msgTagCount(
                                                                    _width)),
                                           NO_CLIENT_COMPUTE);
         cy = mul1.setBmt(bp1)->execute()->_zi;
@@ -66,8 +66,8 @@ ArithMutexExecutor *ArithMutexExecutor::execute() {
 }
 
 
-int16_t ArithMutexExecutor::msgTagCount(int width) {
-    return std::max(static_cast<int16_t>(2 * ArithMultiplyExecutor::msgTagCount(width)),
+int ArithMutexExecutor::msgTagCount(int width) {
+    return std::max(static_cast<int>(2 * ArithMultiplyExecutor::msgTagCount(width)),
                     BoolToArithExecutor::msgTagCount(width));
 }
 

@@ -14,6 +14,7 @@
 
 void System::init(int argc, char **argv) {
     // prepare structures
+    // Thread pool needs implementing at first because other initialization may use it.
     ThreadPoolSupport::init();
 
     // init comm
@@ -35,12 +36,13 @@ void System::finalize() {
     Log::i("System shut down.");
 }
 
-int16_t System::nextTask() {
+// nextTask should not be accessed in parallel in case the sequence is wrong
+int System::nextTask() {
     if (_currentTaskTag < 0 || _currentTaskTag < PRESERVED_TASK_TAGS) {
         _currentTaskTag = PRESERVED_TASK_TAGS;
     }
-    int16_t ret = _currentTaskTag;
-    _currentTaskTag = static_cast<int16_t>(Math::ring(_currentTaskTag + 1, 16));
+    int ret = _currentTaskTag;
+    _currentTaskTag = static_cast<int>(Math::ring(_currentTaskTag + 1, 16));
     return ret;
 }
 

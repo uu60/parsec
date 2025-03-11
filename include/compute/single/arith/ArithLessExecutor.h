@@ -14,13 +14,13 @@ private:
     std::vector<BitwiseBmt> *_bmts{};
 
 public:
-    ArithLessExecutor(int64_t x, int64_t y, int l, int16_t taskTag, int16_t msgTagOffset, int clientRank);
+    ArithLessExecutor(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset, int clientRank);
 
     ArithLessExecutor *execute() override;
 
     ArithLessExecutor *reconstruct(int clientRank) override;
 
-    [[nodiscard]] static int16_t msgTagCount(int l);
+    [[nodiscard]] static int msgTagCount(int l);
 
     static int bmtCount(int width);
 

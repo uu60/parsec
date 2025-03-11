@@ -16,11 +16,9 @@ public:
     // unreconstructed share
     int64_t _zi{};
 
-    AbstractSingleExecutor(int width, int16_t taskTag, int16_t msgTagOffset)
+    AbstractSingleExecutor(int width, int taskTag, int msgTagOffset)
         : AbstractSecureExecutor(width, taskTag, msgTagOffset) {
     }
-
-
 };
 
 

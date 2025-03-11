@@ -64,9 +64,15 @@ int main(int argc, char **argv) {
         case 12:
             test_bool_mux_12();
             break;
-            break;
         case 14:
             test_api_14();
+            break;
+        case 15:
+            test_batch_and_15();
+            break;
+        case 16:
+            test_batch_bool_mux_16();
+            break;
     }
     // }
     /*catch (...) {

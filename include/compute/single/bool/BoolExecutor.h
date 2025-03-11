@@ -8,9 +8,9 @@
 
 class BoolExecutor : public AbstractSingleExecutor {
 public:
-    BoolExecutor(int64_t z, int l, int16_t taskTag, int16_t msgTagOffset, int clientRank);
+    BoolExecutor(int64_t z, int l, int taskTag, int msgTagOffset, int clientRank);
 
-    BoolExecutor(int64_t x, int64_t y, int l, int16_t taskTag, int16_t msgTagOffset, int clientRank);
+    BoolExecutor(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset, int clientRank);
 
     BoolExecutor *reconstruct(int clientRank) override;
 

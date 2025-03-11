@@ -17,20 +17,20 @@ public:
 
 public:
     // reverse x and y to obey less than logic
-    BoolLessExecutor(int64_t x, int64_t y, int l, int16_t taskTag, int16_t msgTagOffset, int clientRank) : BoolExecutor(y, x, l, taskTag, msgTagOffset, clientRank) {};
+    BoolLessExecutor(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset, int clientRank) : BoolExecutor(y, x, l, taskTag, msgTagOffset, clientRank) {};
 
     BoolLessExecutor *execute() override;
 
     BoolLessExecutor *setBmts(std::vector<BitwiseBmt> *bmts);
 
-    static int16_t msgTagCount(int width);
+    static int msgTagCount(int width);
 
     static int bmtCount(int width);
 
 private:
     int64_t shiftGreater(int64_t in, int r) const;
 
-    void prepareBmts(std::vector<BitwiseBmt> &bmts);
+    bool prepareBmts(std::vector<BitwiseBmt> &bmts);
 };
 
 

@@ -10,7 +10,7 @@
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Math.h"
 
-BmtBatchGenerator::BmtBatchGenerator(int count, int l, int16_t taskTag, int16_t msgTagOffset) : AbstractBmtBatchGenerator(
+BmtBatchGenerator::BmtBatchGenerator(int count, int l, int taskTag, int msgTagOffset) : AbstractBmtBatchGenerator(
     count, l, taskTag, msgTagOffset) {}
 
 void BmtBatchGenerator::generateRandomAB() {
@@ -28,8 +28,8 @@ BmtBatchGenerator *BmtBatchGenerator::reconstruct(int clientRank) {
     throw std::runtime_error("Not support.");
 }
 
-int16_t BmtBatchGenerator::msgTagCount(int bmtCount, int width) {
-    return static_cast<int16_t>(2 * width * bmtCount * RandOtExecutor::msgTagCount(width));
+int BmtBatchGenerator::msgTagCount(int bmtCount, int width) {
+    return static_cast<int>(2 * width * bmtCount * RandOtExecutor::msgTagCount(width));
 }
 
 void BmtBatchGenerator::computeMix(int sender) {

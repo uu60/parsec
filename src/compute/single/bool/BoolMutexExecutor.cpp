@@ -4,11 +4,12 @@
 
 #include "compute/single/bool/BoolMutexExecutor.h"
 
+#include "compute/batch/bool/BoolAndBatchExecutor.h"
 #include "compute/single/bool/BoolAndExecutor.h"
 #include "intermediate/IntermediateDataSupport.h"
 #include "parallel/ThreadPoolSupport.h"
 
-BoolMutexExecutor::BoolMutexExecutor(int64_t x, int64_t y, bool cond, int width, int16_t taskTag, int16_t msgTagOffset,
+BoolMutexExecutor::BoolMutexExecutor(int64_t x, int64_t y, bool cond, int width, int taskTag, int msgTagOffset,
                                      int clientRank) : BoolExecutor(x, y, width, taskTag, msgTagOffset, clientRank) {
     _cond_i = BoolExecutor(cond, 1, _taskTag, _currentMsgTag, clientRank)._zi;
     if (_cond_i) {
@@ -40,10 +41,6 @@ BoolMutexExecutor *BoolMutexExecutor::execute() {
         auto bs = IntermediateDataSupport::pollBitwiseBmts(2, _width);
         bmt0 = bs[0];
         bmt1 = bs[1];
-    } else if (Conf::BMT_METHOD == Consts::BMT_FIXED) {
-        gotBmt = true;
-        bmt0 = IntermediateDataSupport::_fixedBitwiseBmt;
-        bmt1 = IntermediateDataSupport::_fixedBitwiseBmt;
     }
 
     int64_t cx, cy;
@@ -51,21 +48,29 @@ BoolMutexExecutor *BoolMutexExecutor::execute() {
     auto bp0 = gotBmt ? &bmt0 : nullptr;
     auto bp1 = gotBmt ? &bmt1 : nullptr;
 
-    if (Conf::INTRA_OPERATOR_PARALLELISM) {
-        f = ThreadPoolSupport::submit([&] {
-            return BoolAndExecutor(_cond_i, _xi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmt(bp0)->
-                    execute()->_zi;
-        });
+    if constexpr (Conf::BMT_METHOD == Consts::BMT_BATCH_BACKGROUND) {
+        std::vector conds = {_cond_i, _cond_i};
+        std::vector xy = {_xi, _yi};
+        auto temp = BoolAndBatchExecutor(conds, xy, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).execute()->_zis;
+        cx = temp[0];
+        cy = temp[1];
     } else {
-        cx = BoolAndExecutor(_cond_i, _xi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmt(bp0)->execute()->
-                _zi;
-    }
+        if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
+            f = ThreadPoolSupport::submit([&] {
+                return BoolAndExecutor(_cond_i, _xi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmt(bp0)->
+                        execute()->_zi;
+            });
+        } else {
+            cx = BoolAndExecutor(_cond_i, _xi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmt(bp0)->execute()->
+                    _zi;
+        }
 
-    cy = BoolAndExecutor(_cond_i, _yi, _width, _taskTag,
-                         static_cast<int16_t>(_currentMsgTag + BoolAndExecutor::msgTagCount(_width)),
-                         NO_CLIENT_COMPUTE).setBmt(bp1)->execute()->_zi;
-    if (Conf::INTRA_OPERATOR_PARALLELISM) {
-        cx = f.get();
+        cy = BoolAndExecutor(_cond_i, _yi, _width, _taskTag,
+                             static_cast<int>(_currentMsgTag + BoolAndExecutor::msgTagCount(_width)),
+                             NO_CLIENT_COMPUTE).setBmt(bp1)->execute()->_zi;
+        if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
+            cx = f.get();
+        }
     }
 
     _zi = ring(cx ^ _yi ^ cy);
@@ -85,8 +90,8 @@ BoolMutexExecutor *BoolMutexExecutor::setBmts(std::vector<BitwiseBmt> *bmts) {
     return this;
 }
 
-int16_t BoolMutexExecutor::msgTagCount(int l) {
-    return static_cast<int16_t>(2 * BoolAndExecutor::msgTagCount(l));
+int BoolMutexExecutor::msgTagCount(int l) {
+    return static_cast<int>(2 * BoolAndExecutor::msgTagCount(l));
 }
 
 int BoolMutexExecutor::bmtCount(int width) {

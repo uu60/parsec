@@ -12,7 +12,7 @@
 #include "utils/Log.h"
 #include "utils/System.h"
 
-BoolExecutor::BoolExecutor(int64_t z, int l, int16_t taskTag, int16_t msgTagOffset,
+BoolExecutor::BoolExecutor(int64_t z, int l, int taskTag, int msgTagOffset,
                            int clientRank) : AbstractSingleExecutor(
     l, taskTag, msgTagOffset) {
     if (clientRank < 0) {
@@ -42,7 +42,7 @@ BoolExecutor::BoolExecutor(int64_t z, int l, int16_t taskTag, int16_t msgTagOffs
     }
 }
 
-BoolExecutor::BoolExecutor(int64_t x, int64_t y, int l, int16_t taskTag, int16_t msgTagOffset,
+BoolExecutor::BoolExecutor(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset,
                            int clientRank) : AbstractSingleExecutor(l, taskTag, msgTagOffset) {
     if (clientRank < 0) {
         _xi = ring(x);

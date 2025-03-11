@@ -16,7 +16,7 @@ protected:
     bool _isSender{};
 
 public:
-    AbstractOtExecutor(int sender, int64_t m0, int64_t m1, int choice, int l, int16_t taskTag, int16_t msgTagOffset);
+    AbstractOtExecutor(int sender, int64_t m0, int64_t m1, int choice, int l, int taskTag, int msgTagOffset);
 
     AbstractOtExecutor *reconstruct(int clientRank) override;
 };

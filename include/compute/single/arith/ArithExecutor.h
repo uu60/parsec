@@ -23,9 +23,9 @@ public:
      * @param msgTagOffset Offset of start msg tag
      * @param clientRank If clientRank is negative, means locally set value. Else clientRank represents sharer's rank.
      */
-    ArithExecutor(int64_t z, int width, int16_t taskTag, int16_t msgTagOffset, int clientRank);
+    ArithExecutor(int64_t z, int width, int taskTag, int msgTagOffset, int clientRank);
 
-    ArithExecutor(int64_t x, int64_t y, int width, int16_t taskTag, int16_t msgTagOffset, int clientRank);
+    ArithExecutor(int64_t x, int64_t y, int width, int taskTag, int msgTagOffset, int clientRank);
 
     ArithExecutor *reconstruct(int clientRank) override;
 

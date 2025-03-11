@@ -15,7 +15,8 @@
 class ThreadPoolSupport {
 public:
     inline static CtplThreadPool *_ctplPool = nullptr;
-    inline static TbbThreadPool *_tbbPool = nullptr;
+    inline static TbbThreadPool *_tbbPool = nullptr;\
+    inline static std::atomic_int _availableThreads = Conf::LOCAL_THREADS;
 
 public:
     static void init() {
@@ -26,14 +27,8 @@ public:
         }
     }
 
-    template<typename F>
-    static auto submit(F &&f) -> std::future<std::invoke_result_t<F> > {
-        if constexpr (Conf::THREAD_POOL_TYPE == Consts::CTPL_POOL) {
-            return _ctplPool->submit(f);
-        }
-        if constexpr (Conf::THREAD_POOL_TYPE == Consts::TBB_POOL) {
-            return _tbbPool->submit(f);
-        }
+    template <typename F>
+    static std::future<std::invoke_result_t<F>> callerRun(F &&f) {
         // If no proper thread pools, execute on current thread.
         using ReturnType = std::invoke_result_t<F>;
         std::promise<ReturnType> promise;
@@ -43,6 +38,34 @@ public:
         } else {
             promise.set_value(std::invoke(std::forward<F>(f)));
         }
+        return promise.get_future();
+    }
+
+    template<typename F>
+    static auto submit(F &&f) -> std::future<std::invoke_result_t<F> > {
+        if (Conf::CALLER_RUNS_POLICY && (_availableThreads -= 1) < 0) {
+            // restore negative thread num
+            _availableThreads = 0;
+            return callerRun(f);
+        }
+        auto f1 = [func = std::forward<F>(f)] {
+            if constexpr (std::is_void_v<std::invoke_result_t<F>>) {
+                func();
+                ++_availableThreads;
+            } else {
+                auto ret = func();
+                ++_availableThreads;
+                return ret;
+            }
+        };
+        if constexpr (Conf::THREAD_POOL_TYPE == Consts::CTPL_POOL) {
+            return _ctplPool->submit( f1);
+        }
+        if constexpr (Conf::THREAD_POOL_TYPE == Consts::TBB_POOL) {
+            return _tbbPool->submit( f1);
+        }
+        // If no proper pool, run in caller itself
+        return callerRun( std::forward<F>(f));
     }
 };
 

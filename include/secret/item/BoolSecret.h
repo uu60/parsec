@@ -10,17 +10,20 @@
 #include "./Secret.h"
 
 class BoolSecret : public Secret {
-private:
+public:
     int64_t _data{};
-    int _l{};
-    int16_t _taskTag{};
+    int _width{};
+    int _taskTag{};
+    int _currentMsgTag{};
 
 public:
     BoolSecret();
 
-    BoolSecret(int64_t x, int l, int16_t taskTag);
+    BoolSecret(int64_t x, int l, int taskTag, int msgTagOffset);
 
-    BoolSecret task(int16_t taskTag) const;
+    BoolSecret task(int taskTag) const;
+
+    BoolSecret msg(int msgTagOffset) const;
 
     BoolSecret share(int clientRank) const;
 
@@ -36,7 +39,7 @@ public:
 
     [[nodiscard]] BitSecret lessThan(BoolSecret yi) const;
 
-    [[nodiscard]] int64_t get() const;
+    BitSecret getBit(int n) const;
 };
 
 

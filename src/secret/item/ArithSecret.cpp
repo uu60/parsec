@@ -17,40 +17,44 @@
 
 ArithSecret::ArithSecret() = default;
 
-ArithSecret::ArithSecret(int64_t x, int l, int16_t taskTag) : _data(x), _l(l), _taskTag(taskTag) {}
+ArithSecret::ArithSecret(int64_t x, int l, int taskTag) : _data(x), _width(l), _taskTag(taskTag) {}
 
-ArithSecret ArithSecret::task(int16_t taskTag) const {
-    return {_data, _l, taskTag};
+ArithSecret ArithSecret::task(int taskTag) const {
+    return {_data, _width, taskTag};
+}
+
+ArithSecret ArithSecret::msg(int msgTagOffset) const {
+    return {};
 }
 
 ArithSecret ArithSecret::share(int clientRank) const {
-    return {ArithExecutor(_data, _l, _taskTag, 0, clientRank)._zi, _l, _taskTag};
+    return {ArithExecutor(_data, _width, _taskTag, 0, clientRank)._zi, _width, _taskTag};
 }
 
 ArithSecret ArithSecret::reconstruct(int clientRank) const {
-    return {ArithExecutor(_data, _l, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).reconstruct(clientRank)->_result, _l, _taskTag};
-}
-
-int64_t ArithSecret::get() const {
-    return _data;
+    return {ArithExecutor(_data, _width, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).reconstruct(clientRank)->_result, _width, _taskTag};
 }
 
 ArithSecret ArithSecret::add(ArithSecret yi) const {
-    return {ArithAddExecutor(_data, yi.get(), _l, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi, _l, _taskTag};
+    return {ArithAddExecutor(_data, yi._data, _width, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi, _width, _taskTag};
 }
 
 ArithSecret ArithSecret::mul(ArithSecret yi) const {
-    return {ArithMultiplyExecutor(_data, yi.get(), _l, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi, _l, _taskTag};
+    return {ArithMultiplyExecutor(_data, yi._data, _width, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi, _width, _taskTag};
 }
 
 ArithSecret ArithSecret::boolean() const {
-    return {ArithToBoolExecutor(_data, _l, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi, _l, _taskTag};
+    return {ArithToBoolExecutor(_data, _width, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi, _width, _taskTag};
 }
 
 BitSecret ArithSecret::lessThan(ArithSecret yi) const {
-    return BitSecret(ArithLessExecutor(_data, yi.get(), _l, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi, _taskTag);
+    return BitSecret(ArithLessExecutor(_data, yi._data, _width, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi, _taskTag);
+}
+
+BitSecret ArithSecret::getBit(int n) const {
+    return BitSecret(Math::getBit(_data, n), _taskTag);
 }
 
 ArithSecret ArithSecret::mux(ArithSecret yi, BitSecret cond_i) const {
-    return {ArithMutexExecutor(_data, yi.get(), cond_i.get(), _l, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi, _l, _taskTag};
+    return {ArithMutexExecutor(_data, yi._data, cond_i.get(), _width, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi, _width, _taskTag};
 }

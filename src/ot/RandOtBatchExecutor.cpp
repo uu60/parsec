@@ -59,6 +59,6 @@ RandOtBatchExecutor *RandOtBatchExecutor::execute() {
     return this;
 }
 
-int16_t RandOtBatchExecutor::msgTagCount() {
+int RandOtBatchExecutor::msgTagCount() {
     return 1;
 }

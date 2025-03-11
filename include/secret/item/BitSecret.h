@@ -9,15 +9,17 @@
 #include "./Secret.h"
 
 class BitSecret : public Secret {
-private:
-    bool _data{};
-    int16_t _taskTag{};
 public:
-    explicit BitSecret(bool x, int16_t taskTag);
+    bool _data{};
+    int _taskTag{};
+public:
+    explicit BitSecret(bool x, int taskTag);
 
-    BitSecret task(int16_t taskTag);
+    BitSecret task(int taskTag);
 
     [[nodiscard]] BitSecret share(int clientRank) const;
+
+    [[nodiscard]] BitSecret lessThan(BitSecret yi) const;
 
     [[nodiscard]] BitSecret not_() const;
 

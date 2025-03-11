@@ -4,29 +4,32 @@
 
 #ifndef BOOLMUTEXBATCHEXECUTOR_H
 #define BOOLMUTEXBATCHEXECUTOR_H
-#include "BoolBatchExecutor.h"
-#include "intermediate/item/BitwiseBmt.h"
+#include "./BoolBatchExecutor.h"
+#include "../../../intermediate/item/BitwiseBmt.h"
 
 
 class BoolMutexBatchExecutor : public BoolBatchExecutor {
 private:
-    std::vector<int64_t> _cond_i{};
+    std::vector<int64_t> _conds_i{};
     std::vector<BitwiseBmt> *_bmts{};
 
 public:
     inline static std::atomic_int64_t _totalTime = 0;
 
 public:
-    BoolMutexBatchExecutor(std::vector<int64_t> &xs, std::vector<int64_t> &ys, int width, int16_t taskTag,
-                         int16_t msgTagOffset, int clientRank);
+    BoolMutexBatchExecutor(std::vector<int64_t> &xs, std::vector<int64_t> &ys, std::vector<int64_t> &conds, int width, int taskTag,
+                         int msgTagOffset, int clientRank);
 
     BoolMutexBatchExecutor *execute() override;
 
     BoolMutexBatchExecutor *setBmts(std::vector<BitwiseBmt> *bmts);
 
-    static int16_t msgTagCount(int l);
+    static int msgTagCount(int num, int width);
 
-    static int bmtCount(int width);
+    static int bmtCount(int num);
+
+private:
+    bool prepareBmts(std::vector<BitwiseBmt>& bmts);
 };
 
 

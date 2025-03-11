@@ -10,12 +10,12 @@
 #include "utils/Crypto.h"
 #include "utils/Log.h"
 
-BaseOtExecutor::BaseOtExecutor(int sender, int64_t m0, int64_t m1, int choice, int l, int16_t taskTag, int16_t msgTagOffset)
+BaseOtExecutor::BaseOtExecutor(int sender, int64_t m0, int64_t m1, int choice, int l, int taskTag, int msgTagOffset)
     : BaseOtExecutor(2048, sender, m0, m1, choice, l, taskTag, msgTagOffset) {
 }
 
-BaseOtExecutor::BaseOtExecutor(int bits, int sender, int64_t m0, int64_t m1, int choice, int l, int16_t taskTag,
-                             int16_t msgTagOffset) : AbstractOtExecutor(sender, m0, m1, choice, l, taskTag, msgTagOffset) {
+BaseOtExecutor::BaseOtExecutor(int bits, int sender, int64_t m0, int64_t m1, int choice, int l, int taskTag,
+                             int msgTagOffset) : AbstractOtExecutor(sender, m0, m1, choice, l, taskTag, msgTagOffset) {
     _bits = bits;
 }
 
@@ -75,8 +75,8 @@ void BaseOtExecutor::process() {
         Comm::serverSend(sumStr, buildTag(_currentMsgTag));
 
         std::string m0, m1;
-        Comm::serverReceive(m0, buildTag(static_cast<int16_t>(_currentMsgTag + 1)));
-        Comm::serverReceive(m1, buildTag(static_cast<int16_t>(_currentMsgTag + 2)));
+        Comm::serverReceive(m0, buildTag(static_cast<int>(_currentMsgTag + 1)));
+        Comm::serverReceive(m1, buildTag(static_cast<int>(_currentMsgTag + 2)));
 
         _result = std::stoll(Math::minus(_choice == 0 ? m0 : m1, _randK));
     } else {
@@ -92,16 +92,16 @@ void BaseOtExecutor::process() {
         std::string m1 = Math::add(std::to_string(_m1), k1);
 
         auto f0 = ThreadPoolSupport::submit([m0, this] {
-            Comm::serverSend(m0, buildTag(static_cast<int16_t>(_currentMsgTag + 1)));
+            Comm::serverSend(m0, buildTag(static_cast<int>(_currentMsgTag + 1)));
         });
         auto f1 = ThreadPoolSupport::submit([m1, this] {
-            Comm::serverSend(m1, buildTag(static_cast<int16_t>(_currentMsgTag + 2)));
+            Comm::serverSend(m1, buildTag(static_cast<int>(_currentMsgTag + 2)));
         });
         f0.wait();
         f1.wait();
     }
 }
 
-int16_t BaseOtExecutor::msgTagCount() {
+int BaseOtExecutor::msgTagCount() {
     return 6;
 }

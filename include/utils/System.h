@@ -15,8 +15,8 @@ private:
      * 2 is preserved for BaseOtExecutor.
      * 3 is preserved for ABPairGenerator.
      */
-    static constexpr int16_t PRESERVED_TASK_TAGS = 4;
-    inline static std::atomic_int16_t _currentTaskTag = PRESERVED_TASK_TAGS;
+    static constexpr int PRESERVED_TASK_TAGS = 4;
+    inline static std::atomic_int _currentTaskTag = PRESERVED_TASK_TAGS;
 
 public:
     inline static std::atomic_bool _shutdown = false;
@@ -26,7 +26,7 @@ public:
 
     static void finalize();
 
-    static int16_t nextTask();
+    static int nextTask();
 
     static int64_t currentTimeMillis();
 };

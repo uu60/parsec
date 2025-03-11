@@ -14,11 +14,11 @@ private:
     // BitwiseBmt* _bmt{};
 
 public:
-    ArithMutexExecutor(int64_t x, int64_t y, bool c, int l, int16_t taskTag, int16_t msgTagOffset, int clientRank);
+    ArithMutexExecutor(int64_t x, int64_t y, bool c, int l, int taskTag, int msgTagOffset, int clientRank);
 
     ArithMutexExecutor *execute() override;
 
-    static int16_t msgTagCount(int width);
+    static int msgTagCount(int width);
 
     ArithMutexExecutor *setBmts(std::vector<Bmt> *bmts);
 

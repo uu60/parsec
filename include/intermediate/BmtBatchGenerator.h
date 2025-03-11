@@ -11,7 +11,7 @@
 
 class BmtBatchGenerator : public AbstractBmtBatchGenerator<Bmt> {
 public:
-    BmtBatchGenerator(int count, int l, int16_t taskTag, int16_t msgTagOffset);
+    BmtBatchGenerator(int count, int l, int taskTag, int msgTagOffset);
 
     BmtBatchGenerator *execute() override;
 
@@ -27,7 +27,7 @@ protected:
 public:
     BmtBatchGenerator *reconstruct(int clientRank) override;
 
-    static int16_t msgTagCount(int bmtCount, int width);
+    static int msgTagCount(int bmtCount, int width);
 };
 
 

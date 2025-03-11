@@ -9,13 +9,13 @@
 
 class RandOtExecutor : public AbstractOtExecutor {
 public:
-    RandOtExecutor(int sender, int64_t m0, int64_t m1, int choice, int l, int16_t taskTag,
-                   int16_t msgTagOffset) : AbstractOtExecutor(sender, m0, m1, choice, l, taskTag, msgTagOffset) {
+    RandOtExecutor(int sender, int64_t m0, int64_t m1, int choice, int l, int taskTag,
+                   int msgTagOffset) : AbstractOtExecutor(sender, m0, m1, choice, l, taskTag, msgTagOffset) {
     }
 
     RandOtExecutor *execute() override;
 
-    static int16_t msgTagCount(int width);
+    static int msgTagCount(int width);
 };
 
 #endif //RANDOTEXECUTOR_H

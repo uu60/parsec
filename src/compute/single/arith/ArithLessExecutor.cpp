@@ -10,7 +10,7 @@
 #include "intermediate/IntermediateDataSupport.h"
 #include "utils/Log.h"
 
-ArithLessExecutor::ArithLessExecutor(int64_t x, int64_t y, int l, int16_t taskTag, int16_t msgTagOffset,
+ArithLessExecutor::ArithLessExecutor(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset,
                                      int clientRank) : ArithExecutor(
     x, y, l, taskTag, msgTagOffset, clientRank) {
 }
@@ -32,7 +32,7 @@ ArithLessExecutor *ArithLessExecutor::reconstruct(int clientRank) {
     return this;
 }
 
-int16_t ArithLessExecutor::msgTagCount(int l) {
+int ArithLessExecutor::msgTagCount(int l) {
     return ArithToBoolExecutor::msgTagCount(l);
 }
 

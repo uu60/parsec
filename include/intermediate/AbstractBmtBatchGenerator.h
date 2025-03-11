@@ -17,7 +17,7 @@ public:
     std::vector<int64_t> _vsi{};
 
 protected:
-    AbstractBmtBatchGenerator(int count, int l, int16_t taskTag, int16_t msgTagOffset) : AbstractBatchExecutor(l, taskTag, msgTagOffset) {
+    AbstractBmtBatchGenerator(int count, int l, int taskTag, int msgTagOffset) : AbstractBatchExecutor(l, taskTag, msgTagOffset) {
         if (Comm::isClient()) {
             return;
         }

@@ -19,41 +19,32 @@ BoolAndExecutor *BoolAndExecutor::execute() {
         start = System::currentTimeMillis();
     }
 
-    int64_t ei = 0, fi = 0;
-    BitwiseBmt bmt;
-    if (_bmt != nullptr) {
-        bmt = *_bmt;
-    } else if (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
-        bmt = IntermediateDataSupport::pollBitwiseBmts(1, 64)[0];
-    } else {
-        bmt = BitwiseBmtGenerator(_width, _taskTag, _currentMsgTag).execute()->_bmt;
+    if (_bmt == nullptr) {
+        if (Conf::BMT_METHOD == Consts::BMT_FIXED) {
+            _bmt = &IntermediateDataSupport::_fixedBitwiseBmt;
+        } else if (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
+            auto bmt = IntermediateDataSupport::pollBitwiseBmts(1, _width)[0];
+            _bmt = &bmt;
+        } else {
+            auto bmt = BitwiseBmtGenerator(_width, _taskTag, _currentMsgTag).execute()->_bmt;
+            _bmt = &bmt;
+        }
     }
 
-    for (int i = 0; i < _width; i++) {
-        bool x_bit_i = Math::getBit(_xi, i);
-        bool y_bit_i = Math::getBit(_yi, i);
-        bool a_bit_i = Math::getBit(bmt._a, i);
-        bool b_bit_i = Math::getBit(bmt._b, i);
-        ei = Math::changeBit(ei, i, x_bit_i ^ a_bit_i);
-        fi = Math::changeBit(fi, i, y_bit_i ^ b_bit_i);
-    }
+    int64_t ei = _xi ^ _bmt->_a;
+    int64_t fi = _yi ^ _bmt->_b;
 
-    std::vector efi = {ei, fi};
+
+    int64_t e, f;
     std::vector<int64_t> efo;
+    std::vector efi = {ei, fi};
     Comm::serverSend(efi, _width, buildTag(_currentMsgTag));
     Comm::serverReceive(efo, _width, buildTag(_currentMsgTag));
-    int64_t e = ring(ei ^ efo[0]);
-    int64_t f = ring(fi ^ efo[1]);
-    for (int i = 0; i < _width; i++) {
-        bool e_bit_i = Math::getBit(e, i);
-        bool f_bit_i = Math::getBit(f, i);
-        bool a_bit_i = Math::getBit(bmt._a, i);
-        bool b_bit_i = Math::getBit(bmt._b, i);
-        bool c_bit_i = Math::getBit(bmt._c, i);
-        _zi = Math::changeBit(
-            _zi, i,
-            (Comm::rank() & e_bit_i & f_bit_i) ^ (f_bit_i & a_bit_i) ^ (e_bit_i & b_bit_i) ^ c_bit_i);
-    }
+    e = ring(ei ^ efo[0]);
+    f = ring(fi ^ efo[1]);
+    int64_t extendedRank = Comm::rank() ? ring(-1ll) : 0;
+
+    _zi = (extendedRank & e & f) ^ (f & _bmt->_a) ^ (e & _bmt->_b) ^ _bmt->_c;
 
     if (Conf::CLASS_WISE_TIMING) {
         _totalTime += System::currentTimeMillis() - start;
@@ -62,7 +53,7 @@ BoolAndExecutor *BoolAndExecutor::execute() {
     return this;
 }
 
-int16_t BoolAndExecutor::msgTagCount(int width) {
+int BoolAndExecutor::msgTagCount(int width) {
     return BitwiseBmtGenerator::msgTagCount(width);
 }
 

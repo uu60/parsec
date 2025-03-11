@@ -40,11 +40,11 @@ void ArithToBoolExecutor::prepareBmts(BitwiseBmt &b0, BitwiseBmt &b1, BitwiseBmt
             });
             auto f1 = ThreadPoolSupport::submit([&] {
                 return BitwiseBmtGenerator(_width, _taskTag,
-                                           static_cast<int16_t>(
+                                           static_cast<int>(
                                                _currentMsgTag + BitwiseBmtGenerator::msgTagCount(1))).execute()->_bmt;
             });
             b2 = BitwiseBmtGenerator(_width, _taskTag,
-                                     static_cast<int16_t>(
+                                     static_cast<int>(
                                          _currentMsgTag + 2 * BitwiseBmtGenerator::msgTagCount(1))).execute()->_bmt;
             b0 = f0.get();
             b1 = f1.get();
@@ -82,7 +82,7 @@ ArithToBoolExecutor *ArithToBoolExecutor::execute() {
             if (i < _width - 1) {
                 bool propagate_i = ai ^ bi;
 
-                int16_t cm = _currentMsgTag;
+                int cm = _currentMsgTag;
                 std::future<int64_t> f;
                 bool generate_i;
 
@@ -122,8 +122,8 @@ ArithToBoolExecutor *ArithToBoolExecutor::execute() {
     return this;
 }
 
-int16_t ArithToBoolExecutor::msgTagCount(int l) {
-    return static_cast<int16_t>(2 * BoolAndExecutor::msgTagCount(l));
+int ArithToBoolExecutor::msgTagCount(int l) {
+    return static_cast<int>(2 * BoolAndExecutor::msgTagCount(l));
 }
 
 ArithToBoolExecutor * ArithToBoolExecutor::setBmts(std::vector<BitwiseBmt> *bmts) {

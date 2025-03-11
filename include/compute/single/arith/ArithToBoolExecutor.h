@@ -13,7 +13,7 @@ private:
 
 public:
     // Temporarily lend zi for xi preparation in super constructor.
-    ArithToBoolExecutor(int64_t xi, int l, int16_t taskTag, int16_t msgTagOffset, int clientRank) : ArithExecutor(
+    ArithToBoolExecutor(int64_t xi, int l, int taskTag, int msgTagOffset, int clientRank) : ArithExecutor(
         xi, l, taskTag, msgTagOffset, clientRank) {
         _xi = _zi;
         _zi = 0;
@@ -21,7 +21,7 @@ public:
 
     ArithToBoolExecutor *execute() override;
 
-    [[nodiscard]] static int16_t msgTagCount(int l);
+    [[nodiscard]] static int msgTagCount(int l);
 
     ArithToBoolExecutor *setBmts(std::vector<BitwiseBmt> *bmts);
 

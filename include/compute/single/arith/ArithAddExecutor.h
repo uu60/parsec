@@ -9,7 +9,7 @@
 
 class ArithAddExecutor : public ArithExecutor {
 public:
-    ArithAddExecutor(int64_t x, int64_t y, int width, int16_t taskTag, int16_t msgTagOffset,
+    ArithAddExecutor(int64_t x, int64_t y, int width, int taskTag, int msgTagOffset,
                 int clientRank) : ArithExecutor(x, y, width, taskTag, msgTagOffset, clientRank) {
     }
 

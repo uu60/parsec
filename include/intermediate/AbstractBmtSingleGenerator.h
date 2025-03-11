@@ -18,7 +18,7 @@ public:
     int64_t _vi{};
 
 protected:
-    AbstractBmtSingleGenerator(int width, int16_t taskTag, int16_t msgTagOffset) : AbstractSingleExecutor(
+    AbstractBmtSingleGenerator(int width, int taskTag, int msgTagOffset) : AbstractSingleExecutor(
         width, taskTag, msgTagOffset) {
     }
 };
