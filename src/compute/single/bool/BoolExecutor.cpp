@@ -24,7 +24,7 @@ BoolExecutor::BoolExecutor(int64_t z, int l, int taskTag, int msgTagOffset,
             int64_t z0 = ring(z ^ z1);
 
             std::future<void> f;
-            if (Conf::INTRA_OPERATOR_PARALLELISM) {
+            if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
                 f = ThreadPoolSupport::submit([&] {
                     Comm::send(z0, _width, 0, buildTag(_currentMsgTag));
                 });
@@ -32,7 +32,7 @@ BoolExecutor::BoolExecutor(int64_t z, int l, int taskTag, int msgTagOffset,
                 Comm::send(z0, _width, 0, buildTag(_currentMsgTag));
             }
             Comm::send(z1, _width, 1, buildTag(_currentMsgTag));
-            if (Conf::INTRA_OPERATOR_PARALLELISM) {
+            if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
                 f.wait();
             }
         } else {
@@ -57,7 +57,7 @@ BoolExecutor::BoolExecutor(int64_t x, int64_t y, int l, int taskTag, int msgTagO
             std::vector xy0 = {x0, y0};
             std::vector xy1 = {x1, y1};
             std::future<void> f;
-            if (Conf::INTRA_OPERATOR_PARALLELISM) {
+            if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
                 f = ThreadPoolSupport::submit([this, &xy0] {
                     Comm::send(xy0, _width, 0, buildTag(_currentMsgTag));
                 });
@@ -66,7 +66,7 @@ BoolExecutor::BoolExecutor(int64_t x, int64_t y, int l, int taskTag, int msgTagO
             }
             Comm::send(xy1, _width, 1, buildTag(_currentMsgTag));
             // sync
-            if (Conf::INTRA_OPERATOR_PARALLELISM) {
+            if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
                 f.wait();
             }
         } else {

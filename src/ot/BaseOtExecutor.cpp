@@ -15,7 +15,8 @@ BaseOtExecutor::BaseOtExecutor(int sender, int64_t m0, int64_t m1, int choice, i
 }
 
 BaseOtExecutor::BaseOtExecutor(int bits, int sender, int64_t m0, int64_t m1, int choice, int l, int taskTag,
-                             int msgTagOffset) : AbstractOtExecutor(sender, m0, m1, choice, l, taskTag, msgTagOffset) {
+                               int msgTagOffset) : AbstractOtExecutor(sender, m0, m1, choice, l, taskTag,
+                                                                      msgTagOffset) {
     _bits = bits;
 }
 
@@ -55,14 +56,14 @@ void BaseOtExecutor::generateAndShareRsaKeys() {
         _pub = Crypto::_selfPubs[_bits];
         _pri = Crypto::_selfPris[_bits];
         if (newKey) {
-            Comm::serverSend(_pub, buildTag(_currentMsgTag++));
+            Comm::serverSend(_pub, buildTag(_currentMsgTag));
         }
     } else {
         // receiver
         if (Crypto::_otherPubs.count(_bits) > 0) {
             _pub = Crypto::_otherPubs[_bits];
         } else {
-            Comm::serverReceive(_pub, buildTag(_currentMsgTag++));
+            Comm::serverReceive(_pub, buildTag(_currentMsgTag));
             Crypto::_otherPubs[_bits] = _pub;
         }
     }
@@ -75,8 +76,8 @@ void BaseOtExecutor::process() {
         Comm::serverSend(sumStr, buildTag(_currentMsgTag));
 
         std::string m0, m1;
-        Comm::serverReceive(m0, buildTag(static_cast<int>(_currentMsgTag + 1)));
-        Comm::serverReceive(m1, buildTag(static_cast<int>(_currentMsgTag + 2)));
+        Comm::serverReceive(m0, buildTag(_currentMsgTag));
+        Comm::serverReceive(m1, buildTag(_currentMsgTag));
 
         _result = std::stoll(Math::minus(_choice == 0 ? m0 : m1, _randK));
     } else {
@@ -91,17 +92,11 @@ void BaseOtExecutor::process() {
         std::string m0 = Math::add(std::to_string(_m0), k0);
         std::string m1 = Math::add(std::to_string(_m1), k1);
 
-        auto f0 = ThreadPoolSupport::submit([m0, this] {
-            Comm::serverSend(m0, buildTag(static_cast<int>(_currentMsgTag + 1)));
-        });
-        auto f1 = ThreadPoolSupport::submit([m1, this] {
-            Comm::serverSend(m1, buildTag(static_cast<int>(_currentMsgTag + 2)));
-        });
-        f0.wait();
-        f1.wait();
+        Comm::serverSend(m0, buildTag(_currentMsgTag));
+        Comm::serverSend(m1, buildTag(_currentMsgTag));
     }
 }
 
 int BaseOtExecutor::msgTagCount() {
-    return 6;
+    return 1;
 }

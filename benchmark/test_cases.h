@@ -270,7 +270,6 @@ inline void test_ot_9() {
     }
 }
 
-//================== 测试函数：递归版 Bitonic Sort ==================//
 
 inline void test_Sort_10() {
     // 1. 预备工作

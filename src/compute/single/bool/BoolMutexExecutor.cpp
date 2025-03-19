@@ -26,7 +26,7 @@ BoolMutexExecutor *BoolMutexExecutor::execute() {
     }
 
     int64_t start;
-    if (Conf::CLASS_WISE_TIMING) {
+    if constexpr (Conf::CLASS_WISE_TIMING) {
         start = System::currentTimeMillis();
     }
 
@@ -36,7 +36,7 @@ BoolMutexExecutor *BoolMutexExecutor::execute() {
         gotBmt = true;
         bmt0 = _bmts->at(0);
         bmt1 = _bmts->at(1);
-    } else if (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
+    } else if constexpr (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
         gotBmt = true;
         auto bs = IntermediateDataSupport::pollBitwiseBmts(2, _width);
         bmt0 = bs[0];
@@ -75,7 +75,7 @@ BoolMutexExecutor *BoolMutexExecutor::execute() {
 
     _zi = ring(cx ^ _yi ^ cy);
 
-    if (Conf::CLASS_WISE_TIMING) {
+    if constexpr (Conf::CLASS_WISE_TIMING) {
         _totalTime += System::currentTimeMillis() - start;
     }
 

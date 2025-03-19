@@ -22,17 +22,17 @@ void IntermediateDataSupport::offerBitwiseBmt(BitwiseBmt bmt) {
 }
 
 void IntermediateDataSupport::prepareBmt() {
-    if (Conf::BMT_METHOD == Consts::BMT_FIXED) {
+    if constexpr (Conf::BMT_METHOD == Consts::BMT_FIXED) {
         _fixedBmt = BmtGenerator(64, 0, 0).execute()->_bmt;
         _fixedBitwiseBmt = BitwiseBmtGenerator(64, 0, 0).execute()->_bmt;
-    } else if (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
-        if (Conf::BMT_QUEUE_TYPE == Consts::LOCK_QUEUE) {
+    } else if constexpr (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
+        if constexpr (Conf::BMT_QUEUE_TYPE == Consts::LOCK_QUEUE) {
             _bmts = new LockBlockingQueue<Bmt>(Conf::MAX_BMTS);
         } else {
             _bmts = new BoostLockFreeQueue<Bmt>(Conf::MAX_BMTS);
         }
 
-        if (Conf::BMT_QUEUE_TYPE == Consts::LOCK_QUEUE) {
+        if constexpr (Conf::BMT_QUEUE_TYPE == Consts::LOCK_QUEUE) {
             _bitwiseBmts = new LockBlockingQueue<BitwiseBmt>(Conf::MAX_BMTS);
         } else {
             _bitwiseBmts = new BoostLockFreeQueue<BitwiseBmt>(Conf::MAX_BMTS);
@@ -58,33 +58,25 @@ void IntermediateDataSupport::init() {
 // }
 
 void IntermediateDataSupport::prepareRot() {
-    if (Comm::isServer()) {
-        std::vector<std::future<void> > futures;
-        futures.reserve(2);
+    if (Comm::isClient()) {
+        return;
+    }
 
-        for (int i = 0; i < 2; i++) {
-            auto f = [i] {
-                bool isSender = Comm::rank() == i;
-                if (isSender) {
-                    _sRot = new SRot();
-                    _sRot->_r0 = Math::randInt();
-                    _sRot->_r1 = Math::randInt();
-                } else {
-                    _rRot = new RRot();
-                    _rRot->_b = static_cast<int>(Math::randInt(0, 1));;
-                }
-                BaseOtExecutor e(i, isSender ? _sRot->_r0 : -1, isSender ? _sRot->_r1 : -1, !isSender ? _rRot->_b : -1,
-                                 64, 2, i * BaseOtExecutor::msgTagCount());
-                e.execute();
-                if (!isSender) {
-                    _rRot->_rb = e._result;
-                }
-            };
-            futures.push_back(ThreadPoolSupport::submit(f));
+    for (int i = 0; i < 2; i++) {
+        bool isSender = Comm::rank() == i;
+        if (isSender) {
+            _sRot = new SRot();
+            _sRot->_r0 = Math::randInt();
+            _sRot->_r1 = Math::randInt();
+        } else {
+            _rRot = new RRot();
+            _rRot->_b = static_cast<int>(Math::randInt(0, 1));;
         }
-
-        for (auto &f: futures) {
-            f.wait();
+        BaseOtExecutor e(i, isSender ? _sRot->_r0 : -1, isSender ? _sRot->_r1 : -1, !isSender ? _rRot->_b : -1,
+                         64, 2, i * BaseOtExecutor::msgTagCount());
+        e.execute();
+        if (!isSender) {
+            _rRot->_rb = e._result;
         }
     }
 }
@@ -96,7 +88,7 @@ std::vector<Bmt> IntermediateDataSupport::pollBmts(int count, int width) {
     }
 
     result.reserve(count);
-    if (Conf::BMT_USAGE_LIMIT == 1) {
+    if constexpr (Conf::BMT_USAGE_LIMIT == 1) {
         result.push_back(_bmts->poll());
         return result;
     }
@@ -135,7 +127,7 @@ std::vector<BitwiseBmt> IntermediateDataSupport::pollBitwiseBmts(int count, int 
     }
 
     result.reserve(count);
-    if (Conf::BMT_USAGE_LIMIT == 1) {
+    if constexpr (Conf::BMT_USAGE_LIMIT == 1) {
         result.push_back(_bitwiseBmts->poll());
         return result;
     }

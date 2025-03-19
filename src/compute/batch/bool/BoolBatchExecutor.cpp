@@ -25,7 +25,7 @@ BoolBatchExecutor::BoolBatchExecutor(std::vector<int64_t>& zs, int width, int ta
                 zv1.push_back(z1);
             }
             std::future<void> f;
-            if (Conf::INTRA_OPERATOR_PARALLELISM) {
+            if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
                 // To avoid long time waiting on network, send data in parallel.
                 f = ThreadPoolSupport::submit([&] {
                     Comm::send(zv0, _width, 0, buildTag(_currentMsgTag));
@@ -34,7 +34,7 @@ BoolBatchExecutor::BoolBatchExecutor(std::vector<int64_t>& zs, int width, int ta
                 Comm::send(zv0, _width, 0, buildTag(_currentMsgTag));
             }
             Comm::send(zv1, _width, 1, buildTag(_currentMsgTag));
-            if (Conf::INTRA_OPERATOR_PARALLELISM) {
+            if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
                 f.wait();
             }
         } else if (Comm::isServer()) {
@@ -71,7 +71,7 @@ BoolBatchExecutor::BoolBatchExecutor(std::vector<int64_t> &xs, std::vector<int64
                 v1.push_back(y1);
             }
             std::future<void> f;
-            if (Conf::INTRA_OPERATOR_PARALLELISM) {
+            if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
                 f = ThreadPoolSupport::submit([&] {
                     Comm::send(v0, _width, 0, buildTag(_currentMsgTag));
                 });
@@ -79,7 +79,7 @@ BoolBatchExecutor::BoolBatchExecutor(std::vector<int64_t> &xs, std::vector<int64
                 Comm::send(v0, _width, 0, buildTag(_currentMsgTag));
             }
             Comm::send(v1, _width, 1, buildTag(_currentMsgTag));
-            if (Conf::INTRA_OPERATOR_PARALLELISM) {
+            if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
                 // sync
                 f.wait();
             }
@@ -114,7 +114,7 @@ BoolBatchExecutor * BoolBatchExecutor::reconstruct(int clientRank) {
         _results.clear();
         _results.reserve(temp0.size() + temp1.size());
         for (int i = 0; i < temp0.size(); i++) {
-            _results.push_back(temp0[i] ^ temp1[i]);
+            _results.push_back(ring(temp0[i] ^ temp1[i]));
         }
     }
     return this;

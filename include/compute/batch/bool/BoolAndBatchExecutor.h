@@ -27,6 +27,9 @@ public:
     BoolAndBatchExecutor *setBmts(std::vector<BitwiseBmt> *bmts);
 
     static int bmtCount(int num);
+
+private:
+    int prepareBmts(std::vector<BitwiseBmt> &bmts);
 };
 
 

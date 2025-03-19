@@ -19,13 +19,13 @@ void ArithToBoolExecutor::prepareBmts(BitwiseBmt &b0, BitwiseBmt &b1, BitwiseBmt
         b0 = _bmts->at(0);
         b1 = _bmts->at(1);
         b2 = _bmts->at(2);
-    } else if (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
+    } else if constexpr (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
         auto bs = IntermediateDataSupport::pollBitwiseBmts(3, _width);
         b0 = bs[0];
         b1 = bs[1];
         b2 = bs[2];
     } else {
-        if (Conf::TASK_BATCHING) {
+        if constexpr (Conf::TASK_BATCHING) {
             auto bmts = BitwiseBmtBatchGenerator(3, _width, _taskTag, _currentMsgTag).execute()->_bmts;
             b0 = bmts[0];
             b1 = bmts[1];
@@ -86,7 +86,7 @@ ArithToBoolExecutor *ArithToBoolExecutor::execute() {
                 std::future<int64_t> f;
                 bool generate_i;
 
-                if (Conf::INTRA_OPERATOR_PARALLELISM) {
+                if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
                     f = ThreadPoolSupport::submit([&] {
                         auto bmt = b0.extract(i);
                         return BoolAndExecutor(ai, bi, 1, _taskTag, cm, NO_CLIENT_COMPUTE).setBmt(
@@ -104,7 +104,7 @@ ArithToBoolExecutor *ArithToBoolExecutor::execute() {
                 bool tempCarry_i = BoolAndExecutor(propagate_i, carry_i, 1, _taskTag, _currentMsgTag, -1).setBmt(
                     &bmt)->execute()->_zi;
 
-                if (Conf::INTRA_OPERATOR_PARALLELISM) {
+                if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
                     generate_i = f.get();
                 }
                 bool sum_i = generate_i ^ tempCarry_i;

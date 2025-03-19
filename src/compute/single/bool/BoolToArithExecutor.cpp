@@ -24,7 +24,7 @@ BoolToArithExecutor *BoolToArithExecutor::execute() {
     std::vector<std::future<void> > futures;
     futures.reserve(_width);
 
-    if (Conf::TASK_BATCHING) {
+    if constexpr (Conf::TASK_BATCHING) {
         std::vector<int64_t> ss0, ss1;
         std::vector<int> choices;
         std::vector<int64_t> rs;
@@ -83,7 +83,7 @@ BoolToArithExecutor *BoolToArithExecutor::execute() {
                 temp += e._result;
             }
         };
-        if (Conf::INTRA_OPERATOR_PARALLELISM) {
+        if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
             for (int i = 0; i < _width; i++) {
                 futures.push_back(ThreadPoolSupport::submit([&, i] {
                     process(i);

@@ -18,11 +18,11 @@ std::vector<int64_t> AbstractSecureExecutor::handleOt(int sender, std::vector<in
                                                       std::vector<int> &choices) {
     std::vector<int64_t> results;
     size_t all = sender == Comm::rank() ? ss0.size() : choices.size();
-    if (Conf::TASK_BATCHING) {
+    if constexpr (Conf::TASK_BATCHING) {
         RandOtBatchExecutor r(sender, &ss0, &ss1, &choices, _width, _taskTag, static_cast<int>(
                                   _currentMsgTag + sender * RandOtBatchExecutor::msgTagCount()));
         results = r.execute()->_results;
-    } else if (Conf::INTRA_OPERATOR_PARALLELISM) {
+    } else if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
         std::vector<std::future<int64_t> > futures;
         futures.reserve(all);
         bool isSender = sender == Comm::rank();

@@ -6,6 +6,7 @@
 #include "utils/System.h"
 #include <cmath>
 
+#include "compute/batch/bool/BoolLessBatchExecutor.h"
 #include "compute/batch/bool/BoolMutexBatchExecutor.h"
 #include "compute/single/bool/BoolLessExecutor.h"
 #include "conf/Conf.h"
@@ -53,6 +54,42 @@ void compareAndSwap(std::vector<SecretT> &secrets, size_t i, size_t j, bool dir,
         std::atomic_thread_fence(std::memory_order_release);
     }
 }
+
+
+template<typename SecretT>
+void compareAndSwapBatch(std::vector<SecretT> &secrets, size_t low, size_t mid, bool dir, int taskTag,
+                         int msgTagOffset) {
+    std::vector<size_t> toCompare;
+    toCompare.reserve(mid);
+    for (size_t i = low; i < low + mid; i++) {
+        auto j = i + mid;
+        if (secrets[i]._padding && secrets[j]._padding) {
+            continue;
+        }
+        if ((secrets[i]._padding && dir) || (secrets[j]._padding && !dir)) {
+            std::swap(secrets[i], secrets[j]);
+            if constexpr (Conf::SORT_IN_PARALLEL) {
+                std::atomic_thread_fence(std::memory_order_release);
+            }
+            continue;
+        }
+        if (secrets[i]._padding || secrets[j]._padding) {
+            continue;
+        }
+        toCompare.push_back(i);
+    }
+    std::vector<int64_t> xs, ys;
+    xs.reserve(toCompare.size());
+    ys.reserve(toCompare.size());
+    for (int i = 0; i < toCompare.size(); i++) {
+        xs.push_back(secrets[i].get());
+        ys.push_back(secrets[i + mid].get());
+    }
+    auto zs = BoolLessBatchExecutor(xs, ys, secrets[0]._width, taskTag, msgTagOffset,
+                                    AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zis;
+
+}
+
 
 template<typename SecretT>
 void bitonicMerge(std::vector<SecretT> &secrets, size_t low, size_t length, bool dir, int taskTag,
@@ -147,7 +184,7 @@ void radixSort(std::vector<SecretT> &secrets, bool asc, int taskTag) {
 
 template<typename SecretT>
 void doSort(std::vector<SecretT> &secrets, bool asc, int taskTag) {
-    if (Conf::SORT_METHOD == Consts::BITONIC) {
+    if constexpr (Conf::SORT_METHOD == Consts::BITONIC) {
         size_t n = secrets.size();
         bool isPowerOf2 = (n > 0) && ((n & (n - 1)) == 0);
         size_t paddingCount = 0;

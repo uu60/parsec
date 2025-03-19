@@ -20,6 +20,8 @@ public:
     constexpr static int BMT_QUEUE_TYPE = Consts::CAS_QUEUE;
 
     // ---------------Settings for threads---------------
+    // Enable single-thread only
+    constexpr static bool DISABLE_MULTI_THREAD = true;
     // Enable multiple-thread computation in each single executor
     constexpr static bool INTRA_OPERATOR_PARALLELISM = false;
     // Sum of threads in a process
@@ -41,7 +43,7 @@ public:
     // Communication object index (0 = OpenMpi)
     constexpr static int COMM_TYPE = Consts::MPI;
     // Batch communicate or execute by elements
-    constexpr static bool TASK_BATCHING = false;
+    constexpr static bool TASK_BATCHING = true;
     // Invalid if intra parallelism or batching is false
     constexpr static int BATCH_SIZE = 10;
 
@@ -53,6 +55,9 @@ public:
     constexpr static int SORT_METHOD = Consts::BITONIC;
     // Sort in parallel
     constexpr static bool SORT_IN_PARALLEL = false;
+
+    // ---------------Settings for acceleration---------------
+    constexpr static bool ENABLE_SIMD = true;
 };
 
 

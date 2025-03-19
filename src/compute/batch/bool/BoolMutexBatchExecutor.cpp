@@ -4,6 +4,7 @@
 
 #include "compute/batch/bool/BoolMutexBatchExecutor.h"
 
+#include "accelerate/SimdSupport.h"
 #include "compute/batch/bool/BoolAndBatchExecutor.h"
 #include "compute/single/bool/BoolAndExecutor.h"
 #include "conf/Conf.h"
@@ -31,7 +32,7 @@ bool BoolMutexBatchExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     if (_bmts != nullptr) {
         gotBmt = true;
         bmts = std::move(*_bmts);
-    } else if (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
+    } else if constexpr (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
         gotBmt = true;
         bmts = IntermediateDataSupport::pollBitwiseBmts(_conds_i.size() * 2, _width);
     }
@@ -46,7 +47,7 @@ BoolMutexBatchExecutor *BoolMutexBatchExecutor::execute() {
     }
 
     int64_t start;
-    if (Conf::CLASS_WISE_TIMING) {
+    if constexpr (Conf::CLASS_WISE_TIMING) {
         start = System::currentTimeMillis();
     }
 
@@ -62,12 +63,16 @@ BoolMutexBatchExecutor *BoolMutexBatchExecutor::execute() {
     auto zis = BoolAndBatchExecutor(_conds_i, _xis, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
             setBmts(gotBmt ? &bmts : nullptr)->execute()->_zis;
 
-    _zis.resize(num);
-    for (int i = 0; i < num; i++) {
-        _zis[i] = ring(zis[i] ^ _yis[i] ^ zis[num + i]);
+    if constexpr (Conf::ENABLE_SIMD) {
+        _zis = SimdSupport::xor3(zis.data(), _yis.data(), zis.data() + num, num);
+    } else {
+        _zis.resize(num);
+        for (int i = 0; i < num; i++) {
+            _zis[i] = zis[i] ^ _yis[i] ^ zis[num + i];
+        }
     }
 
-    if (Conf::CLASS_WISE_TIMING) {
+    if constexpr (Conf::CLASS_WISE_TIMING) {
         _totalTime += System::currentTimeMillis() - start;
     }
 

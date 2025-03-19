@@ -8,26 +8,36 @@
 #include <vector>
 #include <cstdint>
 
-#ifdef __AVX512F__
-    #include <immintrin.h>
-    #define SIMD_AVX512
-#elif defined(__AVX2__)
-    #include <immintrin.h>
-    #define SIMD_AVX2
-#elif defined(__SSE2__)
-    #include <emmintrin.h>
-    #define SIMD_SSE2
-#elif defined(__ARM_NEON)
-    #include <arm_neon.h>
-    #define SIMD_NEON
-#else
-    #define NO_SIMD
-#endif
-
 class SimdSupport {
+public:
+    // xor 2 vectors
+    static std::vector<int64_t> xorV(const std::vector<int64_t> &arr0, const std::vector<int64_t> &arr1);
 
+    // and 2 vectors
+    static std::vector<int64_t> andV(const std::vector<int64_t> &arr0, const std::vector<int64_t> &arr1);
+
+    // and a vector and a constant value
+    static std::vector<int64_t> andVC(const std::vector<int64_t> &arr, int64_t constant);
+
+    // or 2 vectors
+    static std::vector<int64_t> orV(const std::vector<int64_t> &arr0, const std::vector<int64_t> &arr1);
+
+    // xor a vector and a constant value
+    static std::vector<int64_t> xorVC(const std::vector<int64_t> &arr, int64_t constant);
+
+    // xor 2 vectors and 2 constants respectively and combine the results
+    static std::vector<int64_t> xor2VC(const std::vector<int64_t> &xis,
+                                                 const std::vector<int64_t> &yis,
+                                                 int64_t a, int64_t b);
+
+    // xor 3 arrays with specific element number
+    static std::vector<int64_t> xor3(const int64_t *a, const int64_t *b,
+                                     const int64_t *c,
+                                     int num);
+
+    // compute z
+    static std::vector<int64_t> computeZ(const std::vector<int64_t> &efs, int64_t a, int64_t b, int64_t c);
 };
-
 
 
 #endif //SIMDSUPPORT_H

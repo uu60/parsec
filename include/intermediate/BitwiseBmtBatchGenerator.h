@@ -15,7 +15,6 @@ public:
 
     explicit BitwiseBmtBatchGenerator(int count, int l, int taskTag, int msgTagOffset);
 
-
     BitwiseBmtBatchGenerator *execute() override;
 
 private:

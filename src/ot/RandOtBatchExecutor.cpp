@@ -13,7 +13,7 @@ RandOtBatchExecutor *RandOtBatchExecutor::execute() {
     }
 
     int64_t start;
-    if (Conf::CLASS_WISE_TIMING) {
+    if constexpr (Conf::CLASS_WISE_TIMING) {
         start = System::currentTimeMillis();
     }
 
@@ -52,7 +52,7 @@ RandOtBatchExecutor *RandOtBatchExecutor::execute() {
         }
     }
 
-    if (Conf::CLASS_WISE_TIMING) {
+    if constexpr (Conf::CLASS_WISE_TIMING) {
         _totalTime += System::currentTimeMillis() - start;
     }
 

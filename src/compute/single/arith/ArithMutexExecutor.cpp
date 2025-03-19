@@ -31,7 +31,7 @@ ArithMutexExecutor *ArithMutexExecutor::execute() {
         if (_bmts != nullptr) {
             bmt0 = _bmts->at(0);
             bmt1 = _bmts->at(1);
-        } else if (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
+        } else if constexpr (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
             auto bs = IntermediateDataSupport::pollBitwiseBmts(2, _width);
             bmt0 = bs[0];
             bmt1 = bs[1];
@@ -41,7 +41,7 @@ ArithMutexExecutor *ArithMutexExecutor::execute() {
         auto bp0 = _bmts == nullptr && Conf::BMT_METHOD == Consts::BMT_JIT ? nullptr : &bmt0;
         auto bp1 = _bmts == nullptr && Conf::BMT_METHOD == Consts::BMT_JIT ? nullptr : &bmt1;
 
-        if (Conf::INTRA_OPERATOR_PARALLELISM) {
+        if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
             f = ThreadPoolSupport::submit([&] {
                 auto mul0 = ArithMultiplyExecutor(_cond_i, _xi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
                 int64_t ret = mul0.setBmt(bp0)->execute()->_zi;
@@ -57,7 +57,7 @@ ArithMutexExecutor *ArithMutexExecutor::execute() {
                                                                    _width)),
                                           NO_CLIENT_COMPUTE);
         cy = mul1.setBmt(bp1)->execute()->_zi;
-        if (Conf::INTRA_OPERATOR_PARALLELISM) {
+        if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
             cx = f.get();
         }
         _zi = ring(cx + _yi - cy);

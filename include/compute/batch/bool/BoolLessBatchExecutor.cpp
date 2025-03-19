@@ -1,0 +1,214 @@
+//
+// Created by 杜建璋 on 2025/3/17.
+//
+
+#include "BoolLessBatchExecutor.h"
+
+#include "BoolAndBatchExecutor.h"
+#include "accelerate/SimdSupport.h"
+#include "compute/single/bool/BoolLessExecutor.h"
+#include "conf/Conf.h"
+#include "intermediate/BitwiseBmtBatchGenerator.h"
+#include "intermediate/BitwiseBmtGenerator.h"
+#include "intermediate/IntermediateDataSupport.h"
+#include "parallel/ThreadPoolSupport.h"
+
+BoolLessBatchExecutor *BoolLessBatchExecutor::execute() {
+    _currentMsgTag = _startMsgTag;
+    if (Comm::isClient()) {
+        return this;
+    }
+
+    int64_t start;
+    if constexpr (Conf::CLASS_WISE_TIMING) {
+        start = System::currentTimeMillis();
+    }
+    std::vector<BitwiseBmt> bmts;
+    bool gotBmt = prepareBmts(bmts);
+
+    int bmtI = 0;
+    std::vector<int64_t> x_xor_y, lbs;
+    int64_t mask = Math::ring(-1ll, _width);
+
+    if constexpr (Conf::ENABLE_SIMD) {
+        x_xor_y = SimdSupport::xorV(_xis, _yis);
+        lbs = Comm::rank() == 0 ? x_xor_y : SimdSupport::xorVC(x_xor_y, mask);
+    } else {
+        x_xor_y.reserve(_xis.size());
+        for (int i = 0; i < _xis.size(); i++) {
+            x_xor_y.push_back(_xis[i] ^ _yis[i]);
+        }
+        if (Comm::rank() == 0) {
+            lbs = x_xor_y;
+        } else {
+            lbs.reserve(x_xor_y.size());
+            for (int64_t i: x_xor_y) {
+                lbs.push_back(i ^ mask);
+            }
+        }
+    }
+
+    auto shifted_1 = shiftGreater(lbs, 1);
+
+    lbs = BoolAndBatchExecutor(lbs, shifted_1, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
+            .setBmts(gotBmt ? &bmts : nullptr)->execute()->_zis;
+
+    std::vector<int64_t> diag;
+    if constexpr (Conf::ENABLE_SIMD) {
+        std::vector<int64_t> yis_lsb = SimdSupport::andVC(_yis, 1);
+        std::vector<int64_t> xor_result = SimdSupport::xorVC(yis_lsb, Comm::rank());
+
+        std::vector<int64_t> m = SimdSupport::andVC(x_xor_y, ~1);
+        diag = SimdSupport::orV(m, xor_result);
+    } else {
+        for (int i = 0; i < x_xor_y.size(); i++) {
+            diag.push_back(Math::changeBit(x_xor_y[i], 0, Math::getBit(_yis[i], 0) ^ Comm::rank()));
+        }
+    }
+
+    // diag & x
+    diag = BoolAndBatchExecutor(diag, _xis, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmts(
+        gotBmt ? &bmts : nullptr)->execute()->_zis;
+
+    int rounds = static_cast<int>(std::floor(std::log2(_width)));
+    for (int r = 2; r <= rounds; r++) {
+        auto shifted_r = shiftGreater(lbs, r);
+
+        lbs = BoolAndBatchExecutor(lbs, shifted_r, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
+                setBmts(gotBmt ? &bmts : nullptr)->execute()->_zis;
+    }
+
+    std::vector<int64_t> shifted_accum;
+    shifted_accum.reserve(lbs.size());
+    for (int i = 0; i < lbs.size(); i++) {
+        shifted_accum.push_back(Math::changeBit(lbs[i] >> 1, _width - 1, Comm::rank()));
+    }
+
+    auto final_accum = BoolAndBatchExecutor(shifted_accum, diag, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
+            .setBmts(gotBmt ? &bmts : nullptr)->execute()->_zis;
+
+    _zis = std::vector<int64_t>(final_accum.size(), false);
+    for (int i = 0; i < _zis.size(); i++) {
+        for (int j = 0; j < _width; i++) {
+            _zis[i] = _zis[i] ^ Math::getBit(final_accum[i], j);
+        }
+    }
+
+    if constexpr (Conf::CLASS_WISE_TIMING) {
+        _totalTime += System::currentTimeMillis() - start;
+    }
+
+    return this;
+}
+
+BoolLessBatchExecutor *BoolLessBatchExecutor::setBmts(std::vector<BitwiseBmt> *bmts) {
+    this->_bmts = bmts;
+    return this;
+}
+
+int BoolLessBatchExecutor::msgTagCount(int num, int width) {
+    return bmtCount(num, width) * BitwiseBmtGenerator::msgTagCount(width);
+}
+
+int BoolLessBatchExecutor::bmtCount(int num, int width) {
+    return num * BoolLessExecutor::bmtCount(width);
+}
+
+std::vector<int64_t> BoolLessBatchExecutor::shiftGreater(std::vector<int64_t> &in, int r) const {
+    int part_size = 1 << r;
+    if (part_size > _width) {
+        return in;
+    }
+    int offset = part_size >> 1;
+
+    if constexpr (Conf::ENABLE_SIMD) {
+        std::vector<int64_t> out = in;
+
+        for (int i = 0; i < _width; i += part_size) {
+            int start = i + offset;
+            if (start >= _width) break;
+            int count = start - i;
+
+            int64_t seg_mask = ((1LL << count) - 1) << i;
+            std::vector segMaskVec(out.size(), seg_mask);
+            std::vector segMaskNotVec(out.size(), ~seg_mask);
+
+            std::vector<int64_t> condVec(out.size(), 0);
+            for (size_t j = 0; j < out.size(); ++j) {
+                condVec[j] = (((uint64_t) in[j] >> start) & 1ULL) ? -1LL : 0LL;
+            }
+
+            std::vector<int64_t> A = SimdSupport::andV(out, segMaskNotVec);
+            std::vector<int64_t> B = SimdSupport::andV(condVec, segMaskVec);
+            out = SimdSupport::orV(A, B);
+        }
+        return out;
+    } else {
+        std::vector<int64_t> out;
+        out.reserve(in.size());
+
+        for (int64_t ini: in) {
+            for (int i = 0; i < _width; i += part_size) {
+                int start = i + offset;
+                if (start >= _width) {
+                    break;
+                }
+
+                bool midBit = Math::getBit(ini, start);
+                int count = start - i;
+                int64_t mask = ((1LL << count) - 1) << i;
+
+                if (midBit) {
+                    ini |= mask;
+                } else {
+                    ini &= ~mask;
+                }
+            }
+            out.push_back(ini);
+        }
+
+        return out;
+    }
+}
+
+bool BoolLessBatchExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
+    if (_bmts != nullptr) {
+        bmts = std::move(*_bmts);
+        return true;
+    }
+
+    int bc = bmtCount(_xis.size(), _width);
+    if constexpr (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
+        bmts = IntermediateDataSupport::pollBitwiseBmts(bc, _width);
+        return true;
+    }
+    if constexpr (Conf::BMT_METHOD == Consts::BMT_JIT) {
+        // JIT BMT
+        if (!Conf::TASK_BATCHING) {
+            bmts = BitwiseBmtBatchGenerator(bc, _width, _taskTag, _currentMsgTag).execute()->_bmts;
+        } else if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
+            std::vector<std::future<BitwiseBmt> > futures;
+            futures.reserve(bc);
+            for (int i = 0; i < bc; i++) {
+                futures.push_back(ThreadPoolSupport::submit([&, i] {
+                    return BitwiseBmtGenerator(_width, _taskTag,
+                                               static_cast<int>(
+                                                   _currentMsgTag + i *
+                                                   BitwiseBmtGenerator::msgTagCount(_width))).
+                            execute()->_bmt;
+                }));
+            }
+            bmts.reserve(bc);
+            for (auto &f: futures) {
+                bmts.push_back(f.get());
+            }
+        } else {
+            bmts.reserve(bc);
+            for (int i = 0; i < bc; i++) {
+                bmts.push_back(BitwiseBmtGenerator(_width, _taskTag, _currentMsgTag).execute()->_bmt);
+            }
+        }
+        return true;
+    }
+    return false;
+}

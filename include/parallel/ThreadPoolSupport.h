@@ -20,9 +20,12 @@ public:
 
 public:
     static void init() {
-        if (Conf::THREAD_POOL_TYPE == Consts::CTPL_POOL) {
+        if constexpr (Conf::DISABLE_MULTI_THREAD) {
+            return;
+        }
+        if constexpr (Conf::THREAD_POOL_TYPE == Consts::CTPL_POOL) {
             _ctplPool = new CtplThreadPool(Conf::LOCAL_THREADS);
-        } else if (Conf::THREAD_POOL_TYPE == Consts::TBB_POOL) {
+        } else if constexpr (Conf::THREAD_POOL_TYPE == Consts::TBB_POOL) {
             _tbbPool = new TbbThreadPool(Conf::LOCAL_THREADS);
         }
     }

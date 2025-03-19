@@ -20,15 +20,15 @@ bool BoolLessExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     }
 
     int bc = bmtCount(_width);
-    if (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
+    if constexpr (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
         bmts = IntermediateDataSupport::pollBitwiseBmts(bc, _width);
         return true;
     }
-    if (Conf::BMT_METHOD == Consts::BMT_JIT) {
+    if constexpr (Conf::BMT_METHOD == Consts::BMT_JIT) {
         // JIT BMT
         if (!Conf::TASK_BATCHING) {
             bmts = BitwiseBmtBatchGenerator(bc, _width, _taskTag, _currentMsgTag).execute()->_bmts;
-        } else if (Conf::INTRA_OPERATOR_PARALLELISM) {
+        } else if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
             std::vector<std::future<BitwiseBmt> > futures;
             futures.reserve(bc);
             for (int i = 0; i < bc; i++) {
@@ -62,7 +62,7 @@ BoolLessExecutor *BoolLessExecutor::execute() {
     }
 
     int64_t start;
-    if (Conf::CLASS_WISE_TIMING) {
+    if constexpr (Conf::CLASS_WISE_TIMING) {
         start = System::currentTimeMillis();
     }
     std::vector<BitwiseBmt> bmts;
@@ -87,9 +87,8 @@ BoolLessExecutor *BoolLessExecutor::execute() {
     for (int r = 2; r <= rounds; r++) {
         int64_t shifted_r = shiftGreater(lbs, r);
 
-        int64_t and_r = BoolAndExecutor(lbs, shifted_r, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
+        lbs = BoolAndExecutor(lbs, shifted_r, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
                 setBmt(gotBmt ? &bmts[bmtI++] : nullptr)->execute()->_zi;
-        lbs = and_r;
     }
 
     int64_t shifted_accum = Math::changeBit(lbs >> 1, _width - 1, Comm::rank());
@@ -104,7 +103,7 @@ BoolLessExecutor *BoolLessExecutor::execute() {
 
     _zi = result;
 
-    if (Conf::CLASS_WISE_TIMING) {
+    if constexpr (Conf::CLASS_WISE_TIMING) {
         _totalTime += System::currentTimeMillis() - start;
     }
 
@@ -120,7 +119,7 @@ BoolLessExecutor *BoolLessExecutor::setBmts(std::vector<BitwiseBmt> *bmts) {
 }
 
 int BoolLessExecutor::msgTagCount(int width) {
-    return static_cast<int>(bmtCount(width) * BoolAndExecutor::msgTagCount(width));
+    return bmtCount(width) * BitwiseBmtGenerator::msgTagCount(width);
 }
 
 int BoolLessExecutor::bmtCount(int width) {
@@ -142,9 +141,13 @@ int64_t BoolLessExecutor::shiftGreater(int64_t in, int r) const {
         }
 
         bool midBit = Math::getBit(in, start);
+        int count = start - i;
+        int64_t mask = ((1LL << count) - 1) << i;
 
-        for (int j = start - 1; j >= i; j--) {
-            in = Math::changeBit(in, j, midBit);
+        if (midBit) {
+            in |= mask;
+        } else {
+            in &= ~mask;
         }
     }
 

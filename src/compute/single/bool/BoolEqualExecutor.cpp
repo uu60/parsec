@@ -20,7 +20,7 @@ BoolEqualExecutor *BoolEqualExecutor::execute() {
         auto bmt = _bmt == nullptr ? IntermediateDataSupport::pollBitwiseBmts(1, _width)[0] : *_bmt;
         if (_bmt != nullptr) {
             bmt = *_bmt;
-        } else if (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
+        } else if constexpr (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
             bmt = IntermediateDataSupport::pollBitwiseBmts(1, _width)[0];
         }
         for (int i = 0; i < _width - 1; i++) {

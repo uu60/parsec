@@ -20,13 +20,13 @@ BitwiseBmtBatchGenerator *BitwiseBmtBatchGenerator::execute() {
     }
 
     int64_t start;
-    if (Conf::CLASS_WISE_TIMING) {
+    if constexpr (Conf::CLASS_WISE_TIMING) {
         start = System::currentTimeMillis();
     }
 
     generateRandomAB();
 
-    if (Conf::INTRA_OPERATOR_PARALLELISM) {
+    if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
         auto f = ThreadPoolSupport::submit([&] {
             computeMix(0);
         });
@@ -38,7 +38,7 @@ BitwiseBmtBatchGenerator *BitwiseBmtBatchGenerator::execute() {
     }
     computeC();
 
-    if (Conf::CLASS_WISE_TIMING) {
+    if constexpr (Conf::CLASS_WISE_TIMING) {
         _totalTime += System::currentTimeMillis() - start;
     }
     return this;
