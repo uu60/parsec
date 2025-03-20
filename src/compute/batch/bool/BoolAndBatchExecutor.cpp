@@ -85,8 +85,14 @@ BoolAndBatchExecutor *BoolAndBatchExecutor::execute() {
     }
 
     std::vector<int64_t> efo;
-    Comm::serverSend(efi, _width, buildTag(_currentMsgTag));
-    Comm::serverReceive(efo, _width, buildTag(_currentMsgTag));
+    // reverse send and receive sequence to avoid dead lock
+    if (Comm::rank() == 0) {
+        Comm::serverSend(efi, _width, buildTag(_currentMsgTag));
+        Comm::serverReceive(efo, _width, buildTag(_currentMsgTag));
+    } else {
+        Comm::serverReceive(efo, _width, buildTag(_currentMsgTag));
+        Comm::serverSend(efi, _width, buildTag(_currentMsgTag));
+    }
 
     std::vector<int64_t> efs;
     if constexpr (Conf::ENABLE_SIMD) {

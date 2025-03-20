@@ -11,7 +11,8 @@
 #include "utils/Math.h"
 
 int AbstractSecureExecutor::buildTag(int msgTag) const {
-    return (static_cast<unsigned int>(_taskTag) << 28) | static_cast<unsigned int>(msgTag & ((1 << 28) - 1));
+    int bits = 32 - TASK_TAG_BITS;
+    return (static_cast<unsigned int>(_taskTag) << bits) | static_cast<unsigned int>(msgTag & ((1 << bits) - 1));
 }
 
 std::vector<int64_t> AbstractSecureExecutor::handleOt(int sender, std::vector<int64_t> &ss0, std::vector<int64_t> &ss1,

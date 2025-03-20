@@ -6,6 +6,7 @@
 #include "utils/System.h"
 #include <cmath>
 
+#include "accelerate/SimdSupport.h"
 #include "compute/batch/bool/BoolLessBatchExecutor.h"
 #include "compute/batch/bool/BoolMutexBatchExecutor.h"
 #include "compute/single/bool/BoolLessExecutor.h"
@@ -55,12 +56,11 @@ void compareAndSwap(std::vector<SecretT> &secrets, size_t i, size_t j, bool dir,
     }
 }
 
-
 template<typename SecretT>
 void compareAndSwapBatch(std::vector<SecretT> &secrets, size_t low, size_t mid, bool dir, int taskTag,
                          int msgTagOffset) {
-    std::vector<size_t> toCompare;
-    toCompare.reserve(mid);
+    std::vector<size_t> comparing;
+    comparing.reserve(mid);
     for (size_t i = low; i < low + mid; i++) {
         auto j = i + mid;
         if (secrets[i]._padding && secrets[j]._padding) {
@@ -76,29 +76,60 @@ void compareAndSwapBatch(std::vector<SecretT> &secrets, size_t low, size_t mid, 
         if (secrets[i]._padding || secrets[j]._padding) {
             continue;
         }
-        toCompare.push_back(i);
+        comparing.push_back(i);
     }
+
     std::vector<int64_t> xs, ys;
-    xs.reserve(toCompare.size());
-    ys.reserve(toCompare.size());
-    for (int i = 0; i < toCompare.size(); i++) {
-        xs.push_back(secrets[i].get());
-        ys.push_back(secrets[i + mid].get());
+    int cc = static_cast<int>(comparing.size());
+    xs.reserve(cc);
+    ys.reserve(cc);
+    for (int i = 0; i < cc; i++) {
+        xs.push_back(secrets[comparing[i]]._data);
+        ys.push_back(secrets[comparing[i] + mid]._data);
     }
-    auto zs = BoolLessBatchExecutor(xs, ys, secrets[0]._width, taskTag, msgTagOffset,
-                                    AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zis;
 
+    BoolLessBatchExecutor blbe(xs, ys, secrets[0]._width, taskTag, msgTagOffset,
+                                                   AbstractSecureExecutor::NO_CLIENT_COMPUTE);
+
+    auto zs = blbe.execute()->_zis;
+    xs = std::move(blbe._xis);
+    ys = std::move(blbe._yis);
+
+    if (!dir) {
+        if constexpr (Conf::ENABLE_SIMD) {
+            zs = SimdSupport::xorVC(zs, Comm::rank());
+        } else {
+            for (auto &z : zs) {
+                z = z ^ Comm::rank();
+            }
+        }
+    } // zs now represents if needs swap
+
+    xs.insert(xs.end(), ys.begin(), ys.end());
+    ys.resize(xs.size());
+    for (int i = cc; i < xs.size(); i++) {
+        ys[i] = xs[i - cc];
+    }
+    zs.insert(zs.end(), zs.begin(), zs.end());
+
+    zs = BoolMutexBatchExecutor(ys, xs, zs, secrets[0]._width, taskTag, msgTagOffset, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zis;
+
+    for (int i = 0; i < cc; i++) {
+        secrets[comparing[i]]._data = zs[i];
+        secrets[comparing[i] + mid]._data = zs[i + cc];
+    }
 }
-
 
 template<typename SecretT>
 void bitonicMerge(std::vector<SecretT> &secrets, size_t low, size_t length, bool dir, int taskTag,
                   int msgTagOffset) {
+    glow = low;
     if (length > 1) {
         size_t mid = length / 2;
-        for (size_t i = low; i < low + mid; i++) {
-            compareAndSwap<SecretT>(secrets, i, i + mid, dir, taskTag, msgTagOffset);
-        }
+        // for (size_t i = low; i < low + mid; i++) {
+        //     compareAndSwap<SecretT>(secrets, i, i + mid, dir, taskTag, msgTagOffset);
+        // }
+        compareAndSwapBatch<SecretT>(secrets, low, mid, dir, taskTag, msgTagOffset);
         bitonicMerge<SecretT>(secrets, low, mid, dir, taskTag, msgTagOffset);
         bitonicMerge<SecretT>(secrets, low + mid, mid, dir, taskTag, msgTagOffset);
     }

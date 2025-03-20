@@ -38,8 +38,15 @@ BoolAndExecutor *BoolAndExecutor::execute() {
     int64_t e, f;
     std::vector<int64_t> efo;
     std::vector efi = {ei, fi};
-    Comm::serverSend(efi, _width, buildTag(_currentMsgTag));
-    Comm::serverReceive(efo, _width, buildTag(_currentMsgTag));
+
+    if (Comm::rank() == 0) {
+        Comm::serverSend(efi, _width, buildTag(_currentMsgTag));
+        Comm::serverReceive(efo, _width, buildTag(_currentMsgTag));
+    } else {
+        Comm::serverReceive(efo, _width, buildTag(_currentMsgTag));
+        Comm::serverSend(efi, _width, buildTag(_currentMsgTag));
+    }
+
     e = ring(ei ^ efo[0]);
     f = ring(fi ^ efo[1]);
     int64_t extendedRank = Comm::rank() ? ring(-1ll) : 0;

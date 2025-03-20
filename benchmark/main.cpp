@@ -73,6 +73,8 @@ int main(int argc, char **argv) {
         case 16:
             test_batch_bool_mux_16();
             break;
+        case 17:
+            test_batch_less_17();
     }
     // }
     /*catch (...) {

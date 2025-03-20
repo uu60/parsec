@@ -29,6 +29,7 @@
 #include "../include/parallel/ThreadPoolSupport.h"
 #include "../include/compute/batch/bool/BoolAndBatchExecutor.h"
 #include "../include/compute/batch/bool/BoolMutexBatchExecutor.h"
+#include "compute/batch/bool/BoolLessBatchExecutor.h"
 
 
 using namespace std;
@@ -276,7 +277,7 @@ inline void test_Sort_10() {
     // IntermediateDataSupport::prepareRot();
     // IntermediateDataSupport::startGenerateBmtsAsync();
     std::vector<BoolSecret> arr;
-    int num = 10000;
+    int num = 1000;
 
     // 2. 构造测试数据
     auto t = System::nextTask();
@@ -326,14 +327,16 @@ inline void test_bool_comp_11() {
         int x, y;
         int len = 64;
         if (Comm::isClient()) {
-            x = Math::ring(Math::randInt(), len);
-            y = Math::ring(Math::randInt(), len);
+            x = Math::ring(Math::randInt(0, 100), len);
+            y = Math::ring(Math::randInt(0, 100), len);
         }
         BoolLessExecutor e(x, y, len, System::nextTask(), 0, 2);
         e.execute()->reconstruct(2);
         if (Comm::isClient()) {
             if (static_cast<uint64_t>(x) < static_cast<uint64_t>(y) != e._result) {
                 Log::i("Wrong result: {}", e._result);
+            } else {
+                Log::i("Correct: {}, a: {}, b, {}", e._result, x, y);
             }
         }
     }
@@ -424,6 +427,27 @@ void test_batch_bool_mux_16() {
                 Log::i("Wrong: {}", r[i]);
             } else {
                 Log::i("Correct: {}", r[i]);
+            }
+        }
+    }
+}
+
+void test_batch_less_17() {
+    std::vector<int64_t> a, b;
+    if (Comm::isClient()) {
+        a = {2, 0, 10, Math::randInt(0, 100), Math::randInt(0, 100), Math::randInt(0, 100), Math::randInt(0, 100)};
+        b = {5, 1, 10, Math::randInt(0, 100), Math::randInt(0, 100), Math::randInt(0, 100), Math::randInt(0, 100)};
+    }
+    auto t = System::nextTask();
+    auto r = BoolLessBatchExecutor(a, b, 64, t, 0, 2).execute()->reconstruct(2)->_results;
+    auto r1 = BoolLessExecutor(2, 5, 64, t, 0, 2).execute()->reconstruct(2)->_result;
+
+    if (Comm::isClient()) {
+        for (int i = 0; i < r.size(); i++) {
+            if ((static_cast<uint64_t>(a[i]) < static_cast<uint64_t>(b[i])) != r[i]) {
+                Log::i("a:{}, b:{}, Wrong: {} r1: {}", a[i], b[i], r[i], r1);
+            } else {
+                Log::i("a:{}, b:{}, Correct: {} r1: {}", a[i], b[i], r[i], r1);
             }
         }
     }

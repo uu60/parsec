@@ -38,42 +38,60 @@ int MpiComm::rank_() {
 }
 
 void MpiComm::send_(int64_t source, int width, int receiverRank, int tag) {
-    if (width <= 8) {
-        auto s8 = static_cast<int8_t>(source);
-        MPI_Send(&s8, 1, MPI_INT8_T, receiverRank, tag, MPI_COMM_WORLD);
-    } else if (width <= 16) {
-        auto s16 = static_cast<int>(source);
-        MPI_Send(&s16, 1, MPI_INT, receiverRank, tag, MPI_COMM_WORLD);
-    } else if (width <= 32) {
-        auto s32 = static_cast<int32_t>(source);
-        MPI_Send(&s32, 1, MPI_INT32_T, receiverRank, tag, MPI_COMM_WORLD);
+    if constexpr (Conf::ENABLE_TRANSFER_COMPRESSION) {
+        if (width == 1) {
+            auto s1 = static_cast<bool>(source);
+            MPI_Send(&s1, 1, MPI_CXX_BOOL, receiverRank, tag, MPI_COMM_WORLD);
+        } else if (width <= 8) {
+            auto s8 = static_cast<int8_t>(source);
+            MPI_Send(&s8, 1, MPI_INT8_T, receiverRank, tag, MPI_COMM_WORLD);
+        } else if (width <= 16) {
+            auto s16 = static_cast<int>(source);
+            MPI_Send(&s16, 1, MPI_INT, receiverRank, tag, MPI_COMM_WORLD);
+        } else if (width <= 32) {
+            auto s32 = static_cast<int32_t>(source);
+            MPI_Send(&s32, 1, MPI_INT32_T, receiverRank, tag, MPI_COMM_WORLD);
+        } else {
+            MPI_Send(&source, 1, MPI_INT64_T, receiverRank, tag, MPI_COMM_WORLD);
+        }
     } else {
         MPI_Send(&source, 1, MPI_INT64_T, receiverRank, tag, MPI_COMM_WORLD);
     }
 }
 
 void MpiComm::send_(const std::vector<int64_t> &source, int width, int receiverRank, int tag) {
-    if (width <= 8) {
-        std::vector<int8_t> s8;
-        s8.reserve(source.size());
-        for (auto i : source) {
-            s8.push_back(static_cast<int8_t>(i));
+    if constexpr (Conf::ENABLE_TRANSFER_COMPRESSION) {
+        if (width == 1) {
+            int size = static_cast<int>(source.size());
+            bool s1[size];
+            for (int i = 0; i < size; i++) {
+                s1[i] = source[i];
+            }
+            MPI_Send(s1, size, MPI_CXX_BOOL, receiverRank, tag, MPI_COMM_WORLD);
+        } else if (width <= 8) {
+            std::vector<int8_t> s8;
+            s8.reserve(source.size());
+            for (auto i: source) {
+                s8.push_back(static_cast<int8_t>(i));
+            }
+            MPI_Send(s8.data(), s8.size(), MPI_INT8_T, receiverRank, tag, MPI_COMM_WORLD);
+        } else if (width <= 16) {
+            std::vector<int> s16;
+            s16.reserve(source.size());
+            for (auto i: source) {
+                s16.push_back(static_cast<int>(i));
+            }
+            MPI_Send(s16.data(), s16.size(), MPI_INT, receiverRank, tag, MPI_COMM_WORLD);
+        } else if (width <= 32) {
+            std::vector<int32_t> s32;
+            s32.reserve(source.size());
+            for (auto i: source) {
+                s32.push_back(static_cast<int32_t>(i));
+            }
+            MPI_Send(s32.data(), s32.size(), MPI_INT32_T, receiverRank, tag, MPI_COMM_WORLD);
+        } else {
+            MPI_Send(source.data(), source.size(), MPI_INT64_T, receiverRank, tag, MPI_COMM_WORLD);
         }
-        MPI_Send(s8.data(), s8.size(), MPI_INT8_T, receiverRank, tag, MPI_COMM_WORLD);
-    } else if (width <= 16) {
-        std::vector<int> s16;
-        s16.reserve(source.size());
-        for (auto i : source) {
-            s16.push_back(static_cast<int>(i));
-        }
-        MPI_Send(s16.data(), s16.size(), MPI_INT, receiverRank, tag, MPI_COMM_WORLD);
-    } else if (width <= 32) {
-        std::vector<int32_t> s32;
-        s32.reserve(source.size());
-        for (auto i : source) {
-            s32.push_back(static_cast<int32_t>(i));
-        }
-        MPI_Send(s32.data(), s32.size(), MPI_INT32_T, receiverRank, tag, MPI_COMM_WORLD);
     } else {
         MPI_Send(source.data(), source.size(), MPI_INT64_T, receiverRank, tag, MPI_COMM_WORLD);
     }
@@ -84,18 +102,26 @@ void MpiComm::send_(const std::string &source, int receiverRank, int tag) {
 }
 
 void MpiComm::receive_(int64_t &source, int width, int senderRank, int tag) {
-    if (width <= 8) {
-        int8_t temp;
-        MPI_Recv(&temp, 1, MPI_INT8_T, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        source = temp;
-    } else if (width <= 16) {
-        int temp;
-        MPI_Recv(&temp, 1, MPI_INT, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        source = temp;
-    } else if (width <= 32) {
-        int32_t temp;
-        MPI_Recv(&temp, 1, MPI_INT32_T, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        source = temp;
+    if constexpr (Conf::ENABLE_TRANSFER_COMPRESSION) {
+        if (width == 1) {
+            bool temp;
+            MPI_Recv(&temp, 1, MPI_CXX_BOOL, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            source = temp;
+        } else if (width <= 8) {
+            int8_t temp;
+            MPI_Recv(&temp, 1, MPI_INT8_T, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            source = temp;
+        } else if (width <= 16) {
+            int temp;
+            MPI_Recv(&temp, 1, MPI_INT, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            source = temp;
+        } else if (width <= 32) {
+            int32_t temp;
+            MPI_Recv(&temp, 1, MPI_INT32_T, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            source = temp;
+        } else {
+            MPI_Recv(&source, 1, MPI_INT64_T, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        }
     } else {
         MPI_Recv(&source, 1, MPI_INT64_T, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     }
@@ -107,32 +133,47 @@ void MpiComm::receive_(std::vector<int64_t> &source, int width, int senderRank, 
     MPI_Probe(senderRank, tag, MPI_COMM_WORLD, &status);
     int count = 0;
 
-    if (width <= 8) {
-        MPI_Get_count(&status, MPI_INT8_T, &count);
-        std::vector<int8_t> temp(count);
-        MPI_Recv(temp.data(), count, MPI_INT8_T, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    if constexpr (Conf::ENABLE_TRANSFER_COMPRESSION) {
+        if (width == 1) {
+            MPI_Get_count(&status, MPI_CXX_BOOL, &count);
+            bool temp[count];
+            MPI_Recv(temp, count, MPI_CXX_BOOL, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-        source.resize(count);
-        for (int i = 0; i < count; ++i) {
-            source[i] = temp[i];
-        }
-    } else if (width <= 16) {
-        MPI_Get_count(&status, MPI_INT, &count);
-        std::vector<int> temp(count);
-        MPI_Recv(temp.data(), count, MPI_INT, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            source.resize(count);
+            for (int i = 0; i < count; ++i) {
+                source[i] = temp[i];
+            }
+        } else if (width <= 8) {
+            MPI_Get_count(&status, MPI_INT8_T, &count);
+            std::vector<int8_t> temp(count);
+            MPI_Recv(temp.data(), count, MPI_INT8_T, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-        source.resize(count);
-        for (int i = 0; i < count; ++i) {
-            source[i] = temp[i];
-        }
-    } else if (width <= 32) {
-        MPI_Get_count(&status, MPI_INT32_T, &count);
-        std::vector<int32_t> temp(count);
-        MPI_Recv(temp.data(), count, MPI_INT32_T, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            source.resize(count);
+            for (int i = 0; i < count; ++i) {
+                source[i] = temp[i];
+            }
+        } else if (width <= 16) {
+            MPI_Get_count(&status, MPI_INT, &count);
+            std::vector<int> temp(count);
+            MPI_Recv(temp.data(), count, MPI_INT, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-        source.resize(count);
-        for (int i = 0; i < count; ++i) {
-            source[i] = temp[i];
+            source.resize(count);
+            for (int i = 0; i < count; ++i) {
+                source[i] = temp[i];
+            }
+        } else if (width <= 32) {
+            MPI_Get_count(&status, MPI_INT32_T, &count);
+            std::vector<int32_t> temp(count);
+            MPI_Recv(temp.data(), count, MPI_INT32_T, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+            source.resize(count);
+            for (int i = 0; i < count; ++i) {
+                source[i] = temp[i];
+            }
+        } else {
+            MPI_Get_count(&status, MPI_INT64_T, &count);
+            source.resize(count);
+            MPI_Recv(source.data(), count, MPI_INT64_T, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         }
     } else {
         MPI_Get_count(&status, MPI_INT64_T, &count);
@@ -149,12 +190,12 @@ void MpiComm::receive_(std::string &target, int senderRank, int tag) {
     MPI_Get_count(&status, MPI_CHAR, &count);
 
     std::vector<char> buffer(count);
-    MPI_Recv( buffer.data(), count, MPI_CHAR, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    MPI_Recv(buffer.data(), count, MPI_CHAR, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     target = std::string(buffer.data(), count);
 }
 
 bool MpiComm::isServer_() {
-    return _mpiRank == 0 or _mpiRank == 1;
+    return _mpiRank == 0 || _mpiRank == 1;
 }
 
 bool MpiComm::isClient_() {

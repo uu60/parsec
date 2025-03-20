@@ -2,10 +2,10 @@
 // Created by 杜建璋 on 2025/3/17.
 //
 
-#include "BoolLessBatchExecutor.h"
+#include "compute/batch/bool/BoolLessBatchExecutor.h"
 
-#include "BoolAndBatchExecutor.h"
 #include "accelerate/SimdSupport.h"
+#include "compute/batch/bool/BoolAndBatchExecutor.h"
 #include "compute/single/bool/BoolLessExecutor.h"
 #include "conf/Conf.h"
 #include "intermediate/BitwiseBmtBatchGenerator.h"
@@ -34,16 +34,16 @@ BoolLessBatchExecutor *BoolLessBatchExecutor::execute() {
         x_xor_y = SimdSupport::xorV(_xis, _yis);
         lbs = Comm::rank() == 0 ? x_xor_y : SimdSupport::xorVC(x_xor_y, mask);
     } else {
-        x_xor_y.reserve(_xis.size());
+        x_xor_y.resize(_xis.size());
         for (int i = 0; i < _xis.size(); i++) {
-            x_xor_y.push_back(_xis[i] ^ _yis[i]);
+            x_xor_y[i] = _xis[i] ^ _yis[i];
         }
         if (Comm::rank() == 0) {
             lbs = x_xor_y;
         } else {
             lbs.reserve(x_xor_y.size());
-            for (int64_t i: x_xor_y) {
-                lbs.push_back(i ^ mask);
+            for (int64_t e: x_xor_y) {
+                lbs.push_back(e ^ mask);
             }
         }
     }
@@ -61,8 +61,9 @@ BoolLessBatchExecutor *BoolLessBatchExecutor::execute() {
         std::vector<int64_t> m = SimdSupport::andVC(x_xor_y, ~1);
         diag = SimdSupport::orV(m, xor_result);
     } else {
+        diag.resize(x_xor_y.size());
         for (int i = 0; i < x_xor_y.size(); i++) {
-            diag.push_back(Math::changeBit(x_xor_y[i], 0, Math::getBit(_yis[i], 0) ^ Comm::rank()));
+            diag[i] = Math::changeBit(x_xor_y[i], 0, Math::getBit(_yis[i], 0) ^ Comm::rank());
         }
     }
 
@@ -87,11 +88,14 @@ BoolLessBatchExecutor *BoolLessBatchExecutor::execute() {
     auto final_accum = BoolAndBatchExecutor(shifted_accum, diag, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
             .setBmts(gotBmt ? &bmts : nullptr)->execute()->_zis;
 
-    _zis = std::vector<int64_t>(final_accum.size(), false);
-    for (int i = 0; i < _zis.size(); i++) {
-        for (int j = 0; j < _width; i++) {
-            _zis[i] = _zis[i] ^ Math::getBit(final_accum[i], j);
+    int fn = static_cast<int>(final_accum.size());
+    _zis.resize(fn);
+    for (int i = 0; i < fn; i++) {
+        bool result = false;
+        for (int j = 0; j < _width; j++) {
+            result = result ^ Math::getBit(final_accum[i], j);
         }
+        _zis[i] = result;
     }
 
     if constexpr (Conf::CLASS_WISE_TIMING) {

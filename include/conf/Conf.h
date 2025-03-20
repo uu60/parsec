@@ -7,6 +7,8 @@
 #include <thread>
 #include "Consts.h"
 
+inline int glow = 0;
+
 class Conf {
 public:
     // ---------------Settings for bmts---------------
@@ -28,12 +30,6 @@ public:
     inline static int LOCAL_THREADS = static_cast<int>(std::thread::hardware_concurrency() * 10);
     // Index of thread pool type (0 = ctpl, 1 = tbb)
     constexpr static int THREAD_POOL_TYPE = Consts::CTPL_POOL;
-    // Separate thread groups for computation and networks
-    constexpr static bool THREAD_POOL_SEPARATION = false;
-    // Thread number of computing threads (INVALID when THREAD_SEPARATION is false)
-    inline static int COMPUTING_THREADS = static_cast<int>(std::thread::hardware_concurrency());
-    // Thread number of network threads (INVALID when THREAD_SEPARATION is false)
-    inline static int NETWORK_THREADS = static_cast<int>(std::thread::hardware_concurrency());
     // Thread pool task queue separation
     constexpr static bool JOB_QUEUE_SEPARATION = false;
     // Thread pool abort policy is CallerRunsPolicy
@@ -46,6 +42,8 @@ public:
     constexpr static bool TASK_BATCHING = true;
     // Invalid if intra parallelism or batching is false
     constexpr static int BATCH_SIZE = 10;
+    // Transfer compression
+    constexpr static bool ENABLE_TRANSFER_COMPRESSION = false;
 
     // ---------------Settings for benchmark---------------
     constexpr static bool CLASS_WISE_TIMING = false;
@@ -57,7 +55,7 @@ public:
     constexpr static bool SORT_IN_PARALLEL = false;
 
     // ---------------Settings for acceleration---------------
-    constexpr static bool ENABLE_SIMD = true;
+    constexpr static bool ENABLE_SIMD = false;
 };
 
 

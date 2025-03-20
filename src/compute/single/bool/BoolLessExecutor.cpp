@@ -70,7 +70,7 @@ BoolLessExecutor *BoolLessExecutor::execute() {
 
     int bmtI = 0;
     int64_t x_xor_y = _xi ^ _yi;
-    int64_t lbs = Comm::rank() == 0 ? x_xor_y : x_xor_y ^ Math::ring(-1ll, _width);
+    int64_t lbs = Comm::rank() == 0 ? x_xor_y : (x_xor_y ^ Math::ring(-1ll, _width));
 
     int64_t shifted_1 = shiftGreater(lbs, 1);
 

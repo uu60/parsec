@@ -18,9 +18,9 @@ public:
 
 public:
     // reverse x and y to obey less than logic
-    BoolLessBatchExecutor(std::vector<int64_t> &xs, std::vector<int64_t> &ys, int l, int taskTag, int msgTagOffset,
-                          int clientRank) : BoolBatchExecutor(xs, ys, l, taskTag, msgTagOffset, clientRank) {
-    };
+    BoolLessBatchExecutor(std::vector<int64_t> &xs, std::vector<int64_t> &ys, int width, int taskTag, int msgTagOffset,
+                          int clientRank) : BoolBatchExecutor(ys, xs, width, taskTag, msgTagOffset, clientRank) {
+    }
 
     BoolLessBatchExecutor *execute() override;
 

@@ -58,6 +58,7 @@ BoolMutexBatchExecutor *BoolMutexBatchExecutor::execute() {
     _conds_i.reserve(num * 2);
     _xis.reserve(num * 2);
     _conds_i.insert(_conds_i.end(), _conds_i.begin(), _conds_i.end());
+    // xis now contain both x and y
     _xis.insert(_xis.end(), _yis.begin(), _yis.end());
 
     auto zis = BoolAndBatchExecutor(_conds_i, _xis, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).

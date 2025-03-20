@@ -9,12 +9,12 @@
 
 
 class BoolMutexBatchExecutor : public BoolBatchExecutor {
-private:
-    std::vector<int64_t> _conds_i{};
-    std::vector<BitwiseBmt> *_bmts{};
-
 public:
+    std::vector<int64_t> _conds_i{};
     inline static std::atomic_int64_t _totalTime = 0;
+
+private:
+    std::vector<BitwiseBmt> *_bmts{};
 
 public:
     BoolMutexBatchExecutor(std::vector<int64_t> &xs, std::vector<int64_t> &ys, std::vector<int64_t> &conds, int width, int taskTag,

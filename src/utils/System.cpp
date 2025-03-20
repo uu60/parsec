@@ -4,6 +4,7 @@
 
 #include "utils/System.h"
 
+#include "base/AbstractSecureExecutor.h"
 #include "comm/Comm.h"
 #include "comm/MpiComm.h"
 #include "conf/Conf.h"
@@ -42,7 +43,7 @@ int System::nextTask() {
         _currentTaskTag = PRESERVED_TASK_TAGS;
     }
     int ret = _currentTaskTag;
-    _currentTaskTag = static_cast<int>(Math::ring(_currentTaskTag + 1, 16));
+    _currentTaskTag = static_cast<int>(Math::ring(_currentTaskTag + 1, AbstractSecureExecutor::TASK_TAG_BITS - 1));
     return ret;
 }
 
