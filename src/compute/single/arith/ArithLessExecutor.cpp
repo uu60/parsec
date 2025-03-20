@@ -17,12 +17,16 @@ ArithLessExecutor::ArithLessExecutor(int64_t x, int64_t y, int l, int taskTag, i
 
 ArithLessExecutor *ArithLessExecutor::execute() {
     _currentMsgTag = _startMsgTag;
-    if (Comm::isServer()) {
-        int64_t a_delta = _xi - _yi;
-        ArithToBoolExecutor e(a_delta, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
-        int64_t b_delta = e.setBmts(_bmts)->execute()->_zi;
-        _zi = (b_delta >> (_width - 1)) & 1;
+
+    if (Comm::isClient()) {
+        return this;
     }
+
+    int64_t a_delta = _xi - _yi;
+    ArithToBoolExecutor e(a_delta, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
+    int64_t b_delta = e.setBmts(_bmts)->execute()->_zi;
+    _zi = (b_delta >> (_width - 1)) & 1;
+
     return this;
 }
 
@@ -37,6 +41,9 @@ int ArithLessExecutor::msgTagCount(int l) {
 }
 
 int ArithLessExecutor::bmtCount(int width) {
+    if constexpr (Conf::BMT_METHOD == Consts::BMT_FIXED) {
+        return 0;
+    }
     return ArithToBoolExecutor::bmtCount(width);
 }
 

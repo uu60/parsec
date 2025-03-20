@@ -83,17 +83,17 @@ BoolMutexExecutor *BoolMutexExecutor::execute() {
 }
 
 BoolMutexExecutor *BoolMutexExecutor::setBmts(std::vector<BitwiseBmt> *bmts) {
-    if (bmts != nullptr && bmts->size() != bmtCount(_width)) {
+    if (bmts != nullptr && bmts->size() != bmtCount()) {
         throw std::runtime_error("Mismatched bmts count");
     }
     _bmts = bmts;
     return this;
 }
 
-int BoolMutexExecutor::msgTagCount(int l) {
-    return static_cast<int>(2 * BoolAndExecutor::msgTagCount(l));
+int BoolMutexExecutor::msgTagCount(int width) {
+    return 2 * BoolAndExecutor::msgTagCount(width);
 }
 
-int BoolMutexExecutor::bmtCount(int width) {
+int BoolMutexExecutor::bmtCount() {
     return 2;
 }

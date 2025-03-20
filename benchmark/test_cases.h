@@ -273,43 +273,34 @@ inline void test_ot_9() {
 
 
 inline void test_Sort_10() {
-    // 1. 预备工作
-    // IntermediateDataSupport::prepareRot();
-    // IntermediateDataSupport::startGenerateBmtsAsync();
     std::vector<BoolSecret> arr;
-    int num = 1000;
+    int num = 1000000;
 
-    // 2. 构造测试数据
     auto t = System::nextTask();
     for (int i = 0; i < num; i++) {
-        // 这里简单构造 16,15,14,13,... 的序列
         arr.push_back(BoolSecret(num - i, 64, t, 0).share(2));
     }
 
-    // 3. 服务端执行「递归版 Bitonic Sort」
     if (Comm::isServer()) {
         auto start = System::currentTimeMillis();
 
-        // 直接调用递归版本
-        // dir = true 表示最后整体是升序
         Secrets::sort(arr, true, t);
 
+        Log::i("SIMD: {}", Conf::ENABLE_SIMD);
         Log::i("total time: {}ms", System::currentTimeMillis() - start);
-        Log::i("less than: {}ms", BoolLessExecutor::_totalTime);
+        Log::i("less than: {}ms", BoolLessExecutor::_totalTime + BoolLessBatchExecutor::_totalTime);
+        Log::i("bool and: {}ms", BoolAndExecutor::_totalTime + BoolAndBatchExecutor::_totalTime);
         Log::i("comm: {}ms", Comm::_totalTime);
-        Log::i("mux time: {}ms", BoolMutexExecutor::_totalTime);
+        Log::i("mux time: {}ms", BoolMutexExecutor::_totalTime + BoolMutexBatchExecutor::_totalTime);
         Log::i("bmt gen: {}ms", BitwiseBmtGenerator::_totalTime);
         Log::i("ot: {}ms", RandOtBatchExecutor::_totalTime);
-        Log::i("bool and: {}ms", BoolAndExecutor::_totalTime);
     }
 
-    // 4. 进行重构 (arithReconstruct) 取结果
     std::vector<BoolSecret> res;
     for (int i = 0; i < num; i++) {
         res.push_back(arr[i].task(3).reconstruct(2));
     }
 
-    // 5. 客户端输出最终结果
     if (Comm::isClient()) {
         int last = INT_MIN;
         for (auto s: res) {
@@ -317,7 +308,6 @@ inline void test_Sort_10() {
                 Log::i("Wrong: {}", s._data);
             }
             last = s._data;
-            // Log::i("{}", s._data);
         }
     }
 }

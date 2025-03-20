@@ -7,8 +7,6 @@
 #include <thread>
 #include "Consts.h"
 
-inline int glow = 0;
-
 class Conf {
 public:
     // ---------------Settings for bmts---------------
@@ -22,6 +20,8 @@ public:
     constexpr static int BMT_QUEUE_TYPE = Consts::CAS_QUEUE;
 
     // ---------------Settings for threads---------------
+    // Task tag bits
+    constexpr static int TASK_TAG_BITS = 3;
     // Enable single-thread only
     constexpr static bool DISABLE_MULTI_THREAD = true;
     // Enable multiple-thread computation in each single executor

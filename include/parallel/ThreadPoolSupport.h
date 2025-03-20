@@ -15,8 +15,8 @@
 class ThreadPoolSupport {
 public:
     inline static CtplThreadPool *_ctplPool = nullptr;
-    inline static TbbThreadPool *_tbbPool = nullptr;\
-    inline static std::atomic_int _availableThreads = Conf::LOCAL_THREADS;
+    inline static TbbThreadPool *_tbbPool = nullptr;
+    // inline static std::atomic_int _availableThreads = Conf::LOCAL_THREADS;
 
 public:
     static void init() {
@@ -46,18 +46,18 @@ public:
 
     template<typename F>
     static auto submit(F &&f) -> std::future<std::invoke_result_t<F> > {
-        if (Conf::CALLER_RUNS_POLICY && (_availableThreads -= 1) < 0) {
-            // restore negative thread num
-            _availableThreads = 0;
-            return callerRun(f);
-        }
+        // if (Conf::CALLER_RUNS_POLICY && (_availableThreads -= 1) < 0) {
+        //     // restore negative thread num
+        //     _availableThreads = 0;
+        //     return callerRun(f);
+        // }
         auto f1 = [func = std::forward<F>(f)] {
             if constexpr (std::is_void_v<std::invoke_result_t<F>>) {
                 func();
-                ++_availableThreads;
+                // ++_availableThreads;
             } else {
                 auto ret = func();
-                ++_availableThreads;
+                // ++_availableThreads;
                 return ret;
             }
         };

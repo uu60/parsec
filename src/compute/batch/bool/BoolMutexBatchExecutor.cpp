@@ -15,12 +15,19 @@ BoolMutexBatchExecutor::BoolMutexBatchExecutor(std::vector<int64_t> &xs, std::ve
                                                std::vector<int64_t> &conds, int width, int taskTag,
                                                int msgTagOffset, int clientRank) : BoolBatchExecutor(
     xs, ys, width, taskTag, msgTagOffset, clientRank) {
-    _conds_i = BoolBatchExecutor(conds, 1, _taskTag, _currentMsgTag, clientRank)._zis;
+    if (clientRank == NO_CLIENT_COMPUTE) {
+        if (Comm::isClient()) {
+            return;
+        }
+        _conds_i = std::move(conds);
+    } else {
+        _conds_i = BoolBatchExecutor(conds, 1, _taskTag, _currentMsgTag, clientRank)._zis;
+    }
     if (Comm::isClient()) {
         return;
     }
-    for (long long & i : _conds_i) {
-        if (i) {
+    for (int64_t &i: _conds_i) {
+        if (i != 0) {
             // Set to all 1 on each bit
             i = ring(-1ll);
         }
@@ -93,5 +100,8 @@ int BoolMutexBatchExecutor::msgTagCount(int num, int width) {
 }
 
 int BoolMutexBatchExecutor::bmtCount(int num) {
+    if constexpr (Conf::BMT_METHOD == Consts::BMT_FIXED) {
+        return 0;
+    }
     return num * 2;
 }

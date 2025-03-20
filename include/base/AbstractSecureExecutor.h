@@ -6,16 +6,18 @@
 #define MPC_PACKAGE_SECUREEXECUTOR_H
 
 #include <cstdint>
+#include <atomic>
 #include <string>
-#include <set>
+#include <cmath>
 #include "../utils/System.h"
+#include "conf/Conf.h"
 
 class AbstractSecureExecutor {
 public:
     static constexpr int NO_CLIENT_COMPUTE = -1;
     // bit width
     int _width{};
-    static const int TASK_TAG_BITS = 8;
+    static const int TASK_TAG_BITS = Conf::TASK_TAG_BITS;
 
 protected:
     /*

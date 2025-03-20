@@ -17,13 +17,17 @@ void MpiComm::finalize_() {
 }
 
 void MpiComm::init_(int argc, char **argv) {
-    // init
-    int provided;
-    int required = MPI_THREAD_MULTIPLE;
-    MPI_Init_thread(&argc, &argv, required, &provided);
-    if (provided < required) {
-        std::cerr << "MPI implementation does not support the required thread level." << std::endl;
-        MPI_Abort(MPI_COMM_WORLD, 1);
+    if constexpr (Conf::DISABLE_MULTI_THREAD) {
+        MPI_Init(&argc, &argv);
+    } else {
+        // init
+        int provided;
+        int required = MPI_THREAD_MULTIPLE;
+        MPI_Init_thread(&argc, &argv, required, &provided);
+        if (provided < required) {
+            std::cerr << "MPI implementation does not support the required thread level." << std::endl;
+            MPI_Abort(MPI_COMM_WORLD, 1);
+        }
     }
     // process _mpiRank and sum
     MPI_Comm_rank(MPI_COMM_WORLD, &_mpiRank);

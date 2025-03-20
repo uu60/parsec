@@ -35,8 +35,12 @@ public:
                                      const int64_t *c,
                                      int num);
 
+    // Following are special situations
     // compute z
     static std::vector<int64_t> computeZ(const std::vector<int64_t> &efs, int64_t a, int64_t b, int64_t c);
+
+    // compute diag
+    static std::vector<int64_t> computeDiag(const std::vector<int64_t> &_yis, const std::vector<int64_t> &x_xor_y);
 };
 
 

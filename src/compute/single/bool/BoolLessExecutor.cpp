@@ -96,7 +96,7 @@ BoolLessExecutor *BoolLessExecutor::execute() {
     int64_t final_accum = BoolAndExecutor(shifted_accum, diag, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
             setBmt(gotBmt ? &bmts[bmtI++] : nullptr)->execute()->_zi;
 
-    bool result = false;
+        bool result = false;
     for (int i = 0; i < _width; i++) {
         result = result ^ Math::getBit(final_accum, i);
     }

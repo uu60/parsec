@@ -2,7 +2,7 @@
 // Created by 杜建璋 on 2025/3/11.
 //
 
-#include "SimdSupport.h"
+#include "accelerate/SimdSupport.h"
 
 #include "comm/Comm.h"
 
@@ -283,7 +283,7 @@ std::vector<int64_t> SimdSupport::xorVC(const std::vector<int64_t> &arr, int64_t
     int i = 0;
     __m128i const_vec = _mm_set1_epi64x(constant);
     for (; i + 2 <= num; i += 2) {
-        __m128i vec = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&input[i]));
+        __m128i vec = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&arr[i]));
         __m128i result = _mm_xor_si128(vec, const_vec);
         _mm_storeu_si128(reinterpret_cast<__m128i*>(&output[i]), result);
     }
@@ -546,4 +546,107 @@ std::vector<int64_t> SimdSupport::computeZ(const std::vector<int64_t> &efs, int6
 #endif
 
     return zis;
+}
+
+std::vector<int64_t> SimdSupport::computeDiag(const std::vector<int64_t>& _yis,
+                                                const std::vector<int64_t>& x_xor_y) {
+    // 假设 _yis 与 x_xor_y 大小相同
+    int n = static_cast<int>(_yis.size());
+    std::vector<int64_t> diag(n);
+    int64_t rank = Comm::rank(); // 例如：0 或 -1
+#ifdef SIMD_AVX512
+    int i = 0;
+    __m512i one     = _mm512_set1_epi64(1);
+    __m512i not_one = _mm512_set1_epi64(~1ll);
+    __m512i rank_vec= _mm512_set1_epi64(rank);
+    for (; i + 8 <= n; i += 8) {
+        __m512i y_vec = _mm512_loadu_si512(&_yis[i]);
+        __m512i x_vec = _mm512_loadu_si512(&x_xor_y[i]);
+        // yis_lsb = _yis[i] & 1
+        __m512i yis_lsb = _mm512_and_si512(y_vec, one);
+        // xor_result = yis_lsb XOR rank
+        __m512i xor_result = _mm512_xor_si512(yis_lsb, rank_vec);
+        // m = x_xor_y[i] & (~1)
+        __m512i m = _mm512_and_si512(x_vec, not_one);
+        // diag = m OR xor_result
+        __m512i res = _mm512_or_si512(m, xor_result);
+        _mm512_storeu_si512(&diag[i], res);
+    }
+    for (; i < n; i++) {
+        int64_t yis_lsb = _yis[i] & 1;
+        int64_t xor_result = yis_lsb ^ rank;
+        int64_t m = x_xor_y[i] & (~1ll);
+        diag[i] = m | xor_result;
+    }
+#elif defined(SIMD_AVX2)
+    int i = 0;
+    __m256i one     = _mm256_set1_epi64x(1);
+    __m256i not_one = _mm256_set1_epi64x(~1ll);
+    __m256i rank_vec= _mm256_set1_epi64x(rank);
+    for (; i + 4 <= n; i += 4) {
+        __m256i y_vec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(&_yis[i]));
+        __m256i x_vec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(&x_xor_y[i]));
+        __m256i yis_lsb = _mm256_and_si256(y_vec, one);
+        __m256i xor_result = _mm256_xor_si256(yis_lsb, rank_vec);
+        __m256i m = _mm256_and_si256(x_vec, not_one);
+        __m256i res = _mm256_or_si256(m, xor_result);
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(&diag[i]), res);
+    }
+    for (; i < n; i++) {
+        int64_t yis_lsb = _yis[i] & 1;
+        int64_t xor_result = yis_lsb ^ rank;
+        int64_t m = x_xor_y[i] & (~1ll);
+        diag[i] = m | xor_result;
+    }
+#elif defined(SIMD_SSE2)
+    int i = 0;
+    __m128i one     = _mm_set1_epi64x(1);
+    __m128i not_one = _mm_set1_epi64x(~1ll);
+    __m128i rank_vec= _mm_set1_epi64x(rank);
+    for (; i + 2 <= n; i += 2) {
+        __m128i y_vec = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&_yis[i]));
+        __m128i x_vec = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&x_xor_y[i]));
+        __m128i yis_lsb = _mm_and_si128(y_vec, one);
+        __m128i xor_result = _mm_xor_si128(yis_lsb, rank_vec);
+        __m128i m = _mm_and_si128(x_vec, not_one);
+        __m128i res = _mm_or_si128(m, xor_result);
+        _mm_storeu_si128(reinterpret_cast<__m128i*>(&diag[i]), res);
+    }
+    for (; i < n; i++) {
+        int64_t yis_lsb = _yis[i] & 1;
+        int64_t xor_result = yis_lsb ^ rank;
+        int64_t m = x_xor_y[i] & (~1ll);
+        diag[i] = m | xor_result;
+    }
+#elif defined(SIMD_NEON)
+    int i = 0;
+    int64x2_t one     = vdupq_n_s64(1);
+    int64x2_t not_one = vdupq_n_s64(~1ll);
+    int64x2_t rank_vec= vdupq_n_s64(rank);
+    for (; i + 2 <= n; i += 2) {
+        int64x2_t y_vec = vld1q_s64(&_yis[i]);
+        int64x2_t x_vec = vld1q_s64(&x_xor_y[i]);
+        int64x2_t yis_lsb = vandq_s64(y_vec, one);
+        int64x2_t xor_result = veorq_s64(yis_lsb, rank_vec);
+        int64x2_t m = vandq_s64(x_vec, not_one);
+        int64x2_t res = vorrq_s64(m, xor_result);
+        vst1q_s64(&diag[i], res);
+    }
+    for (; i < n; i++) {
+        int64_t yis_lsb = _yis[i] & 1;
+        int64_t xor_result = yis_lsb ^ rank;
+        int64_t m = x_xor_y[i] & (~1ll);
+        diag[i] = m | xor_result;
+    }
+#else
+    // fallback: 标量实现
+    for (int i = 0; i < n; i++) {
+        int64_t yis_lsb = _yis[i] & 1;
+        int64_t xor_result = yis_lsb ^ rank;
+        int64_t m = x_xor_y[i] & (~1ll);
+        diag[i] = m | xor_result;
+    }
+#endif
+
+    return diag;
 }

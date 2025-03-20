@@ -152,6 +152,9 @@ BoolAndBatchExecutor *BoolAndBatchExecutor::execute() {
 }
 
 int BoolAndBatchExecutor::msgTagCount(int num, int width) {
+    if constexpr (Conf::BMT_METHOD == Consts::BMT_FIXED) {
+        return 1;
+    }
     return BitwiseBmtBatchGenerator::msgTagCount(bmtCount(num), width);
 }
 

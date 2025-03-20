@@ -10,6 +10,7 @@
 #include "compute/batch/bool/BoolLessBatchExecutor.h"
 #include "compute/batch/bool/BoolMutexBatchExecutor.h"
 #include "compute/single/bool/BoolLessExecutor.h"
+#include "compute/single/bool/BoolMutexExecutor.h"
 #include "conf/Conf.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Log.h"
@@ -35,20 +36,10 @@ void compareAndSwap(std::vector<SecretT> &secrets, size_t i, size_t j, bool dir,
     if (!dir) {
         swap = swap.not_();
     }
-    if constexpr (Conf::TASK_BATCHING) {
-        std::vector xs = {secrets[j]._data, secrets[i]._data};
-        std::vector ys = {secrets[i]._data, secrets[j]._data};
-        std::vector<int64_t> conds = {swap._data, swap._data};
-        auto zis = BoolMutexBatchExecutor(xs, ys, conds, secrets[i]._width, taskTag, msgTagOffset,
-                                          AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zis;
-        secrets[i]._data = zis[0];
-        secrets[j]._data = zis[1];
-    } else {
-        auto tempI = secrets[j].mux(secrets[i], swap);
-        auto tempJ = secrets[i].mux(secrets[j], swap);
-        secrets[i] = tempI;
-        secrets[j] = tempJ;
-    }
+    auto tempI = secrets[j].mux(secrets[i], swap);
+    auto tempJ = secrets[i].mux(secrets[j], swap);
+    secrets[i] = tempI;
+    secrets[j] = tempJ;
 
     // keep memory synchronized
     if constexpr (Conf::SORT_IN_PARALLEL) {
@@ -89,7 +80,7 @@ void compareAndSwapBatch(std::vector<SecretT> &secrets, size_t low, size_t mid, 
     }
 
     BoolLessBatchExecutor blbe(xs, ys, secrets[0]._width, taskTag, msgTagOffset,
-                                                   AbstractSecureExecutor::NO_CLIENT_COMPUTE);
+                               AbstractSecureExecutor::NO_CLIENT_COMPUTE);
 
     auto zs = blbe.execute()->_zis;
     xs = std::move(blbe._xis);
@@ -99,37 +90,52 @@ void compareAndSwapBatch(std::vector<SecretT> &secrets, size_t low, size_t mid, 
         if constexpr (Conf::ENABLE_SIMD) {
             zs = SimdSupport::xorVC(zs, Comm::rank());
         } else {
-            for (auto &z : zs) {
+            for (auto &z: zs) {
                 z = z ^ Comm::rank();
             }
         }
     } // zs now represents if needs swap
 
+    xs.reserve(cc * 2);
     xs.insert(xs.end(), ys.begin(), ys.end());
     ys.resize(xs.size());
     for (int i = cc; i < xs.size(); i++) {
         ys[i] = xs[i - cc];
     }
+    zs.reserve(cc * 2);
     zs.insert(zs.end(), zs.begin(), zs.end());
 
-    zs = BoolMutexBatchExecutor(ys, xs, zs, secrets[0]._width, taskTag, msgTagOffset, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zis;
+    BoolMutexBatchExecutor bmbe(ys, xs, zs, secrets[0]._width, taskTag, msgTagOffset,
+                                AbstractSecureExecutor::NO_CLIENT_COMPUTE);
+    auto r0 = bmbe.execute()->_zis;
+
+    // Another version which reduce memory copy but seems not improve performance
+    // xs = std::move(bmbe._yis);
+    // xs.resize(cc);
+    // ys = std::move(bmbe._xis);
+    // zs = std::move(bmbe._conds_i);
+    // zs.resize(cc);
+    //
+    // auto r1 = BoolMutexBatchExecutor(xs, ys, zs, secrets[0]._width, taskTag, msgTagOffset, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zis;
 
     for (int i = 0; i < cc; i++) {
-        secrets[comparing[i]]._data = zs[i];
-        secrets[comparing[i] + mid]._data = zs[i + cc];
+        secrets[comparing[i]]._data = r0[i];
+        secrets[comparing[i] + mid]._data = r0[i + cc];
     }
 }
 
 template<typename SecretT>
 void bitonicMerge(std::vector<SecretT> &secrets, size_t low, size_t length, bool dir, int taskTag,
                   int msgTagOffset) {
-    glow = low;
     if (length > 1) {
         size_t mid = length / 2;
-        // for (size_t i = low; i < low + mid; i++) {
-        //     compareAndSwap<SecretT>(secrets, i, i + mid, dir, taskTag, msgTagOffset);
-        // }
-        compareAndSwapBatch<SecretT>(secrets, low, mid, dir, taskTag, msgTagOffset);
+        if constexpr (Conf::TASK_BATCHING) {
+            compareAndSwapBatch<SecretT>(secrets, low, mid, dir, taskTag, msgTagOffset);
+        } else {
+            for (size_t i = low; i < low + mid; i++) {
+                compareAndSwap<SecretT>(secrets, i, i + mid, dir, taskTag, msgTagOffset);
+            }
+        }
         bitonicMerge<SecretT>(secrets, low, mid, dir, taskTag, msgTagOffset);
         bitonicMerge<SecretT>(secrets, low + mid, mid, dir, taskTag, msgTagOffset);
     }
@@ -140,23 +146,32 @@ void bitonicSort(std::vector<SecretT> &secrets, size_t low, size_t length, bool 
                  int msgTagOffset, int level) {
     if (length > 1) {
         size_t mid = length / 2;
-        // std::future<void> f;
-        // bool parallel = Conf::SORT_IN_PARALLEL && level < static_cast<int>(std::log2(std::thread::hardware_concurrency() / 3));
-        // if (parallel) {
-        //     f = ThreadPoolSupport::submit([&] {
-        //         // int msgCount = std::max(BoolMutexBatchExecutor::msgTagCount(2, secrets[0]._width),
-        //         //                     BoolLessExecutor::msgTagCount(secrets[0]._width));
-        //         int msgCount = 2;
-        //         bitonicSort<SecretT>(secrets, low + mid, mid, true, taskTag, msgTagOffset + length / 4 * msgCount, level + 1);
-        //     });
-        // } else {
-        bitonicSort<SecretT>(secrets, low + mid, mid, true, taskTag, msgTagOffset, level + 1);
-        // }
+        std::future<void> f;
+        bool parallel = Conf::SORT_IN_PARALLEL && level < static_cast<int>(std::log2(
+                            std::thread::hardware_concurrency()));
+        if (parallel) {
+            f = ThreadPoolSupport::submit([&] {
+                int msgCount;
+                if constexpr (Conf::DISABLE_MULTI_THREAD || !Conf::SORT_IN_PARALLEL) {
+                    msgCount = 0;
+                } else if constexpr (Conf::TASK_BATCHING) {
+                    msgCount = std::max(BoolMutexBatchExecutor::msgTagCount(2, secrets[0]._width),
+                                        BoolLessBatchExecutor::msgTagCount(2, secrets[0]._width));
+                } else {
+                    msgCount = std::max(BoolMutexExecutor::msgTagCount(secrets[0]._width),
+                                        BoolLessExecutor::msgTagCount(secrets[0]._width));
+                }
+                bitonicSort<SecretT>(secrets, low + mid, mid, true, taskTag, msgTagOffset + length / 4 * msgCount,
+                                     level + 1);
+            });
+        } else {
+            bitonicSort<SecretT>(secrets, low + mid, mid, true, taskTag, msgTagOffset, level + 1);
+        }
         bitonicSort<SecretT>(secrets, low, mid, false, taskTag, msgTagOffset, level + 1);
 
-        // if (parallel) {
-        //     f.wait();
-        // }
+        if (parallel) {
+            f.wait();
+        }
         bitonicMerge<SecretT>(secrets, low, length, dir, taskTag, msgTagOffset);
     }
 }

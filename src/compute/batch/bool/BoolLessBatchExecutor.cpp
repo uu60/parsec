@@ -54,12 +54,9 @@ BoolLessBatchExecutor *BoolLessBatchExecutor::execute() {
             .setBmts(gotBmt ? &bmts : nullptr)->execute()->_zis;
 
     std::vector<int64_t> diag;
-    if constexpr (Conf::ENABLE_SIMD) {
-        std::vector<int64_t> yis_lsb = SimdSupport::andVC(_yis, 1);
-        std::vector<int64_t> xor_result = SimdSupport::xorVC(yis_lsb, Comm::rank());
 
-        std::vector<int64_t> m = SimdSupport::andVC(x_xor_y, ~1);
-        diag = SimdSupport::orV(m, xor_result);
+    if constexpr (Conf::ENABLE_SIMD) {
+        diag = SimdSupport::computeDiag(_yis, x_xor_y);
     } else {
         diag.resize(x_xor_y.size());
         for (int i = 0; i < x_xor_y.size(); i++) {
@@ -111,10 +108,16 @@ BoolLessBatchExecutor *BoolLessBatchExecutor::setBmts(std::vector<BitwiseBmt> *b
 }
 
 int BoolLessBatchExecutor::msgTagCount(int num, int width) {
+    if constexpr (Conf::BMT_METHOD == Consts::BMT_FIXED) {
+        return BoolAndBatchExecutor::msgTagCount(num, width);
+    }
     return bmtCount(num, width) * BitwiseBmtGenerator::msgTagCount(width);
 }
 
 int BoolLessBatchExecutor::bmtCount(int num, int width) {
+    if constexpr (Conf::BMT_METHOD == Consts::BMT_FIXED) {
+        return 0;
+    }
     return num * BoolLessExecutor::bmtCount(width);
 }
 

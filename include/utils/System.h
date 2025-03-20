@@ -6,16 +6,17 @@
 #define MPC_PACKAGE_SYSTEM_H
 #include "../parallel/ctpl_stl.h"
 #include "../comm/Comm.h"
+#include "conf/Conf.h"
 
 class System {
 private:
     /**
      * 0 is preserved for BmtGenerator.
      * 1 is preserved for BitwiseBmtGenerator.
-     * 2 is preserved for BaseOtExecutor.
-     * 3 is preserved for ABPairGenerator.
+     * 2 is preserved for BaseOtExecutor. (No need for preservation)
+     * 3 is preserved for ABPairGenerator. (Abort)
      */
-    static constexpr int PRESERVED_TASK_TAGS = 4;
+    inline static int PRESERVED_TASK_TAGS = 0;
     inline static std::atomic_int _currentTaskTag = PRESERVED_TASK_TAGS;
 
 public:

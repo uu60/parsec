@@ -5,6 +5,7 @@
 #ifndef ICOMM_H
 #define ICOMM_H
 #include <cstdint>
+#include <atomic>
 #include <string>
 #include <vector>
 

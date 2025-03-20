@@ -1,15 +1,19 @@
- cmake_minimum_required(VERSION 3.27)
+ cmake_minimum_required(VERSION 3.22)
 
  project(secure_2pc_package)
 
  set(CMAKE_CXX_STANDARD 17)
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
- set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -fsanitize=address")
+ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -fsanitize=address")
 
 
  find_package(MPI REQUIRED)
  find_package(OpenSSL REQUIRED)
- find_package(tbb REQUIRED)
+ if(APPLE)
+  find_package(tbb CONFIG REQUIRED)
+ else()
+  find_package(TBB CONFIG REQUIRED)
+ endif()
  find_package(Boost REQUIRED CONFIG)
 
 

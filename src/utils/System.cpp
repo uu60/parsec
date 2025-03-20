@@ -14,6 +14,10 @@
 #include "utils/Math.h"
 
 void System::init(int argc, char **argv) {
+    if constexpr (Conf::BMT_METHOD == Consts::BMT_BACKGROUND || Conf::BMT_METHOD == Consts::BMT_BATCH_BACKGROUND) {
+        PRESERVED_TASK_TAGS = 2;
+    }
+
     // prepare structures
     // Thread pool needs implementing at first because other initialization may use it.
     ThreadPoolSupport::init();
@@ -39,12 +43,13 @@ void System::finalize() {
 
 // nextTask should not be accessed in parallel in case the sequence is wrong
 int System::nextTask() {
-    if (_currentTaskTag < 0 || _currentTaskTag < PRESERVED_TASK_TAGS) {
+    int nextTask = _currentTaskTag & Conf::TASK_TAG_BITS;
+
+    if (nextTask < 0 || nextTask < PRESERVED_TASK_TAGS) {
         _currentTaskTag = PRESERVED_TASK_TAGS;
     }
-    int ret = _currentTaskTag;
-    _currentTaskTag = static_cast<int>(Math::ring(_currentTaskTag + 1, AbstractSecureExecutor::TASK_TAG_BITS - 1));
-    return ret;
+
+    return _currentTaskTag;
 }
 
 int64_t System::currentTimeMillis() {
