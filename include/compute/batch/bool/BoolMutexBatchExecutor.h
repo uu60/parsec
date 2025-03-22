@@ -7,7 +7,6 @@
 #include "./BoolBatchExecutor.h"
 #include "../../../intermediate/item/BitwiseBmt.h"
 
-
 class BoolMutexBatchExecutor : public BoolBatchExecutor {
 public:
     std::vector<int64_t> _conds_i{};

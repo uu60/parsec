@@ -30,21 +30,16 @@ BoolLessBatchExecutor *BoolLessBatchExecutor::execute() {
     std::vector<int64_t> x_xor_y, lbs;
     int64_t mask = Math::ring(-1ll, _width);
 
-    if constexpr (Conf::ENABLE_SIMD) {
-        x_xor_y = SimdSupport::xorV(_xis, _yis);
-        lbs = Comm::rank() == 0 ? x_xor_y : SimdSupport::xorVC(x_xor_y, mask);
+    x_xor_y.resize(_xis.size());
+    for (int i = 0; i < _xis.size(); i++) {
+        x_xor_y[i] = _xis[i] ^ _yis[i];
+    }
+    if (Comm::rank() == 0) {
+        lbs = x_xor_y;
     } else {
-        x_xor_y.resize(_xis.size());
-        for (int i = 0; i < _xis.size(); i++) {
-            x_xor_y[i] = _xis[i] ^ _yis[i];
-        }
-        if (Comm::rank() == 0) {
-            lbs = x_xor_y;
-        } else {
-            lbs.reserve(x_xor_y.size());
-            for (int64_t e: x_xor_y) {
-                lbs.push_back(e ^ mask);
-            }
+        lbs.reserve(x_xor_y.size());
+        for (int64_t e: x_xor_y) {
+            lbs.push_back(e ^ mask);
         }
     }
 
@@ -55,6 +50,7 @@ BoolLessBatchExecutor *BoolLessBatchExecutor::execute() {
 
     std::vector<int64_t> diag;
 
+    // Verified SIMD performance
     if constexpr (Conf::ENABLE_SIMD) {
         diag = SimdSupport::computeDiag(_yis, x_xor_y);
     } else {
@@ -128,54 +124,30 @@ std::vector<int64_t> BoolLessBatchExecutor::shiftGreater(std::vector<int64_t> &i
     }
     int offset = part_size >> 1;
 
-    if constexpr (Conf::ENABLE_SIMD) {
-        std::vector<int64_t> out = in;
+    std::vector<int64_t> out;
+    out.reserve(in.size());
 
+    for (int64_t ini: in) {
         for (int i = 0; i < _width; i += part_size) {
             int start = i + offset;
-            if (start >= _width) break;
+            if (start >= _width) {
+                break;
+            }
+
+            bool midBit = Math::getBit(ini, start);
             int count = start - i;
+            int64_t mask = ((1LL << count) - 1) << i;
 
-            int64_t seg_mask = ((1LL << count) - 1) << i;
-            std::vector segMaskVec(out.size(), seg_mask);
-            std::vector segMaskNotVec(out.size(), ~seg_mask);
-
-            std::vector<int64_t> condVec(out.size(), 0);
-            for (size_t j = 0; j < out.size(); ++j) {
-                condVec[j] = (((uint64_t) in[j] >> start) & 1ULL) ? -1LL : 0LL;
+            if (midBit) {
+                ini |= mask;
+            } else {
+                ini &= ~mask;
             }
-
-            std::vector<int64_t> A = SimdSupport::andV(out, segMaskNotVec);
-            std::vector<int64_t> B = SimdSupport::andV(condVec, segMaskVec);
-            out = SimdSupport::orV(A, B);
         }
-        return out;
-    } else {
-        std::vector<int64_t> out;
-        out.reserve(in.size());
-
-        for (int64_t ini: in) {
-            for (int i = 0; i < _width; i += part_size) {
-                int start = i + offset;
-                if (start >= _width) {
-                    break;
-                }
-
-                bool midBit = Math::getBit(ini, start);
-                int count = start - i;
-                int64_t mask = ((1LL << count) - 1) << i;
-
-                if (midBit) {
-                    ini |= mask;
-                } else {
-                    ini &= ~mask;
-                }
-            }
-            out.push_back(ini);
-        }
-
-        return out;
+        out.push_back(ini);
     }
+
+    return out;
 }
 
 bool BoolLessBatchExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
@@ -191,7 +163,7 @@ bool BoolLessBatchExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     }
     if constexpr (Conf::BMT_METHOD == Consts::BMT_JIT) {
         // JIT BMT
-        if (!Conf::TASK_BATCHING) {
+        if (Conf::TASK_BATCHING) {
             bmts = BitwiseBmtBatchGenerator(bc, _width, _taskTag, _currentMsgTag).execute()->_bmts;
         } else if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
             std::vector<std::future<BitwiseBmt> > futures;

@@ -62,6 +62,7 @@ BoolMutexBatchExecutor *BoolMutexBatchExecutor::execute() {
     bool gotBmt = prepareBmts(bmts);
 
     int num = static_cast<int>(_conds_i.size());
+
     _conds_i.reserve(num * 2);
     _xis.reserve(num * 2);
     _conds_i.insert(_conds_i.end(), _conds_i.begin(), _conds_i.end());
@@ -71,6 +72,7 @@ BoolMutexBatchExecutor *BoolMutexBatchExecutor::execute() {
     auto zis = BoolAndBatchExecutor(_conds_i, _xis, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
             setBmts(gotBmt ? &bmts : nullptr)->execute()->_zis;
 
+    // Verified SIMD performance
     if constexpr (Conf::ENABLE_SIMD) {
         _zis = SimdSupport::xor3(zis.data(), _yis.data(), zis.data() + num, num);
     } else {

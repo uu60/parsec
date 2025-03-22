@@ -55,7 +55,7 @@ public:
     constexpr static bool SORT_IN_PARALLEL = false;
 
     // ---------------Settings for acceleration---------------
-    constexpr static bool ENABLE_SIMD = false;
+    constexpr static bool ENABLE_SIMD = true;
 };
 
 
