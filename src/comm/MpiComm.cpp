@@ -8,6 +8,7 @@
 #include <limits>
 #include <vector>
 
+#include "comm/item/MpiRequestWrapper.h"
 #include "conf/Conf.h"
 #include "intermediate/IntermediateDataSupport.h"
 #include "utils/Log.h"
@@ -196,6 +197,86 @@ void MpiComm::receive_(std::string &target, int senderRank, int tag) {
     std::vector<char> buffer(count);
     MPI_Recv(buffer.data(), count, MPI_CHAR, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     target = std::string(buffer.data(), count);
+}
+
+MpiRequestWrapper *MpiComm::sendAsync_(const std::vector<int64_t> &source, int width, int receiverRank, int tag) {
+    auto *request = new MpiRequestWrapper();
+
+    if constexpr (Conf::ENABLE_TRANSFER_COMPRESSION) {
+        if (width == 1) {
+            int size = static_cast<int>(source.size());
+            bool s1[size];
+            for (int i = 0; i < size; i++) {
+                s1[i] = source[i];
+            }
+            MPI_Isend(s1, size, MPI_CXX_BOOL, receiverRank, tag, MPI_COMM_WORLD, request->r);
+        } else if (width <= 8) {
+            auto *s8 = new std::vector<int8_t>;
+            s8->reserve(source.size());
+            for (auto i: source) {
+                s8->push_back(static_cast<int8_t>(i));
+            }
+            MPI_Isend(s8->data(), static_cast<int>(s8->size()), MPI_INT8_T, receiverRank, tag, MPI_COMM_WORLD,
+                      request->r);
+        } else if (width <= 16) {
+            auto *s16 = new std::vector<int>;
+            s16->reserve(source.size());
+            for (auto i: source) {
+                s16->push_back(static_cast<int>(i));
+            }
+            MPI_Isend(s16->data(), static_cast<int>(s16->size()), MPI_INT, receiverRank, tag, MPI_COMM_WORLD,
+                      request->r);
+        } else if (width <= 32) {
+            auto *s32 = new std::vector<int32_t>;
+            s32->reserve(source.size());
+            for (auto i: source) {
+                s32->push_back(static_cast<int32_t>(i));
+            }
+            MPI_Isend(s32->data(), static_cast<int>(s32->size()), MPI_INT32_T, receiverRank, tag, MPI_COMM_WORLD,
+                      request->r);
+        } else {
+            MPI_Isend(source.data(), static_cast<int>(source.size()), MPI_INT64_T, receiverRank, tag, MPI_COMM_WORLD,
+                      request->r);
+        }
+    } else {
+        MPI_Isend(source.data(), static_cast<int>(source.size()), MPI_INT64_T, receiverRank, tag, MPI_COMM_WORLD,
+                  request->r);
+    }
+
+    return request;
+}
+
+MpiRequestWrapper *MpiComm::sendAsync_(int64_t source, int width, int receiverRank, int tag) {
+    auto *request = new MpiRequestWrapper();
+
+    if constexpr (Conf::ENABLE_TRANSFER_COMPRESSION) {
+        if (width == 1) {
+            auto s1 = static_cast<bool>(source);
+            MPI_Isend(&s1, 1, MPI_CXX_BOOL, receiverRank, tag, MPI_COMM_WORLD, request->r);
+        } else if (width <= 8) {
+            auto s8 = static_cast<int8_t>(source);
+            MPI_Isend(&s8, 1, MPI_INT8_T, receiverRank, tag, MPI_COMM_WORLD, request->r);
+        } else if (width <= 16) {
+            auto s16 = static_cast<int>(source);
+            MPI_Isend(&s16, 1, MPI_INT, receiverRank, tag, MPI_COMM_WORLD, request->r);
+        } else if (width <= 32) {
+            auto s32 = static_cast<int32_t>(source);
+            MPI_Isend(&s32, 1, MPI_INT32_T, receiverRank, tag, MPI_COMM_WORLD, request->r);
+        } else {
+            MPI_Isend(&source, 1, MPI_INT64_T, receiverRank, tag, MPI_COMM_WORLD, request->r);
+        }
+    } else {
+        MPI_Isend(&source, 1, MPI_INT64_T, receiverRank, tag, MPI_COMM_WORLD, request->r);
+    }
+
+    return request;
+}
+
+MpiRequestWrapper *MpiComm::sendAsync_(const std::string &source, int receiverRank, int tag) {
+    auto *request = new MpiRequestWrapper();
+    MPI_Isend(source.data(), static_cast<int>(source.length()), MPI_CHAR, receiverRank, tag, MPI_COMM_WORLD,
+              request->r);
+    return request;
 }
 
 bool MpiComm::isServer_() {

@@ -5,6 +5,7 @@
 #ifndef MPC_PACKAGE_COMM_H
 #define MPC_PACKAGE_COMM_H
 #include "./Comm.h"
+#include "item/MpiRequestWrapper.h"
 
 /**
  * For sender, mpi rank must be 0 or 1.
@@ -47,6 +48,14 @@ public:
     void receive_(std::vector<int64_t> &source, int width, int senderRank, int tag) override;
 
     void receive_(std::string &target, int senderRank, int tag) override;
+
+    // async version
+    MpiRequestWrapper *sendAsync_(const std::vector<int64_t> &source, int width, int receiverRank, int tag) override;
+
+    // send
+    MpiRequestWrapper *sendAsync_(int64_t source, int width, int receiverRank, int tag) override;
+
+    MpiRequestWrapper *sendAsync_(const std::string &source, int receiverRank, int tag) override;
 };
 
 

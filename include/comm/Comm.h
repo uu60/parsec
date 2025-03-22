@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+#include "item/AbstractRequest.h"
+
 class Comm {
 public:
     inline static std::atomic_int64_t _totalTime = 0;
@@ -22,9 +24,7 @@ public:
 
     virtual ~Comm() = default;
 
-    static int rank() {
-        return impl->rank_();
-    }
+    static int rank();
 
     static void init(int argc, char **argv);
 
@@ -34,6 +34,9 @@ public:
 
     static bool isClient();
 
+    /**
+    * Methods start with 'server' mean that the communication is between 2 servers. (3-Party server)
+    */
     static void serverSend(const int64_t &source, int width, int tag);
 
     static void serverSend(const std::vector<int64_t> &source, int width, int tag);
@@ -58,6 +61,21 @@ public:
 
     static void receive(std::string &target, int senderRank, int tag);
 
+    // async version
+    static AbstractRequest *sendAsync(const std::vector<int64_t> &source, int width, int receiverRank, int tag);
+
+    static AbstractRequest *sendAsync(int64_t source, int width, int receiverRank, int tag);
+
+    static AbstractRequest *sendAsync(const std::string &source, int receiverRank, int tag);
+
+    static AbstractRequest *serverSendAsync(const int64_t &source, int width, int tag);
+
+    static AbstractRequest *serverSendAsync(const std::vector<int64_t> &source, int width, int tag);
+
+    static AbstractRequest *serverSendAsync(const std::string &source, int tag);
+
+    static void wait(AbstractRequest *request);
+
 protected:
     /**
      * rank() should return the rank of the machine in this cluster.
@@ -75,21 +93,6 @@ protected:
 
     virtual bool isClient_() = 0;
 
-    /**
-     * Methods start with 'server' mean that the communication is between 2 servers. (3-Party server)
-     */
-    void serverSend_(const int64_t &source, int width, int tag);
-
-    void serverSend_(const std::vector<int64_t> &source, int width, int tag);
-
-    void serverSend_(const std::string &source, int tag);
-
-    void serverReceive_(int64_t &source, int width, int tag);
-
-    void serverReceive_(std::vector<int64_t> &source, int width, int tag);
-
-    void serverReceive_(std::string &target, int tag);
-
     virtual void send_(const std::vector<int64_t> &source, int width, int receiverRank, int tag) = 0;
 
     // send
@@ -103,6 +106,14 @@ protected:
     virtual void receive_(std::vector<int64_t> &source, int width, int senderRank, int tag) = 0;
 
     virtual void receive_(std::string &target, int senderRank, int tag) = 0;
+
+    // async version
+    virtual AbstractRequest *sendAsync_(const std::vector<int64_t> &source, int width, int receiverRank, int tag) = 0;
+
+    // send
+    virtual AbstractRequest *sendAsync_(int64_t source, int width, int receiverRank, int tag) = 0;
+
+    virtual AbstractRequest *sendAsync_(const std::string &source, int receiverRank, int tag) = 0;
 };
 
 

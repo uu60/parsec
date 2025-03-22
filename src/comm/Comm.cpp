@@ -22,6 +22,10 @@ if constexpr (Conf::CLASS_WISE_TIMING) { \
 _totalTime += System::currentTimeMillis() - start; \
 }
 
+int Comm::rank() {
+    return impl->rank_();
+}
+
 void Comm::init(int argc, char **argv) {
     if constexpr (Conf::COMM_TYPE == Consts::MPI) {
         impl = new MpiComm();
@@ -42,27 +46,27 @@ bool Comm::isClient() {
 }
 
 void Comm::serverSend(const int64_t &source, int width, int tag) {
-    MEASURE_EXECUTION_TIME(impl->serverSend_(source, width, tag));
+    MEASURE_EXECUTION_TIME(send(source, width, 1 - rank(), tag));
 }
 
 void Comm::serverSend(const std::vector<int64_t> &source, int width, int tag) {
-    MEASURE_EXECUTION_TIME(impl->serverSend_(source, width, tag));
+    MEASURE_EXECUTION_TIME(send(source, width, 1 - rank(), tag));
 }
 
 void Comm::serverSend(const std::string &source, int tag) {
-    MEASURE_EXECUTION_TIME(impl->serverSend_(source, tag));
+    MEASURE_EXECUTION_TIME(send(source, 1 - rank(), tag));
 }
 
 void Comm::serverReceive(int64_t &source, int width, int tag) {
-    MEASURE_EXECUTION_TIME(impl->serverReceive_(source, width, tag));
+    MEASURE_EXECUTION_TIME(receive(source, width, 1 - rank(), tag));
 }
 
 void Comm::serverReceive(std::vector<int64_t> &source, int width, int tag) {
-    MEASURE_EXECUTION_TIME(impl->serverReceive_(source, width, tag));
+    MEASURE_EXECUTION_TIME(receive(source, width, 1 - rank(), tag));
 }
 
 void Comm::serverReceive(std::string &target, int tag) {
-    MEASURE_EXECUTION_TIME(impl->serverReceive_(target, tag));
+    MEASURE_EXECUTION_TIME(receive(target, 1 - rank(), tag));
 }
 
 void Comm::send(const int64_t &source, int width, int receiverRank, int tag) {
@@ -89,26 +93,31 @@ void Comm::receive(std::string &target, int senderRank, int tag) {
     MEASURE_EXECUTION_TIME(impl->receive_(target, senderRank, tag));
 }
 
-void Comm::serverSend_(const int64_t &source, int width, int tag) {
-    send_(source, width, 1 - rank_(), tag);
+AbstractRequest *Comm::sendAsync(const std::vector<int64_t> &source, int width, int receiverRank, int tag) {
+    return impl->sendAsync_(source, width, receiverRank, tag);
 }
 
-void Comm::serverSend_(const std::vector<int64_t> &source, int width, int tag) {
-    send_(source, width, 1 - rank_(), tag);
+AbstractRequest *Comm::sendAsync(int64_t source, int width, int receiverRank, int tag) {
+    return impl->sendAsync_(source, width, receiverRank, tag);
 }
 
-void Comm::serverSend_(const std::string &source, int tag) {
-    send_(source, 1 - rank_(), tag);
+AbstractRequest *Comm::sendAsync(const std::string &source, int receiverRank, int tag) {
+    return impl->sendAsync_(source, receiverRank, tag);
 }
 
-void Comm::serverReceive_(int64_t &source, int width, int tag) {
-    receive_(source, width, 1 - rank_(), tag);
+AbstractRequest *Comm::serverSendAsync(const int64_t &source, int width, int tag) {
+    return sendAsync(source, width, 1 - rank(), tag);
 }
 
-void Comm::serverReceive_(std::vector<int64_t> &source, int width, int tag) {
-    receive_(source, width, 1 - rank_(), tag);
+AbstractRequest *Comm::serverSendAsync(const std::vector<int64_t> &source, int width, int tag) {
+    return sendAsync(source, width, 1 - rank(), tag);
 }
 
-void Comm::serverReceive_(std::string &target, int tag) {
-    receive_(target, 1 - rank_(), tag);
+AbstractRequest *Comm::serverSendAsync(const std::string &source, int tag) {
+    return sendAsync(source, 1 - rank(), tag);
+}
+
+void Comm::wait(AbstractRequest *request) {
+    request->wait();
+    delete request;
 }
