@@ -11,7 +11,7 @@
 #include "intermediate/IntermediateDataSupport.h"
 
 int BoolAndBatchExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
-    int num = static_cast<int>(_xis.size());
+    int num = static_cast<int>(_xis->size());
     int totalBits = num * _width;
     int bc = -1;
     if (totalBits > 64) {
@@ -50,26 +50,26 @@ BoolAndBatchExecutor *BoolAndBatchExecutor::execute() {
 
     std::vector<BitwiseBmt> bmts;
     int bc = prepareBmts(bmts);
-    int num = static_cast<int>(_xis.size());
+    int num = static_cast<int>(_xis->size());
 
     // The first num elements are ei, and the left num elements are fi
     std::vector<int64_t> efi(num * 2);
 
     for (int i = 0; i < num; i++) {
         if constexpr (Conf::BMT_METHOD == Consts::BMT_FIXED) {
-            efi[i] = _xis[i] ^ IntermediateDataSupport::_fixedBitwiseBmt._a;
-            efi[num + i] = _yis[i] ^ IntermediateDataSupport::_fixedBitwiseBmt._b;
+            efi[i] = (*_xis)[i] ^ IntermediateDataSupport::_fixedBitwiseBmt._a;
+            efi[num + i] = (*_yis)[i] ^ IntermediateDataSupport::_fixedBitwiseBmt._b;
         } else {
             if (_width < 64) {
                 // Multiple 64 bit bmts
                 int64_t mask = (1ll << _width) - 1;
                 auto &bmt = bmts[i * _width / 64];
                 int offset = i % 64 * _width;
-                efi[i] = _xis[i] & (((bmt._a) & (mask << offset)) >> offset);
-                efi[num + i] = _yis[i] & (((bmt._b) & (mask << offset)) >> offset);
+                efi[i] = (*_xis)[i] & (((bmt._a) & (mask << offset)) >> offset);
+                efi[num + i] = (*_yis)[i] & (((bmt._b) & (mask << offset)) >> offset);
             } else {
-                efi[i] = _xis[i] & bmts[i]._a;
-                efi[num + i] = _yis[i] & bmts[i]._b;
+                efi[i] = (*_xis)[i] & bmts[i]._a;
+                efi[num + i] = (*_yis)[i] & bmts[i]._b;
             }
         }
     }

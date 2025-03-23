@@ -11,26 +11,33 @@
 #include "intermediate/IntermediateDataSupport.h"
 #include "parallel/ThreadPoolSupport.h"
 
-BoolMutexBatchExecutor::BoolMutexBatchExecutor(std::vector<int64_t> &xs, std::vector<int64_t> &ys,
-                                               std::vector<int64_t> &conds, int width, int taskTag,
+BoolMutexBatchExecutor::BoolMutexBatchExecutor(std::vector<int64_t> *xs, std::vector<int64_t> *ys,
+                                               std::vector<int64_t> *conds, int width, int taskTag,
                                                int msgTagOffset, int clientRank) : BoolBatchExecutor(
     xs, ys, width, taskTag, msgTagOffset, clientRank) {
     if (clientRank == NO_CLIENT_COMPUTE) {
         if (Comm::isClient()) {
             return;
         }
-        _conds_i = std::move(conds);
+        _conds_i = conds;
     } else {
-        _conds_i = BoolBatchExecutor(conds, 1, _taskTag, _currentMsgTag, clientRank)._zis;
+        _conds_i = new std::vector(std::move(BoolBatchExecutor(*conds, 1, _taskTag, _currentMsgTag, clientRank)._zis));
+        _dc = true;
     }
     if (Comm::isClient()) {
         return;
     }
-    for (int64_t &i: _conds_i) {
+    for (int64_t &i: *_conds_i) {
         if (i != 0) {
             // Set to all 1 on each bit
             i = ring(-1ll);
         }
+    }
+}
+
+BoolMutexBatchExecutor::~BoolMutexBatchExecutor() {
+    if (_dc) {
+        delete _conds_i;
     }
 }
 
@@ -41,7 +48,7 @@ bool BoolMutexBatchExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
         bmts = std::move(*_bmts);
     } else if constexpr (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
         gotBmt = true;
-        bmts = IntermediateDataSupport::pollBitwiseBmts(_conds_i.size() * 2, _width);
+        bmts = IntermediateDataSupport::pollBitwiseBmts(_conds_i->size() * 2, _width);
     }
     return gotBmt;
 }
@@ -61,24 +68,24 @@ BoolMutexBatchExecutor *BoolMutexBatchExecutor::execute() {
     std::vector<BitwiseBmt> bmts;
     bool gotBmt = prepareBmts(bmts);
 
-    int num = static_cast<int>(_conds_i.size());
+    int num = static_cast<int>(_conds_i->size());
 
-    _conds_i.reserve(num * 2);
-    _xis.reserve(num * 2);
-    _conds_i.insert(_conds_i.end(), _conds_i.begin(), _conds_i.end());
+    _conds_i->reserve(num * 2);
+    _xis->reserve(num * 2);
+    _conds_i->insert(_conds_i->end(), _conds_i->begin(), _conds_i->end());
     // xis now contain both x and y
-    _xis.insert(_xis.end(), _yis.begin(), _yis.end());
+    _xis->insert(_xis->end(), _yis->begin(), _yis->end());
 
     auto zis = BoolAndBatchExecutor(_conds_i, _xis, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
             setBmts(gotBmt ? &bmts : nullptr)->execute()->_zis;
 
     // Verified SIMD performance
     if constexpr (Conf::ENABLE_SIMD) {
-        _zis = SimdSupport::xor3(zis.data(), _yis.data(), zis.data() + num, num);
+        _zis = SimdSupport::xor3(zis.data(), _yis->data(), zis.data() + num, num);
     } else {
         _zis.resize(num);
         for (int i = 0; i < num; i++) {
-            _zis[i] = zis[i] ^ _yis[i] ^ zis[num + i];
+            _zis[i] = zis[i] ^ (*_yis)[i] ^ zis[num + i];
         }
     }
 

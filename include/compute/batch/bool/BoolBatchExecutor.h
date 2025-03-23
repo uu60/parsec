@@ -11,7 +11,7 @@ class BoolBatchExecutor : public AbstractBatchExecutor {
 public:
     BoolBatchExecutor(std::vector<int64_t>& zs, int width, int taskTag, int msgTagOffset, int clientRank);
 
-    BoolBatchExecutor(std::vector<int64_t>& xs, std::vector<int64_t>& ys, int width, int taskTag, int msgTagOffset, int clientRank);
+    BoolBatchExecutor(std::vector<int64_t>* xs, std::vector<int64_t>* ys, int width, int taskTag, int msgTagOffset, int clientRank);
 
     BoolBatchExecutor *reconstruct(int clientRank) override;
 

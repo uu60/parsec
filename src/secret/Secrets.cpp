@@ -70,21 +70,17 @@ void compareAndSwapBatch(std::vector<SecretT> &secrets, size_t low, size_t mid, 
         comparing.push_back(i);
     }
 
-    std::vector<int64_t> xs, ys;
     int cc = static_cast<int>(comparing.size());
-    xs.reserve(cc);
-    ys.reserve(cc);
+    std::vector<int64_t> xs(cc), ys(cc);
     for (int i = 0; i < cc; i++) {
-        xs.push_back(secrets[comparing[i]]._data);
-        ys.push_back(secrets[comparing[i] + mid]._data);
+        xs[i] = secrets[comparing[i]]._data;
+        ys[i] = secrets[comparing[i] + mid]._data;
     }
 
-    BoolLessBatchExecutor blbe(xs, ys, secrets[0]._width, taskTag, msgTagOffset,
+    BoolLessBatchExecutor blbe(&xs, &ys, secrets[0]._width, taskTag, msgTagOffset,
                                AbstractSecureExecutor::NO_CLIENT_COMPUTE);
 
     auto zs = blbe.execute()->_zis;
-    xs = std::move(blbe._xis);
-    ys = std::move(blbe._yis);
 
     if (!dir) {
         if constexpr (Conf::ENABLE_SIMD) {
@@ -105,7 +101,7 @@ void compareAndSwapBatch(std::vector<SecretT> &secrets, size_t low, size_t mid, 
     zs.reserve(cc * 2);
     zs.insert(zs.end(), zs.begin(), zs.end());
 
-    BoolMutexBatchExecutor bmbe(ys, xs, zs, secrets[0]._width, taskTag, msgTagOffset,
+    BoolMutexBatchExecutor bmbe(&xs, &ys, &zs, secrets[0]._width, taskTag, msgTagOffset,
                                 AbstractSecureExecutor::NO_CLIENT_COMPUTE);
     auto r0 = bmbe.execute()->_zis;
 

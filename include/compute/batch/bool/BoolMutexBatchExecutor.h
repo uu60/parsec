@@ -9,15 +9,18 @@
 
 class BoolMutexBatchExecutor : public BoolBatchExecutor {
 public:
-    std::vector<int64_t> _conds_i{};
+    std::vector<int64_t> *_conds_i{};
+    bool _dc{};
     inline static std::atomic_int64_t _totalTime = 0;
 
 private:
     std::vector<BitwiseBmt> *_bmts{};
 
 public:
-    BoolMutexBatchExecutor(std::vector<int64_t> &xs, std::vector<int64_t> &ys, std::vector<int64_t> &conds, int width, int taskTag,
+    BoolMutexBatchExecutor(std::vector<int64_t> *xs, std::vector<int64_t> *ys, std::vector<int64_t> *conds, int width, int taskTag,
                          int msgTagOffset, int clientRank);
+
+    ~BoolMutexBatchExecutor() override;
 
     BoolMutexBatchExecutor *execute() override;
 

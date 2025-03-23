@@ -11,7 +11,7 @@ class ArithBatchExecutor : public AbstractBatchExecutor {
 public:
     ArithBatchExecutor(std::vector<int64_t>& zs, int width, int taskTag, int msgTagOffset, int clientRank);
 
-    ArithBatchExecutor(std::vector<int64_t>& xs, std::vector<int64_t>& ys, int width, int taskTag, int msgTagOffset, int clientRank);
+    ArithBatchExecutor(std::vector<int64_t>* xs, std::vector<int64_t>* ys, int width, int taskTag, int msgTagOffset, int clientRank);
 
     ArithBatchExecutor *reconstruct(int clientRank) override;
 

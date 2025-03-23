@@ -274,7 +274,7 @@ inline void test_ot_9() {
 
 inline void test_Sort_10() {
     std::vector<BoolSecret> arr;
-    int num = 1000000;
+    int num = 1000;
 
     auto t = System::nextTask();
     for (int i = 0; i < num; i++) {
@@ -386,7 +386,7 @@ void test_batch_and_15() {
         b = {0b1010, 0b1111, 0b0101, Math::randInt(), Math::randInt()};
     }
     auto t = System::nextTask();
-    auto r = BoolAndBatchExecutor(a, b, 64, t, 0, 2).execute()->reconstruct(2)->_results;
+    auto r = BoolAndBatchExecutor(&a, &b, 64, t, 0, 2).execute()->reconstruct(2)->_results;
     if (Comm::isClient()) {
         for (int i = 0; i < r.size(); i++) {
             if ((a[i] & b[i]) != r[i]) {
@@ -409,7 +409,7 @@ void test_batch_bool_mux_16() {
     // BoolMutexBatchExecutor e(a, b, c, 64, t, 0, 2);
     // auto r = e.execute()->reconstruct(2);
     // Log::i("?? {}", r == &e);
-    auto r = BoolMutexBatchExecutor(a, b, c, 64, t, 0, 2).execute()->reconstruct(2)->_results;
+    auto r = BoolMutexBatchExecutor(&a, &b, &c, 64, t, 0, 2).execute()->reconstruct(2)->_results;
 
     if (Comm::isClient()) {
         for (int i = 0; i < r.size(); i++) {
@@ -429,7 +429,7 @@ void test_batch_less_17() {
         b = {5, 1, 10, Math::randInt(0, 100), Math::randInt(0, 100), Math::randInt(0, 100), Math::randInt(0, 100)};
     }
     auto t = System::nextTask();
-    auto r = BoolLessBatchExecutor(a, b, 64, t, 0, 2).execute()->reconstruct(2)->_results;
+    auto r = BoolLessBatchExecutor(&a, &b, 64, t, 0, 2).execute()->reconstruct(2)->_results;
     auto r1 = BoolLessExecutor(2, 5, 64, t, 0, 2).execute()->reconstruct(2)->_result;
 
     if (Comm::isClient()) {

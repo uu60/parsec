@@ -30,9 +30,9 @@ BoolLessBatchExecutor *BoolLessBatchExecutor::execute() {
     std::vector<int64_t> x_xor_y, lbs;
     int64_t mask = Math::ring(-1ll, _width);
 
-    x_xor_y.resize(_xis.size());
-    for (int i = 0; i < _xis.size(); i++) {
-        x_xor_y[i] = _xis[i] ^ _yis[i];
+    x_xor_y.resize(_xis->size());
+    for (int i = 0; i < _xis->size(); i++) {
+        x_xor_y[i] = (*_xis)[i] ^ (*_yis)[i];
     }
     if (Comm::rank() == 0) {
         lbs = x_xor_y;
@@ -45,30 +45,30 @@ BoolLessBatchExecutor *BoolLessBatchExecutor::execute() {
 
     auto shifted_1 = shiftGreater(lbs, 1);
 
-    lbs = BoolAndBatchExecutor(lbs, shifted_1, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
+    lbs = BoolAndBatchExecutor(&lbs, &shifted_1, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
             .setBmts(gotBmt ? &bmts : nullptr)->execute()->_zis;
 
     std::vector<int64_t> diag;
 
     // Verified SIMD performance
     if constexpr (Conf::ENABLE_SIMD) {
-        diag = SimdSupport::computeDiag(_yis, x_xor_y);
+        diag = SimdSupport::computeDiag(*_yis, x_xor_y);
     } else {
         diag.resize(x_xor_y.size());
         for (int i = 0; i < x_xor_y.size(); i++) {
-            diag[i] = Math::changeBit(x_xor_y[i], 0, Math::getBit(_yis[i], 0) ^ Comm::rank());
+            diag[i] = Math::changeBit(x_xor_y[i], 0, Math::getBit((*_yis)[i], 0) ^ Comm::rank());
         }
     }
 
     // diag & x
-    diag = BoolAndBatchExecutor(diag, _xis, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmts(
+    diag = BoolAndBatchExecutor(&diag, _xis, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmts(
         gotBmt ? &bmts : nullptr)->execute()->_zis;
 
     int rounds = static_cast<int>(std::floor(std::log2(_width)));
     for (int r = 2; r <= rounds; r++) {
         auto shifted_r = shiftGreater(lbs, r);
 
-        lbs = BoolAndBatchExecutor(lbs, shifted_r, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
+        lbs = BoolAndBatchExecutor(&lbs, &shifted_r, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
                 setBmts(gotBmt ? &bmts : nullptr)->execute()->_zis;
     }
 
@@ -78,7 +78,7 @@ BoolLessBatchExecutor *BoolLessBatchExecutor::execute() {
         shifted_accum.push_back(Math::changeBit(lbs[i] >> 1, _width - 1, Comm::rank()));
     }
 
-    auto final_accum = BoolAndBatchExecutor(shifted_accum, diag, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
+    auto final_accum = BoolAndBatchExecutor(&shifted_accum, &diag, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
             .setBmts(gotBmt ? &bmts : nullptr)->execute()->_zis;
 
     int fn = static_cast<int>(final_accum.size());
@@ -156,7 +156,7 @@ bool BoolLessBatchExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
         return true;
     }
 
-    int bc = bmtCount(_xis.size(), _width);
+    int bc = bmtCount(_xis->size(), _width);
     if constexpr (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
         bmts = IntermediateDataSupport::pollBitwiseBmts(bc, _width);
         return true;

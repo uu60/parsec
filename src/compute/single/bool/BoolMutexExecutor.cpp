@@ -51,7 +51,7 @@ BoolMutexExecutor *BoolMutexExecutor::execute() {
     if constexpr (Conf::BMT_METHOD == Consts::BMT_BATCH_BACKGROUND) {
         std::vector conds = {_cond_i, _cond_i};
         std::vector xy = {_xi, _yi};
-        auto temp = BoolAndBatchExecutor(conds, xy, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).execute()->_zis;
+        auto temp = BoolAndBatchExecutor(&conds, &xy, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).execute()->_zis;
         cx = temp[0];
         cy = temp[1];
     } else {

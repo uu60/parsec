@@ -15,13 +15,10 @@ private:
 
 public:
     inline static std::atomic_int64_t _totalTime = 0;
-    // inline static std::atomic_int64_t _part0 = 0;
-    // inline static std::atomic_int64_t _part1 = 0;
-    // inline static std::atomic_int64_t _part2 = 0;
 
 public:
     // reverse x and y to obey less than logic
-    BoolLessBatchExecutor(std::vector<int64_t> &xs, std::vector<int64_t> &ys, int width, int taskTag, int msgTagOffset,
+    BoolLessBatchExecutor(std::vector<int64_t> *xs, std::vector<int64_t> *ys, int width, int taskTag, int msgTagOffset,
                           int clientRank) : BoolBatchExecutor(ys, xs, width, taskTag, msgTagOffset, clientRank) {
     }
 
