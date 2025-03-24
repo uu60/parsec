@@ -16,7 +16,7 @@ ArithMultiplyExecutor *ArithMultiplyExecutor::execute() {
         Bmt bmt;
         if (_bmt != nullptr) {
             bmt = *_bmt;
-        } else if constexpr (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
+        } else if constexpr (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
             bmt = IntermediateDataSupport::pollBmts(1, _width)[0];
         } else {
             bmt = BmtGenerator(_width, _taskTag, _currentMsgTag).execute()->_bmt;

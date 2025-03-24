@@ -61,7 +61,7 @@ bool BoolMutexBatchExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     if (_bmts != nullptr) {
         gotBmt = true;
         bmts = std::move(*_bmts);
-    } else if constexpr (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
+    } else if constexpr (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
         gotBmt = true;
         bmts = IntermediateDataSupport::pollBitwiseBmts(bc, _width);
     }
@@ -146,7 +146,7 @@ int BoolMutexBatchExecutor::msgTagCount(int num, int width) {
 }
 
 int BoolMutexBatchExecutor::bmtCount(int num) {
-    if constexpr (Conf::BMT_METHOD == Consts::BMT_FIXED) {
+    if constexpr (Conf::BMT_METHOD == Conf::BMT_FIXED) {
         return 0;
     }
     return num * 2;

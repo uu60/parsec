@@ -27,7 +27,7 @@ int Comm::rank() {
 }
 
 void Comm::init(int argc, char **argv) {
-    if constexpr (Conf::COMM_TYPE == Consts::MPI) {
+    if constexpr (Conf::COMM_TYPE == Conf::MPI) {
         impl = new MpiComm();
     }
     impl->init_(argc, argv);

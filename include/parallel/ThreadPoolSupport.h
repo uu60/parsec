@@ -23,9 +23,9 @@ public:
         if constexpr (Conf::DISABLE_MULTI_THREAD) {
             return;
         }
-        if constexpr (Conf::THREAD_POOL_TYPE == Consts::CTPL_POOL) {
+        if constexpr (Conf::THREAD_POOL_TYPE == Conf::CTPL_POOL) {
             _ctplPool = new CtplThreadPool(Conf::LOCAL_THREADS);
-        } else if constexpr (Conf::THREAD_POOL_TYPE == Consts::TBB_POOL) {
+        } else if constexpr (Conf::THREAD_POOL_TYPE == Conf::TBB_POOL) {
             _tbbPool = new TbbThreadPool(Conf::LOCAL_THREADS);
         }
     }
@@ -61,10 +61,10 @@ public:
                 return ret;
             }
         };
-        if constexpr (Conf::THREAD_POOL_TYPE == Consts::CTPL_POOL) {
+        if constexpr (Conf::THREAD_POOL_TYPE == Conf::CTPL_POOL) {
             return _ctplPool->submit( f1);
         }
-        if constexpr (Conf::THREAD_POOL_TYPE == Consts::TBB_POOL) {
+        if constexpr (Conf::THREAD_POOL_TYPE == Conf::TBB_POOL) {
             return _tbbPool->submit( f1);
         }
         // If no proper pool, run in caller itself

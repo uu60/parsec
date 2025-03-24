@@ -104,14 +104,14 @@ BoolLessBatchExecutor *BoolLessBatchExecutor::setBmts(std::vector<BitwiseBmt> *b
 }
 
 int BoolLessBatchExecutor::msgTagCount(int num, int width) {
-    if constexpr (Conf::BMT_METHOD == Consts::BMT_FIXED) {
+    if constexpr (Conf::BMT_METHOD == Conf::BMT_FIXED) {
         return BoolAndBatchExecutor::msgTagCount(num, width);
     }
     return bmtCount(num, width) * BitwiseBmtGenerator::msgTagCount(width);
 }
 
 int BoolLessBatchExecutor::bmtCount(int num, int width) {
-    if constexpr (Conf::BMT_METHOD == Consts::BMT_FIXED) {
+    if constexpr (Conf::BMT_METHOD == Conf::BMT_FIXED) {
         return 0;
     }
     return num * BoolLessExecutor::bmtCount(width);
@@ -157,11 +157,11 @@ bool BoolLessBatchExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     }
 
     int bc = bmtCount(_xis->size(), _width);
-    if constexpr (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
+    if constexpr (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
         bmts = IntermediateDataSupport::pollBitwiseBmts(bc, _width);
         return true;
     }
-    if constexpr (Conf::BMT_METHOD == Consts::BMT_JIT) {
+    if constexpr (Conf::BMT_METHOD == Conf::BMT_JIT) {
         // JIT BMT
         if (Conf::TASK_BATCHING) {
             bmts = BitwiseBmtBatchGenerator(bc, _width, _taskTag, _currentMsgTag).execute()->_bmts;

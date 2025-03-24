@@ -386,10 +386,10 @@ void test_batch_and_15() {
         b = {0b1010, 0b1111, 0b0101, Math::randInt(), Math::randInt()};
     }
     auto t = System::nextTask();
-    auto r = BoolAndBatchExecutor(&a, &b, 64, t, 0, 2).execute()->reconstruct(2)->_results;
+    auto r = BoolAndBatchExecutor(&a, &b, 32, t, 0, 2).execute()->reconstruct(2)->_results;
     if (Comm::isClient()) {
         for (int i = 0; i < r.size(); i++) {
-            if ((a[i] & b[i]) != r[i]) {
+            if (Math::ring(a[i] & b[i], 32) != r[i]) {
                 Log::i("Wrong: {}", r[i]);
             } else {
                 Log::i("Correct: {}", r[i]);

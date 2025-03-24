@@ -5,31 +5,55 @@
 #ifndef CONF_H
 #define CONF_H
 #include <thread>
-#include "Consts.h"
 
 class Conf {
 public:
+    // pool type
+    enum PoolT {
+        CTPL_POOL,
+        TBB_POOL
+    };
+
+    // blocking queue type
+    enum QueueT {
+        CAS_QUEUE,
+        LOCK_QUEUE
+    };
+
+    // comm type
+    enum CommT {
+        MPI
+    };
+
+    // bmt generation
+    enum BmtT {
+        BMT_BACKGROUND,
+        BMT_JIT,
+        BMT_FIXED,
+        BMT_BATCH_BACKGROUND
+     };
+public:
     // ---------------Settings for bmts---------------
-    // If intermediate data produced in background
-    constexpr static int BMT_METHOD = Consts::BMT_FIXED;
+    // If intermediate data produced in background (DO NOT FORGET TO ENABLE MULTI-THREAD)
+    constexpr static BmtT BMT_METHOD = BMT_BACKGROUND;
     // Bmt max num in queue (INVALID when BMT_BACKGROUND is false)
     constexpr static int MAX_BMTS = 10000;
     // Used times limit of one bmt (INVALID when BMT_BACKGROUND is false)
     constexpr static int BMT_USAGE_LIMIT = 1;
     // Blocking Bmt Queue (INVALID when background bmt is disabled)
-    constexpr static int BMT_QUEUE_TYPE = Consts::CAS_QUEUE;
+    constexpr static QueueT BMT_QUEUE_TYPE = CAS_QUEUE;
 
     // ---------------Settings for threads---------------
     // Task tag bits
     constexpr static int TASK_TAG_BITS = 3;
     // Enable single-thread only
-    constexpr static bool DISABLE_MULTI_THREAD = true;
+    constexpr static bool DISABLE_MULTI_THREAD = false;
     // Enable multiple-thread computation in each single executor
     constexpr static bool INTRA_OPERATOR_PARALLELISM = false;
     // Sum of threads in a process
     inline static int LOCAL_THREADS = static_cast<int>(std::thread::hardware_concurrency() * 10);
     // Index of thread pool type (0 = ctpl, 1 = tbb)
-    constexpr static int THREAD_POOL_TYPE = Consts::CTPL_POOL;
+    constexpr static int THREAD_POOL_TYPE = CTPL_POOL;
     // Thread pool task queue separation
     constexpr static bool JOB_QUEUE_SEPARATION = false;
     // Thread pool abort policy is CallerRunsPolicy
@@ -37,7 +61,7 @@ public:
 
     // ---------------Settings for networks---------------
     // Communication object index (0 = OpenMpi)
-    constexpr static int COMM_TYPE = Consts::MPI;
+    constexpr static CommT COMM_TYPE = MPI;
     // Batch communicate or execute by elements
     constexpr static bool TASK_BATCHING = true;
     // Invalid if intra parallelism or batching is false
@@ -49,8 +73,6 @@ public:
     constexpr static bool CLASS_WISE_TIMING = false;
 
     // ---------------Settings for sort---------------
-    // Sort method
-    constexpr static int SORT_METHOD = Consts::BITONIC;
     // Sort in parallel
     constexpr static bool SORT_IN_PARALLEL = false;
 

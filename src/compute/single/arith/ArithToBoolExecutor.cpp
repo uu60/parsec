@@ -19,7 +19,7 @@ void ArithToBoolExecutor::prepareBmts(BitwiseBmt &b0, BitwiseBmt &b1, BitwiseBmt
         b0 = _bmts->at(0);
         b1 = _bmts->at(1);
         b2 = _bmts->at(2);
-    } else if constexpr (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
+    } else if constexpr (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
         auto bs = IntermediateDataSupport::pollBitwiseBmts(3, _width);
         b0 = bs[0];
         b1 = bs[1];

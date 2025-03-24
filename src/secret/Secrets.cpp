@@ -82,22 +82,13 @@ void compareAndSwapBatch(std::vector<SecretT> &secrets, size_t low, size_t mid, 
     }
 
     auto zs = BoolLessBatchExecutor(&xs, &ys, secrets[0]._width, taskTag, msgTagOffset,
-                               AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zis;
+                                    AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zis;
 
     if (!dir) {
         for (auto &z: zs) {
             z = z ^ Comm::rank();
         }
     } // zs now represents if needs swap
-
-    // xs.reserve(cc * 2);
-    // xs.insert(xs.end(), ys.begin(), ys.end());
-    // ys.resize(xs.size());
-    // for (int i = cc; i < xs.size(); i++) {
-    //     ys[i] = xs[i - cc];
-    // }
-    // zs.reserve(cc * 2);
-    // zs.insert(zs.end(), zs.begin(), zs.end());
 
     auto r0 = BoolMutexBatchExecutor(&xs, &ys, &zs, secrets[0]._width, taskTag, msgTagOffset).execute()->_zis;
 
@@ -160,78 +151,22 @@ void bitonicSort(std::vector<SecretT> &secrets, size_t low, size_t length, bool 
 }
 
 template<typename SecretT>
-void compareAndSwapByBit(std::vector<SecretT> &secrets, size_t i, size_t j, int k, bool asc, int taskTag) {
-    if (secrets[i]._padding && secrets[j]._padding) {
-        return;
-    }
-    if (secrets[i]._padding && asc) {
-        secrets[j]._padding = true;
-        secrets[i]._data = secrets[j]._data;
-        secrets[j]._padding = false;
-        return;
-    }
-    if (secrets[j]._padding && !asc) {
-    }
-    if (secrets[i]._padding || secrets[j]._padding) {
-        return;
-    }
-
-    auto i_bit_k = secrets[i].getBit(k);
-    auto j_bit_k = secrets[j].getBit(k);
-
-    auto swap_cond = i_bit_k.lessThan(j_bit_k).not_(); // i_bit_k > j_bit_k
-
-    if (!asc) {
-        swap_cond = swap_cond.not_();
-    }
-
-    std::vector xs = {secrets[j]._data, secrets[i]._data};
-    std::vector ys = {secrets[i]._data, secrets[j]._data};
-    std::vector<int64_t> conds = {swap_cond._data, swap_cond._data};
-    auto zis = BoolMutexBatchExecutor(xs, ys, conds, secrets[i]._width, taskTag, 0,
-                                      AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zis;
-    secrets[i]._data = zis[0];
-    secrets[j]._data = zis[1];
-}
-
-template<typename SecretT>
-void insertionSortByBit(std::vector<SecretT> &secrets, int k, bool asc, int taskTag) {
-    for (size_t i = 1; i < secrets.size(); ++i) {
-        for (size_t j = i; j > 0; --j) {
-            compareAndSwapByBit<SecretT>(secrets, j - 1, j, k, asc, taskTag);
-        }
-    }
-}
-
-template<typename SecretT>
-void radixSort(std::vector<SecretT> &secrets, bool asc, int taskTag) {
-    if (secrets.empty()) return;
-    for (int k = 0; k < secrets[0]._width; ++k) {
-        insertionSortByBit<SecretT>(secrets, k, asc, taskTag);
-    }
-}
-
-template<typename SecretT>
 void doSort(std::vector<SecretT> &secrets, bool asc, int taskTag) {
-    if constexpr (Conf::SORT_METHOD == Consts::BITONIC) {
-        size_t n = secrets.size();
-        bool isPowerOf2 = (n > 0) && ((n & (n - 1)) == 0);
-        size_t paddingCount = 0;
-        if (!isPowerOf2) {
-            SecretT p;
-            p._padding = true;
+    size_t n = secrets.size();
+    bool isPowerOf2 = (n > 0) && ((n & (n - 1)) == 0);
+    size_t paddingCount = 0;
+    if (!isPowerOf2) {
+        SecretT p;
+        p._padding = true;
 
-            size_t nextPow2 = static_cast<size_t>(1) <<
-                              static_cast<size_t>(std::ceil(std::log2(n)));
-            secrets.resize(nextPow2, p);
-            paddingCount = nextPow2 - n;
-        }
-        bitonicSort<SecretT>(secrets, 0, secrets.size(), asc, taskTag, 0, 0);
-        if (paddingCount > 0) {
-            secrets.resize(secrets.size() - paddingCount);
-        }
-    } else {
-        radixSort<SecretT>(secrets, asc, taskTag);
+        size_t nextPow2 = static_cast<size_t>(1) <<
+                          static_cast<size_t>(std::ceil(std::log2(n)));
+        secrets.resize(nextPow2, p);
+        paddingCount = nextPow2 - n;
+    }
+    bitonicSort<SecretT>(secrets, 0, secrets.size(), asc, taskTag, 0, 0);
+    if (paddingCount > 0) {
+        secrets.resize(secrets.size() - paddingCount);
     }
 }
 

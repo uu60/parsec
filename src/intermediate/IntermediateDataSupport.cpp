@@ -22,17 +22,17 @@ void IntermediateDataSupport::offerBitwiseBmt(BitwiseBmt bmt) {
 }
 
 void IntermediateDataSupport::prepareBmt() {
-    if constexpr (Conf::BMT_METHOD == Consts::BMT_FIXED) {
+    if constexpr (Conf::BMT_METHOD == Conf::BMT_FIXED) {
         _fixedBmt = BmtGenerator(64, 0, 0).execute()->_bmt;
         _fixedBitwiseBmt = BitwiseBmtGenerator(64, 0, 0).execute()->_bmt;
-    } else if constexpr (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
-        if constexpr (Conf::BMT_QUEUE_TYPE == Consts::LOCK_QUEUE) {
+    } else if constexpr (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
+        if constexpr (Conf::BMT_QUEUE_TYPE == Conf::LOCK_QUEUE) {
             _bmts = new LockBlockingQueue<Bmt>(Conf::MAX_BMTS);
         } else {
             _bmts = new BoostLockFreeQueue<Bmt>(Conf::MAX_BMTS);
         }
 
-        if constexpr (Conf::BMT_QUEUE_TYPE == Consts::LOCK_QUEUE) {
+        if constexpr (Conf::BMT_QUEUE_TYPE == Conf::LOCK_QUEUE) {
             _bitwiseBmts = new LockBlockingQueue<BitwiseBmt>(Conf::MAX_BMTS);
         } else {
             _bitwiseBmts = new BoostLockFreeQueue<BitwiseBmt>(Conf::MAX_BMTS);
@@ -171,7 +171,7 @@ std::vector<BitwiseBmt> IntermediateDataSupport::pollBitwiseBmts(int count, int 
 // }
 
 void IntermediateDataSupport::startGenerateBmtsAsync() {
-    if (Comm::isServer() && Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
+    if (Comm::isServer() && Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
         ThreadPoolSupport::submit([] {
             while (!System::_shutdown.load()) {
                 offerBmt(BmtGenerator(8, 0, 0).execute()->_bmt);
@@ -181,7 +181,7 @@ void IntermediateDataSupport::startGenerateBmtsAsync() {
 }
 
 void IntermediateDataSupport::startGenerateBitwiseBmtsAsync() {
-    if (Comm::isServer() && Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
+    if (Comm::isServer() && Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
         ThreadPoolSupport::submit([] {
             while (!System::_shutdown.load()) {
                 offerBitwiseBmt(BitwiseBmtGenerator(64, 1, 0).execute()->_bmt);

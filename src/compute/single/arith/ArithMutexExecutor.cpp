@@ -31,15 +31,15 @@ ArithMutexExecutor *ArithMutexExecutor::execute() {
         if (_bmts != nullptr) {
             bmt0 = _bmts->at(0);
             bmt1 = _bmts->at(1);
-        } else if constexpr (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
+        } else if constexpr (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
             auto bs = IntermediateDataSupport::pollBitwiseBmts(2, _width);
             bmt0 = bs[0];
             bmt1 = bs[1];
         }
         int64_t cx, cy;
         std::future<int64_t> f;
-        auto bp0 = _bmts == nullptr && Conf::BMT_METHOD == Consts::BMT_JIT ? nullptr : &bmt0;
-        auto bp1 = _bmts == nullptr && Conf::BMT_METHOD == Consts::BMT_JIT ? nullptr : &bmt1;
+        auto bp0 = _bmts == nullptr && Conf::BMT_METHOD == Conf::BMT_JIT ? nullptr : &bmt0;
+        auto bp1 = _bmts == nullptr && Conf::BMT_METHOD == Conf::BMT_JIT ? nullptr : &bmt1;
 
         if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
             f = ThreadPoolSupport::submit([&] {

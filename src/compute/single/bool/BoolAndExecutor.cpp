@@ -20,9 +20,9 @@ BoolAndExecutor *BoolAndExecutor::execute() {
     }
 
     if (_bmt == nullptr) {
-        if constexpr (Conf::BMT_METHOD == Consts::BMT_FIXED) {
+        if constexpr (Conf::BMT_METHOD == Conf::BMT_FIXED) {
             _bmt = &IntermediateDataSupport::_fixedBitwiseBmt;
-        } else if constexpr (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
+        } else if constexpr (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
             auto bmt = IntermediateDataSupport::pollBitwiseBmts(1, _width)[0];
             _bmt = &bmt;
         } else {
@@ -39,13 +39,9 @@ BoolAndExecutor *BoolAndExecutor::execute() {
     std::vector<int64_t> efo;
     std::vector efi = {ei, fi};
 
-    if (Comm::rank() == 0) {
-        Comm::serverSend(efi, _width, buildTag(_currentMsgTag));
-        Comm::serverReceive(efo, _width, buildTag(_currentMsgTag));
-    } else {
-        Comm::serverReceive(efo, _width, buildTag(_currentMsgTag));
-        Comm::serverSend(efi, _width, buildTag(_currentMsgTag));
-    }
+    auto r = Comm::serverSendAsync(efi, _width, buildTag(_currentMsgTag));
+    Comm::serverReceive(efo, _width, buildTag(_currentMsgTag));
+    Comm::wait(r);
 
     e = ring(ei ^ efo[0]);
     f = ring(fi ^ efo[1]);

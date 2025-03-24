@@ -20,11 +20,11 @@ bool BoolLessExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     }
 
     int bc = bmtCount(_width);
-    if constexpr (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
+    if constexpr (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
         bmts = IntermediateDataSupport::pollBitwiseBmts(bc, _width);
         return true;
     }
-    if constexpr (Conf::BMT_METHOD == Consts::BMT_JIT) {
+    if constexpr (Conf::BMT_METHOD == Conf::BMT_JIT) {
         // JIT BMT
         if (!Conf::TASK_BATCHING) {
             bmts = BitwiseBmtBatchGenerator(bc, _width, _taskTag, _currentMsgTag).execute()->_bmts;

@@ -36,7 +36,7 @@ BoolMutexExecutor *BoolMutexExecutor::execute() {
         gotBmt = true;
         bmt0 = _bmts->at(0);
         bmt1 = _bmts->at(1);
-    } else if constexpr (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
+    } else if constexpr (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
         gotBmt = true;
         auto bs = IntermediateDataSupport::pollBitwiseBmts(2, _width);
         bmt0 = bs[0];
@@ -48,7 +48,7 @@ BoolMutexExecutor *BoolMutexExecutor::execute() {
     auto bp0 = gotBmt ? &bmt0 : nullptr;
     auto bp1 = gotBmt ? &bmt1 : nullptr;
 
-    if constexpr (Conf::BMT_METHOD == Consts::BMT_BATCH_BACKGROUND) {
+    if constexpr (Conf::BMT_METHOD == Conf::BMT_BATCH_BACKGROUND) {
         std::vector conds = {_cond_i, _cond_i};
         std::vector xy = {_xi, _yi};
         auto temp = BoolAndBatchExecutor(&conds, &xy, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).execute()->_zis;
