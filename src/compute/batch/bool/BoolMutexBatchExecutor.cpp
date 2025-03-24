@@ -70,14 +70,7 @@ BoolMutexBatchExecutor *BoolMutexBatchExecutor::execute() {
 
     int num = static_cast<int>(_conds_i->size());
 
-    _conds_i->reserve(num * 2);
-    _xis->reserve(num * 2);
-    _conds_i->insert(_conds_i->end(), _conds_i->begin(), _conds_i->end());
-    // xis now contain both x and y
-    _xis->insert(_xis->end(), _yis->begin(), _yis->end());
-
-    auto zis = BoolAndBatchExecutor(_conds_i, _xis, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
-            setBmts(gotBmt ? &bmts : nullptr)->execute()->_zis;
+    auto zis = BoolAndBatchExecutor(_xis, _yis, _conds_i, _width, _taskTag, _currentMsgTag).execute()->_zis;
 
     // Verified SIMD performance
     if constexpr (Conf::ENABLE_SIMD) {

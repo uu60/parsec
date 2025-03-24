@@ -274,7 +274,7 @@ inline void test_ot_9() {
 
 inline void test_Sort_10() {
     std::vector<BoolSecret> arr;
-    int num = 1000;
+    int num = 1000000;
 
     auto t = System::nextTask();
     for (int i = 0; i < num; i++) {
@@ -414,9 +414,9 @@ void test_batch_bool_mux_16() {
     if (Comm::isClient()) {
         for (int i = 0; i < r.size(); i++) {
             if ((c[i] ? a[i] : b[i]) != r[i]) {
-                Log::i("Wrong: {}", r[i]);
+                Log::i("Wrong: {}", Math::toBinString<64>(r[i]));
             } else {
-                Log::i("Correct: {}", r[i]);
+                Log::i("Correct: {}", Math::toBinString<64>(r[i]));
             }
         }
     }

@@ -238,7 +238,6 @@ void doSort(std::vector<SecretT> &secrets, bool asc, int taskTag) {
                               static_cast<size_t>(std::ceil(std::log2(n)));
             secrets.resize(nextPow2, p);
             paddingCount = nextPow2 - n;
-            Log::i("{}", paddingCount);
         }
         bitonicSort<SecretT>(secrets, 0, secrets.size(), asc, taskTag, 0, 0);
         if (paddingCount > 0) {

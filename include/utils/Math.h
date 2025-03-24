@@ -6,6 +6,7 @@
 #define MPC_PACKAGE_MATH_H
 
 #include <string>
+#include <bitset>
 
 class Math {
 public:
@@ -33,9 +34,10 @@ public:
 
     static int64_t changeBit(int64_t v, int i, bool b);
 
-    template <int width>
-    static std::string toBinString(int64_t v);
-
+    template<int width>
+    static std::string toBinString(int64_t v) {
+        return std::bitset<width>(v).to_string();
+    };
 };
 
 
