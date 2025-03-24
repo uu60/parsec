@@ -33,6 +33,9 @@ public:
 
     static int64_t changeBit(int64_t v, int i, bool b);
 
+    template <int width>
+    static std::string toBinString(int64_t v);
+
 };
 
 

@@ -133,6 +133,11 @@ int64_t Math::changeBit(int64_t v, int i, bool b) {
     return (v & mask) | ((b ? 1ll : 0ll) << i);
 }
 
+template <int width>
+std::string Math::toBinString(int64_t v) {
+    return std::bitset<width>(v).to_string();
+}
+
 int64_t Math::pow(int64_t base, int64_t exponent) {
     int64_t result = 1;
     while (exponent > 0) {
