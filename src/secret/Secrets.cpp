@@ -83,12 +83,8 @@ void compareAndSwapBatch(std::vector<SecretT> &secrets, size_t low, size_t mid, 
     auto zs = blbe.execute()->_zis;
 
     if (!dir) {
-        if constexpr (Conf::ENABLE_SIMD) {
-            zs = SimdSupport::xorVC(zs, Comm::rank());
-        } else {
-            for (auto &z: zs) {
-                z = z ^ Comm::rank();
-            }
+        for (auto &z: zs) {
+            z = z ^ Comm::rank();
         }
     } // zs now represents if needs swap
 
