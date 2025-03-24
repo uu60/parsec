@@ -16,9 +16,17 @@ public:
 private:
     std::vector<BitwiseBmt> *_bmts{};
 
+    // for sort
+    bool _doSort{};
+
 public:
-    BoolMutexBatchExecutor(std::vector<int64_t> *xs, std::vector<int64_t> *ys, std::vector<int64_t> *conds, int width, int taskTag,
-                         int msgTagOffset, int clientRank);
+    BoolMutexBatchExecutor(std::vector<int64_t> *xs, std::vector<int64_t> *ys, std::vector<int64_t> *conds, int width,
+                           int taskTag,
+                           int msgTagOffset, int clientRank);
+
+    // For sort. Do mutex [xs, ys] [ys, xs] on [conds, conds]
+    BoolMutexBatchExecutor(std::vector<int64_t> *xs, std::vector<int64_t> *ys, std::vector<int64_t> *conds, int width,
+                           int taskTag, int msgTagOffset);
 
     ~BoolMutexBatchExecutor() override;
 
@@ -31,9 +39,12 @@ public:
     static int bmtCount(int num);
 
 private:
-    bool prepareBmts(std::vector<BitwiseBmt>& bmts);
-};
+    bool prepareBmts(std::vector<BitwiseBmt> &bmts);
 
+    void execute0();
+
+    void executeForSort();
+};
 
 
 #endif //BOOLMUTEXBATCHEXECUTOR_H

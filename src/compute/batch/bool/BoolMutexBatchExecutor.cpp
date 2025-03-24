@@ -27,12 +27,26 @@ BoolMutexBatchExecutor::BoolMutexBatchExecutor(std::vector<int64_t> *xs, std::ve
     if (Comm::isClient()) {
         return;
     }
-    for (int64_t &i: *_conds_i) {
-        if (i != 0) {
+    for (int64_t &ci: *_conds_i) {
+        if (ci != 0) {
             // Set to all 1 on each bit
-            i = ring(-1ll);
+            ci = ring(-1ll);
         }
     }
+}
+
+BoolMutexBatchExecutor::BoolMutexBatchExecutor(std::vector<int64_t> *xs, std::vector<int64_t> *ys,
+                                               std::vector<int64_t> *conds, int width, int taskTag,
+                                               int msgTagOffset) : BoolBatchExecutor(
+    xs, ys, width, taskTag, msgTagOffset, NO_CLIENT_COMPUTE) {
+    _conds_i = conds;
+    for (int64_t &ci: *_conds_i) {
+        if (ci != 0) {
+            // Set to all 1 on each bit
+            ci = ring(-1ll);
+        }
+    }
+    _doSort = true;
 }
 
 BoolMutexBatchExecutor::~BoolMutexBatchExecutor() {
@@ -42,29 +56,19 @@ BoolMutexBatchExecutor::~BoolMutexBatchExecutor() {
 }
 
 bool BoolMutexBatchExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
+    int bc = bmtCount(_xis->size() * (_doSort ? 2 : 1));
     bool gotBmt = false;
     if (_bmts != nullptr) {
         gotBmt = true;
         bmts = std::move(*_bmts);
     } else if constexpr (Conf::BMT_METHOD == Consts::BMT_BACKGROUND) {
         gotBmt = true;
-        bmts = IntermediateDataSupport::pollBitwiseBmts(_conds_i->size() * 2, _width);
+        bmts = IntermediateDataSupport::pollBitwiseBmts(bc, _width);
     }
     return gotBmt;
 }
 
-BoolMutexBatchExecutor *BoolMutexBatchExecutor::execute() {
-    _currentMsgTag = _startMsgTag;
-
-    if (Comm::isClient()) {
-        return this;
-    }
-
-    int64_t start;
-    if constexpr (Conf::CLASS_WISE_TIMING) {
-        start = System::currentTimeMillis();
-    }
-
+void BoolMutexBatchExecutor::execute0() {
     std::vector<BitwiseBmt> bmts;
     bool gotBmt = prepareBmts(bmts);
 
@@ -80,6 +84,46 @@ BoolMutexBatchExecutor *BoolMutexBatchExecutor::execute() {
         for (int i = 0; i < num; i++) {
             _zis[i] = zis[i] ^ (*_yis)[i] ^ zis[num + i];
         }
+    }
+}
+
+void BoolMutexBatchExecutor::executeForSort() {
+    std::vector<BitwiseBmt> bmts;
+    bool gotBmt = prepareBmts(bmts);
+
+    int num = static_cast<int>(_conds_i->size());
+
+    // First half is xis & conds_i, the other is yis & conds_i
+    auto zis = BoolAndBatchExecutor(_xis, _yis, _conds_i, _width, _taskTag, _currentMsgTag).execute()->_zis;
+
+    // Verified SIMD performance
+    if constexpr (Conf::ENABLE_SIMD) {
+        _zis = SimdSupport::xor3Concat(zis.data(), _yis->data(), _xis->data(), zis.data() + num, num);
+    } else {
+        _zis.resize(num * 2);
+        for (int i = 0; i < num; i++) {
+            _zis[i] = zis[i] ^ (*_yis)[i] ^ zis[num + i];
+            _zis[num + i] = zis[i] ^ (*_xis)[i] ^ zis[num + i];
+        }
+    }
+}
+
+BoolMutexBatchExecutor *BoolMutexBatchExecutor::execute() {
+    _currentMsgTag = _startMsgTag;
+
+    if (Comm::isClient()) {
+        return this;
+    }
+
+    int64_t start;
+    if constexpr (Conf::CLASS_WISE_TIMING) {
+        start = System::currentTimeMillis();
+    }
+
+    if (_doSort) {
+        executeForSort();
+    } else {
+        execute0();
     }
 
     if constexpr (Conf::CLASS_WISE_TIMING) {

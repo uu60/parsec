@@ -57,7 +57,7 @@ BoolAndBatchExecutor *BoolAndBatchExecutor::execute() {
     }
 
     if (_doMutex) {
-        executeMutex();
+        executeForMutex();
     } else {
         execute0();
     }
@@ -161,7 +161,7 @@ void BoolAndBatchExecutor::execute0() {
     }
 }
 
-void BoolAndBatchExecutor::executeMutex() {
+void BoolAndBatchExecutor::executeForMutex() {
     std::vector<BitwiseBmt> bmts;
     int bc = prepareBmts(bmts);
     int num = static_cast<int>(_xis->size());

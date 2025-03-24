@@ -70,6 +70,10 @@ void compareAndSwapBatch(std::vector<SecretT> &secrets, size_t low, size_t mid, 
         comparing.push_back(i);
     }
 
+    if (comparing.empty()) {
+        return;
+    }
+
     int cc = static_cast<int>(comparing.size());
     std::vector<int64_t> xs(cc), ys(cc);
     for (int i = 0; i < cc; i++) {
@@ -77,10 +81,8 @@ void compareAndSwapBatch(std::vector<SecretT> &secrets, size_t low, size_t mid, 
         ys[i] = secrets[comparing[i] + mid]._data;
     }
 
-    BoolLessBatchExecutor blbe(&xs, &ys, secrets[0]._width, taskTag, msgTagOffset,
-                               AbstractSecureExecutor::NO_CLIENT_COMPUTE);
-
-    auto zs = blbe.execute()->_zis;
+    auto zs = BoolLessBatchExecutor(&xs, &ys, secrets[0]._width, taskTag, msgTagOffset,
+                               AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zis;
 
     if (!dir) {
         for (auto &z: zs) {
@@ -88,27 +90,16 @@ void compareAndSwapBatch(std::vector<SecretT> &secrets, size_t low, size_t mid, 
         }
     } // zs now represents if needs swap
 
-    xs.reserve(cc * 2);
-    xs.insert(xs.end(), ys.begin(), ys.end());
-    ys.resize(xs.size());
-    for (int i = cc; i < xs.size(); i++) {
-        ys[i] = xs[i - cc];
-    }
-    zs.reserve(cc * 2);
-    zs.insert(zs.end(), zs.begin(), zs.end());
+    // xs.reserve(cc * 2);
+    // xs.insert(xs.end(), ys.begin(), ys.end());
+    // ys.resize(xs.size());
+    // for (int i = cc; i < xs.size(); i++) {
+    //     ys[i] = xs[i - cc];
+    // }
+    // zs.reserve(cc * 2);
+    // zs.insert(zs.end(), zs.begin(), zs.end());
 
-    BoolMutexBatchExecutor bmbe(&xs, &ys, &zs, secrets[0]._width, taskTag, msgTagOffset,
-                                AbstractSecureExecutor::NO_CLIENT_COMPUTE);
-    auto r0 = bmbe.execute()->_zis;
-
-    // Another version which reduce memory copy but seems not improve performance
-    // xs = std::move(bmbe._yis);
-    // xs.resize(cc);
-    // ys = std::move(bmbe._xis);
-    // zs = std::move(bmbe._conds_i);
-    // zs.resize(cc);
-    //
-    // auto r1 = BoolMutexBatchExecutor(xs, ys, zs, secrets[0]._width, taskTag, msgTagOffset, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zis;
+    auto r0 = BoolMutexBatchExecutor(&xs, &ys, &zs, secrets[0]._width, taskTag, msgTagOffset).execute()->_zis;
 
     for (int i = 0; i < cc; i++) {
         secrets[comparing[i]]._data = r0[i];

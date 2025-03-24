@@ -27,13 +27,19 @@ public:
 
     // xor 2 vectors and 2 constants respectively and combine the results
     static std::vector<int64_t> xor2VC(const std::vector<int64_t> &xis,
-                                                 const std::vector<int64_t> &yis,
-                                                 int64_t a, int64_t b);
+                                       const std::vector<int64_t> &yis,
+                                       int64_t a, int64_t b);
 
     // xor 3 arrays with specific element number
     static std::vector<int64_t> xor3(const int64_t *a, const int64_t *b,
                                      const int64_t *c,
                                      int num);
+
+    static std::vector<int64_t> xor3Concat(const int64_t *commonA,
+                                           const int64_t *arrB,
+                                           const int64_t *arrD,
+                                           const int64_t *commonC,
+                                           int num);
 
     // Following are special situations
     // compute z

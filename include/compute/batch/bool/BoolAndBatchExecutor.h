@@ -24,6 +24,7 @@ public:
                        int clientRank) : BoolBatchExecutor(xs, ys, width, taskTag, msgTagOffset, clientRank) {
     }
 
+    // For mutex. Do [xs, ys] & [conds, conds]
     BoolAndBatchExecutor(std::vector<int64_t> *xs, std::vector<int64_t> *ys, std::vector<int64_t> *conds, int width, int taskTag, int msgTagOffset);
 
     BoolAndBatchExecutor *execute() override;
@@ -37,7 +38,7 @@ public:
 private:
     void execute0();
 
-    void executeMutex();
+    void executeForMutex();
 
     int prepareBmts(std::vector<BitwiseBmt> &bmts);
 };

@@ -453,6 +453,139 @@ std::vector<int64_t> SimdSupport::xor3(const int64_t *a, const int64_t *b, const
     return output;
 }
 
+/// @brief Computes two XOR3 operations and concatenates the results into a single vector.
+/// @param commonA Pointer to the first common array (e.g. zis.data())
+/// @param arrB    Pointer to the first auxiliary array (e.g. _yis->data())
+/// @param arrD    Pointer to the second auxiliary array (e.g. _xis->data())
+/// @param commonC Pointer to the second common array (e.g. zis.data() + num)
+/// @param num     Number of elements per group
+/// @return        A vector containing the results concatenated:
+///                [0, num) holds commonA ^ arrB ^ commonC,
+///                [num, 2*num) holds commonA ^ arrD ^ commonC.
+std::vector<int64_t> SimdSupport::xor3Concat(const int64_t *commonA, const int64_t *arrB, const int64_t *arrD,
+                                             const int64_t *commonC, int num) {
+    // Allocate the output vector with enough space for both results
+    std::vector<int64_t> output(2 * num);
+
+#ifdef SIMD_AVX512
+    int i = 0;
+    // Process first group using AVX512: commonA ^ arrB ^ commonC
+    for (; i + 8 <= num; i += 8) {
+        __m512i va = _mm512_loadu_si512(commonA + i);
+        __m512i vb = _mm512_loadu_si512(arrB + i);
+        __m512i vc = _mm512_loadu_si512(commonC + i);
+        __m512i res = _mm512_xor_si512(va, vb);
+        res = _mm512_xor_si512(res, vc);
+        _mm512_storeu_si512(output.data() + i, res);
+    }
+    for (; i < num; i++) {
+        output[i] = commonA[i] ^ arrB[i] ^ commonC[i];
+    }
+    // Process second group using AVX512: commonA ^ arrD ^ commonC
+    i = 0;
+    for (; i + 8 <= num; i += 8) {
+        __m512i va = _mm512_loadu_si512(commonA + i);
+        __m512i vd = _mm512_loadu_si512(arrD + i);
+        __m512i vc = _mm512_loadu_si512(commonC + i);
+        __m512i res = _mm512_xor_si512(va, vd);
+        res = _mm512_xor_si512(res, vc);
+        _mm512_storeu_si512(output.data() + num + i, res);
+    }
+    for (; i < num; i++) {
+        output[num + i] = commonA[i] ^ arrD[i] ^ commonC[i];
+    }
+#elif defined(SIMD_AVX2)
+    int i = 0;
+    // Process first group using AVX2 (256-bit registers, 4 int64_t per operation)
+    for (; i + 4 <= num; i += 4) {
+        __m256i va = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(commonA + i));
+        __m256i vb = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(arrB + i));
+        __m256i vc = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(commonC + i));
+        __m256i res = _mm256_xor_si256(va, vb);
+        res = _mm256_xor_si256(res, vc);
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(output.data() + i), res);
+    }
+    for (; i < num; i++) {
+        output[i] = commonA[i] ^ arrB[i] ^ commonC[i];
+    }
+    // Process second group using AVX2: commonA ^ arrD ^ commonC
+    i = 0;
+    for (; i + 4 <= num; i += 4) {
+        __m256i va = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(commonA + i));
+        __m256i vd = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(arrD + i));
+        __m256i vc = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(commonC + i));
+        __m256i res = _mm256_xor_si256(va, vd);
+        res = _mm256_xor_si256(res, vc);
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(output.data() + num + i), res);
+    }
+    for (; i < num; i++) {
+        output[num + i] = commonA[i] ^ arrD[i] ^ commonC[i];
+    }
+#elif defined(SIMD_SSE2)
+    int i = 0;
+    // Process first group using SSE2 (128-bit registers, 2 int64_t per operation)
+    for (; i + 2 <= num; i += 2) {
+        __m128i va = _mm_loadu_si128(reinterpret_cast<const __m128i*>(commonA + i));
+        __m128i vb = _mm_loadu_si128(reinterpret_cast<const __m128i*>(arrB + i));
+        __m128i vc = _mm_loadu_si128(reinterpret_cast<const __m128i*>(commonC + i));
+        __m128i res = _mm_xor_si128(va, vb);
+        res = _mm_xor_si128(res, vc);
+        _mm_storeu_si128(reinterpret_cast<__m128i*>(output.data() + i), res);
+    }
+    for (; i < num; i++) {
+        output[i] = commonA[i] ^ arrB[i] ^ commonC[i];
+    }
+    // Process second group using SSE2: commonA ^ arrD ^ commonC
+    i = 0;
+    for (; i + 2 <= num; i += 2) {
+        __m128i va = _mm_loadu_si128(reinterpret_cast<const __m128i*>(commonA + i));
+        __m128i vd = _mm_loadu_si128(reinterpret_cast<const __m128i*>(arrD + i));
+        __m128i vc = _mm_loadu_si128(reinterpret_cast<const __m128i*>(commonC + i));
+        __m128i res = _mm_xor_si128(va, vd);
+        res = _mm_xor_si128(res, vc);
+        _mm_storeu_si128(reinterpret_cast<__m128i*>(output.data() + num + i), res);
+    }
+    for (; i < num; i++) {
+        output[num + i] = commonA[i] ^ arrD[i] ^ commonC[i];
+    }
+#elif defined(SIMD_NEON)
+    int i = 0;
+    // Process first group using NEON (2 int64_t per operation)
+    for (; i + 2 <= num; i += 2) {
+        int64x2_t va = vld1q_s64(commonA + i);
+        int64x2_t vb = vld1q_s64(arrB + i);
+        int64x2_t vc = vld1q_s64(commonC + i);
+        int64x2_t res = veorq_s64(va, vb);
+        res = veorq_s64(res, vc);
+        vst1q_s64(output.data() + i, res);
+    }
+    for (; i < num; i++) {
+        output[i] = commonA[i] ^ arrB[i] ^ commonC[i];
+    }
+    // Process second group using NEON: commonA ^ arrD ^ commonC
+    i = 0;
+    for (; i + 2 <= num; i += 2) {
+        int64x2_t va = vld1q_s64(commonA + i);
+        int64x2_t vd = vld1q_s64(arrD + i);
+        int64x2_t vc = vld1q_s64(commonC + i);
+        int64x2_t res = veorq_s64(va, vd);
+        res = veorq_s64(res, vc);
+        vst1q_s64(output.data() + num + i, res);
+    }
+    for (; i < num; i++) {
+        output[num + i] = commonA[i] ^ arrD[i] ^ commonC[i];
+    }
+#else
+    // Default non-SIMD implementation
+    for (int i = 0; i < num; i++) {
+        output[i] = commonA[i] ^ arrB[i] ^ commonC[i];
+        output[num + i] = commonA[i] ^ arrD[i] ^ commonC[i];
+    }
+#endif
+
+    return output;
+}
+
 std::vector<int64_t> SimdSupport::computeZ(const std::vector<int64_t> &efs, int64_t a, int64_t b,
                                            int64_t c) {
     int num = static_cast<int>(efs.size() / 2);
@@ -548,8 +681,8 @@ std::vector<int64_t> SimdSupport::computeZ(const std::vector<int64_t> &efs, int6
     return zis;
 }
 
-std::vector<int64_t> SimdSupport::computeDiag(const std::vector<int64_t>& _yis,
-                                                const std::vector<int64_t>& x_xor_y) {
+std::vector<int64_t> SimdSupport::computeDiag(const std::vector<int64_t> &_yis,
+                                              const std::vector<int64_t> &x_xor_y) {
     // 假设 _yis 与 x_xor_y 大小相同
     int n = static_cast<int>(_yis.size());
     std::vector<int64_t> diag(n);
@@ -620,9 +753,9 @@ std::vector<int64_t> SimdSupport::computeDiag(const std::vector<int64_t>& _yis,
     }
 #elif defined(SIMD_NEON)
     int i = 0;
-    int64x2_t one     = vdupq_n_s64(1);
+    int64x2_t one = vdupq_n_s64(1);
     int64x2_t not_one = vdupq_n_s64(~1ll);
-    int64x2_t rank_vec= vdupq_n_s64(rank);
+    int64x2_t rank_vec = vdupq_n_s64(rank);
     for (; i + 2 <= n; i += 2) {
         int64x2_t y_vec = vld1q_s64(&_yis[i]);
         int64x2_t x_vec = vld1q_s64(&x_xor_y[i]);
