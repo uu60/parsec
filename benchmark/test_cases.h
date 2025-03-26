@@ -274,7 +274,7 @@ inline void test_ot_9() {
 
 inline void test_Sort_10() {
     std::vector<BoolSecret> arr;
-    int num = 1000000;
+    int num = 1000;
 
     auto t = System::nextTask();
     for (int i = 0; i < num; i++) {

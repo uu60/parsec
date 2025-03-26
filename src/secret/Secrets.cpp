@@ -59,9 +59,6 @@ void compareAndSwapBatch(std::vector<SecretT> &secrets, size_t low, size_t mid, 
         }
         if ((secrets[i]._padding && dir) || (secrets[j]._padding && !dir)) {
             std::swap(secrets[i], secrets[j]);
-            if constexpr (Conf::SORT_IN_PARALLEL) {
-                std::atomic_thread_fence(std::memory_order_release);
-            }
             continue;
         }
         if (secrets[i]._padding || secrets[j]._padding) {
@@ -96,6 +93,10 @@ void compareAndSwapBatch(std::vector<SecretT> &secrets, size_t low, size_t mid, 
         secrets[comparing[i]]._data = r0[i];
         secrets[comparing[i] + mid]._data = r0[i + cc];
     }
+
+    if constexpr (Conf::SORT_IN_PARALLEL) {
+        std::atomic_thread_fence(std::memory_order_release);
+    }
 }
 
 template<typename SecretT>
@@ -121,8 +122,8 @@ void bitonicSort(std::vector<SecretT> &secrets, size_t low, size_t length, bool 
     if (length > 1) {
         size_t mid = length / 2;
         std::future<void> f;
-        bool parallel = Conf::SORT_IN_PARALLEL && level < static_cast<int>(std::log2(
-                            std::thread::hardware_concurrency()));
+        int sortingThreads = 1 << level;
+        bool parallel = Conf::SORT_IN_PARALLEL && sortingThreads * 2 <= Conf::MAX_SORTING_THREADS;
         if (parallel) {
             f = ThreadPoolSupport::submit([&] {
                 int msgCount;

@@ -35,7 +35,7 @@ public:
 public:
     // ---------------Settings for bmts---------------
     // If intermediate data produced in background (DO NOT FORGET TO ENABLE MULTI-THREAD)
-    constexpr static BmtT BMT_METHOD = BMT_BACKGROUND;
+    constexpr static BmtT BMT_METHOD = BMT_FIXED;
     // Bmt max num in queue (INVALID when BMT_BACKGROUND is false)
     constexpr static int MAX_BMTS = 10000;
     // Used times limit of one bmt (INVALID when BMT_BACKGROUND is false)
@@ -51,7 +51,7 @@ public:
     // Enable multiple-thread computation in each single executor
     constexpr static bool INTRA_OPERATOR_PARALLELISM = false;
     // Sum of threads in a process
-    inline static int LOCAL_THREADS = static_cast<int>(std::thread::hardware_concurrency() * 10);
+    inline static int LOCAL_THREADS = static_cast<int>(std::thread::hardware_concurrency());
     // Index of thread pool type (0 = ctpl, 1 = tbb)
     constexpr static int THREAD_POOL_TYPE = CTPL_POOL;
     // Thread pool task queue separation
@@ -74,7 +74,9 @@ public:
 
     // ---------------Settings for sort---------------
     // Sort in parallel
-    constexpr static bool SORT_IN_PARALLEL = false;
+    constexpr static bool SORT_IN_PARALLEL = true;
+    // Max sorting threads
+    constexpr static int MAX_SORTING_THREADS = 8;
 
     // ---------------Settings for acceleration---------------
     constexpr static bool ENABLE_SIMD = true;
