@@ -56,14 +56,10 @@ BoolMutexBatchExecutor::~BoolMutexBatchExecutor() {
 }
 
 bool BoolMutexBatchExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
-    int bc = bmtCount(_xis->size() * (_doSort ? 2 : 1));
     bool gotBmt = false;
     if (_bmts != nullptr) {
         gotBmt = true;
         bmts = std::move(*_bmts);
-    } else if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
-        gotBmt = true;
-        bmts = IntermediateDataSupport::pollBitwiseBmts(bc, _width);
     }
     return gotBmt;
 }
@@ -74,7 +70,8 @@ void BoolMutexBatchExecutor::execute0() {
 
     int num = static_cast<int>(_conds_i->size());
 
-    auto zis = BoolAndBatchExecutor(_xis, _yis, _conds_i, _width, _taskTag, _currentMsgTag).execute()->_zis;
+    auto zis = BoolAndBatchExecutor(_xis, _yis, _conds_i, _width, _taskTag, _currentMsgTag).setBmts(
+        gotBmt ? &bmts : nullptr)->execute()->_zis;
 
     // Verified SIMD performance
     if (Conf::ENABLE_SIMD) {

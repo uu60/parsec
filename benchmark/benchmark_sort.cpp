@@ -25,17 +25,12 @@ int main(int argc, char *argv[]) {
     int width = 64;
 
     for (int i = 0; i < argc; i++) {
-        if (strcmp("-num", argv[i]) == 0) {
-            if (i + 1 >= argc) {
-                throw std::runtime_error("Wrong parameters.");
-            }
+        std::string arg = argv[i];
+        if (arg == "-num" && i + 1 < argc) {
             num = std::stoi(argv[i + 1]);
             continue;
         }
-        if (strcmp("-width", argv[i]) == 0) {
-            if (i + 1 >= argc) {
-                throw std::runtime_error("Wrong parameters.");
-            }
+        if (arg == "-width" && i + 1 < argc) {
             width = std::stoi(argv[i + 1]);
         }
     }

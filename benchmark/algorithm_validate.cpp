@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "test_cases.h"
+#include "algorithm_validate.h"
 #include "cstring"
 #include <iostream>
 #include <thread>
@@ -43,20 +43,11 @@ int main(int argc, char **argv) {
         case 5:
             test_convertion_5();
             break;
-        // case 6:
-        //     test_bool_MuxExecutor_6();
-        //     break;
         case 7:
             test_int_mux_7();
             break;
-        // case 8:
-        //     test_BoolShareReconstruct_8();
-        //     break;
         case 9:
             test_ot_9();
-            break;
-        case 10:
-            test_Sort_10();
             break;
         case 11:
             test_bool_comp_11();
@@ -76,12 +67,6 @@ int main(int argc, char **argv) {
         case 17:
             test_batch_less_17();
     }
-    // }
-    /*catch (...) {
-        Log::e("Wrong argument");
-        System::finalize();
-        return 0;
-    }*/
 
     Log::i("Done.");
     System::finalize();
