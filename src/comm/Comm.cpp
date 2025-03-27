@@ -14,11 +14,11 @@
 
 #define MEASURE_EXECUTION_TIME(statement) \
 int64_t start = 0; \
-if constexpr (Conf::CLASS_WISE_TIMING) { \
+if (Conf::ENABLE_CLASS_WISE_TIMING) { \
 start = System::currentTimeMillis(); \
 } \
 statement; \
-if constexpr (Conf::CLASS_WISE_TIMING) { \
+if (Conf::ENABLE_CLASS_WISE_TIMING) { \
 _totalTime += System::currentTimeMillis() - start; \
 }
 
@@ -27,7 +27,7 @@ int Comm::rank() {
 }
 
 void Comm::init(int argc, char **argv) {
-    if constexpr (Conf::COMM_TYPE == Conf::MPI) {
+    if (Conf::COMM_TYPE == Conf::MPI) {
         impl = new MpiComm();
     }
     impl->init_(argc, argv);

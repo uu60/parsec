@@ -7,9 +7,8 @@
 
 #include <atomic>
 #include <boost/lockfree/queue.hpp>
-#include <condition_variable>
 
-#include "AbstractBlockingQueue.h"
+#include "../sync/AbstractBlockingQueue.h"
 
 template<typename T>
 class BoostLockFreeQueue : public AbstractBlockingQueue<T> {

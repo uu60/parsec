@@ -6,7 +6,7 @@
 #define MPC_PACKAGE_SYSTEM_H
 #include "../parallel/ctpl_stl.h"
 #include "../comm/Comm.h"
-#include "conf/Conf.h"
+#include "../conf/Conf.h"
 
 class System {
 private:

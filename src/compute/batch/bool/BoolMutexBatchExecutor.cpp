@@ -61,7 +61,7 @@ bool BoolMutexBatchExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     if (_bmts != nullptr) {
         gotBmt = true;
         bmts = std::move(*_bmts);
-    } else if constexpr (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
+    } else if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
         gotBmt = true;
         bmts = IntermediateDataSupport::pollBitwiseBmts(bc, _width);
     }
@@ -77,7 +77,7 @@ void BoolMutexBatchExecutor::execute0() {
     auto zis = BoolAndBatchExecutor(_xis, _yis, _conds_i, _width, _taskTag, _currentMsgTag).execute()->_zis;
 
     // Verified SIMD performance
-    if constexpr (Conf::ENABLE_SIMD) {
+    if (Conf::ENABLE_SIMD) {
         _zis = SimdSupport::xor3(zis.data(), _yis->data(), zis.data() + num, num);
     } else {
         _zis.resize(num);
@@ -97,7 +97,7 @@ void BoolMutexBatchExecutor::executeForSort() {
     auto zis = BoolAndBatchExecutor(_xis, _yis, _conds_i, _width, _taskTag, _currentMsgTag).execute()->_zis;
 
     // Verified SIMD performance
-    if constexpr (Conf::ENABLE_SIMD) {
+    if (Conf::ENABLE_SIMD) {
         _zis = SimdSupport::xor3Concat(zis.data(), _yis->data(), _xis->data(), zis.data() + num, num);
     } else {
         _zis.resize(num * 2);
@@ -116,7 +116,7 @@ BoolMutexBatchExecutor *BoolMutexBatchExecutor::execute() {
     }
 
     int64_t start;
-    if constexpr (Conf::CLASS_WISE_TIMING) {
+    if (Conf::ENABLE_CLASS_WISE_TIMING) {
         start = System::currentTimeMillis();
     }
 
@@ -126,7 +126,7 @@ BoolMutexBatchExecutor *BoolMutexBatchExecutor::execute() {
         execute0();
     }
 
-    if constexpr (Conf::CLASS_WISE_TIMING) {
+    if (Conf::ENABLE_CLASS_WISE_TIMING) {
         _totalTime += System::currentTimeMillis() - start;
     }
 
@@ -146,7 +146,7 @@ int BoolMutexBatchExecutor::msgTagCount(int num, int width) {
 }
 
 int BoolMutexBatchExecutor::bmtCount(int num) {
-    if constexpr (Conf::BMT_METHOD == Conf::BMT_FIXED) {
+    if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
         return 0;
     }
     return num * 2;

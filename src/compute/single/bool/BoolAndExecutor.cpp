@@ -15,14 +15,14 @@ BoolAndExecutor *BoolAndExecutor::execute() {
     _currentMsgTag = _startMsgTag;
 
     int64_t start;
-    if constexpr (Conf::CLASS_WISE_TIMING) {
+    if (Conf::ENABLE_CLASS_WISE_TIMING) {
         start = System::currentTimeMillis();
     }
 
     if (_bmt == nullptr) {
-        if constexpr (Conf::BMT_METHOD == Conf::BMT_FIXED) {
+        if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
             _bmt = &IntermediateDataSupport::_fixedBitwiseBmt;
-        } else if constexpr (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
+        } else if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
             auto bmt = IntermediateDataSupport::pollBitwiseBmts(1, _width)[0];
             _bmt = &bmt;
         } else {
@@ -49,7 +49,7 @@ BoolAndExecutor *BoolAndExecutor::execute() {
 
     _zi = (extendedRank & e & f) ^ (f & _bmt->_a) ^ (e & _bmt->_b) ^ _bmt->_c;
 
-    if constexpr (Conf::CLASS_WISE_TIMING) {
+    if (Conf::ENABLE_CLASS_WISE_TIMING) {
         _totalTime += System::currentTimeMillis() - start;
     }
 

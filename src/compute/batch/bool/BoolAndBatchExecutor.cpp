@@ -20,13 +20,13 @@ int BoolAndBatchExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     }
     if (_bmts != nullptr) {
         bmts = std::move(*_bmts);
-    } else if constexpr (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
+    } else if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
         if (bc == -1) {
             bmts = IntermediateDataSupport::pollBitwiseBmts(1, totalBits);
         } else {
             bmts = IntermediateDataSupport::pollBitwiseBmts(bc, 64);
         }
-    } else if constexpr (Conf::BMT_METHOD == Conf::BMT_JIT) {
+    } else if (Conf::BMT_METHOD == Conf::BMT_JIT) {
         if (bc == -1) {
             bmts = {BitwiseBmtGenerator(totalBits, _taskTag, _currentMsgTag).execute()->_bmt};
         } else {
@@ -52,7 +52,7 @@ BoolAndBatchExecutor *BoolAndBatchExecutor::execute() {
     }
 
     int64_t start;
-    if constexpr (Conf::CLASS_WISE_TIMING) {
+    if (Conf::ENABLE_CLASS_WISE_TIMING) {
         start = System::currentTimeMillis();
     }
 
@@ -62,7 +62,7 @@ BoolAndBatchExecutor *BoolAndBatchExecutor::execute() {
         execute0();
     }
 
-    if constexpr (Conf::CLASS_WISE_TIMING) {
+    if (Conf::ENABLE_CLASS_WISE_TIMING) {
         _totalTime += System::currentTimeMillis() - start;
     }
 
@@ -70,7 +70,7 @@ BoolAndBatchExecutor *BoolAndBatchExecutor::execute() {
 }
 
 int BoolAndBatchExecutor::msgTagCount(int num, int width) {
-    if constexpr (Conf::BMT_METHOD == Conf::BMT_FIXED) {
+    if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
         return 1;
     }
     return BitwiseBmtBatchGenerator::msgTagCount(bmtCount(num), width);
@@ -94,7 +94,7 @@ void BoolAndBatchExecutor::execute0() {
     std::vector<int64_t> efi(num * 2);
 
     for (int i = 0; i < num; i++) {
-        if constexpr (Conf::BMT_METHOD == Conf::BMT_FIXED) {
+        if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
             efi[i] = (*_xis)[i] ^ IntermediateDataSupport::_fixedBitwiseBmt._a;
             efi[num + i] = (*_yis)[i] ^ IntermediateDataSupport::_fixedBitwiseBmt._b;
         } else {
@@ -120,7 +120,7 @@ void BoolAndBatchExecutor::execute0() {
     std::vector<int64_t> efs;
 
     // Verified SIMD performance
-    if constexpr (Conf::ENABLE_SIMD) {
+    if (Conf::ENABLE_SIMD) {
         efs = SimdSupport::xorV(efi, efo);
     } else {
         efs = std::vector<int64_t>(num * 2);
@@ -136,7 +136,7 @@ void BoolAndBatchExecutor::execute0() {
     for (int i = 0; i < num; i++) {
         int64_t e = efs[i];
         int64_t f = efs[num + i];
-        if constexpr (Conf::BMT_METHOD == Conf::BMT_FIXED) {
+        if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
             _zis[i] = (extendedRank & e & f) ^ (
                           f & IntermediateDataSupport::_fixedBitwiseBmt._a) ^ (
                           e & IntermediateDataSupport::_fixedBitwiseBmt._b) ^
@@ -170,7 +170,7 @@ void BoolAndBatchExecutor::executeForMutex() {
     std::vector<int64_t> efi(num * 4);
 
     for (int i = 0, bmtIdx = 0; i < num; i++, bmtIdx += 2) {
-        if constexpr (Conf::BMT_METHOD == Conf::BMT_FIXED) {
+        if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
             efi[i] = (*_xis)[i] ^ IntermediateDataSupport::_fixedBitwiseBmt._a;
             efi[num + i] = (*_yis)[i] ^ IntermediateDataSupport::_fixedBitwiseBmt._a;
 
@@ -206,7 +206,7 @@ void BoolAndBatchExecutor::executeForMutex() {
     std::vector<int64_t> efs;
 
     // Verified SIMD performance
-    if constexpr (Conf::ENABLE_SIMD) {
+    if (Conf::ENABLE_SIMD) {
         efs = SimdSupport::xorV(efi, efo);
     } else {
         efs = std::vector<int64_t>(num * 2);
@@ -222,7 +222,7 @@ void BoolAndBatchExecutor::executeForMutex() {
     for (int i = 0; i < num * 2; i++) {
         int64_t e = efs[i];
         int64_t f = efs[num * 2 + i];
-        if constexpr (Conf::BMT_METHOD == Conf::BMT_FIXED) {
+        if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
             _zis[i] = (extendedRank & e & f) ^ (
                           f & IntermediateDataSupport::_fixedBitwiseBmt._a) ^ (
                           e & IntermediateDataSupport::_fixedBitwiseBmt._b) ^

@@ -10,14 +10,13 @@
 #include <string>
 #include <cmath>
 #include "../utils/System.h"
-#include "conf/Conf.h"
+#include "../conf/Conf.h"
 
 class AbstractSecureExecutor {
 public:
     static constexpr int NO_CLIENT_COMPUTE = -1;
     // bit width
     int _width{};
-    static const int TASK_TAG_BITS = Conf::TASK_TAG_BITS;
 
 protected:
     /*

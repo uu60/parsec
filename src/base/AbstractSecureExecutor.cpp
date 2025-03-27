@@ -11,7 +11,7 @@
 #include "utils/Math.h"
 
 int AbstractSecureExecutor::buildTag(int msgTag) const {
-    int bits = 32 - TASK_TAG_BITS;
+    int bits = 32 - Conf::TASK_TAG_BITS;
     return (static_cast<unsigned int>(_taskTag) << bits) | static_cast<unsigned int>(msgTag & ((1 << bits) - 1));
 }
 
@@ -19,11 +19,10 @@ std::vector<int64_t> AbstractSecureExecutor::handleOt(int sender, std::vector<in
                                                       std::vector<int> &choices) {
     std::vector<int64_t> results;
     size_t all = sender == Comm::rank() ? ss0.size() : choices.size();
-    if constexpr (Conf::TASK_BATCHING) {
-        RandOtBatchExecutor r(sender, &ss0, &ss1, &choices, _width, _taskTag, static_cast<int>(
-                                  _currentMsgTag + sender * RandOtBatchExecutor::msgTagCount()));
+    if (Conf::ENABLE_TASK_BATCHING) {
+        RandOtBatchExecutor r(sender, &ss0, &ss1, &choices, _width, _taskTag, _currentMsgTag + sender * RandOtBatchExecutor::msgTagCount());
         results = r.execute()->_results;
-    } else if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
+    } else if (Conf::INTRA_OPERATOR_PARALLELISM) {
         std::vector<std::future<int64_t> > futures;
         futures.reserve(all);
         bool isSender = sender == Comm::rank();

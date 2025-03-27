@@ -20,7 +20,7 @@ ArithExecutor::ArithExecutor(int64_t z, int width, int taskTag, int msgTagOffset
             int64_t z1 = Math::randInt();
             int64_t z0 = z - z1;
             std::future<void> f;
-            if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
+            if (Conf::INTRA_OPERATOR_PARALLELISM) {
                 // To avoid long time waiting on network, send data in parallel.
                 f = ThreadPoolSupport::submit([&] {
                     Comm::send(z0, _width, 0, buildTag(_currentMsgTag));
@@ -29,7 +29,7 @@ ArithExecutor::ArithExecutor(int64_t z, int width, int taskTag, int msgTagOffset
                 Comm::send(z0, _width, 0, buildTag(_currentMsgTag));
             }
             Comm::send(z1, _width, 1, buildTag(_currentMsgTag));
-            if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
+            if (Conf::INTRA_OPERATOR_PARALLELISM) {
                 f.wait();
             }
         } else if (Comm::isServer()) {
@@ -54,7 +54,7 @@ ArithExecutor::ArithExecutor(int64_t x, int64_t y, int width, int taskTag, int m
             std::vector xy0 = {x0, y0};
             std::vector xy1 = {x1, y1};
             std::future<void> f;
-            if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
+            if (Conf::INTRA_OPERATOR_PARALLELISM) {
                 f = ThreadPoolSupport::submit([&] {
                     Comm::send(xy0, _width, 0, buildTag(_currentMsgTag));
                 });
@@ -62,7 +62,7 @@ ArithExecutor::ArithExecutor(int64_t x, int64_t y, int width, int taskTag, int m
                 Comm::send(xy0, _width, 0, buildTag(_currentMsgTag));
             }
             Comm::send(xy1, _width, 1, buildTag(_currentMsgTag));
-            if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
+            if (Conf::INTRA_OPERATOR_PARALLELISM) {
                 // sync
                 f.wait();
             }

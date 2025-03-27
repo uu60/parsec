@@ -14,7 +14,9 @@
 #include "utils/Math.h"
 
 void System::init(int argc, char **argv) {
-    if constexpr (Conf::BMT_METHOD == Conf::BMT_BACKGROUND || Conf::BMT_METHOD == Conf::BMT_BATCH_BACKGROUND) {
+    Conf::init(argc, argv);
+
+    if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND || Conf::BMT_METHOD == Conf::BMT_BATCH_BACKGROUND) {
         PRESERVED_TASK_TAGS = 2;
     }
 

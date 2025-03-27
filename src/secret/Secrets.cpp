@@ -24,7 +24,7 @@ void compareAndSwap(std::vector<SecretT> &secrets, size_t i, size_t j, bool dir,
     }
     if ((secrets[i]._padding && dir) || (secrets[j]._padding && !dir)) {
         std::swap(secrets[i], secrets[j]);
-        if constexpr (Conf::SORT_IN_PARALLEL) {
+        if (Conf::SORT_IN_PARALLEL) {
             std::atomic_thread_fence(std::memory_order_release);
         }
         return;
@@ -42,7 +42,7 @@ void compareAndSwap(std::vector<SecretT> &secrets, size_t i, size_t j, bool dir,
     secrets[j] = tempJ;
 
     // keep memory synchronized
-    if constexpr (Conf::SORT_IN_PARALLEL) {
+    if (Conf::SORT_IN_PARALLEL) {
         std::atomic_thread_fence(std::memory_order_release);
     }
 }
@@ -94,7 +94,7 @@ void compareAndSwapBatch(std::vector<SecretT> &secrets, size_t low, size_t mid, 
         secrets[comparing[i] + mid]._data = r0[i + cc];
     }
 
-    if constexpr (Conf::SORT_IN_PARALLEL) {
+    if (Conf::SORT_IN_PARALLEL) {
         std::atomic_thread_fence(std::memory_order_release);
     }
 }
@@ -104,7 +104,7 @@ void bitonicMerge(std::vector<SecretT> &secrets, size_t low, size_t length, bool
                   int msgTagOffset) {
     if (length > 1) {
         size_t mid = length / 2;
-        if constexpr (Conf::TASK_BATCHING) {
+        if (Conf::ENABLE_TASK_BATCHING) {
             compareAndSwapBatch<SecretT>(secrets, low, mid, dir, taskTag, msgTagOffset);
         } else {
             for (size_t i = low; i < low + mid; i++) {
@@ -127,9 +127,9 @@ void bitonicSort(std::vector<SecretT> &secrets, size_t low, size_t length, bool 
         if (parallel) {
             f = ThreadPoolSupport::submit([&] {
                 int msgCount;
-                if constexpr (Conf::DISABLE_MULTI_THREAD || !Conf::SORT_IN_PARALLEL) {
+                if (Conf::DISABLE_MULTI_THREAD || !Conf::SORT_IN_PARALLEL) {
                     msgCount = 0;
-                } else if constexpr (Conf::TASK_BATCHING) {
+                } else if (Conf::ENABLE_TASK_BATCHING) {
                     msgCount = std::max(BoolMutexBatchExecutor::msgTagCount(2, secrets[0]._width),
                                         BoolLessBatchExecutor::msgTagCount(2, secrets[0]._width));
                 } else {

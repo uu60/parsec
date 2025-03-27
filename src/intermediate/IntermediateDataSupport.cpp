@@ -22,17 +22,17 @@ void IntermediateDataSupport::offerBitwiseBmt(BitwiseBmt bmt) {
 }
 
 void IntermediateDataSupport::prepareBmt() {
-    if constexpr (Conf::BMT_METHOD == Conf::BMT_FIXED) {
+    if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
         _fixedBmt = BmtGenerator(64, 0, 0).execute()->_bmt;
         _fixedBitwiseBmt = BitwiseBmtGenerator(64, 0, 0).execute()->_bmt;
-    } else if constexpr (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
-        if constexpr (Conf::BMT_QUEUE_TYPE == Conf::LOCK_QUEUE) {
+    } else if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
+        if (Conf::BMT_QUEUE_TYPE == Conf::LOCK_QUEUE) {
             _bmts = new LockBlockingQueue<Bmt>(Conf::MAX_BMTS);
         } else {
             _bmts = new BoostLockFreeQueue<Bmt>(Conf::MAX_BMTS);
         }
 
-        if constexpr (Conf::BMT_QUEUE_TYPE == Conf::LOCK_QUEUE) {
+        if (Conf::BMT_QUEUE_TYPE == Conf::LOCK_QUEUE) {
             _bitwiseBmts = new LockBlockingQueue<BitwiseBmt>(Conf::MAX_BMTS);
         } else {
             _bitwiseBmts = new BoostLockFreeQueue<BitwiseBmt>(Conf::MAX_BMTS);
@@ -88,7 +88,7 @@ std::vector<Bmt> IntermediateDataSupport::pollBmts(int count, int width) {
     }
 
     result.reserve(count);
-    if constexpr (Conf::BMT_USAGE_LIMIT == 1) {
+    if (Conf::BMT_USAGE_LIMIT == 1) {
         result.push_back(_bmts->poll());
         return result;
     }
@@ -127,7 +127,7 @@ std::vector<BitwiseBmt> IntermediateDataSupport::pollBitwiseBmts(int count, int 
     }
 
     result.reserve(count);
-    if constexpr (Conf::BMT_USAGE_LIMIT == 1) {
+    if (Conf::BMT_USAGE_LIMIT == 1) {
         result.push_back(_bitwiseBmts->poll());
         return result;
     }

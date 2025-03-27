@@ -18,7 +18,7 @@ void MpiComm::finalize_() {
 }
 
 void MpiComm::init_(int argc, char **argv) {
-    if constexpr (Conf::DISABLE_MULTI_THREAD) {
+    if (Conf::DISABLE_MULTI_THREAD) {
         MPI_Init(&argc, &argv);
     } else {
         // init
@@ -43,7 +43,7 @@ int MpiComm::rank_() {
 }
 
 void MpiComm::send_(int64_t source, int width, int receiverRank, int tag) {
-    if constexpr (Conf::ENABLE_TRANSFER_COMPRESSION) {
+    if (Conf::ENABLE_TRANSFER_COMPRESSION) {
         if (width == 1) {
             auto s1 = static_cast<bool>(source);
             MPI_Send(&s1, 1, MPI_CXX_BOOL, receiverRank, tag, MPI_COMM_WORLD);
@@ -65,7 +65,7 @@ void MpiComm::send_(int64_t source, int width, int receiverRank, int tag) {
 }
 
 void MpiComm::send_(const std::vector<int64_t> &source, int width, int receiverRank, int tag) {
-    if constexpr (Conf::ENABLE_TRANSFER_COMPRESSION) {
+    if (Conf::ENABLE_TRANSFER_COMPRESSION) {
         if (width == 1) {
             int size = static_cast<int>(source.size());
             bool s1[size];
@@ -107,7 +107,7 @@ void MpiComm::send_(const std::string &source, int receiverRank, int tag) {
 }
 
 void MpiComm::receive_(int64_t &source, int width, int senderRank, int tag) {
-    if constexpr (Conf::ENABLE_TRANSFER_COMPRESSION) {
+    if (Conf::ENABLE_TRANSFER_COMPRESSION) {
         if (width == 1) {
             bool temp;
             MPI_Recv(&temp, 1, MPI_CXX_BOOL, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -138,7 +138,7 @@ void MpiComm::receive_(std::vector<int64_t> &source, int width, int senderRank, 
     MPI_Probe(senderRank, tag, MPI_COMM_WORLD, &status);
     int count = 0;
 
-    if constexpr (Conf::ENABLE_TRANSFER_COMPRESSION) {
+    if (Conf::ENABLE_TRANSFER_COMPRESSION) {
         if (width == 1) {
             MPI_Get_count(&status, MPI_CXX_BOOL, &count);
             bool temp[count];
@@ -202,7 +202,7 @@ void MpiComm::receive_(std::string &target, int senderRank, int tag) {
 MpiRequestWrapper *MpiComm::sendAsync_(const std::vector<int64_t> &source, int width, int receiverRank, int tag) {
     auto *request = new MpiRequestWrapper();
 
-    if constexpr (Conf::ENABLE_TRANSFER_COMPRESSION) {
+    if (Conf::ENABLE_TRANSFER_COMPRESSION) {
         if (width == 1) {
             int size = static_cast<int>(source.size());
             bool s1[size];
@@ -249,7 +249,7 @@ MpiRequestWrapper *MpiComm::sendAsync_(const std::vector<int64_t> &source, int w
 MpiRequestWrapper *MpiComm::sendAsync_(int64_t source, int width, int receiverRank, int tag) {
     auto *request = new MpiRequestWrapper();
 
-    if constexpr (Conf::ENABLE_TRANSFER_COMPRESSION) {
+    if (Conf::ENABLE_TRANSFER_COMPRESSION) {
         if (width == 1) {
             auto s1 = static_cast<bool>(source);
             MPI_Isend(&s1, 1, MPI_CXX_BOOL, receiverRank, tag, MPI_COMM_WORLD, request->r);

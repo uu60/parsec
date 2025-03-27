@@ -26,7 +26,7 @@ BoolMutexExecutor *BoolMutexExecutor::execute() {
     }
 
     int64_t start;
-    if constexpr (Conf::CLASS_WISE_TIMING) {
+    if (Conf::ENABLE_CLASS_WISE_TIMING) {
         start = System::currentTimeMillis();
     }
 
@@ -36,7 +36,7 @@ BoolMutexExecutor *BoolMutexExecutor::execute() {
         gotBmt = true;
         bmt0 = _bmts->at(0);
         bmt1 = _bmts->at(1);
-    } else if constexpr (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
+    } else if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
         gotBmt = true;
         auto bs = IntermediateDataSupport::pollBitwiseBmts(2, _width);
         bmt0 = bs[0];
@@ -48,14 +48,14 @@ BoolMutexExecutor *BoolMutexExecutor::execute() {
     auto bp0 = gotBmt ? &bmt0 : nullptr;
     auto bp1 = gotBmt ? &bmt1 : nullptr;
 
-    if constexpr (Conf::BMT_METHOD == Conf::BMT_BATCH_BACKGROUND) {
+    if (Conf::BMT_METHOD == Conf::BMT_BATCH_BACKGROUND) {
         std::vector conds = {_cond_i, _cond_i};
         std::vector xy = {_xi, _yi};
         auto temp = BoolAndBatchExecutor(&conds, &xy, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).execute()->_zis;
         cx = temp[0];
         cy = temp[1];
     } else {
-        if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
+        if (Conf::INTRA_OPERATOR_PARALLELISM) {
             f = ThreadPoolSupport::submit([&] {
                 return BoolAndExecutor(_cond_i, _xi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmt(bp0)->
                         execute()->_zi;
@@ -68,14 +68,14 @@ BoolMutexExecutor *BoolMutexExecutor::execute() {
         cy = BoolAndExecutor(_cond_i, _yi, _width, _taskTag,
                              static_cast<int>(_currentMsgTag + BoolAndExecutor::msgTagCount(_width)),
                              NO_CLIENT_COMPUTE).setBmt(bp1)->execute()->_zi;
-        if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
+        if (Conf::INTRA_OPERATOR_PARALLELISM) {
             cx = f.get();
         }
     }
 
     _zi = ring(cx ^ _yi ^ cy);
 
-    if constexpr (Conf::CLASS_WISE_TIMING) {
+    if (Conf::ENABLE_CLASS_WISE_TIMING) {
         _totalTime += System::currentTimeMillis() - start;
     }
 

@@ -20,7 +20,7 @@ BoolLessBatchExecutor *BoolLessBatchExecutor::execute() {
     }
 
     int64_t start;
-    if constexpr (Conf::CLASS_WISE_TIMING) {
+    if (Conf::ENABLE_CLASS_WISE_TIMING) {
         start = System::currentTimeMillis();
     }
     std::vector<BitwiseBmt> bmts;
@@ -51,7 +51,7 @@ BoolLessBatchExecutor *BoolLessBatchExecutor::execute() {
     std::vector<int64_t> diag;
 
     // Verified SIMD performance
-    if constexpr (Conf::ENABLE_SIMD) {
+    if (Conf::ENABLE_SIMD) {
         diag = SimdSupport::computeDiag(*_yis, x_xor_y);
     } else {
         diag.resize(x_xor_y.size());
@@ -91,7 +91,7 @@ BoolLessBatchExecutor *BoolLessBatchExecutor::execute() {
         _zis[i] = result;
     }
 
-    if constexpr (Conf::CLASS_WISE_TIMING) {
+    if (Conf::ENABLE_CLASS_WISE_TIMING) {
         _totalTime += System::currentTimeMillis() - start;
     }
 
@@ -104,14 +104,14 @@ BoolLessBatchExecutor *BoolLessBatchExecutor::setBmts(std::vector<BitwiseBmt> *b
 }
 
 int BoolLessBatchExecutor::msgTagCount(int num, int width) {
-    if constexpr (Conf::BMT_METHOD == Conf::BMT_FIXED) {
+    if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
         return BoolAndBatchExecutor::msgTagCount(num, width);
     }
     return bmtCount(num, width) * BitwiseBmtGenerator::msgTagCount(width);
 }
 
 int BoolLessBatchExecutor::bmtCount(int num, int width) {
-    if constexpr (Conf::BMT_METHOD == Conf::BMT_FIXED) {
+    if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
         return 0;
     }
     return num * BoolLessExecutor::bmtCount(width);
@@ -157,15 +157,15 @@ bool BoolLessBatchExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     }
 
     int bc = bmtCount(_xis->size(), _width);
-    if constexpr (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
+    if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
         bmts = IntermediateDataSupport::pollBitwiseBmts(bc, _width);
         return true;
     }
-    if constexpr (Conf::BMT_METHOD == Conf::BMT_JIT) {
+    if (Conf::BMT_METHOD == Conf::BMT_JIT) {
         // JIT BMT
-        if (Conf::TASK_BATCHING) {
+        if (Conf::ENABLE_TASK_BATCHING) {
             bmts = BitwiseBmtBatchGenerator(bc, _width, _taskTag, _currentMsgTag).execute()->_bmts;
-        } else if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
+        } else if (Conf::INTRA_OPERATOR_PARALLELISM) {
             std::vector<std::future<BitwiseBmt> > futures;
             futures.reserve(bc);
             for (int i = 0; i < bc; i++) {

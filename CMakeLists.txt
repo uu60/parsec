@@ -33,18 +33,26 @@
          ${PROJECT_NAME} PUBLIC MPI::MPI_CXX OpenSSL::SSL OpenSSL::Crypto TBB::tbb Boost::boost
  )
 
- file(GLOB_RECURSE BENCHMARK_SOURCES
-         "benchmark/*.h"
-         "benchmark/*.cpp"
- )
+ file(GLOB CPP_FILES "benchmark/*.cpp")
 
- set(BENCHMARK_RUNNER benchmark_runner)
-
- add_executable(${BENCHMARK_RUNNER} ${BENCHMARK_SOURCES})
-
- target_link_libraries(${BENCHMARK_RUNNER} PRIVATE ${PROJECT_NAME})
-
- target_include_directories(${BENCHMARK_RUNNER} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+ foreach(source_file ${CPP_FILES})
+  get_filename_component(exe_name ${source_file} NAME_WE)
+  add_executable(${exe_name} ${source_file})
+  target_link_libraries(${exe_name} PRIVATE ${PROJECT_NAME})
+  target_include_directories(${exe_name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+ endforeach()
+# file(GLOB_RECURSE BENCHMARK_SOURCES
+#         "benchmark/*.h"
+#         "benchmark/*.cpp"
+# )
+#
+# set(BENCHMARK_RUNNER benchmark_runner)
+#
+# add_executable(${BENCHMARK_RUNNER} ${BENCHMARK_SOURCES})
+#
+# target_link_libraries(${BENCHMARK_RUNNER} PRIVATE ${PROJECT_NAME})
+#
+# target_include_directories(${BENCHMARK_RUNNER} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 
  #

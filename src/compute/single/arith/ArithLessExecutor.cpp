@@ -41,7 +41,7 @@ int ArithLessExecutor::msgTagCount(int l) {
 }
 
 int ArithLessExecutor::bmtCount(int width) {
-    if constexpr (Conf::BMT_METHOD == Conf::BMT_FIXED) {
+    if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
         return 0;
     }
     return ArithToBoolExecutor::bmtCount(width);

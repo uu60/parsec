@@ -16,12 +16,12 @@ BitwiseBmtGenerator *BitwiseBmtGenerator::execute() {
     }
 
     int64_t start;
-    if constexpr (Conf::CLASS_WISE_TIMING) {
+    if (Conf::ENABLE_CLASS_WISE_TIMING) {
         start = System::currentTimeMillis();
     }
 
     generateRandomAB();
-    if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
+    if (Conf::INTRA_OPERATOR_PARALLELISM) {
         auto f = ThreadPoolSupport::submit([&] {
             computeMix(0);
         });
@@ -33,7 +33,7 @@ BitwiseBmtGenerator *BitwiseBmtGenerator::execute() {
     }
     computeC();
 
-    if constexpr (Conf::CLASS_WISE_TIMING) {
+    if (Conf::ENABLE_CLASS_WISE_TIMING) {
         _totalTime += System::currentTimeMillis() - start;
     }
     return this;

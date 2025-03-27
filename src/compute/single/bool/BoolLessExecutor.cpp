@@ -20,15 +20,15 @@ bool BoolLessExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     }
 
     int bc = bmtCount(_width);
-    if constexpr (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
+    if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
         bmts = IntermediateDataSupport::pollBitwiseBmts(bc, _width);
         return true;
     }
-    if constexpr (Conf::BMT_METHOD == Conf::BMT_JIT) {
+    if (Conf::BMT_METHOD == Conf::BMT_JIT) {
         // JIT BMT
-        if (!Conf::TASK_BATCHING) {
+        if (!Conf::ENABLE_TASK_BATCHING) {
             bmts = BitwiseBmtBatchGenerator(bc, _width, _taskTag, _currentMsgTag).execute()->_bmts;
-        } else if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
+        } else if (Conf::INTRA_OPERATOR_PARALLELISM) {
             std::vector<std::future<BitwiseBmt> > futures;
             futures.reserve(bc);
             for (int i = 0; i < bc; i++) {
@@ -62,7 +62,7 @@ BoolLessExecutor *BoolLessExecutor::execute() {
     }
 
     int64_t start;
-    if constexpr (Conf::CLASS_WISE_TIMING) {
+    if (Conf::ENABLE_CLASS_WISE_TIMING) {
         start = System::currentTimeMillis();
     }
     std::vector<BitwiseBmt> bmts;
@@ -103,7 +103,7 @@ BoolLessExecutor *BoolLessExecutor::execute() {
 
     _zi = result;
 
-    if constexpr (Conf::CLASS_WISE_TIMING) {
+    if (Conf::ENABLE_CLASS_WISE_TIMING) {
         _totalTime += System::currentTimeMillis() - start;
     }
 

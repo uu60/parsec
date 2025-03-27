@@ -87,7 +87,7 @@ BmtGenerator *BmtGenerator::execute() {
 
     generateRandomAB();
 
-    if constexpr (Conf::INTRA_OPERATOR_PARALLELISM) {
+    if (Conf::INTRA_OPERATOR_PARALLELISM) {
         auto f = ThreadPoolSupport::submit([&] {
             computeMix(0);
         });
