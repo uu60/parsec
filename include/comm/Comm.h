@@ -61,6 +61,12 @@ public:
 
     static void receive(std::string &target, int senderRank, int tag);
 
+    static AbstractRequest *receiveAsync(int64_t &source, int width, int senderRank, int tag);
+
+    static AbstractRequest *receiveAsync(std::vector<int64_t> &source, int count, int width, int senderRank, int tag);
+
+    static AbstractRequest *receiveAsync(std::string &target, int length, int senderRank, int tag);
+
     // async version
     static AbstractRequest *sendAsync(const std::vector<int64_t> &source, int width, int receiverRank, int tag);
 
@@ -73,6 +79,12 @@ public:
     static AbstractRequest *serverSendAsync(const std::vector<int64_t> &source, int width, int tag);
 
     static AbstractRequest *serverSendAsync(const std::string &source, int tag);
+
+    static AbstractRequest *serverReceiveAsync(int64_t &target, int width, int tag);
+
+    static AbstractRequest *serverReceiveAsync(std::vector<int64_t> &target, int count, int width, int tag);
+
+    static AbstractRequest *serverReceiveAsync(std::string &target, int length, int tag);
 
     static void wait(AbstractRequest *request);
 
@@ -110,10 +122,15 @@ protected:
     // async version
     virtual AbstractRequest *sendAsync_(const std::vector<int64_t> &source, int width, int receiverRank, int tag) = 0;
 
-    // send
     virtual AbstractRequest *sendAsync_(int64_t source, int width, int receiverRank, int tag) = 0;
 
     virtual AbstractRequest *sendAsync_(const std::string &source, int receiverRank, int tag) = 0;
+
+    virtual AbstractRequest *receiveAsync_(int64_t &source, int width, int senderRank, int tag) = 0;
+
+    virtual AbstractRequest *receiveAsync_(std::vector<int64_t> &source, int count, int width, int senderRank, int tag) = 0;
+
+    virtual AbstractRequest *receiveAsync_(std::string &target, int length, int senderRank, int tag) = 0;
 };
 
 

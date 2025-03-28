@@ -75,6 +75,8 @@ public:
     inline static bool SORT_IN_PARALLEL = false;
     // Max sorting threads
     inline static int MAX_SORTING_THREADS = 4;
+    // Sort method
+    inline static bool SORT_IN_RECURSIVE = false;
 
     // ---------------Settings for acceleration---------------
     inline static bool ENABLE_SIMD = true;

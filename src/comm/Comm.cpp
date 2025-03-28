@@ -93,6 +93,18 @@ void Comm::receive(std::string &target, int senderRank, int tag) {
     MEASURE_EXECUTION_TIME(impl->receive_(target, senderRank, tag));
 }
 
+AbstractRequest *Comm::receiveAsync(int64_t &source, int width, int senderRank, int tag) {
+    return impl->receiveAsync_(source, width, senderRank, tag);
+}
+
+AbstractRequest *Comm::receiveAsync(std::vector<int64_t> &source, int count, int width, int senderRank, int tag) {
+    return impl->receiveAsync_(source, count, width, senderRank, tag);
+}
+
+AbstractRequest *Comm::receiveAsync(std::string &target, int length, int senderRank, int tag) {
+    return impl->receiveAsync_(target, length, senderRank, tag);
+}
+
 AbstractRequest *Comm::sendAsync(const std::vector<int64_t> &source, int width, int receiverRank, int tag) {
     return impl->sendAsync_(source, width, receiverRank, tag);
 }
@@ -115,6 +127,18 @@ AbstractRequest *Comm::serverSendAsync(const std::vector<int64_t> &source, int w
 
 AbstractRequest *Comm::serverSendAsync(const std::string &source, int tag) {
     return sendAsync(source, 1 - rank(), tag);
+}
+
+AbstractRequest *Comm::serverReceiveAsync(int64_t &target, int width, int tag) {
+    return receiveAsync(target, width, 1 - rank(), tag);
+}
+
+AbstractRequest *Comm::serverReceiveAsync(std::vector<int64_t> &target, int count, int width, int tag) {
+    return receiveAsync(target, count, width, 1 - rank(), tag);
+}
+
+AbstractRequest *Comm::serverReceiveAsync(std::string &target, int length, int tag) {
+    return receiveAsync(target, length, 1 - rank(), tag);
 }
 
 void Comm::wait(AbstractRequest *request) {

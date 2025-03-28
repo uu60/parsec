@@ -56,6 +56,12 @@ public:
     MpiRequestWrapper *sendAsync_(int64_t source, int width, int receiverRank, int tag) override;
 
     MpiRequestWrapper *sendAsync_(const std::string &source, int receiverRank, int tag) override;
+    
+    MpiRequestWrapper *receiveAsync_(int64_t &target, int width, int senderRank, int tag) override;
+    
+    MpiRequestWrapper *receiveAsync_(std::vector<int64_t> &target, int count, int width, int senderRank, int tag) override;
+    
+    MpiRequestWrapper *receiveAsync_(std::string &target, int length, int senderRank, int tag) override;
 };
 
 

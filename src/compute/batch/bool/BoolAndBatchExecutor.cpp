@@ -120,9 +120,10 @@ void BoolAndBatchExecutor::execute0() {
     }
 
     std::vector<int64_t> efo;
-    auto r = Comm::serverSendAsync(efi, _width, buildTag(_currentMsgTag));
-    Comm::serverReceive(efo, _width, buildTag(_currentMsgTag));
-    Comm::wait(r);
+    auto r0 = Comm::serverSendAsync(efi, _width, buildTag(_currentMsgTag));
+    auto r1 = Comm::serverReceiveAsync(efo, efi.size(), _width, buildTag(_currentMsgTag));
+    Comm::wait(r0);
+    Comm::wait(r1);
 
     std::vector<int64_t> efs;
 
@@ -226,9 +227,10 @@ void BoolAndBatchExecutor::executeForMutex() {
     }
 
     std::vector<int64_t> efo;
-    auto r = Comm::serverSendAsync(efi, _width, buildTag(_currentMsgTag));
-    Comm::serverReceive(efo, _width, buildTag(_currentMsgTag));
-    Comm::wait(r);
+    auto r0 = Comm::serverSendAsync(efi, _width, buildTag(_currentMsgTag));
+    auto r1 = Comm::serverReceiveAsync(efo, efi.size(), _width, buildTag(_currentMsgTag));
+    Comm::wait(r0);
+    Comm::wait(r1);
 
     std::vector<int64_t> efs;
 

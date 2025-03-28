@@ -119,35 +119,64 @@ void bitonicMerge(std::vector<SecretT> &secrets, size_t low, size_t length, bool
 template<typename SecretT>
 void bitonicSort(std::vector<SecretT> &secrets, size_t low, size_t length, bool dir, int taskTag,
                  int msgTagOffset, int level) {
-    if (length > 1) {
-        size_t mid = length / 2;
-        std::future<void> f;
-        int sortingThreads = 1 << level;
-        bool parallel = Conf::SORT_IN_PARALLEL && sortingThreads * 2 <= Conf::MAX_SORTING_THREADS;
-        if (parallel) {
-            f = ThreadPoolSupport::submit([&] {
-                int msgCount;
-                if (Conf::DISABLE_MULTI_THREAD || !Conf::SORT_IN_PARALLEL) {
-                    msgCount = 0;
-                } else if (Conf::ENABLE_TASK_BATCHING) {
-                    msgCount = std::max(BoolMutexBatchExecutor::msgTagCount(2, secrets[0]._width),
-                                        BoolLessBatchExecutor::msgTagCount(2, secrets[0]._width));
-                } else {
-                    msgCount = std::max(BoolMutexExecutor::msgTagCount(secrets[0]._width),
-                                        BoolLessExecutor::msgTagCount(secrets[0]._width));
-                }
-                bitonicSort<SecretT>(secrets, low + mid, mid, true, taskTag, msgTagOffset + length / 4 * msgCount,
-                                     level + 1);
-            });
-        } else {
-            bitonicSort<SecretT>(secrets, low + mid, mid, true, taskTag, msgTagOffset, level + 1);
-        }
-        bitonicSort<SecretT>(secrets, low, mid, false, taskTag, msgTagOffset, level + 1);
+    // size_t n = secrets.size();
+    // for (size_t size = 2; size <= n; size *= 2) {
+    //     for (size_t subSize = size; subSize > 1; subSize /= 2) {
+    //         size_t mid = subSize / 2;
+    //         for (size_t low = 0; low < n; low += size) {
+    //             bool block_dir = (((low / size) & 1) == 0) ? dir : !dir;
+    //             for (size_t subLow = low; subLow < low + size; subLow += subSize) {
+    //                 if (Conf::ENABLE_TASK_BATCHING) {
+    //                     compareAndSwapBatch<SecretT>(secrets, subLow, mid, block_dir, taskTag, msgTagOffset);
+    //                 } else {
+    //                     for (size_t i = subLow; i < subLow + mid; i++) {
+    //                         compareAndSwap<SecretT>(secrets, i, i + mid, block_dir, taskTag, msgTagOffset);
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+    int n = secrets.size();
+    for (int k = 2; k <= n; k *= 2) {
+        for (int j = k / 2; j > 0; j /= 2) {
+            std::vector<int64_t> xs, ys;
+            std::vector<int64_t> xIdx, yIdx;
+            std::vector<bool> ascs;
+            int halfN = n / 2;
+            xs.reserve(halfN);
+            ys.reserve(halfN);
+            xIdx.reserve(halfN);
+            yIdx.reserve(halfN);
+            ascs.reserve(halfN);
 
-        if (parallel) {
-            f.wait();
+            for (int i = 0; i < n; i++) {
+                int l = i ^ j;
+                if (l > i) {
+                    bool asc = (i & k) == 0;
+                    xs.push_back(secrets[i]._data);
+                    xIdx.push_back(i);
+                    ys.push_back(secrets[l]._data);
+                    yIdx.push_back(l);
+                    ascs.push_back(asc);
+                }
+            }
+
+            auto zs = BoolLessBatchExecutor(&xs, &ys, secrets[0]._width, taskTag, msgTagOffset, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zis;
+
+            for (int i = 0; i < halfN; i++) {
+                if (!ascs[i]) {
+                    zs[i] = zs[i] ^ Comm::rank();
+                }
+            }
+
+            zs = BoolMutexBatchExecutor(&xs, &ys, &zs, secrets[0]._width, taskTag, msgTagOffset).execute()->_zis;
+
+            for (int i = 0; i < halfN; i++) {
+                secrets[xIdx[i]]._data = zs[i];
+                secrets[yIdx[i]]._data = zs[i + halfN];
+            }
         }
-        bitonicMerge<SecretT>(secrets, low, length, dir, taskTag, msgTagOffset);
     }
 }
 
