@@ -117,26 +117,7 @@ void bitonicMerge(std::vector<SecretT> &secrets, size_t low, size_t length, bool
 }
 
 template<typename SecretT>
-void bitonicSort(std::vector<SecretT> &secrets, size_t low, size_t length, bool dir, int taskTag,
-                 int msgTagOffset, int level) {
-    // size_t n = secrets.size();
-    // for (size_t size = 2; size <= n; size *= 2) {
-    //     for (size_t subSize = size; subSize > 1; subSize /= 2) {
-    //         size_t mid = subSize / 2;
-    //         for (size_t low = 0; low < n; low += size) {
-    //             bool block_dir = (((low / size) & 1) == 0) ? dir : !dir;
-    //             for (size_t subLow = low; subLow < low + size; subLow += subSize) {
-    //                 if (Conf::ENABLE_TASK_BATCHING) {
-    //                     compareAndSwapBatch<SecretT>(secrets, subLow, mid, block_dir, taskTag, msgTagOffset);
-    //                 } else {
-    //                     for (size_t i = subLow; i < subLow + mid; i++) {
-    //                         compareAndSwap<SecretT>(secrets, i, i + mid, block_dir, taskTag, msgTagOffset);
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
+void bitonicSort(std::vector<SecretT> &secrets, bool asc, int taskTag, int msgTagOffset) {
     int n = secrets.size();
     for (int k = 2; k <= n; k *= 2) {
         for (int j = k / 2; j > 0; j /= 2) {
@@ -151,20 +132,33 @@ void bitonicSort(std::vector<SecretT> &secrets, size_t low, size_t length, bool 
             ascs.reserve(halfN);
 
             for (int i = 0; i < n; i++) {
-                int l = i ^ j;
-                if (l > i) {
-                    bool asc = (i & k) == 0;
-                    xs.push_back(secrets[i]._data);
-                    xIdx.push_back(i);
-                    ys.push_back(secrets[l]._data);
-                    yIdx.push_back(l);
-                    ascs.push_back(asc);
+                int l = i ^ j; // CAS secrets[i] and secrets[l]
+                if (l <= i) {
+                    continue;
                 }
+                bool dir = (i & k) == 0;
+                if (secrets[i]._padding && secrets[l]._padding) {
+                    continue;
+                }
+                if ((secrets[i]._padding && dir) || (secrets[l]._padding && !dir)) {
+                    std::swap(secrets[i], secrets[l]);
+                    continue;
+                }
+                if (secrets[i]._padding || secrets[l]._padding) {
+                    continue;
+                }
+                xs.push_back(secrets[i]._data);
+                xIdx.push_back(i);
+                ys.push_back(secrets[l]._data);
+                yIdx.push_back(l);
+                ascs.push_back(dir ^ !asc);
             }
 
-            auto zs = BoolLessBatchExecutor(&xs, &ys, secrets[0]._width, taskTag, msgTagOffset, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zis;
+            auto zs = BoolLessBatchExecutor(&xs, &ys, secrets[0]._width, taskTag, msgTagOffset,
+                                            AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zis;
 
-            for (int i = 0; i < halfN; i++) {
+            int comparingCount = static_cast<int>(xs.size());
+            for (int i = 0; i < comparingCount; i++) {
                 if (!ascs[i]) {
                     zs[i] = zs[i] ^ Comm::rank();
                 }
@@ -172,9 +166,9 @@ void bitonicSort(std::vector<SecretT> &secrets, size_t low, size_t length, bool 
 
             zs = BoolMutexBatchExecutor(&xs, &ys, &zs, secrets[0]._width, taskTag, msgTagOffset).execute()->_zis;
 
-            for (int i = 0; i < halfN; i++) {
+            for (int i = 0; i < comparingCount; i++) {
                 secrets[xIdx[i]]._data = zs[i];
-                secrets[yIdx[i]]._data = zs[i + halfN];
+                secrets[yIdx[i]]._data = zs[i + comparingCount];
             }
         }
     }
@@ -194,7 +188,7 @@ void doSort(std::vector<SecretT> &secrets, bool asc, int taskTag) {
         secrets.resize(nextPow2, p);
         paddingCount = nextPow2 - n;
     }
-    bitonicSort<SecretT>(secrets, 0, secrets.size(), asc, taskTag, 0, 0);
+    bitonicSort<SecretT>(secrets, asc, taskTag, 0);
     if (paddingCount > 0) {
         secrets.resize(secrets.size() - paddingCount);
     }
