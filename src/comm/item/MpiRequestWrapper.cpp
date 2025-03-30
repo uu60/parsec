@@ -5,6 +5,7 @@
 #include "comm/item/MpiRequestWrapper.h"
 
 #include "conf/Conf.h"
+#include "utils/Log.h"
 
 MpiRequestWrapper::MpiRequestWrapper(bool recv) {
     _recv = recv;

@@ -174,7 +174,7 @@ void IntermediateDataSupport::startGenerateBmtsAsync() {
     if (Comm::isServer() && Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
         ThreadPoolSupport::submit([] {
             while (!System::_shutdown.load()) {
-                offerBmt(BmtGenerator(8, 0, 0).execute()->_bmt);
+                offerBmt(BmtGenerator(64, 0, 0).execute()->_bmt);
             }
         });
     }
