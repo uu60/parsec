@@ -157,10 +157,6 @@ bool BoolLessBatchExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     }
 
     int bc = bmtCount(_xis->size(), _width);
-    if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
-        bmts = IntermediateDataSupport::pollBitwiseBmts(bc, _width);
-        return true;
-    }
     if (Conf::BMT_METHOD == Conf::BMT_JIT) {
         // JIT BMT
         if (Conf::ENABLE_TASK_BATCHING) {

@@ -12,7 +12,6 @@
 
 int main(int argc, char **argv) {
     System::init(argc, argv);
-    Log::i("Beginning...");
 
     std::string caseIdx;
     // try {

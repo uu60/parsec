@@ -196,9 +196,8 @@ void BoolAndBatchExecutor::executeForMutex() {
         }
     } else {
         bc = prepareBmts(bmts);
-        int i = 0;
         if (_width < 64 && bc != -2) {
-            for (; i < num; i++) {
+            for (int i = 0; i < num; i++) {
                 // Multiple 64 bit bmts
                 int64_t mask = (1ll << _width) - 1;
                 auto &bmt = bmts[i * _width / 64];
@@ -206,22 +205,22 @@ void BoolAndBatchExecutor::executeForMutex() {
                 efi[i] = (*_xis)[i] ^ (((bmt._a) & (mask << offset)) >> offset);
                 efi[num * 2 + i] = (*_conds_i)[i] ^ (((bmt._b) & (mask << offset)) >> offset);
             }
-            for (; i < num; i++) {
+            for (int i = num; i < num * 2; i++) {
                 // Multiple 64 bit bmts
                 int64_t mask = (1ll << _width) - 1;
                 auto &bmt = bmts[i * _width / 64];
                 int offset = i % 64 * _width;
-                efi[i] = (*_yis)[i] ^ (((bmt._a) & (mask << offset)) >> offset);
-                efi[num * 2 + i] = (*_conds_i)[i] ^ (((bmt._b) & (mask << offset)) >> offset);
+                efi[i] = (*_yis)[i - num] ^ (((bmt._a) & (mask << offset)) >> offset);
+                efi[num * 2 + i] = (*_conds_i)[i - num] ^ (((bmt._b) & (mask << offset)) >> offset);
             }
         } else {
-            for (; i < num; i++) {
+            for (int i = 0; i < num; i++) {
                 efi[i] = (*_xis)[i] ^ bmts[i]._a;
                 efi[num * 2 + i] = (*_conds_i)[i] ^ bmts[i]._b;
             }
-            for (; i < num; i++) {
-                efi[i] = (*_yis)[i] ^ bmts[i]._a;
-                efi[num * 2 + i] = (*_conds_i)[i] ^ bmts[i]._b;
+            for (int i = num; i < num * 2; i++) {
+                efi[i] = (*_yis)[i - num] ^ bmts[i]._a;
+                efi[num * 2 + i] = (*_conds_i)[i - num] ^ bmts[i]._b;
             }
         }
     }

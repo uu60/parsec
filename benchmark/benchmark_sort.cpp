@@ -19,7 +19,6 @@
 
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
-    Log::i("Beginning...");
 
     int num = 10000;
     int width = 64;

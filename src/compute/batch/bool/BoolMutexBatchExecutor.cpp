@@ -91,7 +91,8 @@ void BoolMutexBatchExecutor::executeForSort() {
     int num = static_cast<int>(_conds_i->size());
 
     // First half is xis & conds_i, the other is yis & conds_i
-    auto zis = BoolAndBatchExecutor(_xis, _yis, _conds_i, _width, _taskTag, _currentMsgTag).execute()->_zis;
+    auto zis = BoolAndBatchExecutor(_xis, _yis, _conds_i, _width, _taskTag, _currentMsgTag).setBmts(
+        gotBmt ? &bmts : nullptr)->execute()->_zis;
 
     // Verified SIMD performance
     if (Conf::ENABLE_SIMD) {
