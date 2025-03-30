@@ -289,8 +289,10 @@ inline void test_api_14() {
 inline void test_batch_and_15() {
     std::vector<int64_t> a, b;
     if (Comm::isClient()) {
-        a = {0b1111, 0b0000, 0b0011, Math::randInt(), Math::randInt()};
-        b = {0b1010, 0b1111, 0b0101, Math::randInt(), Math::randInt()};
+        for (int i = 0; i < 100000; i++) {
+            a.push_back(Math::randInt());
+            b.push_back(Math::randInt());
+        }
     }
     auto t = System::nextTask();
     auto r = BoolAndBatchExecutor(&a, &b, 32, t, 0, 2).execute()->reconstruct(2)->_results;
@@ -309,9 +311,11 @@ inline void test_batch_bool_mux_16() {
     std::vector<int64_t> a, b, c;
     int width = 32;
     if (Comm::isClient()) {
-        a = {0b1111, 0b0000, 0b0011, Math::randInt(), Math::randInt()};
-        b = {0b1010, 0b1111, 0b0101, Math::randInt(), Math::randInt()};
-        c = {0, 1, 0, Math::randInt(0, 1), Math::randInt(0, 1)};
+        for (int i = 0; i < 100; i++) {
+            a.push_back(Math::randInt());
+            b.push_back(Math::randInt());
+            c.push_back(Math::randInt(0, 1));
+        }
     }
     auto t = System::nextTask();
     auto r = BoolMutexBatchExecutor(&a, &b, &c, width, t, 0, 2).execute()->reconstruct(2)->_results;
@@ -330,8 +334,10 @@ inline void test_batch_bool_mux_16() {
 inline void test_batch_less_17() {
     std::vector<int64_t> a, b;
     if (Comm::isClient()) {
-        a = {2, 0, 10, Math::randInt(0, 100), Math::randInt(0, 100), Math::randInt(0, 100), Math::randInt(0, 100)};
-        b = {5, 1, 10, Math::randInt(0, 100), Math::randInt(0, 100), Math::randInt(0, 100), Math::randInt(0, 100)};
+        for (int i = 0; i < 100000; i++) {
+            a.push_back(Math::randInt());
+            b.push_back(Math::randInt());
+        }
     }
     auto t = System::nextTask();
     auto r = BoolLessBatchExecutor(&a, &b, 64, t, 0, 2).execute()->reconstruct(2)->_results;

@@ -13,14 +13,14 @@
 int BoolAndBatchExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     if (_bmts != nullptr) {
         bmts = std::move(*_bmts);
-        return -2; // -2 means prepared bmts from former object
+        return bmts.size();
     }
     int num = static_cast<int>(_xis->size() * (_doMutex ? 2 : 1));
     int totalBits = num * _width;
     int bc = -1; // -1 means required bmt bits less than 64
     if (totalBits > 64) {
         // ceil division
-        bc = (num * _width + 63) / 64;
+        bc = (totalBits + 63) / 64;
     }
     if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
         if (bc == -1) {
@@ -104,12 +104,9 @@ void BoolAndBatchExecutor::execute0() {
     } else {
         if (_width < 64 && bc != -2) {
             for (int i = 0; i < num; i++) {
-                // Multiple 64 bit bmts
-                int64_t mask = (1ll << _width) - 1;
-                auto &bmt = bmts[i * _width / 64];
-                int offset = i % 64 * _width;
-                efi[i] = (*_xis)[i] ^ (((bmt._a) & (mask << offset)) >> offset);
-                efi[num + i] = (*_yis)[i] ^ (((bmt._b) & (mask << offset)) >> offset);
+                auto bmt = BitwiseBmt::extract(bmts, i, _width);
+                efi[i] = (*_xis)[i] ^ bmt._a;
+                efi[num + i] = (*_yis)[i] ^ bmt._b;
             }
         } else {
             for (int i = 0; i < num; i++) {
@@ -150,18 +147,13 @@ void BoolAndBatchExecutor::execute0() {
                       IntermediateDataSupport::_fixedBitwiseBmt._c;
         }
     } else {
-        int64_t mask = (1ll << _width) - 1;
         if (_width < 64 && bc != -2) {
             for (int i = 0; i < num; i++) {
                 int64_t e = efs[i];
                 int64_t f = efs[num + i];
-                // Multiple 64 bit bmts
-                auto &bmt = bmts[i * _width / 64];
-                int offset = i % 64 * _width;
-                int64_t a = (bmt._a & (mask << offset)) >> offset;
-                int64_t b = (bmt._b & (mask << offset)) >> offset;
-                int64_t c = (bmt._c & (mask << offset)) >> offset;
-                _zis[i] = (extendedRank & e & f) ^ (f & a) ^ (e & b) ^ c;
+                auto bmt = BitwiseBmt::extract(bmts, i, _width);
+
+                _zis[i] = (extendedRank & e & f) ^ (f & bmt._a) ^ (e & bmt._b) ^ bmt._c;
             }
         } else {
             for (int i = 0; i < num; i++) {
@@ -199,19 +191,15 @@ void BoolAndBatchExecutor::executeForMutex() {
         if (_width < 64 && bc != -2) {
             for (int i = 0; i < num; i++) {
                 // Multiple 64 bit bmts
-                int64_t mask = (1ll << _width) - 1;
-                auto &bmt = bmts[i * _width / 64];
-                int offset = i % 64 * _width;
-                efi[i] = (*_xis)[i] ^ (((bmt._a) & (mask << offset)) >> offset);
-                efi[num * 2 + i] = (*_conds_i)[i] ^ (((bmt._b) & (mask << offset)) >> offset);
+                auto bmt = BitwiseBmt::extract(bmts, i, _width);
+                efi[i] = (*_xis)[i] ^ bmt._a;
+                efi[num * 2 + i] = (*_conds_i)[i] ^ bmt._b;
             }
             for (int i = num; i < num * 2; i++) {
                 // Multiple 64 bit bmts
-                int64_t mask = (1ll << _width) - 1;
-                auto &bmt = bmts[i * _width / 64];
-                int offset = i % 64 * _width;
-                efi[i] = (*_yis)[i - num] ^ (((bmt._a) & (mask << offset)) >> offset);
-                efi[num * 2 + i] = (*_conds_i)[i - num] ^ (((bmt._b) & (mask << offset)) >> offset);
+                auto bmt = BitwiseBmt::extract(bmts, i, _width);
+                efi[i] = (*_yis)[i - num] ^ bmt._a;
+                efi[num * 2 + i] = (*_conds_i)[i - num] ^ bmt._b;
             }
         } else {
             for (int i = 0; i < num; i++) {
@@ -262,22 +250,15 @@ void BoolAndBatchExecutor::executeForMutex() {
                 int64_t e = efs[i];
                 int64_t f = efs[num * 2 + i];
                 // Multiple 64 bit bmts
-                auto &bmt = bmts[i * _width / 64];
-                int offset = i % 64 * _width;
-                int64_t a = (bmt._a & (mask << offset)) >> offset;
-                int64_t b = (bmt._b & (mask << offset)) >> offset;
-                int64_t c = (bmt._c & (mask << offset)) >> offset;
-                _zis[i] = (extendedRank & e & f) ^ (f & a) ^ (e & b) ^ c;
+                auto bmt = BitwiseBmt::extract(bmts, i, _width);
+                _zis[i] = (extendedRank & e & f) ^ (f & bmt._a) ^ (e & bmt._b) ^ bmt._c;
             }
         } else {
             for (int i = 0; i < num * 2; i++) {
                 int64_t e = efs[i];
                 int64_t f = efs[num * 2 + i];
                 // Multiple 64 bit bmts
-                int64_t a = bmts[i]._a;
-                int64_t b = bmts[i]._b;
-                int64_t c = bmts[i]._c;
-                _zis[i] = (extendedRank & e & f) ^ (f & a) ^ (e & b) ^ c;
+                _zis[i] = (extendedRank & e & f) ^ (f & bmts[i]._a) ^ (e & bmts[i]._b) ^ bmts[i]._c;
             }
         }
     }

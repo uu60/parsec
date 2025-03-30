@@ -88,10 +88,6 @@ std::vector<Bmt> IntermediateDataSupport::pollBmts(int count, int width) {
     }
 
     result.reserve(count);
-    if (Conf::BMT_USAGE_LIMIT == 1) {
-        result.push_back(_bmts->poll());
-        return result;
-    }
 
     while (count > 0) {
         int left = _currentBmtLeftTimes;
@@ -127,10 +123,6 @@ std::vector<BitwiseBmt> IntermediateDataSupport::pollBitwiseBmts(int count, int 
     }
 
     result.reserve(count);
-    if (Conf::BMT_USAGE_LIMIT == 1) {
-        result.push_back(_bitwiseBmts->poll());
-        return result;
-    }
 
     while (count > 0) {
         int left = _currentBitwiseBmtLeftTimes;

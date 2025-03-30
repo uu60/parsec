@@ -71,7 +71,5 @@ int main(int argc, char *argv[]) {
             last = s._data;
         }
     }
-
-    Log::i("Done.");
     System::finalize();
 }

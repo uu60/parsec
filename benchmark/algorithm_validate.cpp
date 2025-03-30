@@ -67,7 +67,6 @@ int main(int argc, char **argv) {
             test_batch_less_17();
     }
 
-    Log::i("Done.");
     System::finalize();
     return 0;
 }
