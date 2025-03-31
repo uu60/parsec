@@ -19,37 +19,39 @@ RandOtBatchExecutor *RandOtBatchExecutor::execute() {
 
     if (_isSender) {
         std::vector<int64_t> ks;
-        ks.reserve(_ms0->size());
-        Comm::serverReceive(ks, _width, buildTag(_currentMsgTag));
+        int size = _ms0->size();
+        auto r0 = Comm::serverReceiveAsync(ks, size, _width, buildTag(_currentMsgTag));
 
         std::vector<int64_t> toSend;
-        toSend.reserve(_ms0->size() * 2);
-        for (int i = 0; i < _ms0->size(); ++i) {
-            auto y0 = _ms0->at(i) ^ (ks[i] == 0
+        toSend.resize(size * 2);
+        Comm::wait(r0);
+        for (int i = 0; i < size; ++i) {
+            toSend[i * 2] = (*_ms0)[i] ^ (ks[i] == 0
                                          ? IntermediateDataSupport::_sRot->_r0
                                          : IntermediateDataSupport::_sRot->_r1);
-            auto y1 = _ms1->at(i) ^ (ks[i] == 0
+            toSend[i * 2 + 1] = (*_ms1)[i] ^ (ks[i] == 0
                                          ? IntermediateDataSupport::_sRot->_r1
                                          : IntermediateDataSupport::_sRot->_r0);
-            toSend.push_back(y0);
-            toSend.push_back(y1);
         }
         Comm::serverSend(toSend, _width, buildTag(_currentMsgTag));
     } else {
         std::vector<int64_t> ks;
-        ks.reserve(_choices->size());
-        for (int _choice : *_choices) {
-            ks.push_back(IntermediateDataSupport::_rRot->_b ^ _choice);
+        int size = _choices->size();
+        ks.resize(size);
+        for (int i = 0; i < size; ++i) {
+            ks[i] = IntermediateDataSupport::_rRot->_b ^ (*_choices)[i];
         }
-        Comm::serverSend(ks, _width, buildTag(_currentMsgTag));
+        auto r0 = Comm::serverSendAsync(ks, _width, buildTag(_currentMsgTag));
 
         std::vector<int64_t> toRecv;
-        Comm::serverReceive(toRecv, _width, buildTag(_currentMsgTag));
+        auto r1 = Comm::serverReceiveAsync(toRecv, size * 2, _width, buildTag(_currentMsgTag));
 
-        _results.reserve(toRecv.size() / 2);
-        for (int i = 0; i < _choices->size(); ++i) {
-            _results.push_back(ring(toRecv[i * 2 + _choices->at(i)] ^ IntermediateDataSupport::_rRot->_rb));
+        _results.resize(size);
+        Comm::wait(r1);
+        for (int i = 0; i < size; ++i) {
+            _results[i] = ring(toRecv[i * 2 + _choices->at(i)] ^ IntermediateDataSupport::_rRot->_rb);
         }
+        Comm::wait(r0);
     }
 
     if (Conf::ENABLE_CLASS_WISE_TIMING) {
