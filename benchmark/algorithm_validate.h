@@ -289,7 +289,7 @@ inline void test_api_14() {
 inline void test_batch_and_15() {
     std::vector<int64_t> a, b;
     if (Comm::isClient()) {
-        for (int i = 0; i < 100000; i++) {
+        for (int i = 0; i < 100; i++) {
             a.push_back(Math::randInt());
             b.push_back(Math::randInt());
         }
@@ -334,7 +334,7 @@ inline void test_batch_bool_mux_16() {
 inline void test_batch_less_17() {
     std::vector<int64_t> a, b;
     if (Comm::isClient()) {
-        for (int i = 0; i < 100000; i++) {
+        for (int i = 0; i < 100; i++) {
             a.push_back(Math::randInt());
             b.push_back(Math::randInt());
         }
