@@ -24,80 +24,45 @@ BoolToArithExecutor *BoolToArithExecutor::execute() {
     std::vector<std::future<void> > futures;
     futures.reserve(_width);
 
-    if (Conf::ENABLE_TASK_BATCHING) {
-        std::vector<int64_t> ss0, ss1;
-        std::vector<int> choices;
-        std::vector<int64_t> rs;
+    std::vector<int64_t> ss0, ss1;
+    std::vector<int> choices;
+    std::vector<int64_t> rs;
 
+    if (isSender) {
+        ss0.reserve(_width);
+        ss1.reserve(_width);
+        rs.reserve(_width);
+    } else {
+        choices.reserve(_width);
+    }
+
+    for (int i = 0; i < _width; i++) {
+        int xb = static_cast<int>((_xi >> i) & 1);
         if (isSender) {
-            ss0.reserve(_width);
-            ss1.reserve(_width);
-            rs.reserve(_width);
+            int64_t r = Math::randInt();
+            rs.push_back(r);
+            int64_t s0 = (static_cast<int64_t>(xb) << i) - r;
+            int64_t s1 = (static_cast<int64_t>(1 - xb) << i) - r;
+            ss0.push_back(s0);
+            ss1.push_back(s1);
         } else {
-            choices.reserve(_width);
+            choices.push_back(xb);
         }
+    }
 
-        for (int i = 0; i < _width; i++) {
-            int xb = static_cast<int>((_xi >> i) & 1);
-            if (isSender) {
-                int64_t r = Math::randInt();
-                rs.push_back(r);
-                int64_t s0 = (static_cast<int64_t>(xb) << i) - r;
-                int64_t s1 = (static_cast<int64_t>(1 - xb) << i) - r;
-                ss0.push_back(s0);
-                ss1.push_back(s1);
-            } else {
-                choices.push_back(xb);
-            }
-        }
+    RandOtBatchExecutor e(0, &ss0, &ss1, &choices, _width, _taskTag, _currentMsgTag);
+    e.execute();
 
-        RandOtBatchExecutor e(0, &ss0, &ss1, &choices, _width, _taskTag, _currentMsgTag);
-        e.execute();
-
-        if (isSender) {
-            for (auto r: rs) {
-                temp += r;
-            }
-        } else {
-            for (int i = 0; i < _width; ++i) {
-                temp += e._results[i];
-            }
+    if (isSender) {
+        for (auto r: rs) {
+            temp += r;
         }
     } else {
-        auto process = [&](int i) {
-            int xb = static_cast<int>((_xi >> i) & 1);
-            int64_t s0 = 0, s1 = 0;
-            int64_t r = 0;
-            if (isSender) {
-                // Sender
-                r = Math::randInt();
-                s0 = (static_cast<int64_t>(xb) << i) - r;
-                s1 = (static_cast<int64_t>(1 - xb) << i) - r;
-            }
-            RandOtExecutor e(0, s0, s1, xb, _width, _taskTag,
-                             static_cast<int>(_currentMsgTag + RandOtExecutor::msgTagCount(_width) * i));
-            e.execute();
-            if (isSender) {
-                temp += r;
-            } else {
-                temp += e._result;
-            }
-        };
-        if (Conf::INTRA_OPERATOR_PARALLELISM) {
-            for (int i = 0; i < _width; i++) {
-                futures.push_back(ThreadPoolSupport::submit([&, i] {
-                    process(i);
-                }));
-            }
-        } else {
-            for (int i = 0; i < _width; i++) {
-                process(i);
-            }
+        for (int i = 0; i < _width; ++i) {
+            temp += e._results[i];
         }
     }
-    for (auto &f: futures) {
-        f.wait();
-    }
+
     _zi = ring(temp);
     return this;
 }

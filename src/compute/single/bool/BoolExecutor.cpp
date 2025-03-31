@@ -23,18 +23,10 @@ BoolExecutor::BoolExecutor(int64_t z, int l, int taskTag, int msgTagOffset,
             int64_t z1 = ring(Math::randInt());
             int64_t z0 = ring(z ^ z1);
 
-            std::future<void> f;
-            if (Conf::INTRA_OPERATOR_PARALLELISM) {
-                f = ThreadPoolSupport::submit([&] {
-                    Comm::send(z0, _width, 0, buildTag(_currentMsgTag));
-                });
-            } else {
-                Comm::send(z0, _width, 0, buildTag(_currentMsgTag));
-            }
-            Comm::send(z1, _width, 1, buildTag(_currentMsgTag));
-            if (Conf::INTRA_OPERATOR_PARALLELISM) {
-                f.wait();
-            }
+            auto r0 = Comm::sendAsync(z0, _width, 0, buildTag(_currentMsgTag));
+            auto r1 = Comm::sendAsync(z1, _width, 1, buildTag(_currentMsgTag));
+            Comm::wait(r0);
+            Comm::wait(r1);
         } else {
             // operator
             Comm::receive(_zi, _width, clientRank, buildTag(_currentMsgTag));
@@ -58,19 +50,10 @@ BoolExecutor::BoolExecutor(int64_t x, int64_t y, int l, int taskTag, int msgTagO
             int64_t y0 = ring(y ^ y1);
             std::vector xy0 = {x0, y0};
             std::vector xy1 = {x1, y1};
-            std::future<void> f;
-            if (Conf::INTRA_OPERATOR_PARALLELISM) {
-                f = ThreadPoolSupport::submit([this, &xy0] {
-                    Comm::send(xy0, _width, 0, buildTag(_currentMsgTag));
-                });
-            } else {
-                Comm::send(xy0, _width, 0, buildTag(_currentMsgTag));
-            }
-            Comm::send(xy1, _width, 1, buildTag(_currentMsgTag));
-            // sync
-            if (Conf::INTRA_OPERATOR_PARALLELISM) {
-                f.wait();
-            }
+            auto r0 = Comm::sendAsync(xy0, _width, 0, buildTag(_currentMsgTag));
+            auto r1 = Comm::sendAsync(xy1, _width, 1, buildTag(_currentMsgTag));
+            Comm::wait(r0);
+            Comm::wait(r1);
         } else {
             // operator
             std::vector<int64_t> temp;

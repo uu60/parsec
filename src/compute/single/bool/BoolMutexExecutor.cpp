@@ -18,6 +18,14 @@ BoolMutexExecutor::BoolMutexExecutor(int64_t x, int64_t y, bool cond, int width,
     }
 }
 
+bool BoolMutexExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
+    if (_bmts != nullptr) {
+        bmts = std::move(*_bmts);
+        return true;
+    }
+    return false;
+}
+
 BoolMutexExecutor *BoolMutexExecutor::execute() {
     _currentMsgTag = _startMsgTag;
 
@@ -30,48 +38,17 @@ BoolMutexExecutor *BoolMutexExecutor::execute() {
         start = System::currentTimeMillis();
     }
 
-    BitwiseBmt bmt0, bmt1;
-    bool gotBmt = false;
-    if (_bmts != nullptr) {
-        gotBmt = true;
-        bmt0 = _bmts->at(0);
-        bmt1 = _bmts->at(1);
-    } else if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
-        gotBmt = true;
-        auto bs = IntermediateDataSupport::pollBitwiseBmts(2, _width);
-        bmt0 = bs[0];
-        bmt1 = bs[1];
-    }
+    std::vector<BitwiseBmt> bmts;
+    bool gotBmt = prepareBmts(bmts);
 
     int64_t cx, cy;
-    std::future<int64_t> f;
-    auto bp0 = gotBmt ? &bmt0 : nullptr;
-    auto bp1 = gotBmt ? &bmt1 : nullptr;
 
-    if (Conf::BMT_METHOD == Conf::BMT_BATCH_BACKGROUND) {
-        std::vector conds = {_cond_i, _cond_i};
-        std::vector xy = {_xi, _yi};
-        auto temp = BoolAndBatchExecutor(&conds, &xy, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).execute()->_zis;
-        cx = temp[0];
-        cy = temp[1];
-    } else {
-        if (Conf::INTRA_OPERATOR_PARALLELISM) {
-            f = ThreadPoolSupport::submit([&] {
-                return BoolAndExecutor(_cond_i, _xi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmt(bp0)->
-                        execute()->_zi;
-            });
-        } else {
-            cx = BoolAndExecutor(_cond_i, _xi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmt(bp0)->execute()->
-                    _zi;
-        }
-
-        cy = BoolAndExecutor(_cond_i, _yi, _width, _taskTag,
-                             static_cast<int>(_currentMsgTag + BoolAndExecutor::msgTagCount(_width)),
-                             NO_CLIENT_COMPUTE).setBmt(bp1)->execute()->_zi;
-        if (Conf::INTRA_OPERATOR_PARALLELISM) {
-            cx = f.get();
-        }
-    }
+    std::vector conds = {_cond_i, _cond_i};
+    std::vector xy = {_xi, _yi};
+    auto temp = BoolAndBatchExecutor(&conds, &xy, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
+            setBmts(gotBmt ? &bmts : nullptr)->execute()->_zis;
+    cx = temp[0];
+    cy = temp[1];
 
     _zi = ring(cx ^ _yi ^ cy);
 

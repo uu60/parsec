@@ -26,6 +26,9 @@ public:
     static int msgTagCount(int width);
 
     static int bmtCount();
+
+private:
+    bool prepareBmts(std::vector<BitwiseBmt> &bmts);
 };
 
 
