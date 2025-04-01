@@ -11,7 +11,8 @@
 #include "utils/Math.h"
 
 BmtBatchGenerator::BmtBatchGenerator(int count, int l, int taskTag, int msgTagOffset) : AbstractBmtBatchGenerator(
-    count, l, taskTag, msgTagOffset) {}
+    count, l, taskTag, msgTagOffset) {
+}
 
 void BmtBatchGenerator::generateRandomAB() {
     for (auto &b: _bmts) {
@@ -58,7 +59,9 @@ void BmtBatchGenerator::computeMix(int sender) {
         }
     }
 
-    auto results = handleOt(sender, ss0, ss1, choices);
+    auto results = RandOtBatchExecutor(sender, &ss0, &ss1, &choices, _width, _taskTag,
+                                       _currentMsgTag + sender * RandOtBatchExecutor::msgTagCount()).execute()->
+            _results;
 
     std::vector<int64_t> sums;
     sums.reserve(bmtCount);

@@ -51,7 +51,9 @@ void BmtGenerator::computeMix(int sender) {
         }
     }
 
-    auto results = handleOt(sender, ss0, ss1, choices);
+    auto results = RandOtBatchExecutor(sender, &ss0, &ss1, &choices, _width, _taskTag,
+                                       _currentMsgTag + sender * RandOtBatchExecutor::msgTagCount()).execute()->
+            _results;
 
     if (isSender) {
         for (int i = 0; i < ss0.size(); ++i) {

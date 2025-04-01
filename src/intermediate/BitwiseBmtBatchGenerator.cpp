@@ -11,7 +11,8 @@
 
 BitwiseBmtBatchGenerator::BitwiseBmtBatchGenerator(int count, int l, int taskTag,
                                                    int msgTagOffset) : AbstractBmtBatchGenerator(count,
-                                                                                                     l, taskTag, msgTagOffset) {}
+    l, taskTag, msgTagOffset) {
+}
 
 BitwiseBmtBatchGenerator *BitwiseBmtBatchGenerator::execute() {
     _currentMsgTag = _startMsgTag;
@@ -79,7 +80,8 @@ void BitwiseBmtBatchGenerator::computeMix(int sender) {
         }
     }
 
-    std::vector<int64_t> results = handleOt(sender, ss0, ss1, choices);
+    auto results = RandOtBatchExecutor(sender, &ss0, &ss1, &choices, _width, _taskTag,
+                          _currentMsgTag + sender * RandOtBatchExecutor::msgTagCount()).execute()->_results;
 
     std::vector<int64_t> sums;
     sums.reserve(bmtCount);
