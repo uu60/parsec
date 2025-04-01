@@ -60,8 +60,6 @@ public:
     // ---------------Settings for networks---------------
     // Communication object index (0 = OpenMpi)
     inline static CommT COMM_TYPE = MPI;
-    // Batch communicate or execute by elements
-    inline static bool ENABLE_TASK_BATCHING = true;
     // Invalid if intra parallelism or batching is false
     inline static int BATCH_SIZE = 10;
     // Transfer compression

@@ -14,7 +14,7 @@
  else()
   find_package(TBB CONFIG REQUIRED)
  endif()
- find_package(Boost REQUIRED CONFIG)
+ find_package(Boost REQUIRED CONFIG COMPONENTS program_options)
 
 
  file(GLOB_RECURSE LIB_SOURCES
@@ -30,7 +30,7 @@
          $<INSTALL_INTERFACE:include>)
 
  target_link_libraries(
-         ${PROJECT_NAME} PUBLIC MPI::MPI_CXX OpenSSL::SSL OpenSSL::Crypto TBB::tbb Boost::boost
+         ${PROJECT_NAME} PUBLIC MPI::MPI_CXX OpenSSL::SSL OpenSSL::Crypto TBB::tbb Boost::boost Boost::program_options
  )
 
  file(GLOB CPP_FILES "benchmark/*.cpp")

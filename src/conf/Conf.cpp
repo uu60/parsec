@@ -3,125 +3,106 @@
 //
 
 #include "conf/Conf.h"
-
+#include <boost/program_options.hpp>
 #include <iostream>
+namespace po = boost::program_options;
 
 void Conf::init(int argc, char **argv) {
-    for (int i = 1; i < argc; i++) {
-        std::string arg = argv[i];
-        if (arg == "-bmt_method" && i + 1 < argc) {
-            std::string value = argv[++i];
-            if (value == "bmt_background") {
+     try {
+        po::options_description desc("Allowed options");
+        std::string bmt_method;
+        std::string bmt_queue_type;
+        std::string thread_pool;
+        std::string comm_type;
+
+        desc.add_options()
+            ("help", "Display help message")
+            ("bmt_method", po::value<std::string>(&bmt_method)->default_value("bmt_background"),
+             "Set bmt_method (bmt_background, bmt_jit, bmt_fixed, bmt_batch_background)")
+            ("max_bmts", po::value<int>(&MAX_BMTS)->default_value(5),
+             "Set max_bmts")
+            ("bmt_usage_limit", po::value<int>(&BMT_USAGE_LIMIT)->default_value(10),
+             "Set bmt_usage_limit")
+            ("bmt_queue_type", po::value<std::string>(&bmt_queue_type)->default_value("cas_queue"),
+             "Set bmt_queue_type (cas_queue, lock_queue)")
+            ("task_tag_bits", po::value<int>(&TASK_TAG_BITS)->default_value(32),
+             "Set task_tag_bits")
+            ("disable_multi_thread", po::value<bool>(&DISABLE_MULTI_THREAD)->default_value(false),
+             "Set disable_multi_thread (true/false)")
+            ("intra_operator_parallelism", po::value<bool>(&INTRA_OPERATOR_PARALLELISM)->default_value(true),
+             "Set intra_operator_parallelism (true/false)")
+            ("local_threads", po::value<int>(&LOCAL_THREADS)->default_value(4),
+             "Set local_threads")
+            ("thread_pool", po::value<std::string>(&thread_pool)->default_value("ctpl_pool"),
+             "Set thread_pool (ctpl_pool, tbb_pool)")
+            ("comm_type", po::value<std::string>(&comm_type)->default_value("mpi"),
+             "Set comm_type (mpi)")
+            ("batch_size", po::value<int>(&BATCH_SIZE)->default_value(64),
+             "Set batch_size")
+            ("enable_transfer_compression", po::value<bool>(&ENABLE_TRANSFER_COMPRESSION)->default_value(false),
+             "Set enable_transfer_compression (true/false)")
+            ("enable_class_wise_timing", po::value<bool>(&ENABLE_CLASS_WISE_TIMING)->default_value(false),
+             "Set enable_class_wise_timing (true/false)")
+            ("sort_in_parallel", po::value<bool>(&SORT_IN_PARALLEL)->default_value(false),
+             "Set sort_in_parallel (true/false)")
+            ("max_sorting_threads", po::value<int>(&MAX_SORTING_THREADS)->default_value(2),
+             "Set max_sorting_threads")
+            ("enable_simd", po::value<bool>(&ENABLE_SIMD)->default_value(true),
+             "Set enable_simd (true/false)")
+        ;
+
+        po::variables_map vm;
+        po::store(po::parse_command_line(argc, argv, desc), vm);
+        po::notify(vm);
+
+        if (vm.count("help")) {
+            std::cout << desc << "\n";
+            std::exit(0);
+        }
+
+        if (vm.count("bmt_method")) {
+            if (bmt_method == "bmt_background") {
                 BMT_METHOD = BMT_BACKGROUND;
-            } else if (value == "bmt_jit") {
+            } else if (bmt_method == "bmt_jit") {
                 BMT_METHOD = BMT_JIT;
-            } else if (value == "bmt_fixed") {
+            } else if (bmt_method == "bmt_fixed") {
                 BMT_METHOD = BMT_FIXED;
-            } else if (value == "bmt_batch_background") {
+            } else if (bmt_method == "bmt_batch_background") {
                 BMT_METHOD = BMT_BATCH_BACKGROUND;
             } else {
                 throw std::runtime_error("Unknown bmt_method value.");
             }
-        } else if (arg == "-max_bmts" && i + 1 < argc) {
-            MAX_BMTS = std::stoi(argv[++i]);
-        } else if (arg == "-bmt_usage_limit" && i + 1 < argc) {
-            BMT_USAGE_LIMIT = std::stoi(argv[++i]);
-        } else if (arg == "-bmt_queue_type" && i + 1 < argc) {
-            std::string value = argv[++i];
-            if (value == "cas_queue") {
+        }
+
+        if (vm.count("bmt_queue_type")) {
+            if (bmt_queue_type == "cas_queue") {
                 BMT_QUEUE_TYPE = CAS_QUEUE;
-            } else if (value == "lock_queue") {
+            } else if (bmt_queue_type == "lock_queue") {
                 BMT_QUEUE_TYPE = LOCK_QUEUE;
             } else {
-                throw std::runtime_error("Unknown queue_type value.");
+                throw std::runtime_error("Unknown bmt_queue_type value.");
             }
-        } else if (arg == "-task_tag_bits" && i + 1 < argc) {
-            TASK_TAG_BITS = std::stoi(argv[++i]);
-        } else if (arg == "-disable_multi_thread" && i + 1 < argc) {
-            std::string value = argv[++i];
-            if (value == "true") {
-                DISABLE_MULTI_THREAD = true;
-            } else if (value == "false") {
-                DISABLE_MULTI_THREAD = false;
-            } else {
-                throw std::runtime_error("Unknown disable_multi_thread value.");
-            }
-        } else if (arg == "-intra_operator_parallelism" && i + 1 < argc) {
-            std::string value = argv[++i];
-            if (value == "true") {
-                INTRA_OPERATOR_PARALLELISM = true;
-            } else if (value == "false") {
-                INTRA_OPERATOR_PARALLELISM = false;
-            } else {
-                throw std::runtime_error("Unknown intra_operator_parallelism value.");
-            }
-        } else if (arg == "-local_threads" && i + 1 < argc) {
-            LOCAL_THREADS = std::stoi(argv[++i]);
-        } else if (arg == "-thread_pool" && i + 1 < argc) {
-            std::string value = argv[++i];
-            if (value == "ctpl_pool") {
+        }
+
+        if (vm.count("thread_pool")) {
+            if (thread_pool == "ctpl_pool") {
                 THREAD_POOL_TYPE = CTPL_POOL;
-            } else if (value == "tbb_pool") {
+            } else if (thread_pool == "tbb_pool") {
                 THREAD_POOL_TYPE = TBB_POOL;
             } else {
                 throw std::runtime_error("Unknown thread_pool value.");
             }
-        } else if (arg == "-comm_type" && i + 1 < argc) {
-            std::string value = argv[++i];
-            if (value == "mpi") {
+        }
+
+        if (vm.count("comm_type")) {
+            if (comm_type == "mpi") {
                 COMM_TYPE = MPI;
             } else {
                 throw std::runtime_error("Unknown comm_type value.");
             }
-        } else if (arg == "-enable_task_batching" && i + 1 < argc) {
-            std::string value = argv[++i];
-            if (value == "true") {
-                ENABLE_TASK_BATCHING = true;
-            } else if (value == "false") {
-                ENABLE_TASK_BATCHING = false;
-            } else {
-                throw std::runtime_error("Unknown enable_task_batching value.");
-            }
-        } else if (arg == "-batch_size" && i + 1 < argc) {
-            BATCH_SIZE = std::stoi(argv[++i]);
-        } else if (arg == "-enable_transfer_compression" && i + 1 < argc) {
-            std::string value = argv[++i];
-            if (value == "true") {
-                ENABLE_TRANSFER_COMPRESSION = true;
-            } else if (value == "false") {
-                ENABLE_TRANSFER_COMPRESSION = false;
-            } else {
-                throw std::runtime_error("Unknown enable_transfer_compression value.");
-            }
-        } else if (arg == "-enable_class_wise_timing" && i + 1 < argc) {
-            std::string value = argv[++i];
-            if (value == "true") {
-                ENABLE_CLASS_WISE_TIMING = true;
-            } else if (value == "false") {
-                ENABLE_CLASS_WISE_TIMING = false;
-            } else {
-                throw std::runtime_error("Unknown enable_class_wise_timing value.");
-            }
-        } else if (arg == "-sort_in_parallel" && i + 1 < argc) {
-            std::string value = argv[++i];
-            if (value == "true") {
-                SORT_IN_PARALLEL = true;
-            } else if (value == "false") {
-                SORT_IN_PARALLEL = false;
-            } else {
-                throw std::runtime_error("Unknown sort_in_parallel value.");
-            }
-        } else if (arg == "-max_sorting_threads" && i + 1 < argc) {
-            MAX_SORTING_THREADS = std::stoi(argv[++i]);
-        } else if (arg == "-enable_simd" && i + 1 < argc) {
-            std::string value = argv[++i];
-            if (value == "true") {
-                ENABLE_SIMD = true;
-            } else if (value == "false") {
-                ENABLE_SIMD = false;
-            } else {
-                throw std::runtime_error("Unknown enable_simd value.");
-            }
         }
+    }
+    catch (const std::exception &ex) {
+        std::cerr << "Error: " << ex.what() << std::endl;
     }
 }

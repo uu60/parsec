@@ -25,30 +25,10 @@ void ArithToBoolExecutor::prepareBmts(BitwiseBmt &b0, BitwiseBmt &b1, BitwiseBmt
         b1 = bs[1];
         b2 = bs[2];
     } else {
-        if (Conf::ENABLE_TASK_BATCHING) {
-            auto bmts = BitwiseBmtBatchGenerator(3, _width, _taskTag, _currentMsgTag).execute()->_bmts;
-            b0 = bmts[0];
-            b1 = bmts[1];
-            b2 = bmts[2];
-        } else if (!Conf::INTRA_OPERATOR_PARALLELISM) {
-            b0 = BitwiseBmtGenerator(_width, _taskTag, _currentMsgTag).execute()->_bmt;
-            b1 = BitwiseBmtGenerator(_width, _taskTag, _currentMsgTag).execute()->_bmt;
-            b2 = BitwiseBmtGenerator(_width, _taskTag, _currentMsgTag).execute()->_bmt;
-        } else {
-            auto f0 = ThreadPoolSupport::submit([&] {
-                return BitwiseBmtGenerator(_width, _taskTag, _currentMsgTag).execute()->_bmt;
-            });
-            auto f1 = ThreadPoolSupport::submit([&] {
-                return BitwiseBmtGenerator(_width, _taskTag,
-                                           static_cast<int>(
-                                               _currentMsgTag + BitwiseBmtGenerator::msgTagCount(1))).execute()->_bmt;
-            });
-            b2 = BitwiseBmtGenerator(_width, _taskTag,
-                                     static_cast<int>(
-                                         _currentMsgTag + 2 * BitwiseBmtGenerator::msgTagCount(1))).execute()->_bmt;
-            b0 = f0.get();
-            b1 = f1.get();
-        }
+        auto bmts = BitwiseBmtBatchGenerator(3, _width, _taskTag, _currentMsgTag).execute()->_bmts;
+        b0 = bmts[0];
+        b1 = bmts[1];
+        b2 = bmts[2];
     }
 }
 
@@ -126,7 +106,7 @@ int ArithToBoolExecutor::msgTagCount(int l) {
     return static_cast<int>(2 * BoolAndExecutor::msgTagCount(l));
 }
 
-ArithToBoolExecutor * ArithToBoolExecutor::setBmts(std::vector<BitwiseBmt> *bmts) {
+ArithToBoolExecutor *ArithToBoolExecutor::setBmts(std::vector<BitwiseBmt> *bmts) {
     if (bmts != nullptr && bmts->size() != bmtCount(_width)) {
         throw std::runtime_error("Bmt size mismatch.");
     }
