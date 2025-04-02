@@ -23,18 +23,28 @@ public:
         INT1, INT8, INT16, INT32, VEC1, VEC8, VEC16, VEC32, NO_CALLBACK
     };
 
-    Mode _mode;
+    Mode _mode = NO_CALLBACK;
 
     // temp storage
+    // atore to recycle
+    bool *_si1{};
+    int8_t *_si8{};
+    int16_t *_si16{};
+    int32_t *_si32{};
+    bool *_sv1{};
+    std::vector<int8_t> *_sv8{};
+    std::vector<int16_t> *_sv16{};
+    std::vector<int32_t> *_sv32{};
+
     // int
-    bool _int1;
-    int8_t _int8;
-    int16_t _int16;
-    int32_t _int32;
+    bool _int1{};
+    int8_t _int8{};
+    int16_t _int16{};
+    int32_t _int32{};
 
     // vec<int>
-    bool *_vec1;
-    int _vec1Size;
+    bool *_vec1{};
+    int _vec1Size{};
     std::vector<int8_t> _vec8;
     std::vector<int16_t> _vec16;
     std::vector<int32_t> _vec32;

@@ -204,33 +204,41 @@ MpiRequestWrapper *MpiComm::sendAsync_(const std::vector<int64_t> &source, int w
     if (Conf::ENABLE_TRANSFER_COMPRESSION) {
         if (width == 1) {
             int size = static_cast<int>(source.size());
-            bool s1[size];
+            bool *s1 = new bool[size];
             for (int i = 0; i < size; i++) {
                 s1[i] = source[i];
             }
+            request->_mode = MpiRequestWrapper::VEC1;
+            request->_sv1 = s1;
             MPI_Isend(s1, size, MPI_CXX_BOOL, receiverRank, tag, MPI_COMM_WORLD, request->_r);
         } else if (width <= 8) {
             auto *s8 = new std::vector<int8_t>;
-            s8->reserve(source.size());
-            for (auto i: source) {
-                s8->push_back(static_cast<int8_t>(i));
+            s8->resize(source.size());
+            for (int i = 0; i < source.size(); i++) {
+                (*s8)[i] = static_cast<int8_t>(source[i]);
             }
+            request->_mode = MpiRequestWrapper::VEC8;
+            request->_sv8 = s8;
             MPI_Isend(s8->data(), static_cast<int>(s8->size()), MPI_INT8_T, receiverRank, tag, MPI_COMM_WORLD,
                       request->_r);
         } else if (width <= 16) {
-            auto *s16 = new std::vector<int>;
-            s16->reserve(source.size());
-            for (auto i: source) {
-                s16->push_back(static_cast<int>(i));
+            auto *s16 = new std::vector<int16_t>;
+            s16->resize(source.size());
+            for (int i = 0; i < source.size(); i++) {
+                (*s16)[i] = static_cast<int16_t>(source[i]);
             }
+            request->_mode = MpiRequestWrapper::VEC16;
+            request->_sv16 = s16;
             MPI_Isend(s16->data(), static_cast<int>(s16->size()), MPI_INT16_T, receiverRank, tag, MPI_COMM_WORLD,
                       request->_r);
         } else if (width <= 32) {
             auto *s32 = new std::vector<int32_t>;
-            s32->reserve(source.size());
-            for (auto i: source) {
-                s32->push_back(static_cast<int32_t>(i));
+            s32->resize(source.size());
+            for (int i = 0; i < source.size(); i++) {
+                (*s32)[i] = static_cast<int32_t>(source[i]);
             }
+            request->_mode = MpiRequestWrapper::VEC32;
+            request->_sv32 = s32;
             MPI_Isend(s32->data(), static_cast<int>(s32->size()), MPI_INT32_T, receiverRank, tag, MPI_COMM_WORLD,
                       request->_r);
         } else {
@@ -245,21 +253,29 @@ MpiRequestWrapper *MpiComm::sendAsync_(const std::vector<int64_t> &source, int w
     return request;
 }
 
-MpiRequestWrapper *MpiComm::sendAsync_(int64_t source, int width, int receiverRank, int tag) {
+MpiRequestWrapper *MpiComm::sendAsync_(int64_t &source, int width, int receiverRank, int tag) {
     auto *request = new MpiRequestWrapper(false);
 
     if (Conf::ENABLE_TRANSFER_COMPRESSION) {
         if (width == 1) {
-            auto s1 = static_cast<bool>(source);
+            auto s1 = new bool(source);
+            request->_mode = MpiRequestWrapper::INT1;
+            request->_si1 = s1;
             MPI_Isend(&s1, 1, MPI_CXX_BOOL, receiverRank, tag, MPI_COMM_WORLD, request->_r);
         } else if (width <= 8) {
-            auto s8 = static_cast<int8_t>(source);
+            auto s8 = new int8_t(static_cast<int8_t>(source));
+            request->_mode = MpiRequestWrapper::INT8;
+            request->_si8 = s8;
             MPI_Isend(&s8, 1, MPI_INT8_T, receiverRank, tag, MPI_COMM_WORLD, request->_r);
         } else if (width <= 16) {
-            auto s16 = static_cast<int>(source);
+            auto s16 = new int16_t(static_cast<int16_t>(source));
+            request->_mode = MpiRequestWrapper::INT16;
+            request->_si16 = s16;
             MPI_Isend(&s16, 1, MPI_INT16_T, receiverRank, tag, MPI_COMM_WORLD, request->_r);
         } else if (width <= 32) {
-            auto s32 = static_cast<int32_t>(source);
+            auto s32 = new int32_t(source);
+            request->_mode = MpiRequestWrapper::INT32;
+            request->_si32 = s32;
             MPI_Isend(&s32, 1, MPI_INT32_T, receiverRank, tag, MPI_COMM_WORLD, request->_r);
         } else {
             MPI_Isend(&source, 1, MPI_INT64_T, receiverRank, tag, MPI_COMM_WORLD, request->_r);
@@ -282,7 +298,6 @@ MpiRequestWrapper *MpiComm::receiveAsync_(int64_t &target, int width, int sender
     auto *request = new MpiRequestWrapper(true);
     if (Conf::ENABLE_TRANSFER_COMPRESSION) {
         if (width == 64) {
-            request->_mode = MpiRequestWrapper::NO_CALLBACK;
             MPI_Irecv(&target, 1, MPI_INT64_T, senderRank, tag, MPI_COMM_WORLD, request->_r);
         } else {
             request->_targetInt = &target;
@@ -301,7 +316,6 @@ MpiRequestWrapper *MpiComm::receiveAsync_(int64_t &target, int width, int sender
             }
         }
     } else {
-        request->_mode = MpiRequestWrapper::NO_CALLBACK;
         MPI_Irecv(&target, 1, MPI_INT64_T, senderRank, tag, MPI_COMM_WORLD, request->_r);
     }
     return request;
@@ -311,7 +325,6 @@ MpiRequestWrapper *MpiComm::receiveAsync_(std::vector<int64_t> &target, int coun
     auto *request = new MpiRequestWrapper(true);
     if (Conf::ENABLE_TRANSFER_COMPRESSION) {
         if (width == 64) {
-            request->_mode = MpiRequestWrapper::NO_CALLBACK;
             target.resize(count);
             MPI_Irecv(target.data(), count, MPI_INT64_T, senderRank, tag, MPI_COMM_WORLD, request->_r);
         } else {
@@ -336,7 +349,6 @@ MpiRequestWrapper *MpiComm::receiveAsync_(std::vector<int64_t> &target, int coun
             }
         }
     } else {
-        request->_mode = MpiRequestWrapper::NO_CALLBACK;
         target.resize(count);
         MPI_Irecv(target.data(), count, MPI_INT64_T, senderRank, tag, MPI_COMM_WORLD, request->_r);
     }
@@ -345,7 +357,6 @@ MpiRequestWrapper *MpiComm::receiveAsync_(std::vector<int64_t> &target, int coun
 
 MpiRequestWrapper *MpiComm::receiveAsync_(std::string &target, int length, int senderRank, int tag) {
     auto *request = new MpiRequestWrapper(true);
-    request->_mode = MpiRequestWrapper::NO_CALLBACK;
     target.resize(length);
     MPI_Irecv(&target[0], length, MPI_CHAR, senderRank, tag, MPI_COMM_WORLD, request->_r);
     return request;

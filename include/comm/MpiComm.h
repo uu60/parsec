@@ -53,7 +53,7 @@ public:
     MpiRequestWrapper *sendAsync_(const std::vector<int64_t> &source, int width, int receiverRank, int tag) override;
 
     // send
-    MpiRequestWrapper *sendAsync_(int64_t source, int width, int receiverRank, int tag) override;
+    MpiRequestWrapper *sendAsync_(int64_t &source, int width, int receiverRank, int tag) override;
 
     MpiRequestWrapper *sendAsync_(const std::string &source, int receiverRank, int tag) override;
     

@@ -15,7 +15,10 @@ void MpiRequestWrapper::wait() {
     MPI_Status status;
     MPI_Wait(_r, &status);
 
-    if (Conf::ENABLE_TRANSFER_COMPRESSION && _recv && _mode != NO_CALLBACK) {
+    if (!Conf::ENABLE_TRANSFER_COMPRESSION || _mode == NO_CALLBACK) {
+        return;
+    }
+    if (_recv) {
         switch (_mode) {
             case INT1:
                 *_targetInt = _int1;
@@ -53,6 +56,35 @@ void MpiRequestWrapper::wait() {
                 for (int i = 0; i < _vec32.size(); i++) {
                     (*_targetIntVec)[i] = _vec32[i];
                 }
+                break;
+            default:
+                break;
+        }
+    } else {
+        switch (_mode) {
+            case INT1:
+                delete _si1;
+                break;
+            case INT8:
+                delete _si8;
+                break;
+            case INT16:
+                delete _si16;
+                break;
+            case INT32:
+                delete _si32;
+                break;
+            case VEC1:
+                delete[] _sv1;
+                break;
+            case VEC8:
+                delete _sv8;
+                break;
+            case VEC16:
+                delete _sv16;
+                break;
+            case VEC32:
+                delete _sv32;
                 break;
             default:
                 break;
