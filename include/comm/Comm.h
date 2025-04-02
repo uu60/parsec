@@ -70,7 +70,7 @@ public:
     // async version
     static AbstractRequest *sendAsync(const std::vector<int64_t> &source, int width, int receiverRank, int tag);
 
-    static AbstractRequest *sendAsync(int64_t source, int width, int receiverRank, int tag);
+    static AbstractRequest *sendAsync(const int64_t &source, int width, int receiverRank, int tag);
 
     static AbstractRequest *sendAsync(const std::string &source, int receiverRank, int tag);
 
@@ -122,7 +122,7 @@ protected:
     // async version
     virtual AbstractRequest *sendAsync_(const std::vector<int64_t> &source, int width, int receiverRank, int tag) = 0;
 
-    virtual AbstractRequest *sendAsync_(int64_t source, int width, int receiverRank, int tag) = 0;
+    virtual AbstractRequest *sendAsync_(const int64_t &source, int width, int receiverRank, int tag) = 0;
 
     virtual AbstractRequest *sendAsync_(const std::string &source, int receiverRank, int tag) = 0;
 

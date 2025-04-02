@@ -109,7 +109,7 @@ AbstractRequest *Comm::sendAsync(const std::vector<int64_t> &source, int width, 
     return impl->sendAsync_(source, width, receiverRank, tag);
 }
 
-AbstractRequest *Comm::sendAsync(int64_t source, int width, int receiverRank, int tag) {
+AbstractRequest *Comm::sendAsync(const int64_t &source, int width, int receiverRank, int tag) {
     return impl->sendAsync_(source, width, receiverRank, tag);
 }
 

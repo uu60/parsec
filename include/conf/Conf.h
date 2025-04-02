@@ -44,6 +44,8 @@ public:
     inline static int BMT_USAGE_LIMIT = 1;
     // Blocking Bmt Queue (INVALID when background bmt is disabled)
     inline static QueueT BMT_QUEUE_TYPE = CAS_QUEUE;
+    // Bmt Queue num
+    inline static int BMT_QUEUE_NUM = 1;
 
     // ---------------Settings for threads---------------
     // Task tag bits

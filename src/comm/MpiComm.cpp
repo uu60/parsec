@@ -253,7 +253,7 @@ MpiRequestWrapper *MpiComm::sendAsync_(const std::vector<int64_t> &source, int w
     return request;
 }
 
-MpiRequestWrapper *MpiComm::sendAsync_(int64_t &source, int width, int receiverRank, int tag) {
+MpiRequestWrapper *MpiComm::sendAsync_(const int64_t &source, int width, int receiverRank, int tag) {
     auto *request = new MpiRequestWrapper(false);
 
     if (Conf::ENABLE_TRANSFER_COMPRESSION) {

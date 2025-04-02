@@ -8,7 +8,7 @@
 namespace po = boost::program_options;
 
 void Conf::init(int argc, char **argv) {
-     try {
+    try {
         po::options_description desc("Allowed options");
         std::string bmt_method;
         std::string bmt_queue_type;
@@ -16,42 +16,46 @@ void Conf::init(int argc, char **argv) {
         std::string comm_type;
 
         desc.add_options()
-            ("help", "Display help message")
-            ("bmt_method", po::value<std::string>(&bmt_method)->default_value("bmt_background"),
-             "Set bmt_method (bmt_background, bmt_jit, bmt_fixed, bmt_batch_background)")
-            ("max_bmts", po::value<int>(&MAX_BMTS)->default_value(5),
-             "Set max_bmts")
-            ("bmt_usage_limit", po::value<int>(&BMT_USAGE_LIMIT)->default_value(10),
-             "Set bmt_usage_limit")
-            ("bmt_queue_type", po::value<std::string>(&bmt_queue_type)->default_value("cas_queue"),
-             "Set bmt_queue_type (cas_queue, lock_queue)")
-            ("task_tag_bits", po::value<int>(&TASK_TAG_BITS)->default_value(32),
-             "Set task_tag_bits")
-            ("disable_multi_thread", po::value<bool>(&DISABLE_MULTI_THREAD)->default_value(false),
-             "Set disable_multi_thread (true/false)")
-            ("intra_operator_parallelism", po::value<bool>(&INTRA_OPERATOR_PARALLELISM)->default_value(true),
-             "Set intra_operator_parallelism (true/false)")
-            ("local_threads", po::value<int>(&LOCAL_THREADS)->default_value(4),
-             "Set local_threads")
-            ("thread_pool", po::value<std::string>(&thread_pool)->default_value("ctpl_pool"),
-             "Set thread_pool (ctpl_pool, tbb_pool)")
-            ("comm_type", po::value<std::string>(&comm_type)->default_value("mpi"),
-             "Set comm_type (mpi)")
-            ("batch_size", po::value<int>(&BATCH_SIZE)->default_value(64),
-             "Set batch_size")
-            ("enable_transfer_compression", po::value<bool>(&ENABLE_TRANSFER_COMPRESSION)->default_value(false),
-             "Set enable_transfer_compression (true/false)")
-            ("enable_class_wise_timing", po::value<bool>(&ENABLE_CLASS_WISE_TIMING)->default_value(false),
-             "Set enable_class_wise_timing (true/false)")
-            ("sort_in_parallel", po::value<bool>(&SORT_IN_PARALLEL)->default_value(false),
-             "Set sort_in_parallel (true/false)")
-            ("max_sorting_threads", po::value<int>(&MAX_SORTING_THREADS)->default_value(2),
-             "Set max_sorting_threads")
-            ("enable_simd", po::value<bool>(&ENABLE_SIMD)->default_value(true),
-             "Set enable_simd (true/false)")
-        ;
+                ("help", "Display help message")
+                ("bmt_method", po::value<std::string>(&bmt_method)->default_value("bmt_background"),
+                 "Set bmt_method (bmt_background, bmt_jit, bmt_fixed, bmt_batch_background)")
+                ("max_bmts", po::value<int>(&MAX_BMTS)->default_value(5),
+                 "Set max_bmts")
+                ("bmt_usage_limit", po::value<int>(&BMT_USAGE_LIMIT)->default_value(10),
+                 "Set bmt_usage_limit")
+                ("bmt_queue_type", po::value<std::string>(&bmt_queue_type)->default_value("cas_queue"),
+                 "Set bmt_queue_type (cas_queue, lock_queue)")
+                ("bmt_queue_num", po::value<int>(&BMT_QUEUE_NUM)->default_value(1), "Set bmt_queue_num")
+                ("task_tag_bits", po::value<int>(&TASK_TAG_BITS)->default_value(32),
+                 "Set task_tag_bits")
+                ("disable_multi_thread", po::value<bool>(&DISABLE_MULTI_THREAD)->default_value(false),
+                 "Set disable_multi_thread (true/false)")
+                ("intra_operator_parallelism", po::value<bool>(&INTRA_OPERATOR_PARALLELISM)->default_value(true),
+                 "Set intra_operator_parallelism (true/false)")
+                ("local_threads", po::value<int>(&LOCAL_THREADS)->default_value(4),
+                 "Set local_threads")
+                ("thread_pool", po::value<std::string>(&thread_pool)->default_value("ctpl_pool"),
+                 "Set thread_pool (ctpl_pool, tbb_pool)")
+                ("comm_type", po::value<std::string>(&comm_type)->default_value("mpi"),
+                 "Set comm_type (mpi)")
+                ("batch_size", po::value<int>(&BATCH_SIZE)->default_value(64),
+                 "Set batch_size")
+                ("enable_transfer_compression", po::value<bool>(&ENABLE_TRANSFER_COMPRESSION)->default_value(false),
+                 "Set enable_transfer_compression (true/false)")
+                ("enable_class_wise_timing", po::value<bool>(&ENABLE_CLASS_WISE_TIMING)->default_value(false),
+                 "Set enable_class_wise_timing (true/false)")
+                ("sort_in_parallel", po::value<bool>(&SORT_IN_PARALLEL)->default_value(false),
+                 "Set sort_in_parallel (true/false)")
+                ("max_sorting_threads", po::value<int>(&MAX_SORTING_THREADS)->default_value(2),
+                 "Set max_sorting_threads")
+                ("enable_simd", po::value<bool>(&ENABLE_SIMD)->default_value(true),
+                 "Set enable_simd (true/false)");
 
         po::variables_map vm;
+        po::parsed_options parsed = po::command_line_parser(argc, argv)
+                .options(desc)
+                .allow_unregistered()
+                .run();
         po::store(po::parse_command_line(argc, argv, desc), vm);
         po::notify(vm);
 
@@ -101,8 +105,7 @@ void Conf::init(int argc, char **argv) {
                 throw std::runtime_error("Unknown comm_type value.");
             }
         }
-    }
-    catch (const std::exception &ex) {
-        std::cerr << "Error: " << ex.what() << std::endl;
+    } catch (const std::exception &ex) {
+        std::cerr << "Warning: package " << ex.what() << std::endl;
     }
 }
