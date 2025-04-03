@@ -14,18 +14,31 @@ int main(int argc, char **argv) {
     System::init(argc, argv);
 
     std::string caseIdx;
+    int num = 100, width = 64;
     // try {
     for (int i = 0; i < argc; i++) {
-        if (strcmp("-case", argv[i]) == 0) {
+        if (strcmp("--case", argv[i]) == 0) {
             if (i + 1 >= argc) {
                 throw std::runtime_error("error");
             }
             caseIdx = argv[i + 1];
         }
+        if (strcmp("--num", argv[i]) == 0) {
+            if (i + 1 >= argc) {
+                throw std::runtime_error("error");
+            }
+            num = std::stoi(argv[i + 1]);
+        }
+        if (strcmp("--width", argv[i]) == 0) {
+            if (i + 1 >= argc) {
+                throw std::runtime_error("error");
+            }
+            width = std::atoi(argv[i + 1]);
+        }
     }
     switch (std::stoi(caseIdx)) {
         case 0:
-            test_arith_add_0();
+            test_bitwise_bmt_gen_0(num, width);
             break;
         case 1:
             test_arith_mul_parallel_1();

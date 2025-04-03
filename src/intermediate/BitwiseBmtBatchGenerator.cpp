@@ -124,5 +124,5 @@ AbstractSecureExecutor *BitwiseBmtBatchGenerator::reconstruct(int clientRank) {
 }
 
 int BitwiseBmtBatchGenerator::msgTagCount(int bmtCount, int width) {
-    return static_cast<int>(2 * width * bmtCount * RandOtExecutor::msgTagCount(width));
+    return 2 * width * bmtCount * RandOtExecutor::msgTagCount(width);
 }

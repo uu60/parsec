@@ -4,7 +4,7 @@
 
 #ifndef CTPLTHREADPOOL_H
 #define CTPLTHREADPOOL_H
-#include "./ctpl_stl.h"
+#include "../third_party/ctpl_stl.h"
 #include "../utils/Log.h"
 
 class CtplThreadPool {

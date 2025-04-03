@@ -34,7 +34,7 @@ void Conf::init(int argc, char **argv) {
                  "Set intra_operator_parallelism (true/false)")
                 ("local_threads", po::value<int>(&LOCAL_THREADS)->default_value(4),
                  "Set local_threads")
-                ("thread_pool", po::value<std::string>(&thread_pool)->default_value("ctpl_pool"),
+                ("thread_pool", po::value<std::string>(&thread_pool)->default_value("async_pool"),
                  "Set thread_pool (ctpl_pool, tbb_pool)")
                 ("comm_type", po::value<std::string>(&comm_type)->default_value("mpi"),
                  "Set comm_type (mpi)")
@@ -46,8 +46,6 @@ void Conf::init(int argc, char **argv) {
                  "Set enable_class_wise_timing (true/false)")
                 ("sort_in_parallel", po::value<bool>(&SORT_IN_PARALLEL)->default_value(false),
                  "Set sort_in_parallel (true/false)")
-                ("max_sorting_threads", po::value<int>(&MAX_SORTING_THREADS)->default_value(2),
-                 "Set max_sorting_threads")
                 ("enable_simd", po::value<bool>(&ENABLE_SIMD)->default_value(true),
                  "Set enable_simd (true/false)");
 
@@ -93,6 +91,8 @@ void Conf::init(int argc, char **argv) {
                 THREAD_POOL_TYPE = CTPL_POOL;
             } else if (thread_pool == "tbb_pool") {
                 THREAD_POOL_TYPE = TBB_POOL;
+            } else if (thread_pool == "async_pool") {
+                THREAD_POOL_TYPE = ASYNC_POOL;
             } else {
                 throw std::runtime_error("Unknown thread_pool value.");
             }

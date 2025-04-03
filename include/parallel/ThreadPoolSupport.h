@@ -9,6 +9,7 @@
 
 #include "./CtplThreadPool.h"
 #include "./TbbThreadPool.h"
+#include "CppAsyncThreadPool.h"
 #include "../conf/Conf.h"
 
 
@@ -16,6 +17,7 @@ class ThreadPoolSupport {
 public:
     inline static CtplThreadPool *_ctplPool = nullptr;
     inline static TbbThreadPool *_tbbPool = nullptr;
+    inline static CppAsyncThreadPool *_asyncPool = nullptr;
     // inline static std::atomic_int _availableThreads = Conf::LOCAL_THREADS;
 
 public:
@@ -27,6 +29,8 @@ public:
             _ctplPool = new CtplThreadPool(Conf::LOCAL_THREADS);
         } else if (Conf::THREAD_POOL_TYPE == Conf::TBB_POOL) {
             _tbbPool = new TbbThreadPool(Conf::LOCAL_THREADS);
+        } else if (Conf::THREAD_POOL_TYPE == Conf::ASYNC_POOL) {
+            _asyncPool = new CppAsyncThreadPool();
         }
     }
 
@@ -46,26 +50,24 @@ public:
 
     template<typename F>
     static auto submit(F &&f) -> std::future<std::invoke_result_t<F> > {
-        // if (Conf::CALLER_RUNS_POLICY && (_availableThreads -= 1) < 0) {
-        //     // restore negative thread num
-        //     _availableThreads = 0;
-        //     return callerRun(f);
-        // }
-        auto f1 = [func = std::forward<F>(f)] {
-            if constexpr (std::is_void_v<std::invoke_result_t<F>>) {
-                func();
-                // ++_availableThreads;
-            } else {
-                auto ret = func();
-                // ++_availableThreads;
-                return ret;
-            }
-        };
+        // auto f1 = [func = std::forward<F>(f)] {
+        //     if constexpr (std::is_void_v<std::invoke_result_t<F>>) {
+        //         func();
+        //         // ++_availableThreads;
+        //     } else {
+        //         auto ret = func();
+        //         // ++_availableThreads;
+        //         return ret;
+        //     }
+        // };
         if (Conf::THREAD_POOL_TYPE == Conf::CTPL_POOL) {
-            return _ctplPool->submit( f1);
+            return _ctplPool->submit(f);
         }
         if (Conf::THREAD_POOL_TYPE == Conf::TBB_POOL) {
-            return _tbbPool->submit( f1);
+            return _tbbPool->submit(f);
+        }
+        if (Conf::THREAD_POOL_TYPE == Conf::ASYNC_POOL) {
+            return _asyncPool->submit(f);
         }
         // If no proper pool, run in caller itself
         return callerRun( std::forward<F>(f));

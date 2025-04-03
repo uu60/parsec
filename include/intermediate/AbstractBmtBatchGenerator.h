@@ -21,10 +21,7 @@ protected:
         if (Comm::isClient()) {
             return;
         }
-        _bmts.reserve(count);
-        for (int i = 0; i < count; i++) {
-            _bmts.emplace_back();
-        }
+        _bmts.resize(count);
     }
 };
 

@@ -30,18 +30,16 @@
 #include "../include/compute/batch/bool/BoolAndBatchExecutor.h"
 #include "../include/compute/batch/bool/BoolMutexBatchExecutor.h"
 #include "compute/batch/bool/BoolLessBatchExecutor.h"
+#include "intermediate/BitwiseBmtBatchGenerator.h"
 
-inline void test_arith_add_0() {
-    int x, y;
-    if (Comm::isClient()) {
-        x = Math::randInt(-100, 100);
-        y = Math::randInt(-100, 100);
-        Log::i("Addend: " + std::to_string(x) + " and " + std::to_string(y));
-    }
-    ArithAddExecutor e(x, y, 32, System::nextTask(), 0, 2);
-    e.execute()->reconstruct(2);
-    if (!Comm::isServer()) {
-        Log::i(std::to_string(static_cast<int>(e._result)));
+inline void test_bitwise_bmt_gen_0(int num, int width) {
+    if (Comm::isServer()) {
+        auto start = System::currentTimeMillis();
+        auto t = System::nextTask();
+
+        auto b = BitwiseBmtBatchGenerator(num, width, t, 0).execute()->_bmts;
+        auto end = System::currentTimeMillis();
+        Log::i("total time: {}ms", end - start);
     }
 }
 

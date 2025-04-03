@@ -4,7 +4,7 @@
 
 #ifndef MPC_PACKAGE_SYSTEM_H
 #define MPC_PACKAGE_SYSTEM_H
-#include "../parallel/ctpl_stl.h"
+#include "../third_party/ctpl_stl.h"
 #include "../comm/Comm.h"
 #include "../conf/Conf.h"
 

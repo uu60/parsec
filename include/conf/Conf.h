@@ -11,7 +11,8 @@ public:
     // pool type
     enum PoolT {
         CTPL_POOL,
-        TBB_POOL
+        TBB_POOL,
+        ASYNC_POOL,
     };
 
     // blocking queue type
@@ -57,7 +58,7 @@ public:
     // Sum of threads in a process
     inline static int LOCAL_THREADS = static_cast<int>(std::thread::hardware_concurrency());
     // Index of thread pool type (0 = ctpl, 1 = tbb)
-    inline static int THREAD_POOL_TYPE = CTPL_POOL;
+    inline static int THREAD_POOL_TYPE = ASYNC_POOL;
 
     // ---------------Settings for networks---------------
     // Communication object index (0 = OpenMpi)
@@ -73,8 +74,6 @@ public:
     // ---------------Settings for sort---------------
     // Sort in parallel
     inline static bool SORT_IN_PARALLEL = false;
-    // Max sorting threads
-    inline static int MAX_SORTING_THREADS = 4;
     // Sort method
     inline static bool SORT_IN_RECURSIVE = false;
 
