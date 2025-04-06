@@ -49,12 +49,12 @@ void Conf::init(int argc, char **argv) {
                 ("enable_simd", po::value<bool>(&ENABLE_SIMD)->default_value(true),
                  "Set enable_simd (true/false)");
 
-        po::variables_map vm;
         po::parsed_options parsed = po::command_line_parser(argc, argv)
-                .options(desc)
-                .allow_unregistered()
-                .run();
-        po::store(po::parse_command_line(argc, argv, desc), vm);
+                                    .options(desc)
+                                    .allow_unregistered()
+                                    .run();
+        po::variables_map vm;
+        po::store(parsed, vm);
         po::notify(vm);
 
         if (vm.count("help")) {
@@ -105,7 +105,16 @@ void Conf::init(int argc, char **argv) {
                 throw std::runtime_error("Unknown comm_type value.");
             }
         }
+
+        std::vector<std::string> extra_args = po::collect_unrecognized(parsed.options, po::include_positional);
+        if (!extra_args.empty()) {
+            std::cout <<"Warning: unrecognized params:";
+            for (const auto& arg : extra_args) {
+                std::cout << " " << arg;
+            }
+            std::cout << std::endl;
+        }
     } catch (const std::exception &ex) {
-        std::cerr << "Warning: package " << ex.what() << std::endl;
+        std::cerr << "Error: " << ex.what() << std::endl;
     }
 }
