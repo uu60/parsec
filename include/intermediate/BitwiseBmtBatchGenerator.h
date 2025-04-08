@@ -12,8 +12,10 @@
 class BitwiseBmtBatchGenerator : public AbstractBmtBatchGenerator<BitwiseBmt> {
 public:
     inline static std::atomic_int64_t _totalTime = 0;
+    int64_t _totalBits{};
+    int _bc{};
 
-    explicit BitwiseBmtBatchGenerator(int count, int l, int taskTag, int msgTagOffset);
+    explicit BitwiseBmtBatchGenerator(int count, int width, int taskTag, int msgTagOffset);
 
     BitwiseBmtBatchGenerator *execute() override;
 
@@ -24,7 +26,7 @@ private:
 
     void computeC();
 
-    [[nodiscard]] int64_t corr(int bmtIdx, int round, int64_t x) const;
+    [[nodiscard]] int64_t corr(int bmtIdx, int64_t x) const;
 
 public:
     AbstractSecureExecutor * reconstruct(int clientRank) override;

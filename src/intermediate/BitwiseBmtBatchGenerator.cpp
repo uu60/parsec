@@ -9,9 +9,15 @@
 #include "ot/RandOtExecutor.h"
 #include "parallel/ThreadPoolSupport.h"
 
-BitwiseBmtBatchGenerator::BitwiseBmtBatchGenerator(int count, int l, int taskTag,
+BitwiseBmtBatchGenerator::BitwiseBmtBatchGenerator(int count, int width, int taskTag,
                                                    int msgTagOffset) : AbstractBmtBatchGenerator(count,
-    l, taskTag, msgTagOffset) {
+    width, taskTag, msgTagOffset) {
+    if (Comm::isClient()) {
+        return;
+    }
+    _totalBits = count * width;
+    _bc = static_cast<int>((_totalBits + 63) / 64);
+    _bmts.resize(_bc);
 }
 
 BitwiseBmtBatchGenerator *BitwiseBmtBatchGenerator::execute() {
@@ -47,8 +53,8 @@ BitwiseBmtBatchGenerator *BitwiseBmtBatchGenerator::execute() {
 
 void BitwiseBmtBatchGenerator::generateRandomAB() {
     for (auto &b: _bmts) {
-        b._a = ring(Math::randInt());
-        b._b = ring(Math::randInt());
+        b._a = Math::randInt();
+        b._b = Math::randInt();
     }
 }
 
@@ -57,66 +63,80 @@ void BitwiseBmtBatchGenerator::computeMix(int sender) {
 
     // messages and choices are stored in int64_t
     std::vector<int64_t> ss0, ss1;
-    std::vector<int> choices;
+    std::vector<int64_t> choices;
 
-    size_t bmtCount = _bmts.size();
-    size_t all = _width * bmtCount;
     if (isSender) {
-        ss0.reserve(all);
-        ss1.reserve(all);
-        for (int i = 0; i < bmtCount; i++) {
-            for (int j = 0; j < _width; ++j) {
-                int64_t bit = Math::randInt(0, 1);
-                ss0.push_back(bit);
-                ss1.push_back(corr(i, j, bit));
-            }
+        ss0.resize(_bc);
+        ss1.resize(_bc);
+        for (int i = 0; i < _bc; i++) {
+            int64_t random = Math::randInt();
+            ss0[i] = random;
+            ss1[i] = corr(i, random);
         }
     } else {
-        choices.reserve(all);
-        for (int i = 0; i < bmtCount; i++) {
-            for (int j = 0; j < _width; ++j) {
-                choices.push_back(Math::getBit(_bmts[i]._b, j));
-            }
+        choices.resize(_bc);
+        for (int i = 0; i < _bc; i++) {
+            choices[i] = _bmts[i]._b;
         }
     }
+
+    // if (isSender) {
+    //     ss0.reserve(all);
+    //     ss1.reserve(all);
+    //     for (int i = 0; i < bmtCount; i++) {
+    //         for (int j = 0; j < _width; ++j) {
+    //             int64_t bit = Math::randInt(0, 1);
+    //             ss0.push_back(bit);
+    //             ss1.push_back(corr(i, j, bit));
+    //         }
+    //     }
+    // } else {
+    //     choices.reserve(all);
+    //     for (int i = 0; i < bmtCount; i++) {
+    //         for (int j = 0; j < _width; ++j) {
+    //             choices.push_back(Math::getBit(_bmts[i]._b, j));
+    //         }
+    //     }
+    // }
 
     auto results = RandOtBatchExecutor(sender, &ss0, &ss1, &choices, _width, _taskTag,
                           _currentMsgTag + sender * RandOtBatchExecutor::msgTagCount()).execute()->_results;
 
-    std::vector<int64_t> sums;
-    sums.reserve(bmtCount);
-
-    if (isSender) {
-        for (int i = 0; i < bmtCount; i++) {
-            sums.push_back(0);
-            for (int j = 0; j < _width; ++j) {
-                sums[i] += ss0[i * _width + j] << j;
-            }
-        }
-    } else {
-        for (int i = 0; i < bmtCount; i++) {
-            sums.push_back(0);
-            for (int j = 0; j < _width; ++j) {
-                sums[i] += results[i * _width + j] << j;
-            }
-        }
-    }
+    // std::vector<int64_t> sums;
+    // sums.reserve(bmtCount);
+    //
+    // if (isSender) {
+    //     for (int i = 0; i < bmtCount; i++) {
+    //         sums.push_back(0);
+    //         for (int j = 0; j < _width; ++j) {
+    //             sums[i] += ss0[i * _width + j] << j;
+    //         }
+    //     }
+    // } else {
+    //     for (int i = 0; i < bmtCount; i++) {
+    //         sums.push_back(0);
+    //         for (int j = 0; j < _width; ++j) {
+    //             sums[i] += results[i * _width + j] << j;
+    //         }
+    //     }
+    // }
 
     std::vector<int64_t> *mix = sender == 0 ? &_usi : &_vsi;
-    mix->reserve(bmtCount);
-    for (int i = 0; i < bmtCount; i++) {
-        mix->push_back(ring(sums[i]));
+    mix->resize(_bc);
+    for (int i = 0; i < _bc; i++) {
+        (*mix)[i] = isSender ? ss0[i] : results[i];
     }
 }
 
 void BitwiseBmtBatchGenerator::computeC() {
     for (int i = 0; i < _bmts.size(); i++) {
-        _bmts[i]._c = ring(_bmts[i]._a & _bmts[i]._b ^ _usi[i] ^ _vsi[i]);
+        auto &bmt = _bmts[i];
+        bmt._c = bmt._a & bmt._b ^ _usi[i] ^ _vsi[i];
     }
 }
 
-int64_t BitwiseBmtBatchGenerator::corr(int bmtIdx, int round, int64_t x) const {
-    return (Math::getBit(_bmts[bmtIdx]._a, round) - x) & 1;
+int64_t BitwiseBmtBatchGenerator::corr(int bmtIdx, int64_t x) const {
+    return _bmts[bmtIdx]._a ^ x;
 }
 
 AbstractSecureExecutor *BitwiseBmtBatchGenerator::reconstruct(int clientRank) {

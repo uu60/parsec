@@ -43,35 +43,38 @@ inline void test_bitwise_bmt_gen_0(int num, int width) {
     }
 }
 
-inline void test_arith_mul_parallel_1() {
-    int num = 3;
-    std::vector<std::future<void> > futures;
-    futures.reserve(num);
+inline void test_rand_ot_batch_for_bit_1() {
+    if (Comm::isClient()) {
+        return;
+    }
 
-    std::vector<Bmt> bmts;
-    int l = 8;
-    auto start = System::currentTimeMillis();
-    int i = 0;
-    while (i++ < num) {
-        int64_t x, y;
-        if (Comm::isClient()) {
-            x = Math::randInt(0, 100);
-            y = Math::randInt(0, 100);
-        }
-        ArithMultiplyExecutor e(x, y, l, 2 + i, 0, 2);
-        e.execute()->reconstruct(2);
-        if (Comm::isClient()) {
-            if (e._result != Math::ring(x * y, l)) {
-                Log::e("Wrong answer: {} (should be {} * {} = {}), index: {}", e._result, x, y,
-                       Math::ring(x * y, l), i);
+    auto t = System::nextTask();
+
+    std::vector<int64_t> ms0 = {0b10100011};
+    std::vector<int64_t> ms1 = {0b01001010};
+    std::vector<int64_t> choices = {0b10011110};
+
+    auto e = RandOtBatchExecutor(0, &ms0, &ms1, &choices, 4 * 64, t, 0);
+    e.execute();
+
+    if (Comm::rank() == 1) {
+        int64_t totalWrong = 0;
+        for (int i = 0; i < e._results.size(); i++) {
+            for (int j = 0; j < 64; j++) {
+                // choose 1
+                if (Math::getBit(choices[i], j)) {
+                    if (Math::getBit(e._results[i], j) != Math::getBit(ms1[i], j)) {
+                        totalWrong++;
+                    }
+                } else {
+                    if (Math::getBit(e._results[i], j) != Math::getBit(ms0[i], j)) {
+                        totalWrong++;
+                    }
+                }
             }
         }
+        Log::i("total wrong bits: {}", totalWrong);
     }
-    for (auto &f: futures) {
-        f.wait();
-    }
-    auto end = System::currentTimeMillis();
-    Log::i("time: {}", end - start);
 }
 
 inline void test_bmt_generation_2() {

@@ -7,7 +7,7 @@
 #include <future>
 
 
-class CppAsyncThreadPool {
+class Async {
 public:
     template<typename F>
     auto submit(F &&f) -> std::future<decltype(f())> {

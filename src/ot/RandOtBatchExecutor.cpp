@@ -67,7 +67,6 @@ void RandOtBatchExecutor::executeForBits() {
     if (_isSender) {
         std::vector<int64_t> ks;
         int size = static_cast<int>(_ms0->size());
-        ks.resize(size);
         auto r0 = Comm::serverReceiveAsync(ks, size, _width, buildTag(_currentMsgTag));
 
         std::vector<int64_t> toSend(size * 2);
@@ -89,9 +88,16 @@ void RandOtBatchExecutor::executeForBits() {
         std::vector<int64_t> ks;
         int size = static_cast<int>(_choiceBits->size());
         ks.resize(size);
-        for (int i = 0; i < size; ++i) {
-            ks[i] = IntermediateDataSupport::_rRot->_b ^ (*_choiceBits)[i];
+
+        int64_t ib = IntermediateDataSupport::_rRot->_b;
+        if (ib == 1) {
+            ib = -1;
         }
+
+        for (int i = 0; i < size; ++i) {
+            ks[i] = ib ^ (*_choiceBits)[i];
+        }
+
         auto r0 = Comm::serverSendAsync(ks, _width, buildTag(_currentMsgTag));
 
         std::vector<int64_t> toRecv;

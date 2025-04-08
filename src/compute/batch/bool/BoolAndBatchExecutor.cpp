@@ -34,6 +34,9 @@ int BoolAndBatchExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
         } else {
             bmts = BitwiseBmtBatchGenerator(bc, 64, _taskTag, _currentMsgTag).execute()->_bmts;
         }
+        for (int i = 0; i < bmts.size(); i++) {
+            Log::i("[{}] a: {} b: {} c: {}", i, Math::toBinString<8>(bmts[i]._a), Math::toBinString<8>(bmts[i]._b), Math::toBinString<8>(bmts[i]._c));
+        }
     }
     return bc;
 }
@@ -102,7 +105,7 @@ void BoolAndBatchExecutor::execute0() {
             efi[num + i] = (*_yis)[i] ^ IntermediateDataSupport::_fixedBitwiseBmt._b;
         }
     } else {
-        if (_width < 64 && bc != -2) {
+        if (_width < 64) {
             for (int i = 0; i < num; i++) {
                 auto bmt = BitwiseBmt::extract(bmts, i, _width);
                 efi[i] = (*_xis)[i] ^ bmt._a;
@@ -159,10 +162,10 @@ void BoolAndBatchExecutor::execute0() {
             for (int i = 0; i < num; i++) {
                 int64_t e = efs[i];
                 int64_t f = efs[num + i];
-                // Multiple 64 bit bmts
-                int64_t a = bmts[i]._a;
-                int64_t b = bmts[i]._b;
-                int64_t c = bmts[i]._c;
+                auto bmt = bmts[i];
+                int64_t a = bmt._a;
+                int64_t b = bmt._b;
+                int64_t c = bmt._c;
                 _zis[i] = (extendedRank & e & f) ^ (f & a) ^ (e & b) ^ c;
             }
         }

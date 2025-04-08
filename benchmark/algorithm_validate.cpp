@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
             test_bitwise_bmt_gen_0(num, width);
             break;
         case 1:
-            test_arith_mul_parallel_1();
+            test_rand_ot_batch_for_bit_1();
             break;
         case 2:
             test_bmt_generation_2();
