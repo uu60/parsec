@@ -5,7 +5,7 @@
 #ifndef LOCKFREEBLOCKINGQUEUE_H
 #define LOCKFREEBLOCKINGQUEUE_H
 
-#include <atomic>
+#include <thread>
 #include <boost/lockfree/queue.hpp>
 
 #include "../sync/AbstractBlockingQueue.h"
@@ -14,27 +14,28 @@ template<typename T>
 class BoostLockFreeQueue : public AbstractBlockingQueue<T> {
 private:
     boost::lockfree::queue<T, boost::lockfree::fixed_sized<true>> queue;
-    std::atomic_size_t _size;
     size_t max_capacity;
 
 public:
     explicit BoostLockFreeQueue(size_t capacity)
-        : queue(capacity), max_capacity(capacity), _size(0) {}
+        : queue(capacity), max_capacity(capacity) {}
 
     void offer(const T& item) override {
-        while (!queue.push(item)) {}
-        ++_size;
+        while (!queue.push(item)) {
+            std::this_thread::yield();
+        }
     }
 
     T poll() override {
         T item;
-        while (!queue.pop(item)) {}
-        --_size;
+        while (!queue.pop(item)) {
+            std::this_thread::yield();
+        }
         return item;
     }
 
     [[nodiscard]] size_t size() const override {
-        return _size;
+        return -1;
     }
 
     [[nodiscard]] size_t capacity() const override {

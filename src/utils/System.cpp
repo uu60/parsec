@@ -16,8 +16,11 @@
 void System::init(int argc, char **argv) {
     Conf::init(argc, argv);
 
-    if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND || Conf::BMT_METHOD == Conf::BMT_BATCH_BACKGROUND) {
-        PRESERVED_TASK_TAGS = 2;
+    if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
+        PRESERVED_TASK_TAGS = Conf::BMT_QUEUE_NUM;
+        if (!Conf::DISABLE_ARITH) {
+            PRESERVED_TASK_TAGS *= 2;
+        }
     }
 
     // prepare structures

@@ -17,8 +17,9 @@ public:
 
     // blocking queue type
     enum QueueT {
-        CAS_QUEUE,
-        LOCK_QUEUE
+        LOCK_FREE_QUEUE,
+        LOCK_QUEUE,
+        SPSC_QUEUE,
     };
 
     // comm type
@@ -30,8 +31,7 @@ public:
     enum BmtT {
         BMT_BACKGROUND,
         BMT_JIT,
-        BMT_FIXED,
-        BMT_BATCH_BACKGROUND
+        BMT_FIXED
      };
 public:
     static void init(int argc, char **argv);
@@ -44,9 +44,13 @@ public:
     // Used times limit of one bmt (INVALID when BMT_BACKGROUND is false)
     inline static int BMT_USAGE_LIMIT = 1;
     // Blocking Bmt Queue (INVALID when background bmt is disabled)
-    inline static QueueT BMT_QUEUE_TYPE = CAS_QUEUE;
+    inline static QueueT BMT_QUEUE_TYPE = SPSC_QUEUE;
     // Bmt Queue num
     inline static int BMT_QUEUE_NUM = 1;
+    // Disable arith algorithms
+    inline static bool DISABLE_ARITH = true;
+    // Bmt gen batch size
+    inline static int BMT_GEN_BATCH_SIZE = 100000;
 
     // ---------------Settings for threads---------------
     // Task tag bits

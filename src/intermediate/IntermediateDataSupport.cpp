@@ -2,10 +2,10 @@
 // Created by 杜建璋 on 2024/11/25.
 //
 
-#include "intermediate//IntermediateDataSupport.h"
+#include "intermediate/IntermediateDataSupport.h"
 
 #include "comm/Comm.h"
-#include "intermediate/ABPairGenerator.h"
+#include "intermediate/BitwiseBmtBatchGenerator.h"
 #include "intermediate/BitwiseBmtGenerator.h"
 #include "intermediate/BmtGenerator.h"
 #include "ot/BaseOtExecutor.h"
@@ -13,35 +13,49 @@
 #include "utils/Log.h"
 #include "utils/Math.h"
 
-void IntermediateDataSupport::offerBmt(Bmt bmt) {
-    _bmts->offer(bmt);
-}
-
-void IntermediateDataSupport::offerBitwiseBmt(BitwiseBmt bmt) {
-    _bitwiseBmts->offer(bmt);
-}
-
 void IntermediateDataSupport::prepareBmt() {
     if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
         _fixedBmt = BmtGenerator(64, 0, 0).execute()->_bmt;
         _fixedBitwiseBmt = BitwiseBmtGenerator(64, 0, 0).execute()->_bmt;
     } else if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
+        _bitwiseBmtQs.resize(Conf::BMT_QUEUE_NUM);
         if (Conf::BMT_QUEUE_TYPE == Conf::LOCK_QUEUE) {
-            _bmts = new LockBlockingQueue<Bmt>(Conf::MAX_BMTS);
+            for (int i = 0; i < Conf::BMT_QUEUE_NUM; i++) {
+                _bitwiseBmtQs[i] = new LockBlockingQueue<BitwiseBmt>(Conf::MAX_BMTS);
+            }
+        } else if (Conf::BMT_QUEUE_TYPE == Conf::LOCK_FREE_QUEUE) {
+            for (int i = 0; i < Conf::BMT_QUEUE_NUM; i++) {
+                _bitwiseBmtQs[i] = new BoostLockFreeQueue<BitwiseBmt>(Conf::MAX_BMTS);
+            }
         } else {
-            _bmts = new BoostLockFreeQueue<Bmt>(Conf::MAX_BMTS);
+            for (int i = 0; i < Conf::BMT_QUEUE_NUM; i++) {
+                _bitwiseBmtQs[i] = new BoostSPSCQueue<BitwiseBmt, 10000000>();
+            }
         }
-
-        if (Conf::BMT_QUEUE_TYPE == Conf::LOCK_QUEUE) {
-            _bitwiseBmts = new LockBlockingQueue<BitwiseBmt>(Conf::MAX_BMTS);
-        } else {
-            _bitwiseBmts = new BoostLockFreeQueue<BitwiseBmt>(Conf::MAX_BMTS);
-        }
-
-        startGenerateBmtsAsync();
         startGenerateBitwiseBmtsAsync();
+
+        if (Conf::DISABLE_ARITH) {
+            return;
+        }
+
+        _bmtQs.resize(Conf::BMT_QUEUE_NUM);
+        if (Conf::BMT_QUEUE_TYPE == Conf::LOCK_QUEUE) {
+            for (int i = 0; i < Conf::BMT_QUEUE_NUM; i++) {
+                _bmtQs[i] = new LockBlockingQueue<Bmt>(Conf::MAX_BMTS);
+            }
+        } else if (Conf::BMT_QUEUE_TYPE == Conf::LOCK_FREE_QUEUE) {
+            for (int i = 0; i < Conf::BMT_QUEUE_NUM; i++) {
+                _bmtQs[i] = new BoostLockFreeQueue<Bmt>(Conf::MAX_BMTS);
+            }
+        } else {
+            for (int i = 0; i < Conf::BMT_QUEUE_NUM; i++) {
+                _bmtQs[i] = new BoostSPSCQueue<Bmt, 10000000>();
+            }
+        }
+        startGenerateBmtsAsync();
     }
 }
+
 
 void IntermediateDataSupport::init() {
     if (Comm::isClient()) {
@@ -89,7 +103,7 @@ std::vector<Bmt> IntermediateDataSupport::pollBmts(int count, int width) {
 
         if (_currentBmt == nullptr || left == 0) {
             delete _currentBmt;
-            Bmt newBmt = _bmts->poll();
+            Bmt newBmt = _bmtQs[_currentBmtQ++ % Conf::BMT_QUEUE_NUM]->poll();
             newBmt._a = Math::ring(newBmt._a, width);
             newBmt._b = Math::ring(newBmt._b, width);
             newBmt._c = Math::ring(newBmt._c, width);
@@ -124,7 +138,7 @@ std::vector<BitwiseBmt> IntermediateDataSupport::pollBitwiseBmts(int count, int 
 
         if (_currentBitwiseBmt == nullptr || left == 0) {
             delete _currentBitwiseBmt;
-            BitwiseBmt newBmt = _bitwiseBmts->poll();
+            BitwiseBmt newBmt = _bitwiseBmtQs[_currentBitwiseBmtQ++ % Conf::BMT_QUEUE_NUM]->poll();
             newBmt._a = Math::ring(newBmt._a, width);
             newBmt._b = Math::ring(newBmt._b, width);
             newBmt._c = Math::ring(newBmt._c, width);
@@ -148,21 +162,29 @@ std::vector<BitwiseBmt> IntermediateDataSupport::pollBitwiseBmts(int count, int 
 
 void IntermediateDataSupport::startGenerateBmtsAsync() {
     if (Comm::isServer() && Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
-        ThreadPoolSupport::submit([] {
-            while (!System::_shutdown.load()) {
-                offerBmt(BmtGenerator(64, 0, 0).execute()->_bmt);
-            }
-        });
+        for (int i = 0; i < Conf::BMT_QUEUE_NUM; i++) {
+            ThreadPoolSupport::submit([i] {
+                auto q = _bmtQs[i];
+                while (!System::_shutdown.load()) {
+                    q->offer(BmtGenerator(64, Conf::BMT_QUEUE_NUM + i, 0).execute()->_bmt);
+                }
+            });
+        }
     }
 }
 
 void IntermediateDataSupport::startGenerateBitwiseBmtsAsync() {
     if (Comm::isServer() && Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
-        ThreadPoolSupport::submit([] {
-            while (!System::_shutdown.load()) {
-                offerBitwiseBmt(BitwiseBmtGenerator(64, 1, 0).execute()->_bmt);
-            }
-        });
+        for (int i = 0; i < Conf::BMT_QUEUE_NUM; i++) {
+            ThreadPoolSupport::submit([i] {
+                auto q = _bitwiseBmtQs[i];
+                while (!System::_shutdown.load()) {
+                    auto bitwiseBmts = BitwiseBmtBatchGenerator(Conf::BMT_GEN_BATCH_SIZE, 64, i, 0).execute()->_bmts;
+                    for (auto b: bitwiseBmts) {
+                        q->offer(b);
+                    }
+                }
+            });
+        }
     }
 }
-

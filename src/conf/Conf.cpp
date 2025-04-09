@@ -23,14 +23,18 @@ void Conf::init(int argc, char **argv) {
                  "Set max_bmts")
                 ("bmt_usage_limit", po::value<int>(&BMT_USAGE_LIMIT)->default_value(10),
                  "Set bmt_usage_limit")
-                ("bmt_queue_type", po::value<std::string>(&bmt_queue_type)->default_value("cas_queue"),
-                 "Set bmt_queue_type (cas_queue, lock_queue)")
+                ("bmt_queue_type", po::value<std::string>(&bmt_queue_type)->default_value("spsc_queue"),
+                 "Set bmt_queue_type (cas_queue, lock_queue, spsc_queue)")
                 ("bmt_queue_num", po::value<int>(&BMT_QUEUE_NUM)->default_value(1), "Set bmt_queue_num")
+                ("disable_arith", po::value<bool>(&DISABLE_ARITH)->default_value(true), "Set disable_arith")
+                ("bmt_gen_batch_size", po::value<int>(&BMT_GEN_BATCH_SIZE)->default_value(100000),
+                 "Set bmt_gen_batch_size")
                 ("task_tag_bits", po::value<int>(&TASK_TAG_BITS)->default_value(32),
                  "Set task_tag_bits")
                 ("disable_multi_thread", po::value<bool>(&DISABLE_MULTI_THREAD)->default_value(false),
                  "Set disable_multi_thread (true/false)")
-                ("enable_intra_operator_parallelism", po::value<bool>(&ENABLE_INTRA_OPERATOR_PARALLELISM)->default_value(false),
+                ("enable_intra_operator_parallelism",
+                 po::value<bool>(&ENABLE_INTRA_OPERATOR_PARALLELISM)->default_value(false),
                  "Set intra_operator_parallelism (true/false)")
                 ("local_threads", po::value<int>(&LOCAL_THREADS)->default_value(4),
                  "Set local_threads")
@@ -48,9 +52,9 @@ void Conf::init(int argc, char **argv) {
                  "Set enable_simd (true/false)");
 
         po::parsed_options parsed = po::command_line_parser(argc, argv)
-                                    .options(desc)
-                                    .allow_unregistered()
-                                    .run();
+                .options(desc)
+                .allow_unregistered()
+                .run();
         po::variables_map vm;
         po::store(parsed, vm);
         po::notify(vm);
@@ -67,8 +71,6 @@ void Conf::init(int argc, char **argv) {
                 BMT_METHOD = BMT_JIT;
             } else if (bmt_method == "bmt_fixed") {
                 BMT_METHOD = BMT_FIXED;
-            } else if (bmt_method == "bmt_batch_background") {
-                BMT_METHOD = BMT_BATCH_BACKGROUND;
             } else {
                 throw std::runtime_error("Unknown bmt_method value.");
             }
@@ -76,9 +78,11 @@ void Conf::init(int argc, char **argv) {
 
         if (vm.count("bmt_queue_type")) {
             if (bmt_queue_type == "cas_queue") {
-                BMT_QUEUE_TYPE = CAS_QUEUE;
+                BMT_QUEUE_TYPE = LOCK_FREE_QUEUE;
             } else if (bmt_queue_type == "lock_queue") {
                 BMT_QUEUE_TYPE = LOCK_QUEUE;
+            } else if (bmt_queue_type == "spsc_queue") {
+                BMT_QUEUE_TYPE = SPSC_QUEUE;
             } else {
                 throw std::runtime_error("Unknown bmt_queue_type value.");
             }
@@ -106,8 +110,8 @@ void Conf::init(int argc, char **argv) {
 
         std::vector<std::string> extra_args = po::collect_unrecognized(parsed.options, po::include_positional);
         if (!extra_args.empty()) {
-            std::cout <<"Warning: unrecognized params:";
-            for (const auto& arg : extra_args) {
+            std::cout << "Warning: unrecognized params:";
+            for (const auto &arg: extra_args) {
                 std::cout << " " << arg;
             }
             std::cout << std::endl;
