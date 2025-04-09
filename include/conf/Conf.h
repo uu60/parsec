@@ -54,7 +54,7 @@ public:
     // Enable single-thread only
     inline static bool DISABLE_MULTI_THREAD = true;
     // Enable multiple-thread computation in each single executor
-    inline static bool INTRA_OPERATOR_PARALLELISM = false;
+    inline static bool ENABLE_INTRA_OPERATOR_PARALLELISM = false;
     // Sum of threads in a process
     inline static int LOCAL_THREADS = static_cast<int>(std::thread::hardware_concurrency());
     // Index of thread pool type (0 = ctpl, 1 = tbb)
@@ -70,12 +70,6 @@ public:
 
     // ---------------Settings for benchmark---------------
     inline static bool ENABLE_CLASS_WISE_TIMING = false;
-
-    // ---------------Settings for sort---------------
-    // Sort in parallel
-    inline static bool SORT_IN_PARALLEL = false;
-    // Sort method
-    inline static bool SORT_IN_RECURSIVE = false;
 
     // ---------------Settings for acceleration---------------
     inline static bool ENABLE_SIMD = true;

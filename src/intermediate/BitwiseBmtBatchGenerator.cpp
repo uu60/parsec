@@ -11,7 +11,7 @@
 
 BitwiseBmtBatchGenerator::BitwiseBmtBatchGenerator(int count, int width, int taskTag,
                                                    int msgTagOffset) : AbstractBmtBatchGenerator(count,
-    width, taskTag, msgTagOffset) {
+                                                                                                 width, taskTag, msgTagOffset) {
     if (Comm::isClient()) {
         return;
     }
@@ -33,7 +33,7 @@ BitwiseBmtBatchGenerator *BitwiseBmtBatchGenerator::execute() {
 
     generateRandomAB();
 
-    if (Conf::INTRA_OPERATOR_PARALLELISM) {
+    if (!Conf::DISABLE_MULTI_THREAD && Conf::ENABLE_INTRA_OPERATOR_PARALLELISM) {
         auto f = ThreadPoolSupport::submit([&] {
             computeMix(0);
         });
@@ -80,46 +80,8 @@ void BitwiseBmtBatchGenerator::computeMix(int sender) {
         }
     }
 
-    // if (isSender) {
-    //     ss0.reserve(all);
-    //     ss1.reserve(all);
-    //     for (int i = 0; i < bmtCount; i++) {
-    //         for (int j = 0; j < _width; ++j) {
-    //             int64_t bit = Math::randInt(0, 1);
-    //             ss0.push_back(bit);
-    //             ss1.push_back(corr(i, j, bit));
-    //         }
-    //     }
-    // } else {
-    //     choices.reserve(all);
-    //     for (int i = 0; i < bmtCount; i++) {
-    //         for (int j = 0; j < _width; ++j) {
-    //             choices.push_back(Math::getBit(_bmts[i]._b, j));
-    //         }
-    //     }
-    // }
-
-    auto results = RandOtBatchExecutor(sender, &ss0, &ss1, &choices, _width, _taskTag,
+    auto results = RandOtBatchExecutor(sender, &ss0, &ss1, &choices, _totalBits, _taskTag,
                           _currentMsgTag + sender * RandOtBatchExecutor::msgTagCount()).execute()->_results;
-
-    // std::vector<int64_t> sums;
-    // sums.reserve(bmtCount);
-    //
-    // if (isSender) {
-    //     for (int i = 0; i < bmtCount; i++) {
-    //         sums.push_back(0);
-    //         for (int j = 0; j < _width; ++j) {
-    //             sums[i] += ss0[i * _width + j] << j;
-    //         }
-    //     }
-    // } else {
-    //     for (int i = 0; i < bmtCount; i++) {
-    //         sums.push_back(0);
-    //         for (int j = 0; j < _width; ++j) {
-    //             sums[i] += results[i * _width + j] << j;
-    //         }
-    //     }
-    // }
 
     std::vector<int64_t> *mix = sender == 0 ? &_usi : &_vsi;
     mix->resize(_bc);

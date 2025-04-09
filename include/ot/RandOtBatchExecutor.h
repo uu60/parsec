@@ -16,8 +16,8 @@ public:
 
 public:
     RandOtBatchExecutor(int sender, std::vector<int64_t> *ms0, std::vector<int64_t> *ms1, std::vector<int> *choices,
-                        int l, int taskTag, int msgTagOffset) : AbstractOtBatchExecutor(
-        sender, ms0, ms1, choices, l, taskTag, msgTagOffset) {
+                        int width, int taskTag, int msgTagOffset) : AbstractOtBatchExecutor(
+        sender, ms0, ms1, choices, width, taskTag, msgTagOffset) {
     }
 
     RandOtBatchExecutor(int sender, std::vector<int64_t> *bits0, std::vector<int64_t> *bits1,

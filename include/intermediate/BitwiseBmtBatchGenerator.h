@@ -15,7 +15,7 @@ public:
     int64_t _totalBits{};
     int _bc{};
 
-    explicit BitwiseBmtBatchGenerator(int count, int width, int taskTag, int msgTagOffset);
+    BitwiseBmtBatchGenerator(int count, int width, int taskTag, int msgTagOffset);
 
     BitwiseBmtBatchGenerator *execute() override;
 

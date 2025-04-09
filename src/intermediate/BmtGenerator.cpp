@@ -26,7 +26,7 @@ BmtGenerator *BmtGenerator::reconstruct(int clientRank) {
 }
 
 int BmtGenerator::msgTagCount(int width) {
-    return static_cast<int>(2 * width * RandOtExecutor::msgTagCount(width));
+    return 2 * RandOtBatchExecutor::msgTagCount();
 }
 
 void BmtGenerator::computeMix(int sender) {
@@ -51,7 +51,7 @@ void BmtGenerator::computeMix(int sender) {
         }
     }
 
-    auto results = RandOtBatchExecutor(sender, &ss0, &ss1, &choices, _width, _taskTag,
+    auto results = RandOtBatchExecutor(sender, &ss0, &ss1, &choices, 1, _taskTag,
                                        _currentMsgTag + sender * RandOtBatchExecutor::msgTagCount()).execute()->
             _results;
 
@@ -89,7 +89,7 @@ BmtGenerator *BmtGenerator::execute() {
 
     generateRandomAB();
 
-    if (Conf::INTRA_OPERATOR_PARALLELISM) {
+    if (!Conf::DISABLE_MULTI_THREAD && Conf::ENABLE_INTRA_OPERATOR_PARALLELISM) {
         auto f = ThreadPoolSupport::submit([&] {
             computeMix(0);
         });

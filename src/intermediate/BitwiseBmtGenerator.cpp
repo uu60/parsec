@@ -21,7 +21,7 @@ BitwiseBmtGenerator *BitwiseBmtGenerator::execute() {
     }
 
     generateRandomAB();
-    if (Conf::INTRA_OPERATOR_PARALLELISM) {
+    if (!Conf::DISABLE_MULTI_THREAD && Conf::ENABLE_INTRA_OPERATOR_PARALLELISM) {
         auto f = ThreadPoolSupport::submit([&] {
             computeMix(0);
         });
@@ -68,7 +68,8 @@ void BitwiseBmtGenerator::computeMix(int sender) {
         }
     }
 
-    auto results = RandOtBatchExecutor(sender, &ss0, &ss1, &choices, _width, _taskTag,
+    auto s = Math::randInt();
+    auto results = RandOtBatchExecutor(sender, &ss0, &ss1, &choices, 1, _taskTag,
                                        _currentMsgTag + sender * RandOtBatchExecutor::msgTagCount()).execute()->
             _results;
 
@@ -102,5 +103,5 @@ AbstractSecureExecutor *BitwiseBmtGenerator::reconstruct(int clientRank) {
 }
 
 int BitwiseBmtGenerator::msgTagCount(int width) {
-    return static_cast<int>(2 * width * RandOtExecutor::msgTagCount(width));
+    return 2 * RandOtBatchExecutor::msgTagCount();
 }

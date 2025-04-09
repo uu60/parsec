@@ -30,12 +30,9 @@ int BoolAndBatchExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
         }
     } else if (Conf::BMT_METHOD == Conf::BMT_JIT) {
         if (bc == -1) {
-            bmts = {BitwiseBmtGenerator(totalBits, _taskTag, _currentMsgTag).execute()->_bmt};
+            bmts = BitwiseBmtBatchGenerator(1, totalBits, _taskTag, _currentMsgTag).execute()->_bmts;
         } else {
             bmts = BitwiseBmtBatchGenerator(bc, 64, _taskTag, _currentMsgTag).execute()->_bmts;
-        }
-        for (int i = 0; i < bmts.size(); i++) {
-            Log::i("[{}] a: {} b: {} c: {}", i, Math::toBinString<8>(bmts[i]._a), Math::toBinString<8>(bmts[i]._b), Math::toBinString<8>(bmts[i]._c));
         }
     }
     return bc;

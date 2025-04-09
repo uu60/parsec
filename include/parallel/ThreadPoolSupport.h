@@ -51,16 +51,16 @@ public:
     template<typename F>
     static auto submit(F &&f) -> std::future<std::invoke_result_t<F> > {
         if (Conf::THREAD_POOL_TYPE == Conf::CTPL_POOL) {
-            return _ctplPool->submit(std::forward<F>(f));
+            return _ctplPool->submit(f);
         }
         if (Conf::THREAD_POOL_TYPE == Conf::TBB_POOL) {
-            return _tbbPool->submit(std::forward<F>(f));
+            return _tbbPool->submit(f);
         }
         if (Conf::THREAD_POOL_TYPE == Conf::ASYNC_POOL) {
-            return _async->submit(std::forward<F>(f));
+            return _async->submit(f);
         }
         // If no proper pool, run in caller itself
-        return callerRun( std::forward<F>(f));
+        return callerRun(f);
     }
 };
 

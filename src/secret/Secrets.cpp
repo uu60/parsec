@@ -24,11 +24,12 @@ void bitonicSort(std::vector<SecretT> &secrets, bool asc, int taskTag, int msgTa
             std::vector<int64_t> xIdx, yIdx;
             std::vector<bool> ascs;
             int halfN = n / 2;
-            xs.reserve(halfN);
-            ys.reserve(halfN);
-            xIdx.reserve(halfN);
-            yIdx.reserve(halfN);
-            ascs.reserve(halfN);
+            xs.resize(halfN);
+            ys.resize(halfN);
+            xIdx.resize(halfN);
+            yIdx.resize(halfN);
+            ascs.resize(halfN);
+            int idx = 0;
 
             for (int i = 0; i < n; i++) {
                 int l = i ^ j; // CAS secrets[i] and secrets[l]
@@ -46,11 +47,12 @@ void bitonicSort(std::vector<SecretT> &secrets, bool asc, int taskTag, int msgTa
                 if (secrets[i]._padding || secrets[l]._padding) {
                     continue;
                 }
-                xs.push_back(secrets[i]._data);
-                xIdx.push_back(i);
-                ys.push_back(secrets[l]._data);
-                yIdx.push_back(l);
-                ascs.push_back(dir ^ !asc);
+                xs[idx] = secrets[i]._data;
+                xIdx[idx] = i;
+                ys[idx] = secrets[l]._data;
+                yIdx[idx] = l;
+                ascs[idx] = dir ^ !asc;
+                idx++;
             }
 
             auto zs = BoolLessBatchExecutor(&xs, &ys, secrets[0]._width, taskTag, msgTagOffset,

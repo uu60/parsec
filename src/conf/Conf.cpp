@@ -30,7 +30,7 @@ void Conf::init(int argc, char **argv) {
                  "Set task_tag_bits")
                 ("disable_multi_thread", po::value<bool>(&DISABLE_MULTI_THREAD)->default_value(false),
                  "Set disable_multi_thread (true/false)")
-                ("intra_operator_parallelism", po::value<bool>(&INTRA_OPERATOR_PARALLELISM)->default_value(true),
+                ("enable_intra_operator_parallelism", po::value<bool>(&ENABLE_INTRA_OPERATOR_PARALLELISM)->default_value(false),
                  "Set intra_operator_parallelism (true/false)")
                 ("local_threads", po::value<int>(&LOCAL_THREADS)->default_value(4),
                  "Set local_threads")
@@ -44,8 +44,6 @@ void Conf::init(int argc, char **argv) {
                  "Set enable_transfer_compression (true/false)")
                 ("enable_class_wise_timing", po::value<bool>(&ENABLE_CLASS_WISE_TIMING)->default_value(false),
                  "Set enable_class_wise_timing (true/false)")
-                ("sort_in_parallel", po::value<bool>(&SORT_IN_PARALLEL)->default_value(false),
-                 "Set sort_in_parallel (true/false)")
                 ("enable_simd", po::value<bool>(&ENABLE_SIMD)->default_value(true),
                  "Set enable_simd (true/false)");
 

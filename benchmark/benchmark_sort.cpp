@@ -25,11 +25,11 @@ int main(int argc, char *argv[]) {
 
     for (int i = 0; i < argc; i++) {
         std::string arg = argv[i];
-        if (arg == "-num" && i + 1 < argc) {
+        if (arg == "--num" && i + 1 < argc) {
             num = std::stoi(argv[i + 1]);
             continue;
         }
-        if (arg == "-width" && i + 1 < argc) {
+        if (arg == "--width" && i + 1 < argc) {
             width = std::stoi(argv[i + 1]);
         }
     }

@@ -49,13 +49,8 @@ void IntermediateDataSupport::init() {
     }
 
     prepareRot();
-
     prepareBmt();
 }
-
-// void IntermediateDataSupport::offerABPair(ABPair pair) {
-//     _pairs.offer(pair);
-// }
 
 void IntermediateDataSupport::prepareRot() {
     if (Comm::isClient()) {
@@ -151,17 +146,6 @@ std::vector<BitwiseBmt> IntermediateDataSupport::pollBitwiseBmts(int count, int 
     return result;
 }
 
-// std::vector<ABPair> IntermediateDataSupport::pollABPairs(int num) {
-//     std::vector<ABPair> ret;
-//     if (Comm::isServer()) {
-//         ret.reserve(num);
-//         for (int i = 0; i < num; i++) {
-//             ret.push_back(_pairs.poll());
-//         }
-//     }
-//     return ret;
-// }
-
 void IntermediateDataSupport::startGenerateBmtsAsync() {
     if (Comm::isServer() && Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
         ThreadPoolSupport::submit([] {
@@ -182,13 +166,3 @@ void IntermediateDataSupport::startGenerateBitwiseBmtsAsync() {
     }
 }
 
-
-// void IntermediateDataSupport::startGenerateABPairsAsyc() {
-//     if (Comm::isServer()) {
-//         System::_threadPool.push([](int _) {
-//             while (!System::_shutdown.load()) {
-//                 offerABPair(ABPairGenerator::getInstance().execute()->_pair);
-//             }
-//         });
-//     }
-// }

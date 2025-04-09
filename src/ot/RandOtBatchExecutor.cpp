@@ -49,7 +49,7 @@ void RandOtBatchExecutor::execute0() {
         for (int i = 0; i < size; ++i) {
             ks[i] = IntermediateDataSupport::_rRot->_b ^ (*_choices)[i];
         }
-        auto r0 = Comm::serverSendAsync(ks, _width, buildTag(_currentMsgTag));
+        auto r0 = Comm::serverSendAsync(ks, 1, buildTag(_currentMsgTag));
 
         std::vector<int64_t> toRecv;
         auto r1 = Comm::serverReceiveAsync(toRecv, size * 2, _width, buildTag(_currentMsgTag));
