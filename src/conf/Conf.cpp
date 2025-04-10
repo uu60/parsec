@@ -29,7 +29,7 @@ void Conf::init(int argc, char **argv) {
                 ("disable_arith", po::value<bool>(&DISABLE_ARITH)->default_value(true), "Set disable_arith")
                 ("bmt_gen_batch_size", po::value<int>(&BMT_GEN_BATCH_SIZE)->default_value(100000),
                  "Set bmt_gen_batch_size")
-                ("task_tag_bits", po::value<int>(&TASK_TAG_BITS)->default_value(32),
+                ("task_tag_bits", po::value<int>(&TASK_TAG_BITS)->default_value(6),
                  "Set task_tag_bits")
                 ("disable_multi_thread", po::value<bool>(&DISABLE_MULTI_THREAD)->default_value(false),
                  "Set disable_multi_thread (true/false)")

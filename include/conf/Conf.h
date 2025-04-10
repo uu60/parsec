@@ -54,7 +54,7 @@ public:
 
     // ---------------Settings for threads---------------
     // Task tag bits
-    inline static int TASK_TAG_BITS = 3;
+    inline static int TASK_TAG_BITS = 6;
     // Enable single-thread only
     inline static bool DISABLE_MULTI_THREAD = true;
     // Enable multiple-thread computation in each single executor

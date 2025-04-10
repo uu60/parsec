@@ -71,11 +71,11 @@ BoolAndBatchExecutor *BoolAndBatchExecutor::execute() {
     return this;
 }
 
-int BoolAndBatchExecutor::msgTagCount(int num, int width) {
+int BoolAndBatchExecutor::msgTagCount() {
     if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
         return 1;
     }
-    return BitwiseBmtBatchGenerator::msgTagCount(bmtCount(num), width);
+    return BitwiseBmtBatchGenerator::msgTagCount();
 }
 
 BoolAndBatchExecutor *BoolAndBatchExecutor::setBmts(std::vector<BitwiseBmt> *bmts) {

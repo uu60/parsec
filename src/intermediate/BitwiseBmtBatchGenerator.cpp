@@ -105,6 +105,6 @@ AbstractSecureExecutor *BitwiseBmtBatchGenerator::reconstruct(int clientRank) {
     throw std::runtime_error("Not support.");
 }
 
-int BitwiseBmtBatchGenerator::msgTagCount(int bmtCount, int width) {
-    return 2 * width * bmtCount * RandOtExecutor::msgTagCount(width);
+int BitwiseBmtBatchGenerator::msgTagCount() {
+    return 2 * RandOtBatchExecutor::msgTagCount();
 }

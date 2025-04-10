@@ -139,8 +139,8 @@ BoolMutexBatchExecutor *BoolMutexBatchExecutor::setBmts(std::vector<BitwiseBmt> 
     return this;
 }
 
-int BoolMutexBatchExecutor::msgTagCount(int num, int width) {
-    return BoolAndBatchExecutor::msgTagCount(num, width);
+int BoolMutexBatchExecutor::msgTagCount() {
+    return BoolAndBatchExecutor::msgTagCount();
 }
 
 int BoolMutexBatchExecutor::bmtCount(int num) {

@@ -29,7 +29,7 @@ public:
 
     BoolAndBatchExecutor *execute() override;
 
-    [[nodiscard]] static int msgTagCount(int num, int width);
+    [[nodiscard]] static int msgTagCount();
 
     BoolAndBatchExecutor *setBmts(std::vector<BitwiseBmt> *bmts);
 

@@ -31,7 +31,7 @@ private:
 public:
     AbstractSecureExecutor * reconstruct(int clientRank) override;
 
-    static int msgTagCount(int bmtCount, int width);
+    static int msgTagCount();
 };
 
 

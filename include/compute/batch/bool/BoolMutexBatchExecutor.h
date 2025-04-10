@@ -34,7 +34,7 @@ public:
 
     BoolMutexBatchExecutor *setBmts(std::vector<BitwiseBmt> *bmts);
 
-    static int msgTagCount(int num, int width);
+    static int msgTagCount();
 
     static int bmtCount(int num);
 
