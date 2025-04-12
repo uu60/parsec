@@ -7,15 +7,12 @@
 
 #include <vector>
 
-#include "./item/ABPair.h"
 #include "./item/Bmt.h"
 #include "./item/SRot.h"
-#include "../sync/LockBlockingQueue.h"
 #include "./item/RRot.h"
-#include "../sync/BoostLockFreeQueue.h"
-#include "../sync/BoostSpscQueue.h"
 #include "../conf/Conf.h"
 #include "./item/BitwiseBmt.h"
+#include "sync/AbstractBlockingQueue.h"
 
 
 class IntermediateDataSupport {

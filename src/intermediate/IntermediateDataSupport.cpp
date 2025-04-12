@@ -10,6 +10,9 @@
 #include "intermediate/BmtGenerator.h"
 #include "ot/BaseOtExecutor.h"
 #include "parallel/ThreadPoolSupport.h"
+#include "sync/BoostLockFreeQueue.h"
+#include "sync/BoostSpscQueue.h"
+#include "sync/LockBlockingQueue.h"
 #include "utils/Log.h"
 #include "utils/Math.h"
 

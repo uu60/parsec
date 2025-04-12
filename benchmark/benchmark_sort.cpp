@@ -3,6 +3,7 @@
 //
 
 #include <vector>
+#include <climits>
 
 #include "../include/compute/batch/bool/BoolAndBatchExecutor.h"
 #include "../include/compute/batch/bool/BoolLessBatchExecutor.h"
