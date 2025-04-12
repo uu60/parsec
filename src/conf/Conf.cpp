@@ -19,6 +19,8 @@ void Conf::init(int argc, char **argv) {
                 ("help", "Display help message")
                 ("bmt_method", po::value<std::string>(&bmt_method)->default_value("bmt_background"),
                  "Set bmt_method (bmt_background, bmt_jit, bmt_fixed, bmt_batch_background)")
+                ("bmt_pre_gen_seconds", po::value<int>(&BMT_PRE_GEN_SECONDS)->default_value(BMT_PRE_GEN_SECONDS),
+                 "Set bmt_pre_gen_seconds")
                 ("max_bmts", po::value<int>(&MAX_BMTS)->default_value(5),
                  "Set max_bmts")
                 ("bmt_usage_limit", po::value<int>(&BMT_USAGE_LIMIT)->default_value(10),

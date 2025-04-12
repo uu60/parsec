@@ -66,7 +66,12 @@ void IntermediateDataSupport::init() {
     }
 
     prepareRot();
+
     prepareBmt();
+
+    if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND && Conf::BMT_PRE_GEN_SECONDS > 0) {
+        std::this_thread::sleep_for(std::chrono::seconds(Conf::BMT_PRE_GEN_SECONDS));
+    }
 }
 
 void IntermediateDataSupport::prepareRot() {

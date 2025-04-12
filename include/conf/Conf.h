@@ -39,6 +39,8 @@ public:
     // ---------------Settings for bmts---------------
     // If intermediate data produced in background (DO NOT FORGET TO ENABLE MULTI-THREAD)
     inline static BmtT BMT_METHOD = BMT_JIT;
+    // Pregen time
+    inline static int BMT_PRE_GEN_SECONDS = 0;
     // Bmt max num in queue (INVALID when BMT_BACKGROUND is false)
     inline static int MAX_BMTS = 10000;
     // Used times limit of one bmt (INVALID when BMT_BACKGROUND is false)
