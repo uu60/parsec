@@ -29,9 +29,15 @@ public:
             _ctplPool = new CtplThreadPool(Conf::LOCAL_THREADS);
         } else if (Conf::THREAD_POOL_TYPE == Conf::TBB_POOL) {
             _tbbPool = new TbbThreadPool(Conf::LOCAL_THREADS);
-        } else if (Conf::THREAD_POOL_TYPE == Conf::ASYNC_POOL) {
+        } else if (Conf::THREAD_POOL_TYPE == Conf::ASYNC) {
             _async = new Async();
         }
+    }
+
+    static void finalize() {
+        delete _ctplPool;
+        delete _tbbPool;
+        delete _async;
     }
 
     template <typename F>
@@ -56,7 +62,7 @@ public:
         if (Conf::THREAD_POOL_TYPE == Conf::TBB_POOL) {
             return _tbbPool->submit(f);
         }
-        if (Conf::THREAD_POOL_TYPE == Conf::ASYNC_POOL) {
+        if (Conf::THREAD_POOL_TYPE == Conf::ASYNC) {
             return _async->submit(f);
         }
         // If no proper pool, run in caller itself

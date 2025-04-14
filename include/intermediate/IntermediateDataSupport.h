@@ -34,7 +34,6 @@ public:
     inline static Bmt _fixedBmt;
     inline static BitwiseBmt _fixedBitwiseBmt;
 
-public:
     inline static SRot *_sRot = nullptr;
     inline static RRot *_rRot = nullptr;
 
@@ -53,6 +52,8 @@ private:
 
 public:
     static void init();
+
+    static void finalize();
 
     // MUST SEQUENTIAL ACCESS
     static std::vector<Bmt> pollBmts(int count, int width);

@@ -5,6 +5,7 @@
 #ifndef CONF_H
 #define CONF_H
 #include <thread>
+#include <climits>
 
 class Conf {
 public:
@@ -12,7 +13,7 @@ public:
     enum PoolT {
         CTPL_POOL,
         TBB_POOL,
-        ASYNC_POOL,
+        ASYNC,
     };
 
     // blocking queue type
@@ -42,7 +43,7 @@ public:
     // Pregen time
     inline static int BMT_PRE_GEN_SECONDS = 0;
     // Bmt max num in queue (INVALID when BMT_BACKGROUND is false)
-    inline static int MAX_BMTS = 10000;
+    inline static int MAX_BMTS = INT_MAX;
     // Used times limit of one bmt (INVALID when BMT_BACKGROUND is false)
     inline static int BMT_USAGE_LIMIT = 1;
     // Blocking Bmt Queue (INVALID when background bmt is disabled)
@@ -64,13 +65,13 @@ public:
     // Sum of threads in a process
     inline static int LOCAL_THREADS = static_cast<int>(std::thread::hardware_concurrency());
     // Index of thread pool type (0 = ctpl, 1 = tbb)
-    inline static int THREAD_POOL_TYPE = ASYNC_POOL;
+    inline static int THREAD_POOL_TYPE = ASYNC;
 
     // ---------------Settings for networks---------------
     // Communication object index (0 = OpenMpi)
     inline static CommT COMM_TYPE = MPI;
     // Invalid if intra parallelism or batching is false
-    inline static int BATCH_SIZE = 10;
+    inline static int BATCH_SIZE = 100000;
     // Transfer compression
     inline static bool ENABLE_TRANSFER_COMPRESSION = true;
 

@@ -16,6 +16,10 @@ public:
         pool = new ctpl::thread_pool(num_threads);
     }
 
+    ~CtplThreadPool() {
+        delete pool;
+    }
+
     template<typename F>
     auto submit(F &&f) -> std::future<decltype(f())> {
         using ReturnType = std::invoke_result_t<F>;

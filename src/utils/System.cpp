@@ -40,9 +40,13 @@ void System::finalize() {
     // Wait all threads done
     _shutdown = true;
     // Wait for generators to stop
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
     // finalize comm
     Comm::finalize();
+    // finalize thread pools
+    ThreadPoolSupport::finalize();
+    // finalize intermediate
+    IntermediateDataSupport::finalize();
     Log::i("System shut down.");
 }
 

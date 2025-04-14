@@ -15,42 +15,70 @@ void Conf::init(int argc, char **argv) {
         std::string thread_pool;
         std::string comm_type;
 
+        if (BMT_METHOD == BMT_FIXED) {
+            bmt_method = "bmt_fixed";
+        } else if (BMT_METHOD == BMT_JIT) {
+            bmt_method = "bmt_jit";
+        } else if (BMT_METHOD == BMT_BACKGROUND) {
+            bmt_method = "bmt_background";
+        }
+
+        if (BMT_QUEUE_TYPE == LOCK_QUEUE) {
+            bmt_queue_type = "lock_queue";
+        } else if (BMT_QUEUE_TYPE == LOCK_FREE_QUEUE) {
+            bmt_queue_type = "lock_free_queue";
+        } else if (BMT_QUEUE_TYPE == SPSC_QUEUE) {
+            bmt_queue_type = "spsc_queue";
+        }
+
+        if (THREAD_POOL_TYPE == ASYNC) {
+            thread_pool = "async";
+        } else if (THREAD_POOL_TYPE == CTPL_POOL) {
+            thread_pool = "ctpl_pool";
+        } else if (THREAD_POOL_TYPE == TBB_POOL) {
+            thread_pool = "tbb_pool";
+        }
+
+        if (COMM_TYPE == MPI) {
+            comm_type = "mpi";
+        }
+
         desc.add_options()
                 ("help", "Display help message")
-                ("bmt_method", po::value<std::string>(&bmt_method)->default_value("bmt_background"),
+                ("bmt_method", po::value<std::string>(&bmt_method)->default_value(bmt_method),
                  "Set bmt_method (bmt_background, bmt_jit, bmt_fixed, bmt_batch_background)")
                 ("bmt_pre_gen_seconds", po::value<int>(&BMT_PRE_GEN_SECONDS)->default_value(BMT_PRE_GEN_SECONDS),
                  "Set bmt_pre_gen_seconds")
-                ("max_bmts", po::value<int>(&MAX_BMTS)->default_value(5),
+                ("max_bmts", po::value<int>(&MAX_BMTS)->default_value(MAX_BMTS),
                  "Set max_bmts")
-                ("bmt_usage_limit", po::value<int>(&BMT_USAGE_LIMIT)->default_value(10),
+                ("bmt_usage_limit", po::value<int>(&BMT_USAGE_LIMIT)->default_value(BMT_USAGE_LIMIT),
                  "Set bmt_usage_limit")
-                ("bmt_queue_type", po::value<std::string>(&bmt_queue_type)->default_value("spsc_queue"),
+                ("bmt_queue_type", po::value<std::string>(&bmt_queue_type)->default_value(bmt_queue_type),
                  "Set bmt_queue_type (cas_queue, lock_queue, spsc_queue)")
-                ("bmt_queue_num", po::value<int>(&BMT_QUEUE_NUM)->default_value(1), "Set bmt_queue_num")
-                ("disable_arith", po::value<bool>(&DISABLE_ARITH)->default_value(true), "Set disable_arith")
-                ("bmt_gen_batch_size", po::value<int>(&BMT_GEN_BATCH_SIZE)->default_value(100000),
+                ("bmt_queue_num", po::value<int>(&BMT_QUEUE_NUM)->default_value(BMT_QUEUE_NUM), "Set bmt_queue_num")
+                ("disable_arith", po::value<bool>(&DISABLE_ARITH)->default_value(DISABLE_ARITH), "Set disable_arith")
+                ("bmt_gen_batch_size", po::value<int>(&BMT_GEN_BATCH_SIZE)->default_value(BMT_GEN_BATCH_SIZE),
                  "Set bmt_gen_batch_size")
-                ("task_tag_bits", po::value<int>(&TASK_TAG_BITS)->default_value(6),
+                ("task_tag_bits", po::value<int>(&TASK_TAG_BITS)->default_value(TASK_TAG_BITS),
                  "Set task_tag_bits")
-                ("disable_multi_thread", po::value<bool>(&DISABLE_MULTI_THREAD)->default_value(false),
+                ("disable_multi_thread", po::value<bool>(&DISABLE_MULTI_THREAD)->default_value(DISABLE_MULTI_THREAD),
                  "Set disable_multi_thread (true/false)")
                 ("enable_intra_operator_parallelism",
-                 po::value<bool>(&ENABLE_INTRA_OPERATOR_PARALLELISM)->default_value(false),
+                 po::value<bool>(&ENABLE_INTRA_OPERATOR_PARALLELISM)->default_value(ENABLE_INTRA_OPERATOR_PARALLELISM),
                  "Set intra_operator_parallelism (true/false)")
-                ("local_threads", po::value<int>(&LOCAL_THREADS)->default_value(4),
+                ("local_threads", po::value<int>(&LOCAL_THREADS)->default_value(LOCAL_THREADS),
                  "Set local_threads")
-                ("thread_pool", po::value<std::string>(&thread_pool)->default_value("async_pool"),
+                ("thread_pool", po::value<std::string>(&thread_pool)->default_value(thread_pool),
                  "Set thread_pool (ctpl_pool, tbb_pool)")
-                ("comm_type", po::value<std::string>(&comm_type)->default_value("mpi"),
+                ("comm_type", po::value<std::string>(&comm_type)->default_value(comm_type),
                  "Set comm_type (mpi)")
-                ("batch_size", po::value<int>(&BATCH_SIZE)->default_value(64),
+                ("batch_size", po::value<int>(&BATCH_SIZE)->default_value(BATCH_SIZE),
                  "Set batch_size")
-                ("enable_transfer_compression", po::value<bool>(&ENABLE_TRANSFER_COMPRESSION)->default_value(false),
+                ("enable_transfer_compression", po::value<bool>(&ENABLE_TRANSFER_COMPRESSION)->default_value(ENABLE_TRANSFER_COMPRESSION),
                  "Set enable_transfer_compression (true/false)")
-                ("enable_class_wise_timing", po::value<bool>(&ENABLE_CLASS_WISE_TIMING)->default_value(false),
+                ("enable_class_wise_timing", po::value<bool>(&ENABLE_CLASS_WISE_TIMING)->default_value(ENABLE_CLASS_WISE_TIMING),
                  "Set enable_class_wise_timing (true/false)")
-                ("enable_simd", po::value<bool>(&ENABLE_SIMD)->default_value(true),
+                ("enable_simd", po::value<bool>(&ENABLE_SIMD)->default_value(ENABLE_SIMD),
                  "Set enable_simd (true/false)");
 
         po::parsed_options parsed = po::command_line_parser(argc, argv)
@@ -95,8 +123,8 @@ void Conf::init(int argc, char **argv) {
                 THREAD_POOL_TYPE = CTPL_POOL;
             } else if (thread_pool == "tbb_pool") {
                 THREAD_POOL_TYPE = TBB_POOL;
-            } else if (thread_pool == "async_pool") {
-                THREAD_POOL_TYPE = ASYNC_POOL;
+            } else if (thread_pool == "async") {
+                THREAD_POOL_TYPE = ASYNC;
             } else {
                 throw std::runtime_error("Unknown thread_pool value.");
             }

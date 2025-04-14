@@ -74,6 +74,13 @@ void IntermediateDataSupport::init() {
     }
 }
 
+void IntermediateDataSupport::finalize() {
+    delete _currentBmt;
+    delete _currentBitwiseBmt;
+    delete _sRot;
+    delete _rRot;
+}
+
 void IntermediateDataSupport::prepareRot() {
     if (Comm::isClient()) {
         return;
