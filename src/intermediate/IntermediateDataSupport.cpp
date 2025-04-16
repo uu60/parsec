@@ -15,6 +15,7 @@
 #include "sync/LockBlockingQueue.h"
 #include "utils/Log.h"
 #include "utils/Math.h"
+#include <climits>
 
 void IntermediateDataSupport::prepareBmt() {
     if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
@@ -32,7 +33,7 @@ void IntermediateDataSupport::prepareBmt() {
             }
         } else {
             for (int i = 0; i < Conf::BMT_QUEUE_NUM; i++) {
-                _bitwiseBmtQs[i] = new BoostSPSCQueue<BitwiseBmt, 10000000>();
+                _bitwiseBmtQs[i] = new BoostSPSCQueue<BitwiseBmt, INT_MAX>();
             }
         }
         startGenerateBitwiseBmtsAsync();
@@ -52,7 +53,7 @@ void IntermediateDataSupport::prepareBmt() {
             }
         } else {
             for (int i = 0; i < Conf::BMT_QUEUE_NUM; i++) {
-                _bmtQs[i] = new BoostSPSCQueue<Bmt, 10000000>();
+                _bmtQs[i] = new BoostSPSCQueue<Bmt, INT_MAX>();
             }
         }
         startGenerateBmtsAsync();

@@ -41,7 +41,8 @@ void RandOtBatchExecutor::execute0() {
                                                   ? IntermediateDataSupport::_sRot->_r1
                                                   : IntermediateDataSupport::_sRot->_r0);
         }
-        Comm::serverSend(toSend, _width, buildTag(_currentMsgTag));
+        auto r1 = Comm::serverSendAsync(toSend, _width, buildTag(_currentMsgTag));
+        Comm::wait(r1);
     } else {
         std::vector<int64_t> ks;
         int size = static_cast<int>(_choices->size());
