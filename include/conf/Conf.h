@@ -73,7 +73,7 @@ public:
     // Invalid if intra parallelism or batching is false
     inline static int BATCH_SIZE = 100000;
     // Transfer compression
-    inline static bool ENABLE_TRANSFER_COMPRESSION = true;
+    inline static bool ENABLE_TRANSFER_COMPRESSION = false;
     // Random OT in redundant data transfer
     inline static bool ENABLE_REDUNDANT_OT = true;
 

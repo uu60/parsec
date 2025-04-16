@@ -33,7 +33,7 @@ void IntermediateDataSupport::prepareBmt() {
             }
         } else {
             for (int i = 0; i < Conf::BMT_QUEUE_NUM; i++) {
-                _bitwiseBmtQs[i] = new BoostSPSCQueue<BitwiseBmt, INT_MAX>();
+                _bitwiseBmtQs[i] = new BoostSPSCQueue<BitwiseBmt, 10000000>();
             }
         }
         startGenerateBitwiseBmtsAsync();

@@ -14,6 +14,7 @@
 #include "utils/Log.h"
 
 void MpiComm::finalize_() {
+    MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize();
 }
 
