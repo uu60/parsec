@@ -74,6 +74,8 @@ public:
     inline static int BATCH_SIZE = 100000;
     // Transfer compression
     inline static bool ENABLE_TRANSFER_COMPRESSION = true;
+    // Random OT in redundant data transfer
+    inline static bool ENABLE_REDUNDANT_OT = true;
 
     // ---------------Settings for benchmark---------------
     inline static bool ENABLE_CLASS_WISE_TIMING = false;

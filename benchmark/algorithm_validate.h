@@ -355,5 +355,23 @@ inline void test_batch_less_17() {
     }
 }
 
+inline void test_bits_ot_18() {
+    auto t = System::nextTask();
+    if (Comm::isServer()) {
+        std::vector<int64_t> m0;
+        std::vector<int64_t> m1;
+        std::vector<int64_t> c;
+        m0 = {-1};
+        m1 = {0b1001};
+        c = {0b0011};
+        RandOtBatchExecutor e(0, &m0, &m1, &c, 32, t, 0);
+        e.execute();
+        if (Comm::rank() == 1) {
+            Log::i("result: {}", Math::toBinString<64>(e._results[0]));
+            Log::i("result: {}", Math::toBinString<64>(e._results[1]));
+        }
+    }
+}
+
 
 #endif //DEMO_TEST_CASES_H

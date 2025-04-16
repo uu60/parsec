@@ -78,6 +78,9 @@ int main(int argc, char **argv) {
             break;
         case 17:
             test_batch_less_17();
+            break;
+        case 18:
+            test_bits_ot_18();
     }
 
     System::finalize();

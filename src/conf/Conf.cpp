@@ -74,9 +74,13 @@ void Conf::init(int argc, char **argv) {
                  "Set comm_type (mpi)")
                 ("batch_size", po::value<int>(&BATCH_SIZE)->default_value(BATCH_SIZE),
                  "Set batch_size")
-                ("enable_transfer_compression", po::value<bool>(&ENABLE_TRANSFER_COMPRESSION)->default_value(ENABLE_TRANSFER_COMPRESSION),
+                ("enable_transfer_compression",
+                 po::value<bool>(&ENABLE_TRANSFER_COMPRESSION)->default_value(ENABLE_TRANSFER_COMPRESSION),
                  "Set enable_transfer_compression (true/false)")
-                ("enable_class_wise_timing", po::value<bool>(&ENABLE_CLASS_WISE_TIMING)->default_value(ENABLE_CLASS_WISE_TIMING),
+                ("enable_redundant_ot", po::value<bool>(&ENABLE_REDUNDANT_OT)->default_value(ENABLE_REDUNDANT_OT),
+                 "Set enable_redundant_ot")
+                ("enable_class_wise_timing",
+                 po::value<bool>(&ENABLE_CLASS_WISE_TIMING)->default_value(ENABLE_CLASS_WISE_TIMING),
                  "Set enable_class_wise_timing (true/false)")
                 ("enable_simd", po::value<bool>(&ENABLE_SIMD)->default_value(ENABLE_SIMD),
                  "Set enable_simd (true/false)");

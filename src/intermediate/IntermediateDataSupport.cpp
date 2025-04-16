@@ -78,8 +78,10 @@ void IntermediateDataSupport::init() {
 void IntermediateDataSupport::finalize() {
     delete _currentBmt;
     delete _currentBitwiseBmt;
-    delete _sRot;
-    delete _rRot;
+    delete _sRot0;
+    delete _rRot0;
+    delete _sRot1;
+    delete _rRot1;
 }
 
 void IntermediateDataSupport::prepareRot() {
@@ -90,18 +92,36 @@ void IntermediateDataSupport::prepareRot() {
     for (int i = 0; i < 2; i++) {
         bool isSender = Comm::rank() == i;
         if (isSender) {
-            _sRot = new SRot();
-            _sRot->_r0 = Math::randInt();
-            _sRot->_r1 = Math::randInt();
+            _sRot0 = new SRot();
+            _sRot0->_r0 = Math::randInt();
+            _sRot0->_r1 = Math::randInt();
         } else {
-            _rRot = new RRot();
-            _rRot->_b = static_cast<int>(Math::randInt(0, 1));;
+            _rRot0 = new RRot();
+            _rRot0->_b = static_cast<int>(Math::randInt(0, 1));
         }
-        BaseOtExecutor e(i, isSender ? _sRot->_r0 : -1, isSender ? _sRot->_r1 : -1, !isSender ? _rRot->_b : -1,
+        BaseOtExecutor e(i, isSender ? _sRot0->_r0 : -1, isSender ? _sRot0->_r1 : -1, !isSender ? _rRot0->_b : -1,
                          64, 2, i * BaseOtExecutor::msgTagCount());
         e.execute();
         if (!isSender) {
-            _rRot->_rb = e._result;
+            _rRot0->_rb = e._result;
+        }
+    }
+
+    for (int i = 0; i < 2; i++) {
+        bool isSender = Comm::rank() == i;
+        if (isSender) {
+            _sRot1 = new SRot();
+            _sRot1->_r0 = Math::randInt();
+            _sRot1->_r1 = Math::randInt();
+        } else {
+            _rRot1 = new RRot();
+            _rRot1->_b = 1 - _rRot0->_b;
+        }
+        BaseOtExecutor e(i, isSender ? _sRot1->_r0 : -1, isSender ? _sRot1->_r1 : -1, !isSender ? _rRot1->_b : -1,
+                         64, 2, i * BaseOtExecutor::msgTagCount());
+        e.execute();
+        if (!isSender) {
+            _rRot1->_rb = e._result;
         }
     }
 }
@@ -180,10 +200,12 @@ void IntermediateDataSupport::startGenerateBmtsAsync() {
     if (Comm::isServer() && Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
         for (int i = 0; i < Conf::BMT_QUEUE_NUM; i++) {
             ThreadPoolSupport::submit([i] {
-                auto q = _bmtQs[i];
-                while (!System::_shutdown.load()) {
-                    q->offer(BmtGenerator(64, Conf::BMT_QUEUE_NUM + i, 0).execute()->_bmt);
-                }
+                try {
+                    auto q = _bmtQs[i];
+                    while (!System::_shutdown.load()) {
+                        q->offer(BmtGenerator(64, Conf::BMT_QUEUE_NUM + i, 0).execute()->_bmt);
+                    }
+                } catch (...) {}
             });
         }
     }
@@ -193,13 +215,15 @@ void IntermediateDataSupport::startGenerateBitwiseBmtsAsync() {
     if (Comm::isServer() && Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
         for (int i = 0; i < Conf::BMT_QUEUE_NUM; i++) {
             ThreadPoolSupport::submit([i] {
-                auto q = _bitwiseBmtQs[i];
-                while (!System::_shutdown.load()) {
-                    auto bitwiseBmts = BitwiseBmtBatchGenerator(Conf::BMT_GEN_BATCH_SIZE, 64, i, 0).execute()->_bmts;
-                    for (auto b: bitwiseBmts) {
-                        q->offer(b);
+                try {
+                    auto q = _bitwiseBmtQs[i];
+                    while (!System::_shutdown.load()) {
+                        auto bitwiseBmts = BitwiseBmtBatchGenerator(Conf::BMT_GEN_BATCH_SIZE, 64, i, 0).execute()->_bmts;
+                        for (auto b: bitwiseBmts) {
+                            q->offer(b);
+                        }
                     }
-                }
+                } catch (...) {}
             });
         }
     }

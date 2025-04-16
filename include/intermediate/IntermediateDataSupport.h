@@ -34,8 +34,10 @@ public:
     inline static Bmt _fixedBmt;
     inline static BitwiseBmt _fixedBitwiseBmt;
 
-    inline static SRot *_sRot = nullptr;
-    inline static RRot *_rRot = nullptr;
+    inline static SRot *_sRot0 = nullptr;
+    inline static RRot *_rRot0 = nullptr;
+    inline static SRot *_sRot1 = nullptr;
+    inline static RRot *_rRot1 = nullptr;
 
 private:
     static void prepareBmt();

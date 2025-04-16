@@ -31,6 +31,8 @@ private:
     void execute0();
 
     void executeForBits();
+
+    void executeForBitsSingleTransfer();
 };
 
 

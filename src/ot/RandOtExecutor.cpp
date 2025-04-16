@@ -14,19 +14,19 @@ RandOtExecutor *RandOtExecutor::execute() {
         if (_isSender) {
             Comm::serverReceive(k, _width, buildTag(_currentMsgTag));
 
-            y0 = _m0 ^ (k == 0 ? IntermediateDataSupport::_sRot->_r0 : IntermediateDataSupport::_sRot->_r1);
-            y1 = _m1 ^ (k == 0 ? IntermediateDataSupport::_sRot->_r1 : IntermediateDataSupport::_sRot->_r0);
+            y0 = _m0 ^ (k == 0 ? IntermediateDataSupport::_sRot0->_r0 : IntermediateDataSupport::_sRot0->_r1);
+            y1 = _m1 ^ (k == 0 ? IntermediateDataSupport::_sRot0->_r1 : IntermediateDataSupport::_sRot0->_r0);
 
             std::vector y01 = {y0, y1};
             Comm::serverSend(y01, _width, buildTag(_currentMsgTag));
         } else {
-            k = IntermediateDataSupport::_rRot->_b ^ _choice;
+            k = IntermediateDataSupport::_rRot0->_b ^ _choice;
             Comm::serverSend(k, _width, buildTag(_currentMsgTag));
 
             std::vector<int64_t> y01;
             Comm::serverReceive(y01, _width, buildTag(_currentMsgTag));
 
-            _result = ring(y01[_choice] ^ IntermediateDataSupport::_rRot->_rb);
+            _result = ring(y01[_choice] ^ IntermediateDataSupport::_rRot0->_rb);
         }
     }
     return this;
