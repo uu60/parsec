@@ -75,15 +75,11 @@ int64_t Math::randInt() {
 }
 
 int64_t Math::randInt(int64_t lowest, int64_t highest) {
-    // random engine
-    std::random_device rd;
-    std::mt19937 generator(rd());
+    thread_local std::mt19937_64 generator(std::random_device{}());
 
-    // distribution in integer range
-    std::uniform_int_distribution<int64_t> distribution(lowest, highest);
+    std::uniform_int_distribution<int64_t> dist(lowest, highest);
 
-    // generation
-    return distribution(generator);
+    return dist(generator);
 }
 
 std::string Math::add(const std::string &add0, int64_t add1) {

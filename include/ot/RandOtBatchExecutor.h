@@ -11,7 +11,6 @@ class RandOtBatchExecutor : public AbstractOtBatchExecutor {
 public:
     inline static std::atomic_int64_t _totalTime = 0;
     bool _doBits{};
-    int64_t _totalBits{};
     std::vector<int64_t> * _choiceBits{};
 
 public:
@@ -21,7 +20,7 @@ public:
     }
 
     RandOtBatchExecutor(int sender, std::vector<int64_t> *bits0, std::vector<int64_t> *bits1,
-                        std::vector<int64_t> *choiceBits, int64_t totalBits, int taskTag, int msgTagOffset);
+                        std::vector<int64_t> *choiceBits, int taskTag, int msgTagOffset);
 
     RandOtBatchExecutor *execute() override;
 
@@ -33,6 +32,11 @@ private:
     void executeForBits();
 
     void executeForBitsSingleTransfer();
+
+    /**
+     * Based on executeForBitsSingleTransfer() but no synchronization after
+     */
+    void executeForBitsAsync();
 };
 
 

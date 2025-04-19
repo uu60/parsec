@@ -17,11 +17,13 @@
 #include "utils/Math.h"
 #include <climits>
 
+#include "intermediate/PipelineBitwiseBmtBatchGenerator.h"
+
 void IntermediateDataSupport::prepareBmt() {
     if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
         _fixedBmt = BmtGenerator(64, 0, 0).execute()->_bmt;
         _fixedBitwiseBmt = BitwiseBmtGenerator(64, 0, 0).execute()->_bmt;
-    } else if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
+    } else if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND || Conf::BMT_METHOD == Conf::BMT_PIPELINE) {
         _bitwiseBmtQs.resize(Conf::BMT_QUEUE_NUM);
         if (Conf::BMT_QUEUE_TYPE == Conf::LOCK_QUEUE) {
             for (int i = 0; i < Conf::BMT_QUEUE_NUM; i++) {
@@ -36,6 +38,7 @@ void IntermediateDataSupport::prepareBmt() {
                 _bitwiseBmtQs[i] = new BoostSPSCQueue<BitwiseBmt, 10000000>();
             }
         }
+
         startGenerateBitwiseBmtsAsync();
 
         if (Conf::DISABLE_ARITH) {
@@ -53,7 +56,7 @@ void IntermediateDataSupport::prepareBmt() {
             }
         } else {
             for (int i = 0; i < Conf::BMT_QUEUE_NUM; i++) {
-                _bmtQs[i] = new BoostSPSCQueue<Bmt, INT_MAX>();
+                _bmtQs[i] = new BoostSPSCQueue<Bmt, 10000000>();
             }
         }
         startGenerateBmtsAsync();
@@ -70,7 +73,7 @@ void IntermediateDataSupport::init() {
 
     prepareBmt();
 
-    if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND && Conf::BMT_PRE_GEN_SECONDS > 0) {
+    if ((Conf::BMT_METHOD == Conf::BMT_BACKGROUND || Conf::BMT_METHOD == Conf::BMT_PIPELINE) && Conf::BMT_PRE_GEN_SECONDS > 0) {
         std::this_thread::sleep_for(std::chrono::seconds(Conf::BMT_PRE_GEN_SECONDS));
     }
 }
@@ -212,7 +215,7 @@ void IntermediateDataSupport::startGenerateBmtsAsync() {
 }
 
 void IntermediateDataSupport::startGenerateBitwiseBmtsAsync() {
-    if (Comm::isServer() && Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
+    if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
         for (int i = 0; i < Conf::BMT_QUEUE_NUM; i++) {
             ThreadPoolSupport::submit([i] {
                 try {
@@ -223,6 +226,16 @@ void IntermediateDataSupport::startGenerateBitwiseBmtsAsync() {
                             q->offer(b);
                         }
                     }
+                } catch (...) {}
+            });
+        }
+    } else if (Conf::BMT_METHOD == Conf::BMT_PIPELINE) {
+        for (int i = 0; i < Conf::BMT_QUEUE_NUM; i++) {
+            ThreadPoolSupport::submit([i] {
+                try {
+                    auto g = new PipelineBitwiseBmtBatchGenerator(i, i, 0);
+                    g->execute();
+                    delete g;
                 } catch (...) {}
             });
         }

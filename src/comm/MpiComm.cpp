@@ -31,6 +31,8 @@ void MpiComm::init_(int argc, char **argv) {
             MPI_Abort(MPI_COMM_WORLD, 1);
         }
     }
+    MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
+    MPI_Comm_set_errhandler(MPI_COMM_SELF,  MPI_ERRORS_RETURN);
     // process _mpiRank and sum
     MPI_Comm_rank(MPI_COMM_WORLD, &_mpiRank);
     MPI_Comm_size(MPI_COMM_WORLD, &_mpiSize);

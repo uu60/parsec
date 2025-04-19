@@ -54,7 +54,7 @@ inline void test_rand_ot_batch_for_bit_1() {
     std::vector<int64_t> ms1 = {0b01001010};
     std::vector<int64_t> choices = {0b10011110};
 
-    auto e = RandOtBatchExecutor(0, &ms0, &ms1, &choices, 4 * 64, t, 0);
+    auto e = RandOtBatchExecutor(0, &ms0, &ms1, &choices, t, 0);
     e.execute();
 
     if (Comm::rank() == 1) {
@@ -364,7 +364,7 @@ inline void test_bits_ot_18() {
         m0 = {-1};
         m1 = {0b1001};
         c = {0b0011};
-        RandOtBatchExecutor e(0, &m0, &m1, &c, 32, t, 0);
+        RandOtBatchExecutor e(0, &m0, &m1, &c, t, 0);
         e.execute();
         if (Comm::rank() == 1) {
             Log::i("result: {}", Math::toBinString<64>(e._results[0]));

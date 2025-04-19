@@ -32,7 +32,8 @@ public:
     enum BmtT {
         BMT_BACKGROUND,
         BMT_JIT,
-        BMT_FIXED
+        BMT_FIXED,
+        BMT_PIPELINE
      };
 public:
     static void init(int argc, char **argv);

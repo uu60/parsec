@@ -20,7 +20,7 @@ public:
     explicit BoostLockFreeQueue(size_t capacity)
         : queue(capacity), max_capacity(capacity) {}
 
-    void offer(const T& item) override {
+    void offer(T item) override {
         while (!queue.push(item)) {
             std::this_thread::yield();
         }

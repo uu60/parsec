@@ -8,6 +8,7 @@
 
 #include <boost/lockfree/spsc_queue.hpp>
 #include <thread>
+#include "utils/Log.h"
 
 #include "AbstractBlockingQueue.h"
 
@@ -19,7 +20,7 @@ private:
 public:
     BoostSPSCQueue() : _queue() {}
 
-    void offer(const T &item) override {
+    void offer(T item) override {
         while (!_queue.push(item)) {
             std::this_thread::yield();
         }

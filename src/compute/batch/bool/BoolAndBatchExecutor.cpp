@@ -22,7 +22,7 @@ int BoolAndBatchExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
         // ceil division
         bc = (totalBits + 63) / 64;
     }
-    if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
+    if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND || Conf::BMT_METHOD == Conf::BMT_PIPELINE) {
         if (bc == -1) {
             bmts = IntermediateDataSupport::pollBitwiseBmts(1, totalBits);
         } else {

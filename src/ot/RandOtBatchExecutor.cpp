@@ -5,17 +5,17 @@
 #include "../../include/ot/RandOtBatchExecutor.h"
 
 #include "../../include/intermediate/IntermediateDataSupport.h"
+#include "parallel/ThreadPoolSupport.h"
 #include "utils/Log.h"
 
 RandOtBatchExecutor::RandOtBatchExecutor(int sender, std::vector<int64_t> *bits0, std::vector<int64_t> *bits1,
-                                         std::vector<int64_t> *choiceBits, int64_t totalBits, int taskTag,
+                                         std::vector<int64_t> *choiceBits, int taskTag,
                                          int msgTagOffset) : AbstractOtBatchExecutor(64, taskTag, msgTagOffset) {
     if (Comm::isClient()) {
         return;
     }
 
     _doBits = true;
-    _totalBits = totalBits;
     _isSender = sender == Comm::rank();
     if (_isSender) {
         _ms0 = bits0;
@@ -190,6 +190,65 @@ void RandOtBatchExecutor::executeForBitsSingleTransfer() {
             // }
             // _results[i] = e;
         }
+    }
+}
+
+void RandOtBatchExecutor::executeForBitsAsync() {
+    if (_isSender) {
+        int size = static_cast<int>(_ms0->size());
+        std::vector<int64_t> toSend(size * 4);
+
+        int64_t ir00 = IntermediateDataSupport::_sRot0->_r0;
+        int64_t ir01 = IntermediateDataSupport::_sRot0->_r1;
+        int64_t ir10 = IntermediateDataSupport::_sRot1->_r0;
+        int64_t ir11 = IntermediateDataSupport::_sRot1->_r1;
+
+        for (int i = 0; i < size; ++i) {
+            toSend[i * 4] = (*_ms0)[i] ^ ir00;
+            toSend[i * 4 + 1] = (*_ms1)[i] ^ ir01;
+            toSend[i * 4 + 2] = (*_ms0)[i] ^ ir10;
+            toSend[i * 4 + 3] = (*_ms1)[i] ^ ir11;
+        }
+
+        auto r = Comm::serverSendAsync(toSend, _width, buildTag(_currentMsgTag));
+    } else {
+        int size = static_cast<int>(_choiceBits->size());
+        std::vector<int64_t> toRecv(size * 4);
+
+        bool ib0 = IntermediateDataSupport::_rRot0->_b;
+        int64_t ir0b = IntermediateDataSupport::_rRot0->_rb;
+        int64_t ir1b = IntermediateDataSupport::_rRot1->_rb;
+
+        _results.resize(size);
+
+        auto r = Comm::serverReceiveAsync(toRecv, size * 4, _width, buildTag(_currentMsgTag));
+
+        ThreadPoolSupport::submit([&] {
+            Comm::wait(r);
+
+            std::vector<int64_t> res(size);
+            for (int i = 0; i < size; ++i) {
+                int64_t choice_bits = (*_choiceBits)[i];
+
+                int64_t mask_sel0 = ib0 ? choice_bits : ~choice_bits;
+
+                int64_t yb00 = toRecv[i * 4 + 0];
+                int64_t yb01 = toRecv[i * 4 + 1];
+                int64_t yb10 = toRecv[i * 4 + 2];
+                int64_t yb11 = toRecv[i * 4 + 3];
+
+                int64_t yb_sel0 = (yb00 & ~choice_bits) | (yb01 & choice_bits);
+                int64_t yb_sel1 = (yb10 & ~choice_bits) | (yb11 & choice_bits);
+
+                int64_t yb_combined = (yb_sel0 & mask_sel0) | (yb_sel1 & ~mask_sel0);
+
+                int64_t xor_val = (ir0b & mask_sel0) | (ir1b & ~mask_sel0);
+
+                res[i] = yb_combined ^ xor_val;
+            }
+
+            return res;
+        });
     }
 }
 

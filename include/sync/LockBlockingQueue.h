@@ -25,7 +25,7 @@ public:
     explicit LockBlockingQueue(size_t max_size) : _maxSize(max_size) {
     }
 
-    void offer(const T &item) override {
+    void offer(T item) override {
         std::unique_lock<std::mutex> lock(_mutex);
         _notFull.wait(lock, [this]() { return _queue.size() < _maxSize; });
         _queue.push(item);

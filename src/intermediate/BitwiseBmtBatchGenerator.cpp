@@ -80,7 +80,7 @@ void BitwiseBmtBatchGenerator::computeMix(int sender) {
         }
     }
 
-    auto results = RandOtBatchExecutor(sender, &ss0, &ss1, &choices, _totalBits, _taskTag,
+    auto results = RandOtBatchExecutor(sender, &ss0, &ss1, &choices, _taskTag,
                           _currentMsgTag + sender * RandOtBatchExecutor::msgTagCount()).execute()->_results;
 
     std::vector<int64_t> *mix = sender == 0 ? &_usi : &_vsi;

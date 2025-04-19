@@ -7,6 +7,7 @@
 
 #include <string>
 #include <bitset>
+#include <vector>
 
 class Math {
 public:

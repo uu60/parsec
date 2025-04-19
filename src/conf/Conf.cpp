@@ -21,6 +21,8 @@ void Conf::init(int argc, char **argv) {
             bmt_method = "bmt_jit";
         } else if (BMT_METHOD == BMT_BACKGROUND) {
             bmt_method = "bmt_background";
+        } else if (BMT_METHOD == BMT_PIPELINE) {
+            bmt_method = "bmt_pipeline";
         }
 
         if (BMT_QUEUE_TYPE == LOCK_QUEUE) {
@@ -105,6 +107,8 @@ void Conf::init(int argc, char **argv) {
                 BMT_METHOD = BMT_JIT;
             } else if (bmt_method == "bmt_fixed") {
                 BMT_METHOD = BMT_FIXED;
+            } else if (bmt_method == "bmt_pipeline") {
+                BMT_METHOD = BMT_PIPELINE;
             } else {
                 throw std::runtime_error("Unknown bmt_method value.");
             }
