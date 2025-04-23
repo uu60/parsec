@@ -102,11 +102,8 @@ BoolLessBatchExecutor *BoolLessBatchExecutor::setBmts(std::vector<BitwiseBmt> *b
     return this;
 }
 
-int BoolLessBatchExecutor::msgTagCount(int num, int width) {
-    if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
-        return BoolAndBatchExecutor::msgTagCount();
-    }
-    return bmtCount(num, width) * BitwiseBmtGenerator::msgTagCount(width);
+int BoolLessBatchExecutor::msgTagCount() {
+    return BoolAndBatchExecutor::msgTagCount();
 }
 
 int BoolLessBatchExecutor::bmtCount(int num, int width) {

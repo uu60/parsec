@@ -2,9 +2,9 @@
 // Created by 杜建璋 on 25-4-18.
 //
 
-#include "PipelineBitwiseBmtBatchGenerator.h"
+#include "../../include/intermediate/PipelineBitwiseBmtBatchGenerator.h"
 
-#include "IntermediateDataSupport.h"
+#include "../../include/intermediate/IntermediateDataSupport.h"
 #include "parallel/ThreadPoolSupport.h"
 
 PipelineBitwiseBmtBatchGenerator *PipelineBitwiseBmtBatchGenerator::execute() {
