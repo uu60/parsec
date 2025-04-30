@@ -4,18 +4,18 @@
 
 #ifndef BOOLBATCHEXECUTOR_H
 #define BOOLBATCHEXECUTOR_H
-#include "../../../base/AbstractBatchExecutor.h"
+#include "../../../base/AbstractBatchOperator.h"
 
 
-class BoolBatchExecutor : public AbstractBatchExecutor {
+class BoolBatchOperator : public AbstractBatchOperator {
 public:
-    BoolBatchExecutor(std::vector<int64_t>& zs, int width, int taskTag, int msgTagOffset, int clientRank);
+    BoolBatchOperator(std::vector<int64_t>& zs, int width, int taskTag, int msgTagOffset, int clientRank);
 
-    BoolBatchExecutor(std::vector<int64_t>* xs, std::vector<int64_t>* ys, int width, int taskTag, int msgTagOffset, int clientRank);
+    BoolBatchOperator(std::vector<int64_t>* xs, std::vector<int64_t>* ys, int width, int taskTag, int msgTagOffset, int clientRank);
 
-    BoolBatchExecutor *reconstruct(int clientRank) override;
+    BoolBatchOperator *reconstruct(int clientRank) override;
 
-    BoolBatchExecutor *execute() override;
+    BoolBatchOperator *execute() override;
 };
 
 

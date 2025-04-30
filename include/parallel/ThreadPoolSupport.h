@@ -56,6 +56,10 @@ public:
 
     template<typename F>
     static auto submit(F &&f) -> std::future<std::invoke_result_t<F> > {
+        if (Conf::DISABLE_MULTI_THREAD) {
+            // If no proper pool, run in caller itself
+            return callerRun(f);
+        }
         if (Conf::THREAD_POOL_TYPE == Conf::CTPL_POOL) {
             return _ctplPool->submit(f);
         }
@@ -65,8 +69,6 @@ public:
         if (Conf::THREAD_POOL_TYPE == Conf::ASYNC) {
             return _async->submit(f);
         }
-        // If no proper pool, run in caller itself
-        return callerRun(f);
     }
 };
 

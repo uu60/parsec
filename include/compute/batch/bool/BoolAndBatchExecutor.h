@@ -4,10 +4,10 @@
 
 #ifndef BOOLANDBATCHEXECUTOR_H
 #define BOOLANDBATCHEXECUTOR_H
-#include "./BoolBatchExecutor.h"
+#include "./BoolBatchOperator.h"
 #include "../../../intermediate/item/BitwiseBmt.h"
 
-class BoolAndBatchExecutor : public BoolBatchExecutor {
+class BoolAndBatchOperator : public BoolBatchOperator {
 private:
     // std::vector<Bmt> *_bmts{};
     std::vector<BitwiseBmt>* _bmts{};
@@ -20,18 +20,18 @@ public:
     inline static std::atomic_int64_t _totalTime = 0;
 
 public:
-    BoolAndBatchExecutor(std::vector<int64_t> *xs, std::vector<int64_t> *ys, int width, int taskTag, int msgTagOffset,
-                       int clientRank) : BoolBatchExecutor(xs, ys, width, taskTag, msgTagOffset, clientRank) {
+    BoolAndBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys, int width, int taskTag, int msgTagOffset,
+                       int clientRank) : BoolBatchOperator(xs, ys, width, taskTag, msgTagOffset, clientRank) {
     }
 
     // For mutex. Do [xs, ys] & [conds, conds]
-    BoolAndBatchExecutor(std::vector<int64_t> *xs, std::vector<int64_t> *ys, std::vector<int64_t> *conds, int width, int taskTag, int msgTagOffset);
+    BoolAndBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys, std::vector<int64_t> *conds, int width, int taskTag, int msgTagOffset);
 
-    BoolAndBatchExecutor *execute() override;
+    BoolAndBatchOperator *execute() override;
 
     [[nodiscard]] static int msgTagCount();
 
-    BoolAndBatchExecutor *setBmts(std::vector<BitwiseBmt> *bmts);
+    BoolAndBatchOperator *setBmts(std::vector<BitwiseBmt> *bmts);
 
     static int bmtCount(int num);
 

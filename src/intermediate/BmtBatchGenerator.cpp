@@ -6,7 +6,7 @@
 
 #include "conf/Conf.h"
 #include "intermediate/IntermediateDataSupport.h"
-#include "ot/RandOtBatchExecutor.h"
+#include "ot/RandOtBatchOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Math.h"
 
@@ -30,7 +30,7 @@ BmtBatchGenerator *BmtBatchGenerator::reconstruct(int clientRank) {
 }
 
 int BmtBatchGenerator::msgTagCount(int bmtCount, int width) {
-    return static_cast<int>(2 * width * bmtCount * RandOtExecutor::msgTagCount(width));
+    return static_cast<int>(2 * width * bmtCount * RandOtOperator::msgTagCount(width));
 }
 
 void BmtBatchGenerator::computeMix(int sender) {
@@ -59,8 +59,8 @@ void BmtBatchGenerator::computeMix(int sender) {
         }
     }
 
-    auto results = RandOtBatchExecutor(sender, &ss0, &ss1, &choices, _width, _taskTag,
-                                       _currentMsgTag + sender * RandOtBatchExecutor::msgTagCount()).execute()->
+    auto results = RandOtBatchOperator(sender, &ss0, &ss1, &choices, _width, _taskTag,
+                                       _currentMsgTag + sender * RandOtBatchOperator::msgTagCount()).execute()->
             _results;
 
     std::vector<int64_t> sums;

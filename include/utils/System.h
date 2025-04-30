@@ -13,7 +13,7 @@ private:
     /**
      * 0 is preserved for BmtGenerator.
      * 1 is preserved for BitwiseBmtGenerator.
-     * 2 is preserved for BaseOtExecutor. (No need for preservation)
+     * 2 is preserved for BaseOtOperator. (No need for preservation)
      * 3 is preserved for ABPairGenerator. (Abort)
      */
     inline static int PRESERVED_TASK_TAGS = 0;

@@ -5,7 +5,7 @@
 #ifndef BITWISEBMTBATCHGENERATOR_H
 #define BITWISEBMTBATCHGENERATOR_H
 #include "./AbstractBmtBatchGenerator.h"
-#include "../base/AbstractBatchExecutor.h"
+#include "../base/AbstractBatchOperator.h"
 #include "../intermediate/item/BitwiseBmt.h"
 
 
@@ -29,7 +29,7 @@ private:
     [[nodiscard]] int64_t corr(int bmtIdx, int64_t x) const;
 
 public:
-    AbstractSecureExecutor * reconstruct(int clientRank) override;
+    SecureOperator * reconstruct(int clientRank) override;
 
     static int msgTagCount();
 };

@@ -2,16 +2,16 @@
 // Created by 杜建璋 on 2024/9/6.
 //
 
-#include "compute/single/arith/ArithExecutor.h"
+#include "compute/single/arith/ArithOperator.h"
 
-#include "ot/BaseOtExecutor.h"
+#include "ot/BaseOtOperator.h"
 #include "comm/Comm.h"
 #include "conf/Conf.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Math.h"
 
-ArithExecutor::ArithExecutor(int64_t z, int width, int taskTag, int msgTagOffset,
-                             int clientRank) : AbstractSingleExecutor(width, taskTag, msgTagOffset) {
+ArithOperator::ArithOperator(int64_t z, int width, int taskTag, int msgTagOffset,
+                             int clientRank) : AbstractSingleOperator(width, taskTag, msgTagOffset) {
     if (clientRank < 0) {
         _zi = z;
     } else {
@@ -30,8 +30,8 @@ ArithExecutor::ArithExecutor(int64_t z, int width, int taskTag, int msgTagOffset
     }
 }
 
-ArithExecutor::ArithExecutor(int64_t x, int64_t y, int width, int taskTag, int msgTagOffset,
-                             int clientRank) : AbstractSingleExecutor(width, taskTag, msgTagOffset) {
+ArithOperator::ArithOperator(int64_t x, int64_t y, int width, int taskTag, int msgTagOffset,
+                             int clientRank) : AbstractSingleOperator(width, taskTag, msgTagOffset) {
     if (clientRank < 0) {
         _xi = x;
         _yi = y;
@@ -58,11 +58,11 @@ ArithExecutor::ArithExecutor(int64_t x, int64_t y, int width, int taskTag, int m
     }
 }
 
-ArithExecutor *ArithExecutor::execute() {
+ArithOperator *ArithOperator::execute() {
     throw std::runtime_error("Needs implementation.");
 }
 
-ArithExecutor *ArithExecutor::reconstruct(int clientRank) {
+ArithOperator *ArithOperator::reconstruct(int clientRank) {
     _currentMsgTag = _startMsgTag;
     if (Comm::isServer()) {
         Comm::send(_zi, _width, clientRank, buildTag(_currentMsgTag));

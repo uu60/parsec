@@ -9,10 +9,10 @@
 #include <atomic>
 #include <string>
 #include <cmath>
-#include "../utils/System.h"
-#include "../conf/Conf.h"
+#include "utils/System.h"
+#include "conf/Conf.h"
 
-class AbstractSecureExecutor {
+class SecureOperator {
 public:
     static constexpr int NO_CLIENT_COMPUTE = -1;
     // bit width
@@ -42,18 +42,18 @@ protected:
 
 public:
     /**
-     * Executors' constructor should be responsible for data preparation.
+     * Operators' constructor should be responsible for data preparation.
      */
-    virtual ~AbstractSecureExecutor() = default;
+    virtual ~SecureOperator() = default;
 
-    explicit AbstractSecureExecutor(int width, int taskTag, int msgTagOffset) : _width(width), _taskTag(taskTag),
+    explicit SecureOperator(int width, int taskTag, int msgTagOffset) : _width(width), _taskTag(taskTag),
         _startMsgTag(msgTagOffset), _currentMsgTag(msgTagOffset) {
     }
 
     // secret sharing process
-    virtual AbstractSecureExecutor *execute() = 0;
+    virtual SecureOperator *execute() = 0;
 
-    virtual AbstractSecureExecutor *reconstruct(int clientRank) = 0;
+    virtual SecureOperator *reconstruct(int clientRank) = 0;
 
 protected:
     [[nodiscard]] int64_t ring(int64_t raw) const;

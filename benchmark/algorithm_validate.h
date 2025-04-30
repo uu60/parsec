@@ -8,28 +8,28 @@
 #include "../include/utils/Log.h"
 #include "../include/comm/Comm.h"
 #include "../include/utils/Math.h"
-#include "../include/compute/single/arith/ArithAddExecutor.h"
-#include "../include/compute/single/arith/ArithMultiplyExecutor.h"
+#include "../include/compute/single/arith/ArithAddOperator.h"
+#include "../include/compute/single/arith/ArithMultiplyOperator.h"
 #include "../include/intermediate/BmtGenerator.h"
 #include "../include/intermediate/IntermediateDataSupport.h"
-#include "../include/ot/BaseOtExecutor.h"
-#include "../include/ot/RandOtExecutor.h"
-#include "../include/ot/RandOtBatchExecutor.h"
-#include "../include/compute/single/arith/ArithLessExecutor.h"
-#include "../include/compute/single/bool/BoolAndExecutor.h"
-#include "../include/compute/single/bool/BoolToArithExecutor.h"
-#include "../include/compute/single/arith/ArithToBoolExecutor.h"
+#include "../include/ot/BaseOtOperator.h"
+#include "../include/ot/RandOtOperator.h"
+#include "../include/ot/RandOtBatchOperator.h"
+#include "../include/compute/single/arith/ArithLessOperator.h"
+#include "../include/compute/single/bool/BoolAndOperator.h"
+#include "../include/compute/single/bool/BoolToArithOperator.h"
+#include "../include/compute/single/arith/ArithToBoolOperator.h"
 #include "../include/secret/item/BoolSecret.h"
 #include "../include/secret/item/ArithSecret.h"
-#include "../include/compute/single/arith/ArithMutexExecutor.h"
-#include "../include/compute/single/bool/BoolLessExecutor.h"
-#include "../include/compute/single/bool/BoolMutexExecutor.h"
+#include "../include/compute/single/arith/ArithMutexOperator.h"
+#include "../include/compute/single/bool/BoolLessOperator.h"
+#include "../include/compute/single/bool/BoolMutexOperator.h"
 #include "../include/secret/Secrets.h"
 #include "../include/intermediate/BitwiseBmtGenerator.h"
 #include "../include/parallel/ThreadPoolSupport.h"
-#include "../include/compute/batch/bool/BoolAndBatchExecutor.h"
-#include "../include/compute/batch/bool/BoolMutexBatchExecutor.h"
-#include "compute/batch/bool/BoolLessBatchExecutor.h"
+#include "../include/compute/batch/bool/BoolAndBatchOperator.h"
+#include "../include/compute/batch/bool/BoolMutexBatchOperator.h"
+#include "compute/batch/bool/BoolLessBatchOperator.h"
 #include "intermediate/BitwiseBmtBatchGenerator.h"
 
 inline void test_bitwise_bmt_gen_0(int num, int width) {
@@ -54,7 +54,7 @@ inline void test_rand_ot_batch_for_bit_1() {
     std::vector<int64_t> ms1 = {0b01001010};
     std::vector<int64_t> choices = {0b10011110};
 
-    auto e = RandOtBatchExecutor(0, &ms0, &ms1, &choices, t, 0);
+    auto e = RandOtBatchOperator(0, &ms0, &ms1, &choices, t, 0);
     e.execute();
 
     if (Comm::rank() == 1) {
@@ -102,7 +102,7 @@ inline void test_bitwise_bool_and_3() {
                 x = Math::randInt();
                 y = Math::randInt();
             }
-            BoolAndExecutor e(x, y, 64, t + i, 0, 2);
+            BoolAndOperator e(x, y, 64, t + i, 0, 2);
             e.execute()->reconstruct(2);
             if (Comm::isClient()) {
                 if (e._result != (x & y)) {
@@ -125,7 +125,7 @@ inline void test_arith_less_4() {
             x = Math::randInt(-1000, 1000);
             y = Math::randInt(-1000, 1000);
         }
-        ArithLessExecutor e(x, y, 32, t + i, 0, 2);
+        ArithLessOperator e(x, y, 32, t + i, 0, 2);
         e./*setBmts(&bmts)->*/execute()->reconstruct(2);
 
         if (Comm::isClient()) {
@@ -146,9 +146,9 @@ inline void test_convertion_5() {
         if (Comm::isClient()) {
             x = Math::randInt();
         }
-        auto bx = ArithToBoolExecutor(x, 64, t + i, 0, 2)./*setBmts(&bc)->*/execute()->_zi;
+        auto bx = ArithToBoolOperator(x, 64, t + i, 0, 2)./*setBmts(&bc)->*/execute()->_zi;
         Log::i("bx: {}", bx);
-        auto ret = BoolToArithExecutor(bx, 64, t + i, 0, -1).execute()->reconstruct(2)->_result;
+        auto ret = BoolToArithOperator(bx, 64, t + i, 0, -1).execute()->reconstruct(2)->_result;
         if (Comm::isClient()) {
             if (ret != x) {
                 Log::i("Wrong, x: {}, ret: {}", x, ret);
@@ -171,7 +171,7 @@ inline void test_int_mux_7() {
                 c = Math::randInt(0, 1);
             }
 
-            ArithMutexExecutor e1(x, y, c, 64, t + i, 0, 2);
+            ArithMutexOperator e1(x, y, c, 64, t + i, 0, 2);
             e1.execute()->reconstruct(2);
             auto r = e1._result;
             if (Comm::isClient()) {
@@ -198,9 +198,9 @@ inline void test_ot_9() {
             m0 = {20};
             m1 = {40};
             c = {1};
-            RandOtBatchExecutor e(0, &m0, &m1, &c, 32, t, 0);
+            RandOtBatchOperator e(0, &m0, &m1, &c, 32, t, 0);
             e.execute();
-            RandOtExecutor e1(0, 20, 40, 1, 32, t + 1, 0);
+            RandOtOperator e1(0, 20, 40, 1, 32, t + 1, 0);
             e1.execute();
             if (Comm::rank() == 1) {
                 // if (e._result != 40) {
@@ -230,7 +230,7 @@ inline void test_bool_comp_11() {
             x = Math::ring(Math::randInt(0, 100), len);
             y = Math::ring(Math::randInt(0, 100), len);
         }
-        BoolLessExecutor e(x, y, len, System::nextTask(), 0, 2);
+        BoolLessOperator e(x, y, len, System::nextTask(), 0, 2);
         e.execute()->reconstruct(2);
         if (Comm::isClient()) {
             if (static_cast<uint64_t>(x) < static_cast<uint64_t>(y) != e._result) {
@@ -255,7 +255,7 @@ inline void test_bool_mux_12() {
             c = Math::randInt(0, 1);
         }
 
-        BoolMutexExecutor e1(x, y, c, 64, t + i, 0, 2);
+        BoolMutexOperator e1(x, y, c, 64, t + i, 0, 2);
         e1.execute()->reconstruct(2);
         auto r = e1._result;
         if (Comm::isClient()) {
@@ -296,7 +296,7 @@ inline void test_batch_and_15() {
         }
     }
     auto t = System::nextTask();
-    auto r = BoolAndBatchExecutor(&a, &b, 32, t, 0, 2).execute()->reconstruct(2)->_results;
+    auto r = BoolAndBatchOperator(&a, &b, 32, t, 0, 2).execute()->reconstruct(2)->_results;
     if (Comm::isClient()) {
         for (int i = 0; i < r.size(); i++) {
             if (Math::ring(a[i] & b[i], 32) != r[i]) {
@@ -319,7 +319,7 @@ inline void test_batch_bool_mux_16() {
         }
     }
     auto t = System::nextTask();
-    auto r = BoolMutexBatchExecutor(&a, &b, &c, width, t, 0, 2).execute()->reconstruct(2)->_results;
+    auto r = BoolMutexBatchOperator(&a, &b, &c, width, t, 0, 2).execute()->reconstruct(2)->_results;
 
     if (Comm::isClient()) {
         for (int i = 0; i < r.size(); i++) {
@@ -341,8 +341,8 @@ inline void test_batch_less_17() {
         }
     }
     auto t = System::nextTask();
-    auto r = BoolLessBatchExecutor(&a, &b, 64, t, 0, 2).execute()->reconstruct(2)->_results;
-    auto r1 = BoolLessExecutor(2, 5, 64, t, 0, 2).execute()->reconstruct(2)->_result;
+    auto r = BoolLessBatchOperator(&a, &b, 64, t, 0, 2).execute()->reconstruct(2)->_results;
+    auto r1 = BoolLessOperator(2, 5, 64, t, 0, 2).execute()->reconstruct(2)->_result;
 
     if (Comm::isClient()) {
         for (int i = 0; i < r.size(); i++) {
@@ -364,7 +364,7 @@ inline void test_bits_ot_18() {
         m0 = {-1};
         m1 = {0b1001};
         c = {0b0011};
-        RandOtBatchExecutor e(0, &m0, &m1, &c, t, 0);
+        RandOtBatchOperator e(0, &m0, &m1, &c, t, 0);
         e.execute();
         if (Comm::rank() == 1) {
             Log::i("result: {}", Math::toBinString<64>(e._results[0]));

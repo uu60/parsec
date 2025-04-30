@@ -4,7 +4,7 @@
 
 #include "utils/System.h"
 
-#include "base/AbstractSecureExecutor.h"
+#include "base/SecureOperator.h"
 #include "comm/Comm.h"
 #include "comm/MpiComm.h"
 #include "conf/Conf.h"

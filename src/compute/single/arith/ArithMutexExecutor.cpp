@@ -2,12 +2,12 @@
 // Created by 杜建璋 on 2024/10/23.
 //
 
-#include "compute/single/arith/ArithMutexExecutor.h"
+#include "compute/single/arith/ArithMutexOperator.h"
 
-#include "compute/single/arith/ArithMultiplyExecutor.h"
+#include "compute/single/arith/ArithMultiplyOperator.h"
 #include "comm/Comm.h"
-#include "compute/single/bool/BoolExecutor.h"
-#include "compute/single/bool/BoolToArithExecutor.h"
+#include "compute/single/bool/BoolOperator.h"
+#include "compute/single/bool/BoolToArithOperator.h"
 #include "intermediate/BitwiseBmtGenerator.h"
 #include "intermediate/BmtGenerator.h"
 #include "intermediate/IntermediateDataSupport.h"
@@ -15,16 +15,16 @@
 #include "utils/Log.h"
 #include "utils/Math.h"
 
-ArithMutexExecutor::ArithMutexExecutor(int64_t x, int64_t y, bool cond, int l, int taskTag, int msgTagOffset,
-                                       int clientRank) : ArithExecutor(x, y, l, taskTag, msgTagOffset, clientRank) {
+ArithMutexOperator::ArithMutexOperator(int64_t x, int64_t y, bool cond, int l, int taskTag, int msgTagOffset,
+                                       int clientRank) : ArithOperator(x, y, l, taskTag, msgTagOffset, clientRank) {
     if (clientRank < 0 && _width > 1) {
-        _cond_i = BoolToArithExecutor(cond, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).execute()->_zi;
+        _cond_i = BoolToArithOperator(cond, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).execute()->_zi;
     } else {
-        _cond_i = ArithExecutor(cond, _width, _taskTag, _currentMsgTag, clientRank)._zi;
+        _cond_i = ArithOperator(cond, _width, _taskTag, _currentMsgTag, clientRank)._zi;
     }
 }
 
-ArithMutexExecutor *ArithMutexExecutor::execute() {
+ArithMutexOperator *ArithMutexOperator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isServer()) {
         Bmt bmt0, bmt1;
@@ -43,17 +43,17 @@ ArithMutexExecutor *ArithMutexExecutor::execute() {
 
         if (Conf::ENABLE_INTRA_OPERATOR_PARALLELISM) {
             f = ThreadPoolSupport::submit([&] {
-                auto mul0 = ArithMultiplyExecutor(_cond_i, _xi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
+                auto mul0 = ArithMultiplyOperator(_cond_i, _xi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
                 int64_t ret = mul0.setBmt(bp0)->execute()->_zi;
                 return ret;
             });
         } else {
-            cx = ArithMultiplyExecutor(_cond_i, _xi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmt(bp0)
+            cx = ArithMultiplyOperator(_cond_i, _xi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmt(bp0)
                     ->execute()->_zi;
         }
 
-        auto mul1 = ArithMultiplyExecutor(_cond_i, _yi, _width, _taskTag,
-                                          static_cast<int>(_currentMsgTag + ArithMultiplyExecutor::msgTagCount(
+        auto mul1 = ArithMultiplyOperator(_cond_i, _yi, _width, _taskTag,
+                                          static_cast<int>(_currentMsgTag + ArithMultiplyOperator::msgTagCount(
                                                                    _width)),
                                           NO_CLIENT_COMPUTE);
         cy = mul1.setBmt(bp1)->execute()->_zi;
@@ -66,12 +66,12 @@ ArithMutexExecutor *ArithMutexExecutor::execute() {
 }
 
 
-int ArithMutexExecutor::msgTagCount(int width) {
-    return std::max(static_cast<int>(2 * ArithMultiplyExecutor::msgTagCount(width)),
-                    BoolToArithExecutor::msgTagCount(width));
+int ArithMutexOperator::msgTagCount(int width) {
+    return std::max(static_cast<int>(2 * ArithMultiplyOperator::msgTagCount(width)),
+                    BoolToArithOperator::msgTagCount(width));
 }
 
-ArithMutexExecutor *ArithMutexExecutor::setBmts(std::vector<Bmt> *bmts) {
+ArithMutexOperator *ArithMutexOperator::setBmts(std::vector<Bmt> *bmts) {
     if (bmts != nullptr && bmts->size() != bmtCount(_width)) {
         throw std::runtime_error("Mismatch bmt size.");
     }
@@ -79,6 +79,6 @@ ArithMutexExecutor *ArithMutexExecutor::setBmts(std::vector<Bmt> *bmts) {
     return this;
 }
 
-int ArithMutexExecutor::bmtCount(int width) {
+int ArithMutexOperator::bmtCount(int width) {
     return 2;
 }

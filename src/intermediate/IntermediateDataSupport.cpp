@@ -8,7 +8,7 @@
 #include "intermediate/BitwiseBmtBatchGenerator.h"
 #include "intermediate/BitwiseBmtGenerator.h"
 #include "intermediate/BmtGenerator.h"
-#include "ot/BaseOtExecutor.h"
+#include "ot/BaseOtOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "sync/BoostLockFreeQueue.h"
 #include "sync/BoostSpscQueue.h"
@@ -102,8 +102,8 @@ void IntermediateDataSupport::prepareRot() {
             _rRot0 = new RRot();
             _rRot0->_b = static_cast<int>(Math::randInt(0, 1));
         }
-        BaseOtExecutor e(i, isSender ? _sRot0->_r0 : -1, isSender ? _sRot0->_r1 : -1, !isSender ? _rRot0->_b : -1,
-                         64, 2, i * BaseOtExecutor::msgTagCount());
+        BaseOtOperator e(i, isSender ? _sRot0->_r0 : -1, isSender ? _sRot0->_r1 : -1, !isSender ? _rRot0->_b : -1,
+                         64, 2, i * BaseOtOperator::msgTagCount());
         e.execute();
         if (!isSender) {
             _rRot0->_rb = e._result;
@@ -120,8 +120,8 @@ void IntermediateDataSupport::prepareRot() {
             _rRot1 = new RRot();
             _rRot1->_b = 1 - _rRot0->_b;
         }
-        BaseOtExecutor e(i, isSender ? _sRot1->_r0 : -1, isSender ? _sRot1->_r1 : -1, !isSender ? _rRot1->_b : -1,
-                         64, 2, i * BaseOtExecutor::msgTagCount());
+        BaseOtOperator e(i, isSender ? _sRot1->_r0 : -1, isSender ? _sRot1->_r1 : -1, !isSender ? _rRot1->_b : -1,
+                         64, 2, i * BaseOtOperator::msgTagCount());
         e.execute();
         if (!isSender) {
             _rRot1->_rb = e._result;

@@ -2,13 +2,13 @@
 // Created by 杜建璋 on 2024/11/15.
 //
 
-#include "compute/single/bool/BoolEqualExecutor.h"
+#include "compute/single/bool/BoolEqualOperator.h"
 
-#include "compute/single/bool/BoolAndExecutor.h"
+#include "compute/single/bool/BoolAndOperator.h"
 #include "comm/Comm.h"
 #include "intermediate/IntermediateDataSupport.h"
 
-BoolEqualExecutor *BoolEqualExecutor::execute() {
+BoolEqualOperator *BoolEqualOperator::execute() {
     if (Comm::isServer()) {
         int64_t diff = _xi ^ _yi;
         // z0 = ~z0
@@ -24,13 +24,13 @@ BoolEqualExecutor *BoolEqualExecutor::execute() {
             bmt = IntermediateDataSupport::pollBitwiseBmts(1, _width)[0];
         }
         for (int i = 0; i < _width - 1; i++) {
-            _zi = BoolAndExecutor(_zi, (diff >> (i + 1)) & 1, 1, _taskTag, 0, NO_CLIENT_COMPUTE).setBmt(_bmt != nullptr || Conf::BMT_METHOD == Conf::BMT_BACKGROUND ? &bmt : nullptr)->execute()->_zi;
+            _zi = BoolAndOperator(_zi, (diff >> (i + 1)) & 1, 1, _taskTag, 0, NO_CLIENT_COMPUTE).setBmt(_bmt != nullptr || Conf::BMT_METHOD == Conf::BMT_BACKGROUND ? &bmt : nullptr)->execute()->_zi;
         }
     }
     return this;
 }
 
-BoolEqualExecutor * BoolEqualExecutor::setBmt(BitwiseBmt *bmt) {
+BoolEqualOperator * BoolEqualOperator::setBmt(BitwiseBmt *bmt) {
     _bmt = bmt;
     return this;
 }

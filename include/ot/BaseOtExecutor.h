@@ -7,10 +7,10 @@
 
 #include <string>
 
-#include "./base/AbstractOtExecutor.h"
+#include "./base/AbstractOtOperator.h"
 
 // according to https://blog.csdn.net/qq_16763983/article/details/128055146
-class BaseOtExecutor : public AbstractOtExecutor {
+class BaseOtOperator : public AbstractOtOperator {
 private:
     // RSA key _bits
     int _bits{};
@@ -29,11 +29,11 @@ private:
 public:
     // _m0 and _m1 are for sender (invalid for receiver)
     // i is for receiver (invalid for sender)
-    explicit BaseOtExecutor(int sender, int64_t m0, int64_t m1, int choice, int l, int taskTag, int msgTagOffset);
+    explicit BaseOtOperator(int sender, int64_t m0, int64_t m1, int choice, int l, int taskTag, int msgTagOffset);
 
-    explicit BaseOtExecutor(int bits, int sender, int64_t m0, int64_t m1, int choice, int l, int taskTag, int msgTagOffset);
+    explicit BaseOtOperator(int bits, int sender, int64_t m0, int64_t m1, int choice, int l, int taskTag, int msgTagOffset);
 
-    BaseOtExecutor *execute() override;
+    BaseOtOperator *execute() override;
 
     [[nodiscard]] static int msgTagCount();
 

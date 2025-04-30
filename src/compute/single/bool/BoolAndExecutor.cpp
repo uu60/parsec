@@ -2,16 +2,16 @@
 // Created by 杜建璋 on 2024/11/12.
 //
 
-#include "compute/single/bool/BoolAndExecutor.h"
+#include "compute/single/bool/BoolAndOperator.h"
 
-#include "compute/single/arith/ArithMultiplyExecutor.h"
+#include "compute/single/arith/ArithMultiplyOperator.h"
 #include "comm/Comm.h"
 #include "intermediate/BitwiseBmtGenerator.h"
 #include "intermediate/IntermediateDataSupport.h"
 #include "utils/Log.h"
 #include "utils/Math.h"
 
-BoolAndExecutor *BoolAndExecutor::execute() {
+BoolAndOperator *BoolAndOperator::execute() {
     _currentMsgTag = _startMsgTag;
 
     int64_t start;
@@ -56,11 +56,11 @@ BoolAndExecutor *BoolAndExecutor::execute() {
     return this;
 }
 
-int BoolAndExecutor::msgTagCount(int width) {
+int BoolAndOperator::msgTagCount(int width) {
     return BitwiseBmtGenerator::msgTagCount(width);
 }
 
-BoolAndExecutor *BoolAndExecutor::setBmt(BitwiseBmt *bmt) {
+BoolAndOperator *BoolAndOperator::setBmt(BitwiseBmt *bmt) {
     _bmt = bmt;
     return this;
 }

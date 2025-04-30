@@ -7,10 +7,10 @@
 #include <cmath>
 
 #include "accelerate/SimdSupport.h"
-#include "compute/batch/bool/BoolLessBatchExecutor.h"
-#include "compute/batch/bool/BoolMutexBatchExecutor.h"
-#include "compute/single/bool/BoolLessExecutor.h"
-#include "compute/single/bool/BoolMutexExecutor.h"
+#include "compute/batch/bool/BoolLessBatchOperator.h"
+#include "compute/batch/bool/BoolMutexBatchOperator.h"
+#include "compute/single/bool/BoolLessOperator.h"
+#include "compute/single/bool/BoolMutexOperator.h"
 #include "conf/Conf.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Log.h"
@@ -31,12 +31,11 @@ void bitonicSort(std::vector<SecretT> &secrets, bool asc, int taskTag, int msgTa
                 std::vector<int64_t> xIdx, yIdx;
                 std::vector<bool> ascs;
                 int halfN = n / 2;
-                xs.resize(halfN);
-                ys.resize(halfN);
-                xIdx.resize(halfN);
-                yIdx.resize(halfN);
-                ascs.resize(halfN);
-                int idx = 0;
+                xs.reserve(halfN);
+                ys.reserve(halfN);
+                xIdx.reserve(halfN);
+                yIdx.reserve(halfN);
+                ascs.reserve(halfN);
 
                 for (int i = 0; i < n; i++) {
                     int l = i ^ j;
@@ -54,16 +53,15 @@ void bitonicSort(std::vector<SecretT> &secrets, bool asc, int taskTag, int msgTa
                     if (secrets[i]._padding || secrets[l]._padding) {
                         continue;
                     }
-                    xs[idx] = secrets[i]._data;
-                    xIdx[idx] = i;
-                    ys[idx] = secrets[l]._data;
-                    yIdx[idx] = l;
-                    ascs[idx] = dir ^ !asc;
-                    idx++;
+                    xs.push_back(secrets[i]._data);
+                    xIdx.push_back(i);
+                    ys.push_back(secrets[l]._data);
+                    yIdx.push_back(l);
+                    ascs.push_back(dir ^ !asc);
                 }
 
-                auto zs = BoolLessBatchExecutor(&xs, &ys, secrets[0]._width, taskTag, msgTagOffset,
-                                                AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zis;
+                auto zs = BoolLessBatchOperator(&xs, &ys, secrets[0]._width, taskTag, msgTagOffset,
+                                                SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
                 int comparingCount = static_cast<int>(xs.size());
                 for (int i = 0; i < comparingCount; i++) {
@@ -72,7 +70,7 @@ void bitonicSort(std::vector<SecretT> &secrets, bool asc, int taskTag, int msgTa
                     }
                 }
 
-                zs = BoolMutexBatchExecutor(&xs, &ys, &zs, secrets[0]._width, taskTag, msgTagOffset).execute()->_zis;
+                zs = BoolMutexBatchOperator(&xs, &ys, &zs, secrets[0]._width, taskTag, msgTagOffset).execute()->_zis;
 
                 for (int i = 0; i < comparingCount; i++) {
                     secrets[xIdx[i]]._data = zs[i];
@@ -145,12 +143,12 @@ void bitonicSort(std::vector<SecretT> &secrets, bool asc, int taskTag, int msgTa
                             auto &ascB = ascsBatches[b];
                             int sz = static_cast<int>(xsB.size());
 
-                            int offset = std::max(BoolLessBatchExecutor::msgTagCount(), BoolMutexBatchExecutor::msgTagCount());
-                            auto zs1 = BoolLessBatchExecutor(
+                            int offset = std::max(BoolLessBatchOperator::msgTagCount(), BoolMutexBatchOperator::msgTagCount());
+                            auto zs1 = BoolLessBatchOperator(
                                 &xsB, &ysB,
                                 secrets[0]._width,
                                 taskTag, msgTagOffset + offset * b,
-                                AbstractSecureExecutor::NO_CLIENT_COMPUTE
+                                SecureOperator::NO_CLIENT_COMPUTE
                             ).execute()->_zis;
 
                             for (int t = 0; t < sz; ++t) {
@@ -159,7 +157,7 @@ void bitonicSort(std::vector<SecretT> &secrets, bool asc, int taskTag, int msgTa
                                 }
                             }
 
-                            auto zs2 = BoolMutexBatchExecutor(
+                            auto zs2 = BoolMutexBatchOperator(
                                 &xsB, &ysB, &zs1,
                                 secrets[0]._width,
                                 taskTag, msgTagOffset + offset * b

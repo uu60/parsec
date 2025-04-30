@@ -4,11 +4,11 @@
 
 #ifndef BOOLMUTEXEXECUTOR_H
 #define BOOLMUTEXEXECUTOR_H
-#include "./BoolExecutor.h"
+#include "./BoolOperator.h"
 #include "../../../intermediate/item/BitwiseBmt.h"
 
 
-class BoolMutexExecutor : public BoolExecutor {
+class BoolMutexOperator : public BoolOperator {
 private:
     int64_t _cond_i{};
     std::vector<BitwiseBmt> *_bmts{};
@@ -17,11 +17,11 @@ public:
     inline static std::atomic_int64_t _totalTime = 0;
 
 public:
-    BoolMutexExecutor(int64_t x, int64_t y, bool cond, int width, int taskTag, int msgTagOffset, int clientRank);
+    BoolMutexOperator(int64_t x, int64_t y, bool cond, int width, int taskTag, int msgTagOffset, int clientRank);
 
-    BoolMutexExecutor *execute() override;
+    BoolMutexOperator *execute() override;
 
-    BoolMutexExecutor *setBmts(std::vector<BitwiseBmt> *bmts);
+    BoolMutexOperator *setBmts(std::vector<BitwiseBmt> *bmts);
 
     static int msgTagCount(int width);
 

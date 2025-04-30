@@ -2,14 +2,14 @@
 // Created by 杜建璋 on 2025/1/30.
 //
 
-#include "compute/batch/arith/ArithBatchExecutor.h"
+#include "compute/batch/arith/ArithBatchOperator.h"
 
 #include "conf/Conf.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Math.h"
 
-ArithBatchExecutor::ArithBatchExecutor(std::vector<int64_t> &zs, int width, int taskTag, int msgTagOffset,
-                                       int clientRank) : AbstractBatchExecutor(width, taskTag, msgTagOffset) {
+ArithBatchOperator::ArithBatchOperator(std::vector<int64_t> &zs, int width, int taskTag, int msgTagOffset,
+                                       int clientRank) : AbstractBatchOperator(width, taskTag, msgTagOffset) {
     if (clientRank < 0) {
         _zis = zs;
     } else {
@@ -35,8 +35,8 @@ ArithBatchExecutor::ArithBatchExecutor(std::vector<int64_t> &zs, int width, int 
     }
 }
 
-ArithBatchExecutor::ArithBatchExecutor(std::vector<int64_t> *xs, std::vector<int64_t> *ys, int width, int taskTag,
-                                       int msgTagOffset, int clientRank) : AbstractBatchExecutor(
+ArithBatchOperator::ArithBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys, int width, int taskTag,
+                                       int msgTagOffset, int clientRank) : AbstractBatchOperator(
     width, taskTag, msgTagOffset) {
     if (clientRank < 0) {
         _xis = xs;
@@ -81,7 +81,7 @@ ArithBatchExecutor::ArithBatchExecutor(std::vector<int64_t> *xs, std::vector<int
     }
 }
 
-ArithBatchExecutor *ArithBatchExecutor::reconstruct(int clientRank) {
+ArithBatchOperator *ArithBatchOperator::reconstruct(int clientRank) {
     _currentMsgTag = _startMsgTag;
     if (Comm::isServer()) {
         Comm::send(_zis, _width, clientRank, buildTag(_currentMsgTag));
@@ -98,6 +98,6 @@ ArithBatchExecutor *ArithBatchExecutor::reconstruct(int clientRank) {
     return this;
 }
 
-ArithBatchExecutor *ArithBatchExecutor::execute() {
+ArithBatchOperator *ArithBatchOperator::execute() {
     throw std::runtime_error("Needs implementation.");
 }

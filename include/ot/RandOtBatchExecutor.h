@@ -4,25 +4,25 @@
 
 #ifndef RANDOTBATCHEXECUTOR_H
 #define RANDOTBATCHEXECUTOR_H
-#include "./base/AbstractOtBatchExecutor.h"
+#include "./base/AbstractOtBatchOperator.h"
 
 
-class RandOtBatchExecutor : public AbstractOtBatchExecutor {
+class RandOtBatchOperator : public AbstractOtBatchOperator {
 public:
     inline static std::atomic_int64_t _totalTime = 0;
     bool _doBits{};
     std::vector<int64_t> * _choiceBits{};
 
 public:
-    RandOtBatchExecutor(int sender, std::vector<int64_t> *ms0, std::vector<int64_t> *ms1, std::vector<int> *choices,
-                        int width, int taskTag, int msgTagOffset) : AbstractOtBatchExecutor(
+    RandOtBatchOperator(int sender, std::vector<int64_t> *ms0, std::vector<int64_t> *ms1, std::vector<int> *choices,
+                        int width, int taskTag, int msgTagOffset) : AbstractOtBatchOperator(
         sender, ms0, ms1, choices, width, taskTag, msgTagOffset) {
     }
 
-    RandOtBatchExecutor(int sender, std::vector<int64_t> *bits0, std::vector<int64_t> *bits1,
+    RandOtBatchOperator(int sender, std::vector<int64_t> *bits0, std::vector<int64_t> *bits1,
                         std::vector<int64_t> *choiceBits, int taskTag, int msgTagOffset);
 
-    RandOtBatchExecutor *execute() override;
+    RandOtBatchOperator *execute() override;
 
     static int msgTagCount();
 

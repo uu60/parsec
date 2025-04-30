@@ -2,23 +2,23 @@
 // Created by 杜建璋 on 2025/1/8.
 //
 
-#include "compute/single/bool/BoolMutexExecutor.h"
+#include "compute/single/bool/BoolMutexOperator.h"
 
-#include "compute/batch/bool/BoolAndBatchExecutor.h"
-#include "compute/single/bool/BoolAndExecutor.h"
+#include "compute/batch/bool/BoolAndBatchOperator.h"
+#include "compute/single/bool/BoolAndOperator.h"
 #include "intermediate/IntermediateDataSupport.h"
 #include "parallel/ThreadPoolSupport.h"
 
-BoolMutexExecutor::BoolMutexExecutor(int64_t x, int64_t y, bool cond, int width, int taskTag, int msgTagOffset,
-                                     int clientRank) : BoolExecutor(x, y, width, taskTag, msgTagOffset, clientRank) {
-    _cond_i = BoolExecutor(cond, 1, _taskTag, _currentMsgTag, clientRank)._zi;
+BoolMutexOperator::BoolMutexOperator(int64_t x, int64_t y, bool cond, int width, int taskTag, int msgTagOffset,
+                                     int clientRank) : BoolOperator(x, y, width, taskTag, msgTagOffset, clientRank) {
+    _cond_i = BoolOperator(cond, 1, _taskTag, _currentMsgTag, clientRank)._zi;
     if (_cond_i) {
         // Set to all 1 on each bit
         _cond_i = ring(-1ll);
     }
 }
 
-bool BoolMutexExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
+bool BoolMutexOperator::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     if (_bmts != nullptr) {
         bmts = std::move(*_bmts);
         return true;
@@ -26,7 +26,7 @@ bool BoolMutexExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     return false;
 }
 
-BoolMutexExecutor *BoolMutexExecutor::execute() {
+BoolMutexOperator *BoolMutexOperator::execute() {
     _currentMsgTag = _startMsgTag;
 
     if (Comm::isClient()) {
@@ -45,7 +45,7 @@ BoolMutexExecutor *BoolMutexExecutor::execute() {
 
     std::vector conds = {_cond_i, _cond_i};
     std::vector xy = {_xi, _yi};
-    auto temp = BoolAndBatchExecutor(&conds, &xy, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
+    auto temp = BoolAndBatchOperator(&conds, &xy, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
             setBmts(gotBmt ? &bmts : nullptr)->execute()->_zis;
     cx = temp[0];
     cy = temp[1];
@@ -59,7 +59,7 @@ BoolMutexExecutor *BoolMutexExecutor::execute() {
     return this;
 }
 
-BoolMutexExecutor *BoolMutexExecutor::setBmts(std::vector<BitwiseBmt> *bmts) {
+BoolMutexOperator *BoolMutexOperator::setBmts(std::vector<BitwiseBmt> *bmts) {
     if (bmts != nullptr && bmts->size() != bmtCount()) {
         throw std::runtime_error("Mismatched bmts count");
     }
@@ -67,10 +67,10 @@ BoolMutexExecutor *BoolMutexExecutor::setBmts(std::vector<BitwiseBmt> *bmts) {
     return this;
 }
 
-int BoolMutexExecutor::msgTagCount(int width) {
-    return 2 * BoolAndExecutor::msgTagCount(width);
+int BoolMutexOperator::msgTagCount(int width) {
+    return 2 * BoolAndOperator::msgTagCount(width);
 }
 
-int BoolMutexExecutor::bmtCount() {
+int BoolMutexOperator::bmtCount() {
     return 2;
 }

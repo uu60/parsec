@@ -4,10 +4,10 @@
 
 #ifndef BOOLMUTEXBATCHEXECUTOR_H
 #define BOOLMUTEXBATCHEXECUTOR_H
-#include "./BoolBatchExecutor.h"
+#include "./BoolBatchOperator.h"
 #include "../../../intermediate/item/BitwiseBmt.h"
 
-class BoolMutexBatchExecutor : public BoolBatchExecutor {
+class BoolMutexBatchOperator : public BoolBatchOperator {
 public:
     std::vector<int64_t> *_conds_i{};
     bool _dc{};
@@ -20,19 +20,19 @@ private:
     bool _doSort{};
 
 public:
-    BoolMutexBatchExecutor(std::vector<int64_t> *xs, std::vector<int64_t> *ys, std::vector<int64_t> *conds, int width,
+    BoolMutexBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys, std::vector<int64_t> *conds, int width,
                            int taskTag,
                            int msgTagOffset, int clientRank);
 
     // For sort. Do mutex [xs, ys] [ys, xs] on [conds, conds]
-    BoolMutexBatchExecutor(std::vector<int64_t> *xs, std::vector<int64_t> *ys, std::vector<int64_t> *conds, int width,
+    BoolMutexBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys, std::vector<int64_t> *conds, int width,
                            int taskTag, int msgTagOffset);
 
-    ~BoolMutexBatchExecutor() override;
+    ~BoolMutexBatchOperator() override;
 
-    BoolMutexBatchExecutor *execute() override;
+    BoolMutexBatchOperator *execute() override;
 
-    BoolMutexBatchExecutor *setBmts(std::vector<BitwiseBmt> *bmts);
+    BoolMutexBatchOperator *setBmts(std::vector<BitwiseBmt> *bmts);
 
     static int msgTagCount();
 

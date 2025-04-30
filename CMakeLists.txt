@@ -4,18 +4,17 @@
 
  set(CMAKE_CXX_STANDARD 17)
  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -fsanitize=address")
+ # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -fsanitize=address")
 
 
  find_package(MPI REQUIRED)
  find_package(OpenSSL REQUIRED)
- if(APPLE)
-  find_package(tbb CONFIG REQUIRED)
- else()
-  find_package(TBB CONFIG REQUIRED)
- endif()
+ if (APPLE)
+     find_package(tbb CONFIG REQUIRED)
+ else ()
+     find_package(TBB CONFIG REQUIRED)
+ endif ()
  find_package(Boost REQUIRED CONFIG COMPONENTS program_options)
-
 
  file(GLOB_RECURSE LIB_SOURCES
          "include/*.h"
@@ -33,26 +32,32 @@
          ${PROJECT_NAME} PUBLIC MPI::MPI_CXX OpenSSL::SSL OpenSSL::Crypto TBB::tbb Boost::boost Boost::program_options
  )
 
- file(GLOB CPP_FILES "benchmark/*.cpp")
+ file(GLOB BENCH_SOURCES "benchmark/*.cpp")
+ foreach (src ${BENCH_SOURCES})
+     get_filename_component(exe ${src} NAME_WE)
+     add_executable(${exe} ${src})
+     target_link_libraries(${exe} PRIVATE ${PROJECT_NAME})
+ endforeach ()
 
- foreach(source_file ${CPP_FILES})
-  get_filename_component(exe_name ${source_file} NAME_WE)
-  add_executable(${exe_name} ${source_file})
-  target_link_libraries(${exe_name} PRIVATE ${PROJECT_NAME})
-  target_include_directories(${exe_name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
- endforeach()
-# file(GLOB_RECURSE BENCHMARK_SOURCES
-#         "benchmark/*.h"
-#         "benchmark/*.cpp"
-# )
-#
-# set(BENCHMARK_RUNNER benchmark_runner)
-#
-# add_executable(${BENCHMARK_RUNNER} ${BENCHMARK_SOURCES})
-#
-# target_link_libraries(${BENCHMARK_RUNNER} PRIVATE ${PROJECT_NAME})
-#
-# target_include_directories(${BENCHMARK_RUNNER} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+ add_executable(dbdemo dbdemo/src/main.cpp)
+ set(SQLPARSER_LIB /usr/local/lib/libsqlparser.so)
+ target_link_libraries(dbdemo PRIVATE ${PROJECT_NAME} SQLPARSER_LIB)
+ target_include_directories(dbdemo PRIVATE
+         ${CMAKE_CURRENT_SOURCE_DIR}/include
+         ${CMAKE_CURRENT_SOURCE_DIR}/dbdemo/include
+ )
+ # file(GLOB_RECURSE BENCHMARK_SOURCES
+ #         "benchmark/*.h"
+ #         "benchmark/*.cpp"
+ # )
+ #
+ # set(BENCHMARK_RUNNER benchmark_runner)
+ #
+ # add_executable(${BENCHMARK_RUNNER} ${BENCHMARK_SOURCES})
+ #
+ # target_link_libraries(${BENCHMARK_RUNNER} PRIVATE ${PROJECT_NAME})
+ #
+ # target_include_directories(${BENCHMARK_RUNNER} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 
  #

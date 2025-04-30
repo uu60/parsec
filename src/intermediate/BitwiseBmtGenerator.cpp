@@ -3,10 +3,10 @@
 //
 
 #include "../../include/intermediate/BitwiseBmtGenerator.h"
-#include "../../include/ot/RandOtBatchExecutor.h"
+#include "../../include/ot/RandOtBatchOperator.h"
 #include "../../include/utils/Math.h"
 #include "conf/Conf.h"
-#include "ot/RandOtExecutor.h"
+#include "ot/RandOtOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 
 BitwiseBmtGenerator *BitwiseBmtGenerator::execute() {
@@ -69,8 +69,8 @@ void BitwiseBmtGenerator::computeMix(int sender) {
     }
 
     auto s = Math::randInt();
-    auto results = RandOtBatchExecutor(sender, &ss0, &ss1, &choices, 1, _taskTag,
-                                       _currentMsgTag + sender * RandOtBatchExecutor::msgTagCount()).execute()->
+    auto results = RandOtBatchOperator(sender, &ss0, &ss1, &choices, 1, _taskTag,
+                                       _currentMsgTag + sender * RandOtBatchOperator::msgTagCount()).execute()->
             _results;
 
     if (isSender) {
@@ -98,10 +98,10 @@ int64_t BitwiseBmtGenerator::corr(int i, int64_t x) const {
     return (Math::getBit(_bmt._a, i) - x) & 1;
 }
 
-AbstractSecureExecutor *BitwiseBmtGenerator::reconstruct(int clientRank) {
+SecureOperator *BitwiseBmtGenerator::reconstruct(int clientRank) {
     throw std::runtime_error("Not support.");
 }
 
 int BitwiseBmtGenerator::msgTagCount(int width) {
-    return 2 * RandOtBatchExecutor::msgTagCount();
+    return 2 * RandOtBatchOperator::msgTagCount();
 }

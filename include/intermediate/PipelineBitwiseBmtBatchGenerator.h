@@ -8,7 +8,7 @@
 #include "item/BitwiseBmt.h"
 #include "sync/BoostSpscQueue.h"
 
-class PipelineBitwiseBmtBatchGenerator : public AbstractBatchExecutor {
+class PipelineBitwiseBmtBatchGenerator : public AbstractBatchOperator {
 private:
     int64_t _totalBits{};
     // Write NO._index queue
@@ -26,7 +26,7 @@ private:
     BoostSPSCQueue<HandleData, INT16_MAX> _handle{};
 
 public:
-    PipelineBitwiseBmtBatchGenerator(int index, int taskTag, int msgTagOffset) : AbstractBatchExecutor(64, taskTag,
+    PipelineBitwiseBmtBatchGenerator(int index, int taskTag, int msgTagOffset) : AbstractBatchOperator(64, taskTag,
             msgTagOffset), _index(index) {
     }
 

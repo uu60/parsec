@@ -4,15 +4,15 @@
 
 #ifndef XOREXECUTOR_H
 #define XOREXECUTOR_H
-#include "./BoolExecutor.h"
+#include "./BoolOperator.h"
 
-class BoolXorExecutor : public BoolExecutor {
+class BoolXorOperator : public BoolOperator {
 public:
-    BoolXorExecutor(bool x, bool y, int l, int taskTag, int msgTagOffset,
-                       int clientRank) : BoolExecutor(x, y, l, taskTag, msgTagOffset, clientRank) {
+    BoolXorOperator(bool x, bool y, int l, int taskTag, int msgTagOffset,
+                       int clientRank) : BoolOperator(x, y, l, taskTag, msgTagOffset, clientRank) {
     };
 
-    BoolXorExecutor *execute() override;
+    BoolXorOperator *execute() override;
 
     [[nodiscard]] static int msgTagCount();
 };

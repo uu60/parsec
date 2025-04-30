@@ -2,7 +2,7 @@
 // Created by 杜建璋 on 2025/2/24.
 //
 
-#include "compute/batch/bool/BoolAndBatchExecutor.h"
+#include "compute/batch/bool/BoolAndBatchOperator.h"
 
 #include "accelerate/SimdSupport.h"
 #include "conf/Conf.h"
@@ -10,7 +10,7 @@
 #include "intermediate/BitwiseBmtGenerator.h"
 #include "intermediate/IntermediateDataSupport.h"
 
-int BoolAndBatchExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
+int BoolAndBatchOperator::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     if (_bmts != nullptr) {
         bmts = std::move(*_bmts);
         return bmts.size();
@@ -38,15 +38,15 @@ int BoolAndBatchExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     return bc;
 }
 
-BoolAndBatchExecutor::BoolAndBatchExecutor(std::vector<int64_t> *xs, std::vector<int64_t> *ys,
+BoolAndBatchOperator::BoolAndBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys,
                                            std::vector<int64_t> *conds, int width, int taskTag,
-                                           int msgTagOffset) : BoolBatchExecutor(
+                                           int msgTagOffset) : BoolBatchOperator(
     xs, ys, width, taskTag, msgTagOffset, NO_CLIENT_COMPUTE) {
     _conds_i = conds;
     _doMutex = true;
 }
 
-BoolAndBatchExecutor *BoolAndBatchExecutor::execute() {
+BoolAndBatchOperator *BoolAndBatchOperator::execute() {
     _currentMsgTag = _startMsgTag;
 
     if (Comm::isClient()) {
@@ -71,23 +71,23 @@ BoolAndBatchExecutor *BoolAndBatchExecutor::execute() {
     return this;
 }
 
-int BoolAndBatchExecutor::msgTagCount() {
+int BoolAndBatchOperator::msgTagCount() {
     if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
         return 1;
     }
     return BitwiseBmtBatchGenerator::msgTagCount();
 }
 
-BoolAndBatchExecutor *BoolAndBatchExecutor::setBmts(std::vector<BitwiseBmt> *bmts) {
+BoolAndBatchOperator *BoolAndBatchOperator::setBmts(std::vector<BitwiseBmt> *bmts) {
     _bmts = bmts;
     return this;
 }
 
-int BoolAndBatchExecutor::bmtCount(int num) {
+int BoolAndBatchOperator::bmtCount(int num) {
     return num;
 }
 
-void BoolAndBatchExecutor::execute0() {
+void BoolAndBatchOperator::execute0() {
     std::vector<BitwiseBmt> bmts;
     int bc = prepareBmts(bmts);
     int num = static_cast<int>(_xis->size());
@@ -169,9 +169,10 @@ void BoolAndBatchExecutor::execute0() {
     }
 }
 
-void BoolAndBatchExecutor::executeForMutex() {
+void BoolAndBatchOperator::executeForMutex() {
     std::vector<BitwiseBmt> bmts;
-    int num = static_cast<int>(_xis->size());
+    auto num = _xis->size();
+    auto condNum = _conds_i->size();
     int bc;
 
     // The first num * 2 elements are ei (xi and yi), and the other num * 2 elements are fi (condi and condi)
@@ -182,7 +183,7 @@ void BoolAndBatchExecutor::executeForMutex() {
             efi[i] = (*_xis)[i] ^ IntermediateDataSupport::_fixedBitwiseBmt._a;
             efi[num + i] = (*_yis)[i] ^ IntermediateDataSupport::_fixedBitwiseBmt._a;
 
-            int64_t fi = (*_conds_i)[i] ^ IntermediateDataSupport::_fixedBitwiseBmt._b;
+            int64_t fi = (*_conds_i)[i % condNum] ^ IntermediateDataSupport::_fixedBitwiseBmt._b;
             efi[2 * num + i] = fi;
             efi[3 * num + i] = fi;
         }
@@ -193,13 +194,13 @@ void BoolAndBatchExecutor::executeForMutex() {
                 // Multiple 64 bit bmts
                 auto bmt = BitwiseBmt::extract(bmts, i, _width);
                 efi[i] = (*_xis)[i] ^ bmt._a;
-                efi[num * 2 + i] = (*_conds_i)[i] ^ bmt._b;
+                efi[num * 2 + i] = (*_conds_i)[i % condNum] ^ bmt._b;
             }
             for (int i = num; i < num * 2; i++) {
                 // Multiple 64 bit bmts
                 auto bmt = BitwiseBmt::extract(bmts, i, _width);
                 efi[i] = (*_yis)[i - num] ^ bmt._a;
-                efi[num * 2 + i] = (*_conds_i)[i - num] ^ bmt._b;
+                efi[num * 2 + i] = (*_conds_i)[i % condNum] ^ bmt._b;
             }
         } else {
             for (int i = 0; i < num; i++) {
@@ -208,7 +209,7 @@ void BoolAndBatchExecutor::executeForMutex() {
             }
             for (int i = num; i < num * 2; i++) {
                 efi[i] = (*_yis)[i - num] ^ bmts[i]._a;
-                efi[num * 2 + i] = (*_conds_i)[i - num] ^ bmts[i]._b;
+                efi[num * 2 + i] = (*_conds_i)[i % condNum] ^ bmts[i]._b;
             }
         }
     }
@@ -244,7 +245,6 @@ void BoolAndBatchExecutor::executeForMutex() {
                       IntermediateDataSupport::_fixedBitwiseBmt._c;
         }
     } else {
-        int64_t mask = (1ll << _width) - 1;
         if (_width < 64 && bc != -2) {
             for (int i = 0; i < num * 2; i++) {
                 int64_t e = efs[i];

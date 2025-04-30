@@ -4,11 +4,11 @@
 
 #ifndef BOOLLESSBATCHEXECUTOR_H
 #define BOOLLESSBATCHEXECUTOR_H
-#include "BoolBatchExecutor.h"
+#include "BoolBatchOperator.h"
 #include "intermediate/item/BitwiseBmt.h"
 
 
-class BoolLessBatchExecutor : public BoolBatchExecutor {
+class BoolLessBatchOperator : public BoolBatchOperator {
 private:
     // BitwiseBmt *_bmt{};
     std::vector<BitwiseBmt> *_bmts{};
@@ -18,13 +18,13 @@ public:
 
 public:
     // reverse x and y to obey less than logic
-    BoolLessBatchExecutor(std::vector<int64_t> *xs, std::vector<int64_t> *ys, int width, int taskTag, int msgTagOffset,
-                          int clientRank) : BoolBatchExecutor(ys, xs, width, taskTag, msgTagOffset, clientRank) {
+    BoolLessBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys, int width, int taskTag, int msgTagOffset,
+                          int clientRank) : BoolBatchOperator(ys, xs, width, taskTag, msgTagOffset, clientRank) {
     }
 
-    BoolLessBatchExecutor *execute() override;
+    BoolLessBatchOperator *execute() override;
 
-    BoolLessBatchExecutor *setBmts(std::vector<BitwiseBmt> *bmts);
+    BoolLessBatchOperator *setBmts(std::vector<BitwiseBmt> *bmts);
 
     static int msgTagCount();
 

@@ -5,7 +5,7 @@
 #ifndef BMTBATCHGENERATOR_H
 #define BMTBATCHGENERATOR_H
 #include "AbstractBmtBatchGenerator.h"
-#include "base/AbstractBatchExecutor.h"
+#include "base/AbstractBatchOperator.h"
 #include "item/Bmt.h"
 
 

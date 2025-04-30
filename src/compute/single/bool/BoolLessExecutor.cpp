@@ -4,8 +4,8 @@
 
 #include <cmath>
 
-#include "compute/single/bool/BoolLessExecutor.h"
-#include "compute/single/bool/BoolAndExecutor.h"
+#include "compute/single/bool/BoolLessOperator.h"
+#include "compute/single/bool/BoolAndOperator.h"
 #include "intermediate/BitwiseBmtBatchGenerator.h"
 #include "intermediate/BitwiseBmtGenerator.h"
 #include "intermediate/IntermediateDataSupport.h"
@@ -13,7 +13,7 @@
 #include "utils/Log.h"
 #include "utils/Math.h"
 
-bool BoolLessExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
+bool BoolLessOperator::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     if (_bmts != nullptr) {
         bmts = std::move(*_bmts);
         return true;
@@ -21,7 +21,7 @@ bool BoolLessExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     return false;
 }
 
-BoolLessExecutor *BoolLessExecutor::execute() {
+BoolLessOperator *BoolLessOperator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isClient()) {
         return this;
@@ -40,26 +40,26 @@ BoolLessExecutor *BoolLessExecutor::execute() {
 
     int64_t shifted_1 = shiftGreater(lbs, 1);
 
-    lbs = BoolAndExecutor(lbs, shifted_1, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
+    lbs = BoolAndOperator(lbs, shifted_1, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
             .setBmt(gotBmt ? &bmts[bmtI++] : nullptr)->execute()->_zi;
 
     int64_t diag = Math::changeBit(x_xor_y, 0, Math::getBit(_yi, 0) ^ Comm::rank());
 
     // diag & x
-    diag = BoolAndExecutor(diag, _xi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmt(
+    diag = BoolAndOperator(diag, _xi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmt(
         gotBmt ? &bmts[bmtI++] : nullptr)->execute()->_zi;
 
     int rounds = static_cast<int>(std::floor(std::log2(_width)));
     for (int r = 2; r <= rounds; r++) {
         int64_t shifted_r = shiftGreater(lbs, r);
 
-        lbs = BoolAndExecutor(lbs, shifted_r, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
+        lbs = BoolAndOperator(lbs, shifted_r, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
                 setBmt(gotBmt ? &bmts[bmtI++] : nullptr)->execute()->_zi;
     }
 
     int64_t shifted_accum = Math::changeBit(lbs >> 1, _width - 1, Comm::rank());
 
-    int64_t final_accum = BoolAndExecutor(shifted_accum, diag, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
+    int64_t final_accum = BoolAndOperator(shifted_accum, diag, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
             setBmt(gotBmt ? &bmts[bmtI++] : nullptr)->execute()->_zi;
 
         bool result = false;
@@ -76,7 +76,7 @@ BoolLessExecutor *BoolLessExecutor::execute() {
     return this;
 }
 
-BoolLessExecutor *BoolLessExecutor::setBmts(std::vector<BitwiseBmt> *bmts) {
+BoolLessOperator *BoolLessOperator::setBmts(std::vector<BitwiseBmt> *bmts) {
     if (bmts->size() != bmtCount(_width)) {
         throw std::runtime_error("Bmt size mismatch.");
     }
@@ -84,15 +84,15 @@ BoolLessExecutor *BoolLessExecutor::setBmts(std::vector<BitwiseBmt> *bmts) {
     return this;
 }
 
-int BoolLessExecutor::msgTagCount(int width) {
+int BoolLessOperator::msgTagCount(int width) {
     return bmtCount(width) * BitwiseBmtGenerator::msgTagCount(width);
 }
 
-int BoolLessExecutor::bmtCount(int width) {
+int BoolLessOperator::bmtCount(int width) {
     return static_cast<int>(std::floor(std::log2(width))) + 2;
 }
 
-int64_t BoolLessExecutor::shiftGreater(int64_t in, int r) const {
+int64_t BoolLessOperator::shiftGreater(int64_t in, int r) const {
     int part_size = 1 << r;
     if (part_size > _width) {
         return in;

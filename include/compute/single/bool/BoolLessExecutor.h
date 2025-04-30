@@ -4,10 +4,10 @@
 
 #ifndef BOOLLESSTHANEXECUTOR_H
 #define BOOLLESSTHANEXECUTOR_H
-#include "./BoolExecutor.h"
+#include "./BoolOperator.h"
 #include "../../../intermediate/item/BitwiseBmt.h"
 
-class BoolLessExecutor : public BoolExecutor {
+class BoolLessOperator : public BoolOperator {
 private:
     // BitwiseBmt *_bmt{};
     std::vector<BitwiseBmt> *_bmts{};
@@ -17,11 +17,11 @@ public:
 
 public:
     // reverse x and y to obey less than logic
-    BoolLessExecutor(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset, int clientRank) : BoolExecutor(y, x, l, taskTag, msgTagOffset, clientRank) {};
+    BoolLessOperator(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset, int clientRank) : BoolOperator(y, x, l, taskTag, msgTagOffset, clientRank) {};
 
-    BoolLessExecutor *execute() override;
+    BoolLessOperator *execute() override;
 
-    BoolLessExecutor *setBmts(std::vector<BitwiseBmt> *bmts);
+    BoolLessOperator *setBmts(std::vector<BitwiseBmt> *bmts);
 
     static int msgTagCount(int width);
 

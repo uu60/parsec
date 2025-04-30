@@ -2,14 +2,14 @@
 // Created by 杜建璋 on 2025/2/24.
 //
 
-#include "compute/batch/bool/BoolBatchExecutor.h"
+#include "compute/batch/bool/BoolBatchOperator.h"
 
 #include "conf/Conf.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Math.h"
 
-BoolBatchExecutor::BoolBatchExecutor(std::vector<int64_t> &zs, int width, int taskTag, int msgTagOffset,
-                                     int clientRank) : AbstractBatchExecutor(width, taskTag, msgTagOffset) {
+BoolBatchOperator::BoolBatchOperator(std::vector<int64_t> &zs, int width, int taskTag, int msgTagOffset,
+                                     int clientRank) : AbstractBatchOperator(width, taskTag, msgTagOffset) {
     if (clientRank < 0) {
         _zis = zs;
     } else {
@@ -35,8 +35,8 @@ BoolBatchExecutor::BoolBatchExecutor(std::vector<int64_t> &zs, int width, int ta
     }
 }
 
-BoolBatchExecutor::BoolBatchExecutor(std::vector<int64_t> *xs, std::vector<int64_t> *ys, int width, int taskTag,
-                                     int msgTagOffset, int clientRank) : AbstractBatchExecutor(
+BoolBatchOperator::BoolBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys, int width, int taskTag,
+                                     int msgTagOffset, int clientRank) : AbstractBatchOperator(
     width, taskTag, msgTagOffset) {
     if (clientRank < 0) {
         _xis = xs;
@@ -79,7 +79,7 @@ BoolBatchExecutor::BoolBatchExecutor(std::vector<int64_t> *xs, std::vector<int64
     }
 }
 
-BoolBatchExecutor *BoolBatchExecutor::reconstruct(int clientRank) {
+BoolBatchOperator *BoolBatchOperator::reconstruct(int clientRank) {
     _currentMsgTag = _startMsgTag;
     if (Comm::isServer()) {
         Comm::send(_zis, _width, clientRank, buildTag(_currentMsgTag));
@@ -96,6 +96,6 @@ BoolBatchExecutor *BoolBatchExecutor::reconstruct(int clientRank) {
     return this;
 }
 
-BoolBatchExecutor *BoolBatchExecutor::execute() {
+BoolBatchOperator *BoolBatchOperator::execute() {
     throw std::runtime_error("Needs implementation.");
 }

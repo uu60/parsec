@@ -4,23 +4,23 @@
 
 #ifndef TOARITHEXECUTOR_H
 #define TOARITHEXECUTOR_H
-#include "./BoolExecutor.h"
+#include "./BoolOperator.h"
 
 
-class BoolToArithExecutor : public BoolExecutor {
+class BoolToArithOperator : public BoolOperator {
 public:
     // Temporarily lend zi for xi preparation in super constructor.
-    BoolToArithExecutor(int64_t xi, int l, int taskTag, int msgTagOffset, int clientRank) : BoolExecutor(
+    BoolToArithOperator(int64_t xi, int l, int taskTag, int msgTagOffset, int clientRank) : BoolOperator(
         xi, l, taskTag, msgTagOffset, clientRank) {
         _xi = _zi;
         _zi = 0;
     }
 
-    BoolToArithExecutor *execute() override;
+    BoolToArithOperator *execute() override;
 
     [[nodiscard]] static int msgTagCount(int width);
 
-    BoolToArithExecutor *reconstruct(int clientRank) override;
+    BoolToArithOperator *reconstruct(int clientRank) override;
 };
 
 

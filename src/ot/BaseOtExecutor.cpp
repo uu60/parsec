@@ -2,7 +2,7 @@
 // Created by 杜建璋 on 2024/7/15.
 //
 
-#include "ot/BaseOtExecutor.h"
+#include "ot/BaseOtOperator.h"
 
 #include "comm/Comm.h"
 #include "parallel/ThreadPoolSupport.h"
@@ -10,17 +10,17 @@
 #include "utils/Crypto.h"
 #include "utils/Log.h"
 
-BaseOtExecutor::BaseOtExecutor(int sender, int64_t m0, int64_t m1, int choice, int l, int taskTag, int msgTagOffset)
-    : BaseOtExecutor(2048, sender, m0, m1, choice, l, taskTag, msgTagOffset) {
+BaseOtOperator::BaseOtOperator(int sender, int64_t m0, int64_t m1, int choice, int l, int taskTag, int msgTagOffset)
+    : BaseOtOperator(2048, sender, m0, m1, choice, l, taskTag, msgTagOffset) {
 }
 
-BaseOtExecutor::BaseOtExecutor(int bits, int sender, int64_t m0, int64_t m1, int choice, int l, int taskTag,
-                               int msgTagOffset) : AbstractOtExecutor(sender, m0, m1, choice, l, taskTag,
+BaseOtOperator::BaseOtOperator(int bits, int sender, int64_t m0, int64_t m1, int choice, int l, int taskTag,
+                               int msgTagOffset) : AbstractOtOperator(sender, m0, m1, choice, l, taskTag,
                                                                       msgTagOffset) {
     _bits = bits;
 }
 
-BaseOtExecutor *BaseOtExecutor::execute() {
+BaseOtOperator *BaseOtOperator::execute() {
     if (Comm::isServer()) {
         // preparation
         generateAndShareRandoms();
@@ -32,7 +32,7 @@ BaseOtExecutor *BaseOtExecutor::execute() {
     return this;
 }
 
-void BaseOtExecutor::generateAndShareRandoms() {
+void BaseOtOperator::generateAndShareRandoms() {
     // 11 for PKCS#1 v1.5 padding
     int len = (_bits >> 3) - 11;
     if (_isSender) {
@@ -50,7 +50,7 @@ void BaseOtExecutor::generateAndShareRandoms() {
     }
 }
 
-void BaseOtExecutor::generateAndShareRsaKeys() {
+void BaseOtOperator::generateAndShareRsaKeys() {
     if (_isSender) {
         bool newKey = Crypto::generateRsaKeys(_bits);
         _pub = Crypto::_selfPubs[_bits];
@@ -69,7 +69,7 @@ void BaseOtExecutor::generateAndShareRsaKeys() {
     }
 }
 
-void BaseOtExecutor::process() {
+void BaseOtOperator::process() {
     if (!_isSender) {
         std::string ek = Crypto::rsaEncrypt(_randK, _pub);
         std::string sumStr = Math::add(ek, _choice == 0 ? _rand0 : _rand1);
@@ -97,6 +97,6 @@ void BaseOtExecutor::process() {
     }
 }
 
-int BaseOtExecutor::msgTagCount() {
+int BaseOtOperator::msgTagCount() {
     return 1;
 }

@@ -2,15 +2,15 @@
 // Created by 杜建璋 on 2025/1/31.
 //
 
-#include "../../include/ot/RandOtBatchExecutor.h"
+#include "../../include/ot/RandOtBatchOperator.h"
 
 #include "../../include/intermediate/IntermediateDataSupport.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Log.h"
 
-RandOtBatchExecutor::RandOtBatchExecutor(int sender, std::vector<int64_t> *bits0, std::vector<int64_t> *bits1,
+RandOtBatchOperator::RandOtBatchOperator(int sender, std::vector<int64_t> *bits0, std::vector<int64_t> *bits1,
                                          std::vector<int64_t> *choiceBits, int taskTag,
-                                         int msgTagOffset) : AbstractOtBatchExecutor(64, taskTag, msgTagOffset) {
+                                         int msgTagOffset) : AbstractOtBatchOperator(64, taskTag, msgTagOffset) {
     if (Comm::isClient()) {
         return;
     }
@@ -25,7 +25,7 @@ RandOtBatchExecutor::RandOtBatchExecutor(int sender, std::vector<int64_t> *bits0
     }
 }
 
-void RandOtBatchExecutor::execute0() {
+void RandOtBatchOperator::execute0() {
     if (_isSender) {
         std::vector<int64_t> ks;
         int size = static_cast<int>(_ms0->size());
@@ -65,7 +65,7 @@ void RandOtBatchExecutor::execute0() {
     }
 }
 
-void RandOtBatchExecutor::executeForBits() {
+void RandOtBatchOperator::executeForBits() {
     if (_isSender) {
         std::vector<int64_t> ks;
         int size = static_cast<int>(_ms0->size());
@@ -123,7 +123,7 @@ void RandOtBatchExecutor::executeForBits() {
     }
 }
 
-void RandOtBatchExecutor::executeForBitsSingleTransfer() {
+void RandOtBatchOperator::executeForBitsSingleTransfer() {
     if (_isSender) {
         int size = static_cast<int>(_ms0->size());
         std::vector<int64_t> toSend(size * 4);
@@ -193,7 +193,7 @@ void RandOtBatchExecutor::executeForBitsSingleTransfer() {
     }
 }
 
-void RandOtBatchExecutor::executeForBitsAsync() {
+void RandOtBatchOperator::executeForBitsAsync() {
     if (_isSender) {
         int size = static_cast<int>(_ms0->size());
         std::vector<int64_t> toSend(size * 4);
@@ -252,7 +252,7 @@ void RandOtBatchExecutor::executeForBitsAsync() {
     }
 }
 
-RandOtBatchExecutor *RandOtBatchExecutor::execute() {
+RandOtBatchOperator *RandOtBatchOperator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isClient()) {
         return this;
@@ -280,6 +280,6 @@ RandOtBatchExecutor *RandOtBatchExecutor::execute() {
     return this;
 }
 
-int RandOtBatchExecutor::msgTagCount() {
+int RandOtBatchOperator::msgTagCount() {
     return 1;
 }

@@ -4,28 +4,28 @@
 
 #ifndef BOOLCONVERTEXECUTOR_H
 #define BOOLCONVERTEXECUTOR_H
-#include "./ArithExecutor.h"
+#include "./ArithOperator.h"
 #include "../../../intermediate/item/BitwiseBmt.h"
 
-class ArithToBoolExecutor : public ArithExecutor {
+class ArithToBoolOperator : public ArithOperator {
 private:
     std::vector<BitwiseBmt> *_bmts{};
 
 public:
     // Temporarily lend zi for xi preparation in super constructor.
-    ArithToBoolExecutor(int64_t xi, int l, int taskTag, int msgTagOffset, int clientRank) : ArithExecutor(
+    ArithToBoolOperator(int64_t xi, int l, int taskTag, int msgTagOffset, int clientRank) : ArithOperator(
         xi, l, taskTag, msgTagOffset, clientRank) {
         _xi = _zi;
         _zi = 0;
     }
 
-    ArithToBoolExecutor *execute() override;
+    ArithToBoolOperator *execute() override;
 
     [[nodiscard]] static int msgTagCount(int l);
 
-    ArithToBoolExecutor *setBmts(std::vector<BitwiseBmt> *bmts);
+    ArithToBoolOperator *setBmts(std::vector<BitwiseBmt> *bmts);
 
-    ArithToBoolExecutor *reconstruct(int clientRank) override;
+    ArithToBoolOperator *reconstruct(int clientRank) override;
 
     static int bmtCount(int width);
 

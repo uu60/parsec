@@ -2,18 +2,18 @@
 // Created by 杜建璋 on 2025/3/17.
 //
 
-#include "compute/batch/bool/BoolLessBatchExecutor.h"
+#include "compute/batch/bool/BoolLessBatchOperator.h"
 
 #include "accelerate/SimdSupport.h"
-#include "compute/batch/bool/BoolAndBatchExecutor.h"
-#include "compute/single/bool/BoolLessExecutor.h"
+#include "compute/batch/bool/BoolAndBatchOperator.h"
+#include "compute/single/bool/BoolLessOperator.h"
 #include "conf/Conf.h"
 #include "intermediate/BitwiseBmtBatchGenerator.h"
 #include "intermediate/BitwiseBmtGenerator.h"
 #include "intermediate/IntermediateDataSupport.h"
 #include "parallel/ThreadPoolSupport.h"
 
-BoolLessBatchExecutor *BoolLessBatchExecutor::execute() {
+BoolLessBatchOperator *BoolLessBatchOperator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isClient()) {
         return this;
@@ -44,7 +44,7 @@ BoolLessBatchExecutor *BoolLessBatchExecutor::execute() {
 
     auto shifted_1 = shiftGreater(lbs, 1);
 
-    lbs = BoolAndBatchExecutor(&lbs, &shifted_1, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
+    lbs = BoolAndBatchOperator(&lbs, &shifted_1, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
             .setBmts(gotBmt ? &bmts : nullptr)->execute()->_zis;
 
     std::vector<int64_t> diag;
@@ -60,14 +60,14 @@ BoolLessBatchExecutor *BoolLessBatchExecutor::execute() {
     }
 
     // diag & x
-    diag = BoolAndBatchExecutor(&diag, _xis, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmts(
+    diag = BoolAndBatchOperator(&diag, _xis, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmts(
         gotBmt ? &bmts : nullptr)->execute()->_zis;
 
     int rounds = static_cast<int>(std::floor(std::log2(_width)));
     for (int r = 2; r <= rounds; r++) {
         auto shifted_r = shiftGreater(lbs, r);
 
-        lbs = BoolAndBatchExecutor(&lbs, &shifted_r, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
+        lbs = BoolAndBatchOperator(&lbs, &shifted_r, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
                 setBmts(gotBmt ? &bmts : nullptr)->execute()->_zis;
     }
 
@@ -77,7 +77,7 @@ BoolLessBatchExecutor *BoolLessBatchExecutor::execute() {
         shifted_accum.push_back(Math::changeBit(lbs[i] >> 1, _width - 1, Comm::rank()));
     }
 
-    auto final_accum = BoolAndBatchExecutor(&shifted_accum, &diag, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
+    auto final_accum = BoolAndBatchOperator(&shifted_accum, &diag, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
             .setBmts(gotBmt ? &bmts : nullptr)->execute()->_zis;
 
     int fn = static_cast<int>(final_accum.size());
@@ -97,23 +97,23 @@ BoolLessBatchExecutor *BoolLessBatchExecutor::execute() {
     return this;
 }
 
-BoolLessBatchExecutor *BoolLessBatchExecutor::setBmts(std::vector<BitwiseBmt> *bmts) {
+BoolLessBatchOperator *BoolLessBatchOperator::setBmts(std::vector<BitwiseBmt> *bmts) {
     this->_bmts = bmts;
     return this;
 }
 
-int BoolLessBatchExecutor::msgTagCount() {
-    return BoolAndBatchExecutor::msgTagCount();
+int BoolLessBatchOperator::msgTagCount() {
+    return BoolAndBatchOperator::msgTagCount();
 }
 
-int BoolLessBatchExecutor::bmtCount(int num, int width) {
+int BoolLessBatchOperator::bmtCount(int num, int width) {
     if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
         return 0;
     }
-    return num * BoolLessExecutor::bmtCount(width);
+    return num * BoolLessOperator::bmtCount(width);
 }
 
-std::vector<int64_t> BoolLessBatchExecutor::shiftGreater(std::vector<int64_t> &in, int r) const {
+std::vector<int64_t> BoolLessBatchOperator::shiftGreater(std::vector<int64_t> &in, int r) const {
     int part_size = 1 << r;
     if (part_size > _width) {
         return in;
@@ -146,7 +146,7 @@ std::vector<int64_t> BoolLessBatchExecutor::shiftGreater(std::vector<int64_t> &i
     return out;
 }
 
-bool BoolLessBatchExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
+bool BoolLessBatchOperator::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     if (_bmts != nullptr) {
         bmts = std::move(*_bmts);
         return true;

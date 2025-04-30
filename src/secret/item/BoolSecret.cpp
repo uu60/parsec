@@ -4,12 +4,12 @@
 
 #include "secret/item/BoolSecret.h"
 
-#include "compute/single/bool/BoolAndExecutor.h"
-#include "compute/single/bool/BoolExecutor.h"
-#include "compute/single/bool/BoolLessExecutor.h"
-#include "compute/single/bool/BoolMutexExecutor.h"
-#include "compute/single/bool/BoolToArithExecutor.h"
-#include "compute/single/bool/BoolXorExecutor.h"
+#include "compute/single/bool/BoolAndOperator.h"
+#include "compute/single/bool/BoolOperator.h"
+#include "compute/single/bool/BoolLessOperator.h"
+#include "compute/single/bool/BoolMutexOperator.h"
+#include "compute/single/bool/BoolToArithOperator.h"
+#include "compute/single/bool/BoolXorOperator.h"
 
 BoolSecret::BoolSecret() = default;
 
@@ -26,12 +26,12 @@ BoolSecret BoolSecret::msg(int msgTagOffset) const {
 }
 
 BoolSecret BoolSecret::share(int clientRank) const {
-    return {BoolExecutor(_data, _width, _taskTag, _currentMsgTag, clientRank)._zi, _width, _taskTag, _currentMsgTag};
+    return {BoolOperator(_data, _width, _taskTag, _currentMsgTag, clientRank)._zi, _width, _taskTag, _currentMsgTag};
 }
 
 BoolSecret BoolSecret::reconstruct(int clientRank) const {
     return {
-        BoolExecutor(_data, _width, _taskTag, _currentMsgTag, AbstractSecureExecutor::NO_CLIENT_COMPUTE).reconstruct(clientRank)->
+        BoolOperator(_data, _width, _taskTag, _currentMsgTag, SecureOperator::NO_CLIENT_COMPUTE).reconstruct(clientRank)->
         _result,
         _width, _taskTag, _currentMsgTag
     };
@@ -39,28 +39,28 @@ BoolSecret BoolSecret::reconstruct(int clientRank) const {
 
 BoolSecret BoolSecret::xor_(BoolSecret yi) const {
     return {
-        BoolXorExecutor(_data, yi._data, _width, _taskTag, _currentMsgTag, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi,
+        BoolXorOperator(_data, yi._data, _width, _taskTag, _currentMsgTag, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zi,
         _width, _taskTag, _currentMsgTag
     };
 }
 
 BoolSecret BoolSecret::and_(BoolSecret yi) const {
     return {
-        BoolAndExecutor(_data, yi._data, _width, _taskTag, _currentMsgTag, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi,
+        BoolAndOperator(_data, yi._data, _width, _taskTag, _currentMsgTag, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zi,
         _width, _taskTag, _currentMsgTag
     };
 }
 
 BoolSecret BoolSecret::arithmetic() const {
     return {
-        BoolToArithExecutor(_data, _width, _taskTag, _currentMsgTag, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi,
+        BoolToArithOperator(_data, _width, _taskTag, _currentMsgTag, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zi,
         _width, _taskTag, _currentMsgTag
     };
 }
 
 BitSecret BoolSecret::lessThan(BoolSecret yi) const {
     return BitSecret(
-        BoolLessExecutor(_data, yi._data, _width, _taskTag, _currentMsgTag, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->
+        BoolLessOperator(_data, yi._data, _width, _taskTag, _currentMsgTag, SecureOperator::NO_CLIENT_COMPUTE).execute()->
         _zi, _taskTag);
 }
 
@@ -70,8 +70,8 @@ BitSecret BoolSecret::getBit(int n) const {
 
 BoolSecret BoolSecret::mux(BoolSecret yi, BitSecret cond_i) const {
     return {
-        BoolMutexExecutor(_data, yi._data, cond_i._data, _width, _taskTag, _currentMsgTag,
-                          AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi,
+        BoolMutexOperator(_data, yi._data, cond_i._data, _width, _taskTag, _currentMsgTag,
+                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zi,
         _width, _taskTag, _currentMsgTag
     };
 }

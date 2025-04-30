@@ -4,10 +4,10 @@
 
 #ifndef ABSTRACTOTBATCHEXECUTOR_H
 #define ABSTRACTOTBATCHEXECUTOR_H
-#include "../../base/AbstractBatchExecutor.h"
+#include "../../base/AbstractBatchOperator.h"
 
 
-class AbstractOtBatchExecutor : public AbstractBatchExecutor {
+class AbstractOtBatchOperator : public AbstractBatchOperator {
 protected:
     std::vector<int64_t> *_ms0{};
     std::vector<int64_t> *_ms1{};
@@ -16,14 +16,14 @@ protected:
     bool _isSender{};
 
 public:
-    AbstractOtBatchExecutor(int width, int taskTag, int msgTagOffset) : AbstractBatchExecutor(
+    AbstractOtBatchOperator(int width, int taskTag, int msgTagOffset) : AbstractBatchOperator(
         width, taskTag, msgTagOffset) {
     };
 
-    AbstractOtBatchExecutor(int sender, std::vector<int64_t> *ms0, std::vector<int64_t> *ms1, std::vector<int> *choices,
+    AbstractOtBatchOperator(int sender, std::vector<int64_t> *ms0, std::vector<int64_t> *ms1, std::vector<int> *choices,
                             int width, int taskTag, int msgTagOffset);
 
-    AbstractOtBatchExecutor *reconstruct(int clientRank) override;
+    AbstractOtBatchOperator *reconstruct(int clientRank) override;
 };
 
 

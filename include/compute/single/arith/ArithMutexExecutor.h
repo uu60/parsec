@@ -4,23 +4,23 @@
 
 #ifndef MPC_PACKAGE_MUXEXECUTOR_H
 #define MPC_PACKAGE_MUXEXECUTOR_H
-#include "./ArithExecutor.h"
+#include "./ArithOperator.h"
 #include "../../../intermediate/item/BitwiseBmt.h"
 
-class ArithMutexExecutor : public ArithExecutor {
+class ArithMutexOperator : public ArithOperator {
 private:
     int64_t _cond_i{};
     std::vector<Bmt> *_bmts{};
     // BitwiseBmt* _bmt{};
 
 public:
-    ArithMutexExecutor(int64_t x, int64_t y, bool c, int l, int taskTag, int msgTagOffset, int clientRank);
+    ArithMutexOperator(int64_t x, int64_t y, bool c, int l, int taskTag, int msgTagOffset, int clientRank);
 
-    ArithMutexExecutor *execute() override;
+    ArithMutexOperator *execute() override;
 
     static int msgTagCount(int width);
 
-    ArithMutexExecutor *setBmts(std::vector<Bmt> *bmts);
+    ArithMutexOperator *setBmts(std::vector<Bmt> *bmts);
 
     static int bmtCount(int width);
 };

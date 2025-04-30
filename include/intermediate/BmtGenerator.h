@@ -8,7 +8,7 @@
 
 #include "AbstractBmtSingleGenerator.h"
 #include "./item/Bmt.h"
-#include "../base/AbstractSingleExecutor.h"
+#include "../base/AbstractSingleOperator.h"
 
 class BmtGenerator : public AbstractBmtSingleGenerator<Bmt> {
 public:

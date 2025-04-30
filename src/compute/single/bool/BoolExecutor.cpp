@@ -2,18 +2,18 @@
 // Created by 杜建璋 on 2024/11/7.
 //
 
-#include "compute/single/bool/BoolExecutor.h"
+#include "compute/single/bool/BoolOperator.h"
 
 #include "comm/Comm.h"
 #include "conf/Conf.h"
 #include "utils/Math.h"
-#include "ot/BaseOtExecutor.h"
+#include "ot/BaseOtOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Log.h"
 #include "utils/System.h"
 
-BoolExecutor::BoolExecutor(int64_t z, int l, int taskTag, int msgTagOffset,
-                           int clientRank) : AbstractSingleExecutor(
+BoolOperator::BoolOperator(int64_t z, int l, int taskTag, int msgTagOffset,
+                           int clientRank) : AbstractSingleOperator(
     l, taskTag, msgTagOffset) {
     if (clientRank < 0) {
         _zi = ring(z);
@@ -34,8 +34,8 @@ BoolExecutor::BoolExecutor(int64_t z, int l, int taskTag, int msgTagOffset,
     }
 }
 
-BoolExecutor::BoolExecutor(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset,
-                           int clientRank) : AbstractSingleExecutor(l, taskTag, msgTagOffset) {
+BoolOperator::BoolOperator(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset,
+                           int clientRank) : AbstractSingleOperator(l, taskTag, msgTagOffset) {
     if (clientRank < 0) {
         _xi = ring(x);
         _yi = ring(y);
@@ -64,7 +64,7 @@ BoolExecutor::BoolExecutor(int64_t x, int64_t y, int l, int taskTag, int msgTagO
     }
 }
 
-BoolExecutor *BoolExecutor::reconstruct(int clientRank) {
+BoolOperator *BoolOperator::reconstruct(int clientRank) {
     _currentMsgTag = _startMsgTag;
     if (Comm::isServer()) {
         Comm::send(_zi, _width, clientRank, buildTag(_currentMsgTag));
@@ -77,6 +77,6 @@ BoolExecutor *BoolExecutor::reconstruct(int clientRank) {
     return this;
 }
 
-BoolExecutor *BoolExecutor::execute() {
+BoolOperator *BoolOperator::execute() {
     throw std::runtime_error("This method needs implementation.");
 }

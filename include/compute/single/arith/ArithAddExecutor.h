@@ -5,15 +5,15 @@
 #ifndef MPC_PACKAGE_ADDITIONSHAREEXECUTOR_H
 #define MPC_PACKAGE_ADDITIONSHAREEXECUTOR_H
 
-#include "./ArithExecutor.h"
+#include "./ArithOperator.h"
 
-class ArithAddExecutor : public ArithExecutor {
+class ArithAddOperator : public ArithOperator {
 public:
-    ArithAddExecutor(int64_t x, int64_t y, int width, int taskTag, int msgTagOffset,
-                int clientRank) : ArithExecutor(x, y, width, taskTag, msgTagOffset, clientRank) {
+    ArithAddOperator(int64_t x, int64_t y, int width, int taskTag, int msgTagOffset,
+                int clientRank) : ArithOperator(x, y, width, taskTag, msgTagOffset, clientRank) {
     }
 
-    ArithAddExecutor *execute() override;
+    ArithAddOperator *execute() override;
 };
 
 

@@ -5,14 +5,14 @@
 #include <vector>
 #include <climits>
 
-#include "../include/compute/batch/bool/BoolAndBatchExecutor.h"
-#include "../include/compute/batch/bool/BoolLessBatchExecutor.h"
-#include "../include/compute/batch/bool/BoolMutexBatchExecutor.h"
-#include "../include/compute/single/bool/BoolAndExecutor.h"
-#include "../include/compute/single/bool/BoolLessExecutor.h"
-#include "../include/compute/single/bool/BoolMutexExecutor.h"
+#include "../include/compute/batch/bool/BoolAndBatchOperator.h"
+#include "../include/compute/batch/bool/BoolLessBatchOperator.h"
+#include "../include/compute/batch/bool/BoolMutexBatchOperator.h"
+#include "../include/compute/single/bool/BoolAndOperator.h"
+#include "../include/compute/single/bool/BoolLessOperator.h"
+#include "../include/compute/single/bool/BoolMutexOperator.h"
 #include "../include/intermediate/BitwiseBmtGenerator.h"
-#include "../include/ot/RandOtBatchExecutor.h"
+#include "../include/ot/RandOtBatchOperator.h"
 #include "../include/secret/Secrets.h"
 #include "../include/secret/item/BoolSecret.h"
 #include "../include/utils/Log.h"
@@ -49,12 +49,12 @@ int main(int argc, char *argv[]) {
 
         Log::i("total time: {}ms", System::currentTimeMillis() - start);
         if (Conf::ENABLE_CLASS_WISE_TIMING) {
-            Log::i("less than: {}ms", BoolLessExecutor::_totalTime + BoolLessBatchExecutor::_totalTime);
-            Log::i("bool and: {}ms", BoolAndExecutor::_totalTime + BoolAndBatchExecutor::_totalTime);
+            Log::i("less than: {}ms", BoolLessOperator::_totalTime + BoolLessBatchOperator::_totalTime);
+            Log::i("bool and: {}ms", BoolAndOperator::_totalTime + BoolAndBatchOperator::_totalTime);
             Log::i("comm: {}ms", Comm::_totalTime);
-            Log::i("mux time: {}ms", BoolMutexExecutor::_totalTime + BoolMutexBatchExecutor::_totalTime);
+            Log::i("mux time: {}ms", BoolMutexOperator::_totalTime + BoolMutexBatchOperator::_totalTime);
             Log::i("bmt gen: {}ms", BitwiseBmtGenerator::_totalTime);
-            Log::i("ot: {}ms", RandOtBatchExecutor::_totalTime);
+            Log::i("ot: {}ms", RandOtBatchOperator::_totalTime);
         }
     }
 

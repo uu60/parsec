@@ -2,17 +2,17 @@
 // Created by 杜建璋 on 2024/12/2.
 //
 
-#include "compute/single/bool/BoolToArithExecutor.h"
+#include "compute/single/bool/BoolToArithOperator.h"
 
 #include "intermediate/IntermediateDataSupport.h"
 #include "comm/Comm.h"
-#include "compute/single/arith/ArithExecutor.h"
-#include "ot/RandOtBatchExecutor.h"
-#include "ot/RandOtExecutor.h"
+#include "compute/single/arith/ArithOperator.h"
+#include "ot/RandOtBatchOperator.h"
+#include "ot/RandOtOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Math.h"
 
-BoolToArithExecutor *BoolToArithExecutor::execute() {
+BoolToArithOperator *BoolToArithOperator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isClient()) {
         return this;
@@ -50,7 +50,7 @@ BoolToArithExecutor *BoolToArithExecutor::execute() {
         }
     }
 
-    RandOtBatchExecutor e(0, &ss0, &ss1, &choices, _width, _taskTag, _currentMsgTag);
+    RandOtBatchOperator e(0, &ss0, &ss1, &choices, _width, _taskTag, _currentMsgTag);
     e.execute();
 
     if (isSender) {
@@ -67,13 +67,13 @@ BoolToArithExecutor *BoolToArithExecutor::execute() {
     return this;
 }
 
-int BoolToArithExecutor::msgTagCount(int width) {
-    return static_cast<int>(RandOtExecutor::msgTagCount(width) * width);
+int BoolToArithOperator::msgTagCount(int width) {
+    return static_cast<int>(RandOtOperator::msgTagCount(width) * width);
 }
 
-BoolToArithExecutor *BoolToArithExecutor::reconstruct(int clientRank) {
+BoolToArithOperator *BoolToArithOperator::reconstruct(int clientRank) {
     _currentMsgTag = _startMsgTag;
-    ArithExecutor e(_zi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
+    ArithOperator e(_zi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
     e.reconstruct(clientRank);
     if (Comm::rank() == clientRank) {
         _result = e._result;

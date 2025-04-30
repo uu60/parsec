@@ -2,14 +2,14 @@
 // Created by 杜建璋 on 2024/7/13.
 //
 
-#include "compute/single/arith/ArithMultiplyExecutor.h"
+#include "compute/single/arith/ArithMultiplyOperator.h"
 
 #include "intermediate/IntermediateDataSupport.h"
 #include "comm/Comm.h"
 #include "intermediate/BmtGenerator.h"
 #include "utils/Log.h"
 
-ArithMultiplyExecutor *ArithMultiplyExecutor::execute() {
+ArithMultiplyOperator *ArithMultiplyOperator::execute() {
     _currentMsgTag = _startMsgTag;
     // process
     if (Comm::isServer()) {
@@ -35,11 +35,11 @@ ArithMultiplyExecutor *ArithMultiplyExecutor::execute() {
     return this;
 }
 
-int ArithMultiplyExecutor::msgTagCount(int width) {
+int ArithMultiplyOperator::msgTagCount(int width) {
     return BmtGenerator::msgTagCount(width);
 }
 
-ArithMultiplyExecutor *ArithMultiplyExecutor::setBmt(Bmt *bmt) {
+ArithMultiplyOperator *ArithMultiplyOperator::setBmt(Bmt *bmt) {
     _bmt = bmt;
     return this;
 }

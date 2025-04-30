@@ -2,10 +2,10 @@
 // Created by 杜建璋 on 2024/12/29.
 //
 
-#include "ot/base/AbstractOtExecutor.h"
+#include "ot/base/AbstractOtOperator.h"
 
-AbstractOtExecutor::AbstractOtExecutor(int sender, int64_t m0, int64_t m1, int choice, int l, int taskTag,
-                                       int msgTagOffset) : AbstractSingleExecutor(l, taskTag, msgTagOffset) {
+AbstractOtOperator::AbstractOtOperator(int sender, int64_t m0, int64_t m1, int choice, int l, int taskTag,
+                                       int msgTagOffset) : AbstractSingleOperator(l, taskTag, msgTagOffset) {
     _isSender = sender == Comm::rank();
     if (_isSender) {
         _m0 = ring(m0);
@@ -15,6 +15,6 @@ AbstractOtExecutor::AbstractOtExecutor(int sender, int64_t m0, int64_t m1, int c
     }
 }
 
-AbstractOtExecutor * AbstractOtExecutor::reconstruct(int clientRank) {
+AbstractOtOperator * AbstractOtOperator::reconstruct(int clientRank) {
     throw std::runtime_error("Should not use reconstruct method on OT.");
 }

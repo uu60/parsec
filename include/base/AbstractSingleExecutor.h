@@ -4,10 +4,10 @@
 
 #ifndef ABSTRACTSINGLEEXECUTOR_H
 #define ABSTRACTSINGLEEXECUTOR_H
-#include "./AbstractSecureExecutor.h"
+#include "./SecureOperator.h"
 
 
-class AbstractSingleExecutor : public AbstractSecureExecutor {
+class AbstractSingleOperator : public SecureOperator {
 public:
     // result
     int64_t _result{};
@@ -16,8 +16,8 @@ public:
     // unreconstructed share
     int64_t _zi{};
 
-    AbstractSingleExecutor(int width, int taskTag, int msgTagOffset)
-        : AbstractSecureExecutor(width, taskTag, msgTagOffset) {
+    AbstractSingleOperator(int width, int taskTag, int msgTagOffset)
+        : SecureOperator(width, taskTag, msgTagOffset) {
     }
 };
 

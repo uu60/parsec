@@ -2,18 +2,18 @@
 // Created by 杜建璋 on 2025/3/1.
 //
 
-#include "compute/batch/bool/BoolMutexBatchExecutor.h"
+#include "compute/batch/bool/BoolMutexBatchOperator.h"
 
 #include "accelerate/SimdSupport.h"
-#include "compute/batch/bool/BoolAndBatchExecutor.h"
-#include "compute/single/bool/BoolAndExecutor.h"
+#include "compute/batch/bool/BoolAndBatchOperator.h"
+#include "compute/single/bool/BoolAndOperator.h"
 #include "conf/Conf.h"
 #include "intermediate/IntermediateDataSupport.h"
 #include "parallel/ThreadPoolSupport.h"
 
-BoolMutexBatchExecutor::BoolMutexBatchExecutor(std::vector<int64_t> *xs, std::vector<int64_t> *ys,
+BoolMutexBatchOperator::BoolMutexBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys,
                                                std::vector<int64_t> *conds, int width, int taskTag,
-                                               int msgTagOffset, int clientRank) : BoolBatchExecutor(
+                                               int msgTagOffset, int clientRank) : BoolBatchOperator(
     xs, ys, width, taskTag, msgTagOffset, clientRank) {
     if (clientRank == NO_CLIENT_COMPUTE) {
         if (Comm::isClient()) {
@@ -21,7 +21,7 @@ BoolMutexBatchExecutor::BoolMutexBatchExecutor(std::vector<int64_t> *xs, std::ve
         }
         _conds_i = conds;
     } else {
-        _conds_i = new std::vector(std::move(BoolBatchExecutor(*conds, 1, _taskTag, _currentMsgTag, clientRank)._zis));
+        _conds_i = new std::vector(std::move(BoolBatchOperator(*conds, 1, _taskTag, _currentMsgTag, clientRank)._zis));
         _dc = true;
     }
     if (Comm::isClient()) {
@@ -35,9 +35,9 @@ BoolMutexBatchExecutor::BoolMutexBatchExecutor(std::vector<int64_t> *xs, std::ve
     }
 }
 
-BoolMutexBatchExecutor::BoolMutexBatchExecutor(std::vector<int64_t> *xs, std::vector<int64_t> *ys,
+BoolMutexBatchOperator::BoolMutexBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys,
                                                std::vector<int64_t> *conds, int width, int taskTag,
-                                               int msgTagOffset) : BoolBatchExecutor(
+                                               int msgTagOffset) : BoolBatchOperator(
     xs, ys, width, taskTag, msgTagOffset, NO_CLIENT_COMPUTE) {
     _conds_i = conds;
     for (int64_t &ci: *_conds_i) {
@@ -49,13 +49,13 @@ BoolMutexBatchExecutor::BoolMutexBatchExecutor(std::vector<int64_t> *xs, std::ve
     _doSort = true;
 }
 
-BoolMutexBatchExecutor::~BoolMutexBatchExecutor() {
+BoolMutexBatchOperator::~BoolMutexBatchOperator() {
     if (_dc) {
         delete _conds_i;
     }
 }
 
-bool BoolMutexBatchExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
+bool BoolMutexBatchOperator::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     bool gotBmt = false;
     if (_bmts != nullptr) {
         gotBmt = true;
@@ -64,13 +64,13 @@ bool BoolMutexBatchExecutor::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     return gotBmt;
 }
 
-void BoolMutexBatchExecutor::execute0() {
+void BoolMutexBatchOperator::execute0() {
     std::vector<BitwiseBmt> bmts;
     bool gotBmt = prepareBmts(bmts);
 
-    int num = static_cast<int>(_conds_i->size());
+    auto num = _conds_i->size();
 
-    auto zis = BoolAndBatchExecutor(_xis, _yis, _conds_i, _width, _taskTag, _currentMsgTag).setBmts(
+    auto zis = BoolAndBatchOperator(_xis, _yis, _conds_i, _width, _taskTag, _currentMsgTag).setBmts(
         gotBmt ? &bmts : nullptr)->execute()->_zis;
 
     // Verified SIMD performance
@@ -84,14 +84,14 @@ void BoolMutexBatchExecutor::execute0() {
     }
 }
 
-void BoolMutexBatchExecutor::executeForSort() {
+void BoolMutexBatchOperator::executeForSort() {
     std::vector<BitwiseBmt> bmts;
     bool gotBmt = prepareBmts(bmts);
 
-    int num = static_cast<int>(_conds_i->size());
+    auto num = _conds_i->size();
 
     // First half is xis & conds_i, the other is yis & conds_i
-    auto zis = BoolAndBatchExecutor(_xis, _yis, _conds_i, _width, _taskTag, _currentMsgTag).setBmts(
+    auto zis = BoolAndBatchOperator(_xis, _yis, _conds_i, _width, _taskTag, _currentMsgTag).setBmts(
         gotBmt ? &bmts : nullptr)->execute()->_zis;
 
     // Verified SIMD performance
@@ -104,9 +104,9 @@ void BoolMutexBatchExecutor::executeForSort() {
             _zis[num + i] = zis[i] ^ (*_xis)[i] ^ zis[num + i];
         }
     }
-}
+}\
 
-BoolMutexBatchExecutor *BoolMutexBatchExecutor::execute() {
+BoolMutexBatchOperator *BoolMutexBatchOperator::execute() {
     _currentMsgTag = _startMsgTag;
 
     if (Comm::isClient()) {
@@ -131,7 +131,7 @@ BoolMutexBatchExecutor *BoolMutexBatchExecutor::execute() {
     return this;
 }
 
-BoolMutexBatchExecutor *BoolMutexBatchExecutor::setBmts(std::vector<BitwiseBmt> *bmts) {
+BoolMutexBatchOperator *BoolMutexBatchOperator::setBmts(std::vector<BitwiseBmt> *bmts) {
     if (bmts != nullptr && bmts->size() != bmtCount(_width)) {
         throw std::runtime_error("Mismatched bmts count");
     }
@@ -139,11 +139,11 @@ BoolMutexBatchExecutor *BoolMutexBatchExecutor::setBmts(std::vector<BitwiseBmt> 
     return this;
 }
 
-int BoolMutexBatchExecutor::msgTagCount() {
-    return BoolAndBatchExecutor::msgTagCount();
+int BoolMutexBatchOperator::msgTagCount() {
+    return BoolAndBatchOperator::msgTagCount();
 }
 
-int BoolMutexBatchExecutor::bmtCount(int num) {
+int BoolMutexBatchOperator::bmtCount(int num) {
     if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
         return 0;
     }

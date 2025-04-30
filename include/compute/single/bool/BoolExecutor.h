@@ -4,18 +4,18 @@
 
 #ifndef INTBOOLEXECUTOR_H
 #define INTBOOLEXECUTOR_H
-#include "../../../base/AbstractSingleExecutor.h"
+#include "../../../base/AbstractSingleOperator.h"
 
-class BoolExecutor : public AbstractSingleExecutor {
+class BoolOperator : public AbstractSingleOperator {
 public:
-    BoolExecutor(int64_t z, int l, int taskTag, int msgTagOffset, int clientRank);
+    BoolOperator(int64_t z, int l, int taskTag, int msgTagOffset, int clientRank);
 
-    BoolExecutor(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset, int clientRank);
+    BoolOperator(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset, int clientRank);
 
-    BoolExecutor *reconstruct(int clientRank) override;
+    BoolOperator *reconstruct(int clientRank) override;
 
     [[deprecated("This function should not be called.")]]
-    BoolExecutor *execute() override;
+    BoolOperator *execute() override;
 };
 
 #endif //INTBOOLEXECUTOR_H

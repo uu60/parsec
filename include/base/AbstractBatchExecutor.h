@@ -4,10 +4,10 @@
 
 #ifndef ABSTRACTBATCHEXECUTOR_H
 #define ABSTRACTBATCHEXECUTOR_H
-#include "./AbstractSecureExecutor.h"
+#include "./SecureOperator.h"
 
 
-class AbstractBatchExecutor : public AbstractSecureExecutor {
+class AbstractBatchOperator : public SecureOperator {
 public:
     std::vector<int64_t> _results{};
     std::vector<int64_t> *_xis{};
@@ -17,11 +17,11 @@ public:
     bool _dx{};
     bool _dy{};
 
-    AbstractBatchExecutor(int width, int taskTag, int msgTagOffset)
-        : AbstractSecureExecutor(width, taskTag, msgTagOffset) {
+    AbstractBatchOperator(int width, int taskTag, int msgTagOffset)
+        : SecureOperator(width, taskTag, msgTagOffset) {
     }
 
-    ~AbstractBatchExecutor() override {
+    ~AbstractBatchOperator() override {
         if (_dx) {
             delete _xis;
         }

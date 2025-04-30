@@ -6,13 +6,13 @@
 
 #include "secret/item/ArithSecret.h"
 
-#include "compute/single/arith/ArithExecutor.h"
-#include "compute/single/bool/BoolExecutor.h"
-#include "compute/single/arith/ArithAddExecutor.h"
-#include "compute/single/arith/ArithMultiplyExecutor.h"
-#include "compute/single/arith/ArithLessExecutor.h"
-#include "compute/single/arith/ArithMutexExecutor.h"
-#include "compute/single/arith/ArithToBoolExecutor.h"
+#include "compute/single/arith/ArithOperator.h"
+#include "compute/single/bool/BoolOperator.h"
+#include "compute/single/arith/ArithAddOperator.h"
+#include "compute/single/arith/ArithMultiplyOperator.h"
+#include "compute/single/arith/ArithLessOperator.h"
+#include "compute/single/arith/ArithMutexOperator.h"
+#include "compute/single/arith/ArithToBoolOperator.h"
 #include "utils/Log.h"
 
 ArithSecret::ArithSecret() = default;
@@ -28,27 +28,27 @@ ArithSecret ArithSecret::msg(int msgTagOffset) const {
 }
 
 ArithSecret ArithSecret::share(int clientRank) const {
-    return {ArithExecutor(_data, _width, _taskTag, 0, clientRank)._zi, _width, _taskTag};
+    return {ArithOperator(_data, _width, _taskTag, 0, clientRank)._zi, _width, _taskTag};
 }
 
 ArithSecret ArithSecret::reconstruct(int clientRank) const {
-    return {ArithExecutor(_data, _width, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).reconstruct(clientRank)->_result, _width, _taskTag};
+    return {ArithOperator(_data, _width, _taskTag, 0, SecureOperator::NO_CLIENT_COMPUTE).reconstruct(clientRank)->_result, _width, _taskTag};
 }
 
 ArithSecret ArithSecret::add(ArithSecret yi) const {
-    return {ArithAddExecutor(_data, yi._data, _width, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi, _width, _taskTag};
+    return {ArithAddOperator(_data, yi._data, _width, _taskTag, 0, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zi, _width, _taskTag};
 }
 
 ArithSecret ArithSecret::mul(ArithSecret yi) const {
-    return {ArithMultiplyExecutor(_data, yi._data, _width, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi, _width, _taskTag};
+    return {ArithMultiplyOperator(_data, yi._data, _width, _taskTag, 0, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zi, _width, _taskTag};
 }
 
 ArithSecret ArithSecret::boolean() const {
-    return {ArithToBoolExecutor(_data, _width, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi, _width, _taskTag};
+    return {ArithToBoolOperator(_data, _width, _taskTag, 0, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zi, _width, _taskTag};
 }
 
 BitSecret ArithSecret::lessThan(ArithSecret yi) const {
-    return BitSecret(ArithLessExecutor(_data, yi._data, _width, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi, _taskTag);
+    return BitSecret(ArithLessOperator(_data, yi._data, _width, _taskTag, 0, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zi, _taskTag);
 }
 
 BitSecret ArithSecret::getBit(int n) const {
@@ -56,5 +56,5 @@ BitSecret ArithSecret::getBit(int n) const {
 }
 
 ArithSecret ArithSecret::mux(ArithSecret yi, BitSecret cond_i) const {
-    return {ArithMutexExecutor(_data, yi._data, cond_i.get(), _width, _taskTag, 0, AbstractSecureExecutor::NO_CLIENT_COMPUTE).execute()->_zi, _width, _taskTag};
+    return {ArithMutexOperator(_data, yi._data, cond_i.get(), _width, _taskTag, 0, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zi, _width, _taskTag};
 }

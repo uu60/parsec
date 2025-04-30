@@ -4,20 +4,20 @@
 
 #ifndef ABSTRACTBMTBATCHGENERATOR_H
 #define ABSTRACTBMTBATCHGENERATOR_H
-#include "../base/AbstractBatchExecutor.h"
+#include "../base/AbstractBatchOperator.h"
 #include "../conf/Conf.h"
-#include "../ot/RandOtBatchExecutor.h"
-#include "../ot/RandOtExecutor.h"
+#include "../ot/RandOtBatchOperator.h"
+#include "../ot/RandOtOperator.h"
 
 template <class BmtT>
-class AbstractBmtBatchGenerator : public AbstractBatchExecutor {
+class AbstractBmtBatchGenerator : public AbstractBatchOperator {
 public:
     std::vector<BmtT> _bmts{};
     std::vector<int64_t> _usi{};
     std::vector<int64_t> _vsi{};
 
 protected:
-    AbstractBmtBatchGenerator(int count, int width, int taskTag, int msgTagOffset) : AbstractBatchExecutor(width, taskTag, msgTagOffset) {
+    AbstractBmtBatchGenerator(int count, int width, int taskTag, int msgTagOffset) : AbstractBatchOperator(width, taskTag, msgTagOffset) {
         if (Comm::isClient()) {
             return;
         }

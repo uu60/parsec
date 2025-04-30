@@ -2,12 +2,12 @@
 // Created by 杜建璋 on 2024/12/29.
 //
 
-#include "./ot/RandOtExecutor.h"
+#include "./ot/RandOtOperator.h"
 
 #include "intermediate/IntermediateDataSupport.h"
 #include "utils/Log.h"
 
-RandOtExecutor *RandOtExecutor::execute() {
+RandOtOperator *RandOtOperator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isServer()) {
         int64_t k, y0, y1;
@@ -32,6 +32,6 @@ RandOtExecutor *RandOtExecutor::execute() {
     return this;
 }
 
-int RandOtExecutor::msgTagCount(int width) {
+int RandOtOperator::msgTagCount(int width) {
     return 1;
 }

@@ -4,27 +4,27 @@
 
 #ifndef MPC_PACKAGE_COMPAREEXECUTOR_H
 #define MPC_PACKAGE_COMPAREEXECUTOR_H
-#include "./ArithExecutor.h"
+#include "./ArithOperator.h"
 #include <vector>
 
 #include "../../../intermediate/item/BitwiseBmt.h"
 
-class ArithLessExecutor : public ArithExecutor {
+class ArithLessOperator : public ArithOperator {
 private:
     std::vector<BitwiseBmt> *_bmts{};
 
 public:
-    ArithLessExecutor(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset, int clientRank);
+    ArithLessOperator(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset, int clientRank);
 
-    ArithLessExecutor *execute() override;
+    ArithLessOperator *execute() override;
 
-    ArithLessExecutor *reconstruct(int clientRank) override;
+    ArithLessOperator *reconstruct(int clientRank) override;
 
     [[nodiscard]] static int msgTagCount(int l);
 
     static int bmtCount(int width);
 
-    ArithLessExecutor *setBmts(std::vector<BitwiseBmt> *bmts);
+    ArithLessOperator *setBmts(std::vector<BitwiseBmt> *bmts);
 };
 
 #endif //MPC_PACKAGE_COMPAREEXECUTOR_H

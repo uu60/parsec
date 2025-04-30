@@ -7,8 +7,8 @@
 #include "utils/Math.h"
 #include "comm/Comm.h"
 #include "conf/Conf.h"
-#include "ot/RandOtBatchExecutor.h"
-#include "ot/RandOtExecutor.h"
+#include "ot/RandOtBatchOperator.h"
+#include "ot/RandOtOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Log.h"
 
@@ -26,7 +26,7 @@ BmtGenerator *BmtGenerator::reconstruct(int clientRank) {
 }
 
 int BmtGenerator::msgTagCount(int width) {
-    return 2 * RandOtBatchExecutor::msgTagCount();
+    return 2 * RandOtBatchOperator::msgTagCount();
 }
 
 void BmtGenerator::computeMix(int sender) {
@@ -51,8 +51,8 @@ void BmtGenerator::computeMix(int sender) {
         }
     }
 
-    auto results = RandOtBatchExecutor(sender, &ss0, &ss1, &choices, 1, _taskTag,
-                                       _currentMsgTag + sender * RandOtBatchExecutor::msgTagCount()).execute()->
+    auto results = RandOtBatchOperator(sender, &ss0, &ss1, &choices, 1, _taskTag,
+                                       _currentMsgTag + sender * RandOtBatchOperator::msgTagCount()).execute()->
             _results;
 
     if (isSender) {

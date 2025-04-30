@@ -6,7 +6,7 @@
 #define BITWISEBMTGENERATOR_H
 #include "AbstractBmtSingleGenerator.h"
 #include "./item/Bmt.h"
-#include "../base/AbstractSingleExecutor.h"
+#include "../base/AbstractSingleOperator.h"
 #include "./item/BitwiseBmt.h"
 
 
@@ -31,7 +31,7 @@ private:
     [[nodiscard]] int64_t corr(int i, int64_t x) const;
 
 public:
-    AbstractSecureExecutor * reconstruct(int clientRank) override;
+    SecureOperator * reconstruct(int clientRank) override;
 
     static int msgTagCount(int width);
 };

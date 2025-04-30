@@ -4,18 +4,18 @@
 
 #ifndef ARITHBATCHEXECUTOR_H
 #define ARITHBATCHEXECUTOR_H
-#include "../../../base/AbstractBatchExecutor.h"
+#include "../../../base/AbstractBatchOperator.h"
 
 
-class ArithBatchExecutor : public AbstractBatchExecutor {
+class ArithBatchOperator : public AbstractBatchOperator {
 public:
-    ArithBatchExecutor(std::vector<int64_t>& zs, int width, int taskTag, int msgTagOffset, int clientRank);
+    ArithBatchOperator(std::vector<int64_t>& zs, int width, int taskTag, int msgTagOffset, int clientRank);
 
-    ArithBatchExecutor(std::vector<int64_t>* xs, std::vector<int64_t>* ys, int width, int taskTag, int msgTagOffset, int clientRank);
+    ArithBatchOperator(std::vector<int64_t>* xs, std::vector<int64_t>* ys, int width, int taskTag, int msgTagOffset, int clientRank);
 
-    ArithBatchExecutor *reconstruct(int clientRank) override;
+    ArithBatchOperator *reconstruct(int clientRank) override;
 
-    ArithBatchExecutor *execute() override;
+    ArithBatchOperator *execute() override;
 };
 
 

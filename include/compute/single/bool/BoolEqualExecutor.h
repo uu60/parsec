@@ -5,21 +5,21 @@
 #ifndef BOOLEQUALEXECUTOR_H
 #define BOOLEQUALEXECUTOR_H
 #
-#include "./BoolExecutor.h"
+#include "./BoolOperator.h"
 #include "../../../intermediate/item/BitwiseBmt.h"
 
-class BoolEqualExecutor : public BoolExecutor {
+class BoolEqualOperator : public BoolOperator {
 private:
     // std::vector<Bmt> *_bmts{};
     BitwiseBmt *_bmt{};
 
 public:
-    BoolEqualExecutor(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset,
-                       int clientRank) : BoolExecutor(x, y, l, taskTag, msgTagOffset, clientRank) {}
+    BoolEqualOperator(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset,
+                       int clientRank) : BoolOperator(x, y, l, taskTag, msgTagOffset, clientRank) {}
 
-    BoolEqualExecutor *execute() override;
+    BoolEqualOperator *execute() override;
 
-    BoolEqualExecutor *setBmt(BitwiseBmt *bmt);
+    BoolEqualOperator *setBmt(BitwiseBmt *bmt);
 };
 
 #endif //BOOLEQUALEXECUTOR_H

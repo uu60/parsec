@@ -2,10 +2,10 @@
 // Created by 杜建璋 on 2024/12/1.
 //
 
-#include "compute/single/arith/ArithToBoolExecutor.h"
+#include "compute/single/arith/ArithToBoolOperator.h"
 
 #include "comm/Comm.h"
-#include "compute/single/bool/BoolAndExecutor.h"
+#include "compute/single/bool/BoolAndOperator.h"
 #include "intermediate/BitwiseBmtBatchGenerator.h"
 #include "intermediate/BitwiseBmtGenerator.h"
 #include "intermediate/BmtGenerator.h"
@@ -14,7 +14,7 @@
 #include "utils/Log.h"
 #include "utils/Math.h"
 
-void ArithToBoolExecutor::prepareBmts(BitwiseBmt &b0, BitwiseBmt &b1, BitwiseBmt &b2) const {
+void ArithToBoolOperator::prepareBmts(BitwiseBmt &b0, BitwiseBmt &b1, BitwiseBmt &b2) const {
     if (_bmts != nullptr) {
         b0 = _bmts->at(0);
         b1 = _bmts->at(1);
@@ -32,7 +32,7 @@ void ArithToBoolExecutor::prepareBmts(BitwiseBmt &b0, BitwiseBmt &b1, BitwiseBmt
     }
 }
 
-ArithToBoolExecutor *ArithToBoolExecutor::execute() {
+ArithToBoolOperator *ArithToBoolOperator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isServer()) {
         // bitwise separate xi
@@ -69,19 +69,19 @@ ArithToBoolExecutor *ArithToBoolExecutor::execute() {
                 if (Conf::ENABLE_INTRA_OPERATOR_PARALLELISM) {
                     f = ThreadPoolSupport::submit([&] {
                         auto bmt = b0.extract(i);
-                        return BoolAndExecutor(ai, bi, 1, _taskTag, cm, NO_CLIENT_COMPUTE).setBmt(
+                        return BoolAndOperator(ai, bi, 1, _taskTag, cm, NO_CLIENT_COMPUTE).setBmt(
                             &bmt)->execute()->_zi;
                     });
                 } else {
                     auto bmt = b0.extract(i);
-                    generate_i = BoolAndExecutor(ai, bi, 1, _taskTag, cm, NO_CLIENT_COMPUTE).setBmt(
+                    generate_i = BoolAndOperator(ai, bi, 1, _taskTag, cm, NO_CLIENT_COMPUTE).setBmt(
                         &bmt)->execute()->_zi;
                 }
 
-                _currentMsgTag += BoolAndExecutor::msgTagCount(1);
+                _currentMsgTag += BoolAndOperator::msgTagCount(1);
 
                 auto bmt = b1.extract(i);
-                bool tempCarry_i = BoolAndExecutor(propagate_i, carry_i, 1, _taskTag, _currentMsgTag, -1).setBmt(
+                bool tempCarry_i = BoolAndOperator(propagate_i, carry_i, 1, _taskTag, _currentMsgTag, -1).setBmt(
                     &bmt)->execute()->_zi;
 
                 if (Conf::ENABLE_INTRA_OPERATOR_PARALLELISM) {
@@ -90,7 +90,7 @@ ArithToBoolExecutor *ArithToBoolExecutor::execute() {
                 bool sum_i = generate_i ^ tempCarry_i;
 
                 bmt = b2.extract(i);
-                bool and_i = BoolAndExecutor(generate_i, tempCarry_i, 1, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
+                bool and_i = BoolAndOperator(generate_i, tempCarry_i, 1, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
                         setBmt(&bmt)->execute()->_zi;
 
                 carry_i = sum_i ^ and_i;
@@ -102,11 +102,11 @@ ArithToBoolExecutor *ArithToBoolExecutor::execute() {
     return this;
 }
 
-int ArithToBoolExecutor::msgTagCount(int l) {
-    return static_cast<int>(2 * BoolAndExecutor::msgTagCount(l));
+int ArithToBoolOperator::msgTagCount(int l) {
+    return static_cast<int>(2 * BoolAndOperator::msgTagCount(l));
 }
 
-ArithToBoolExecutor *ArithToBoolExecutor::setBmts(std::vector<BitwiseBmt> *bmts) {
+ArithToBoolOperator *ArithToBoolOperator::setBmts(std::vector<BitwiseBmt> *bmts) {
     if (bmts != nullptr && bmts->size() != bmtCount(_width)) {
         throw std::runtime_error("Bmt size mismatch.");
     }
@@ -114,9 +114,9 @@ ArithToBoolExecutor *ArithToBoolExecutor::setBmts(std::vector<BitwiseBmt> *bmts)
     return this;
 }
 
-ArithToBoolExecutor *ArithToBoolExecutor::reconstruct(int clientRank) {
+ArithToBoolOperator *ArithToBoolOperator::reconstruct(int clientRank) {
     _currentMsgTag = _startMsgTag;
-    BoolExecutor e(_zi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
+    BoolOperator e(_zi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
     e.reconstruct(clientRank);
     if (Comm::rank() == clientRank) {
         _result = e._result;
@@ -124,6 +124,6 @@ ArithToBoolExecutor *ArithToBoolExecutor::reconstruct(int clientRank) {
     return this;
 }
 
-int ArithToBoolExecutor::bmtCount(int width) {
+int ArithToBoolOperator::bmtCount(int width) {
     return 3;
 }
