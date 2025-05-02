@@ -208,3 +208,11 @@ void Secrets::sort(std::vector<ArithSecret> &secrets, bool asc, int taskTag) {
 void Secrets::sort(std::vector<BoolSecret> &secrets, bool asc, int taskTag) {
     doSort<BoolSecret>(secrets, asc, taskTag);
 }
+
+std::vector<int64_t> Secrets::boolShare(std::vector<int64_t> &origins, int clientRank, int width, int taskTag) {
+    return BoolBatchOperator(origins, width, taskTag, 0, clientRank)._zis;
+}
+
+std::vector<int64_t> Secrets::boolReconstruct(std::vector<int64_t> &secrets, int clientRank, int width, int taskTag) {
+    return BoolBatchOperator(secrets, width, taskTag, 0, SecureOperator::NO_CLIENT_COMPUTE).reconstruct(clientRank)->_results;
+}

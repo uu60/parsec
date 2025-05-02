@@ -88,7 +88,7 @@ void BoolMutexBatchOperator::executeForSort() {
     std::vector<BitwiseBmt> bmts;
     bool gotBmt = prepareBmts(bmts);
 
-    auto num = _conds_i->size();
+    auto num = _xis->size();
 
     // First half is xis & conds_i, the other is yis & conds_i
     auto zis = BoolAndBatchOperator(_xis, _yis, _conds_i, _width, _taskTag, _currentMsgTag).setBmts(
@@ -104,7 +104,7 @@ void BoolMutexBatchOperator::executeForSort() {
             _zis[num + i] = zis[i] ^ (*_xis)[i] ^ zis[num + i];
         }
     }
-}\
+}
 
 BoolMutexBatchOperator *BoolMutexBatchOperator::execute() {
     _currentMsgTag = _startMsgTag;

@@ -2,28 +2,29 @@
 // Created by 杜建璋 on 2024/10/25.
 //
 
-#include <utility>
-
 #include <iostream>
 #include <iomanip>
 
 #include "../../include/basis/Table.h"
+
+#include "utils/System.h"
 
 
 Table::Table(std::string &tableName, std::vector<std::string> &fieldNames, std::vector<int> &fieldWidths) {
     this->_tableName = tableName;
     this->_fieldNames = fieldNames;
     this->_fieldWidths = fieldWidths;
-    for (auto w : this->_fieldWidths) {
+    for (auto w: this->_fieldWidths) {
         _maxColWidth = std::max(w, _maxColWidth);
     }
     this->_cols = fieldNames.size();
-    for (int i = 0; i < this->_cols; i++) {
-        this->_dataCols.push_back(std::vector<int64_t>());
-    }
+    this->_taskTag = System::nextTask();
 }
 
 bool Table::insert(const std::vector<int64_t> &r) {
+    if (_dataCols.size() == 0) {
+        _dataCols.resize(_fieldNames.size(), {});
+    }
     if (r.size() != _fieldNames.size()) {
         return false;
     }
@@ -39,7 +40,7 @@ const std::vector<int64_t> &Table::getColData(std::string colName) {
             return _dataCols[i];
         }
     }
-    return {};
+    return EMPTY_COL;
 }
 
 int Table::getColWidth(const std::string &colName) const {

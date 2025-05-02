@@ -69,6 +69,7 @@ public:
         if (Conf::THREAD_POOL_TYPE == Conf::ASYNC) {
             return _async->submit(f);
         }
+        return callerRun(f);
     }
 };
 

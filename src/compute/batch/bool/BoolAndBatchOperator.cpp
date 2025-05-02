@@ -9,6 +9,7 @@
 #include "intermediate/BitwiseBmtBatchGenerator.h"
 #include "intermediate/BitwiseBmtGenerator.h"
 #include "intermediate/IntermediateDataSupport.h"
+#include "utils/Log.h"
 
 int BoolAndBatchOperator::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     if (_bmts != nullptr) {
@@ -205,7 +206,7 @@ void BoolAndBatchOperator::executeForMutex() {
         } else {
             for (int i = 0; i < num; i++) {
                 efi[i] = (*_xis)[i] ^ bmts[i]._a;
-                efi[num * 2 + i] = (*_conds_i)[i] ^ bmts[i]._b;
+                efi[num * 2 + i] = (*_conds_i)[i % condNum] ^ bmts[i]._b;
             }
             for (int i = num; i < num * 2; i++) {
                 efi[i] = (*_yis)[i - num] ^ bmts[i]._a;

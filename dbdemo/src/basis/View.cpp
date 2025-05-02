@@ -2,23 +2,22 @@
 // Created by 杜建璋 on 25-4-25.
 //
 
-#include "View.h"
+#include "../../include/basis/View.h"
 
 #include "compute/batch/bool/BoolAndBatchOperator.h"
 #include "compute/batch/bool/BoolLessBatchOperator.h"
 #include "compute/batch/bool/BoolMutexBatchOperator.h"
+#include "utils/Log.h"
+#include "utils/StringUtils.h"
 
 View::View(std::string &tableName, std::vector<std::string> &fieldNames, std::vector<int> &fieldWidths) : Table(
     tableName, fieldNames, fieldWidths) {
-    // used for padding
-    _fieldNames.push_back("$padding");
-    _dataCols.push_back(std::vector<int64_t>());
+    _cols++;
 }
 
 void View::sort(const std::string &orderField, bool ascendingOrder, int msgTagOffset) {
     size_t n = _dataCols[0].size();
     bool isPowerOf2 = (n > 0) && ((n & (n - 1)) == 0);
-    size_t paddingCount = 0;
     if (!isPowerOf2) {
         size_t nextPow2 = static_cast<size_t>(1) <<
                           static_cast<size_t>(std::ceil(std::log2(n)));
@@ -26,17 +25,18 @@ void View::sort(const std::string &orderField, bool ascendingOrder, int msgTagOf
         for (auto &v: _dataCols) {
             v.resize(nextPow2, 1);
         }
-        paddingCount = nextPow2 - n;
     }
     doSort(orderField, ascendingOrder, msgTagOffset);
-    if (paddingCount > 0) {
+    if (n < _dataCols[0].size()) {
         for (auto &v: _dataCols) {
-            v.resize(_dataCols[0].size() - paddingCount);
+            v.resize(n);
         }
     }
 }
 
-void View::collect(bool ascendingOrder, int n, const std::vector<int64_t> &col, int k, int j, std::vector<int64_t> &xs, std::vector<int64_t> &ys, std::vector<int64_t> &xIdx, std::vector<int64_t> &yIdx, std::vector<bool> &ascs) {
+void View::collect(bool ascendingOrder, int n, const std::vector<int64_t> &col, int k, int j, std::vector<int64_t> &xs,
+                   std::vector<int64_t> &ys, std::vector<int64_t> &xIdx, std::vector<int64_t> &yIdx,
+                   std::vector<bool> &ascs) {
     int halfN = n / 2;
     xs.reserve(halfN);
     ys.reserve(halfN);
@@ -50,8 +50,8 @@ void View::collect(bool ascendingOrder, int n, const std::vector<int64_t> &col, 
             continue;
         }
         bool dir = (i & k) == 0;
-        auto &paddings = _dataCols[_dataCols.size() - 1];
         // last col is padding bool
+        auto &paddings = _dataCols[_cols - 1];
         if (paddings[i] && paddings[l]) {
             continue;
         }
@@ -72,7 +72,10 @@ void View::collect(bool ascendingOrder, int n, const std::vector<int64_t> &col, 
     }
 }
 
-void View::compareAndSwap(const std::string &orderField, int msgTagOffset, std::vector<int64_t> xs, std::vector<int64_t> ys, std::vector<int64_t> xIdx, std::vector<int64_t> yIdx, std::vector<bool> ascs, std::vector<int64_t> zs, int mw) {
+void View::compareAndSwap(const std::string &orderField, int msgTagOffset, std::vector<int64_t> &xs,
+                          std::vector<int64_t> &ys, std::vector<int64_t> &xIdx, std::vector<int64_t> &yIdx,
+                          std::vector<bool> &ascs, std::vector<int64_t> &zs) {
+    int mw = getColWidth(orderField);
     zs = BoolLessBatchOperator(&xs, &ys, mw, _taskTag, msgTagOffset,
                                SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
@@ -83,28 +86,42 @@ void View::compareAndSwap(const std::string &orderField, int msgTagOffset, std::
         }
     }
 
-    size_t sz = comparingCount * _cols;
-    xs.resize(sz);
-    ys.resize(sz);
-    // xs and ys has have one order column
-    int pos = comparingCount;
-    for (int i = 0; i < _cols; i++) {
+    size_t sz = comparingCount * (_cols - 1);
+    xs.reserve(sz);
+    ys.reserve(sz);
+    // xs and ys has already stored one order column
+    int ofi = 0; // Order field index
+    for (int i = 0; i < _cols - 1; i++) {
         if (_fieldNames[i] == orderField) {
+            ofi = i;
             continue;
         }
         for (int j = 0; j < comparingCount; j++) {
-            xs[pos] = _dataCols[i][xIdx[j]];
-            ys[pos] = _dataCols[i][yIdx[j]];
+            xs.push_back(_dataCols[i][xIdx[j]]);
+            ys.push_back(_dataCols[i][yIdx[j]]);
         }
     }
 
     zs = BoolMutexBatchOperator(&xs, &ys, &zs, _maxColWidth, _taskTag, msgTagOffset).execute()->_zis;
 
-    for (auto &v : _dataCols) {
-        for (int i = 0; i < comparingCount; i++) {
-            v[xIdx[i]] = zs[i];
-            v[yIdx[i]] = zs[i + comparingCount];
+    auto &oc = _dataCols[ofi]; // order column
+    for (int j = 0; j < comparingCount; j++) {
+        oc[xIdx[j]] = zs[j];
+        oc[yIdx[j]] = zs[(_cols - 1) * comparingCount + j];
+    }
+
+    // skip first for order column
+    int pos = 1;
+    for (int i = 0; i < _cols - 1; i++) {
+        if (i == ofi) {
+            continue;
         }
+        auto &col = _dataCols[i];
+        for (int j = 0; j < comparingCount; j++) {
+            col[xIdx[j]] = zs[pos * comparingCount + j];
+            col[yIdx[j]] = zs[(pos + _cols - 1) * comparingCount + j];
+        }
+        pos++;
     }
 }
 
@@ -121,8 +138,7 @@ void View::doSort(const std::string &orderField, bool ascendingOrder, int msgTag
             collect(ascendingOrder, n, col, k, j, xs, ys, xIdx, yIdx, ascs);
 
             std::vector<int64_t> zs;
-            int mw = getColWidth(orderField);
-            compareAndSwap(orderField, msgTagOffset, xs, ys, xIdx, yIdx, ascs, zs, mw);
+            compareAndSwap(orderField, msgTagOffset, xs, ys, xIdx, yIdx, ascs, zs);
         }
     }
 }

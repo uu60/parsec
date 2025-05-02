@@ -9,20 +9,22 @@
 
 class View : public Table {
 public:
+    View() = default;
+
     View(std::string &tableName, std::vector<std::string> &fieldNames, std::vector<int> &fieldWidths);
 
     void sort(const std::string &orderField, bool ascendingOrder, int msgTagOffset);
 
+private:
     void collect(bool ascendingOrder, int n, const std::vector<int64_t> &col, int k, int j, std::vector<int64_t> &xs,
                  std::vector<int64_t> &ys, std::vector<int64_t> &xIdx, std::vector<int64_t> &yIdx,
                  std::vector<bool> &ascs);
 
-    void compareAndSwap(const std::string &orderField, int msgTagOffset, std::vector<int64_t> xs,
-                        std::vector<int64_t> ys,
-                        std::vector<int64_t> xIdx, std::vector<int64_t> yIdx, std::vector<bool> ascs,
-                        std::vector<int64_t> zs, int mw);
+    void compareAndSwap(const std::string &orderField, int msgTagOffset, std::vector<int64_t> &xs,
+                        std::vector<int64_t> &ys,
+                        std::vector<int64_t> &xIdx, std::vector<int64_t> &yIdx, std::vector<bool> &ascs,
+                        std::vector<int64_t> &zs);
 
-private:
     void doSort(const std::string &orderField, bool ascendingOrder, int msgTagOffset);
 
 };

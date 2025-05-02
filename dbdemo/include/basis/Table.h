@@ -18,6 +18,8 @@ public:
     int _cols{};
     int _taskTag;
 
+    inline static std::vector<int64_t> EMPTY_COL{};
+
 public:
     Table() = default;
 
