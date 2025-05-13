@@ -129,3 +129,4 @@ CTestTestfile.cmake
 
 install
 .DS_Store
+.clang-format

@@ -39,30 +39,8 @@
      target_link_libraries(${exe} PRIVATE ${PROJECT_NAME})
  endforeach ()
 
- file(GLOB_RECURSE DBDEMO_SOURCES
-         "dbdemo/src/*.cpp"
- )
- add_executable(dbdemo ${DBDEMO_SOURCES})
- set(CMAKE_INSTALL_RPATH "${CMAKE_SOURCE_DIR}/third_party/sql-parser/build")
- target_link_libraries(dbdemo PRIVATE ${PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/libsqlparser.so)
- target_include_directories(dbdemo PRIVATE
-         ${CMAKE_CURRENT_SOURCE_DIR}/include
-         ${CMAKE_CURRENT_SOURCE_DIR}/dbdemo/include
-         ${CMAKE_CURRENT_SOURCE_DIR}/dbdemo/third_party/hsql
- )
- # file(GLOB_RECURSE BENCHMARK_SOURCES
- #         "benchmark/*.h"
- #         "benchmark/*.cpp"
- # )
- #
- # set(BENCHMARK_RUNNER benchmark_runner)
- #
- # add_executable(${BENCHMARK_RUNNER} ${BENCHMARK_SOURCES})
- #
- # target_link_libraries(${BENCHMARK_RUNNER} PRIVATE ${PROJECT_NAME})
- #
- # target_include_directories(${BENCHMARK_RUNNER} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-
+ add_subdirectory(dbdemo)
+ add_subdirectory(dbdemo/benchmark)
 
  #
  # # install libxx.so to ${CMAKE_INSTALL_PREFIX}/lib

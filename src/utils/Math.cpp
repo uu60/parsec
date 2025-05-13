@@ -74,9 +74,8 @@ int64_t Math::randInt() {
     return randInt(std::numeric_limits<int64_t>::min(), std::numeric_limits<int64_t>::max());
 }
 
+thread_local std::mt19937_64 generator(std::random_device{}());
 int64_t Math::randInt(int64_t lowest, int64_t highest) {
-    thread_local std::mt19937_64 generator(std::random_device{}());
-
     std::uniform_int_distribution<int64_t> dist(lowest, highest);
 
     return dist(generator);
@@ -92,14 +91,12 @@ std::string Math::add(const std::string &add0, int64_t add1) {
 }
 
 std::string Math::randString(int bytes) {
-    std::random_device rd;
-    std::mt19937 gen(rd());
     std::uniform_int_distribution<int8_t> dis(-128, 127);
 
     std::vector<int8_t> temp;
     temp.reserve(bytes);
     for (size_t i = 0; i < bytes; ++i) {
-        temp.push_back(dis(gen));
+        temp.push_back(dis(generator));
     }
 
     return std::string(temp.begin(), temp.end());

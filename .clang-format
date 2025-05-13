@@ -1,0 +1,25 @@
+BasedOnStyle: Google
+
+# Java-style formatting
+IndentWidth: 4                    # Java 常用4空格缩进
+UseTab: Never                     # Java 推荐使用空格缩进
+ColumnLimit: 100                 # 与 Java 通常使用的限制一致
+BreakBeforeBraces: Attach        # Java 风格括号通常是 K&R 风格（如 if (...) {）
+
+# 参数和函数保持一致性
+AlignAfterOpenBracket: Align     # 参数对齐方式类似 Java 方法调用
+AllowAllParametersOfDeclarationOnNextLine: true
+BinPackParameters: false         # 每个参数单独占一行（如果换行）
+
+# 控制短语句换行方式
+AllowShortIfStatementsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortLoopsOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+
+# 函数返回类型和函数名对齐
+DerivePointerAlignment: false
+PointerAlignment: Left           # Java 风格更像 `int* p` 而非 `int *p`
+
+# 注释对齐（如 Javadoc）
+AlignTrailingComments: true

@@ -14,9 +14,8 @@ public:
     std::vector<std::string> _fieldNames;
     std::vector<int> _fieldWidths;
     std::vector<std::vector<int64_t> > _dataCols;
-    int _maxColWidth{};
-    int _cols{};
-    int _taskTag;
+    int _maxWidth{};
+    int _colNum{};
 
     inline static std::vector<int64_t> EMPTY_COL{};
 
@@ -27,7 +26,7 @@ public:
 
     bool insert(const std::vector<int64_t> &r);
 
-    const std::vector<int64_t> &getColData(std::string colName);
+    std::vector<int64_t> &getColData(std::string colName);
 
     int getColWidth(const std::string &colName) const;
 };

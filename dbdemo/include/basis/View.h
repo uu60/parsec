@@ -15,17 +15,16 @@ public:
 
     void sort(const std::string &orderField, bool ascendingOrder, int msgTagOffset);
 
+    void bs1B(const std::string &orderField, bool ascendingOrder, int msgTagOffset);
+
+    void bsNB(const std::string &orderField, bool ascendingOrder, int msgTagOffset);
+
+    static View selectAll(Table &t);
+
+    static View selectColumns(Table &t, std::vector<std::string> &fieldNames);
+
 private:
-    void collect(bool ascendingOrder, int n, const std::vector<int64_t> &col, int k, int j, std::vector<int64_t> &xs,
-                 std::vector<int64_t> &ys, std::vector<int64_t> &xIdx, std::vector<int64_t> &yIdx,
-                 std::vector<bool> &ascs);
-
-    void compareAndSwap(const std::string &orderField, int msgTagOffset, std::vector<int64_t> &xs,
-                        std::vector<int64_t> &ys,
-                        std::vector<int64_t> &xIdx, std::vector<int64_t> &yIdx, std::vector<bool> &ascs,
-                        std::vector<int64_t> &zs);
-
-    void doSort(const std::string &orderField, bool ascendingOrder, int msgTagOffset);
+    void bitonicSort(const std::string &orderField, bool ascendingOrder, int msgTagOffset);
 
 };
 

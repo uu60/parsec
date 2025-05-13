@@ -6,10 +6,14 @@
 #define SELECTSUPPORT_H
 #include "../basis/Table.h"
 #include "../basis/View.h"
+#include "../third_party/json.hpp"
+#include "../third_party/hsql/sql/SQLStatement.h"
 
 class SelectSupport {
 public:
-    static View selectAll(Table &t);
+    static bool clientSelect(std::ostringstream &resp, const hsql::SQLStatement *stmt);
+
+    static void serverSelect(nlohmann::basic_json<> js);
 
 };
 

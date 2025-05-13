@@ -2,10 +2,12 @@
 // Created by 杜建璋 on 2024/10/25.
 //
 
+#include <utility>
+
 #include "../../include/basis/Database.h"
 
 Database::Database(std::string databaseName) {
-    this->_databaseName = databaseName;
+    this->_databaseName = std::move(databaseName);
 }
 
 std::string Database::name() {
@@ -13,13 +15,13 @@ std::string Database::name() {
 }
 
 bool
-Database::createTable(std::string &tableName, std::vector<std::string> fieldNames, std::vector<int> fieldTypes,
+Database::createTable(std::string &tableName, std::vector<std::string> fieldNames, std::vector<int> fieldWidths,
                       std::string &msg) {
     if (getTable(tableName)) {
         msg = "Table already exists.";
         return false;
     }
-    _tables[tableName] = Table(tableName, fieldNames, fieldTypes);
+    _tables[tableName] = Table(tableName, fieldNames, fieldWidths);
     return true;
 }
 

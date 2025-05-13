@@ -15,14 +15,13 @@ Table::Table(std::string &tableName, std::vector<std::string> &fieldNames, std::
     this->_fieldNames = fieldNames;
     this->_fieldWidths = fieldWidths;
     for (auto w: this->_fieldWidths) {
-        _maxColWidth = std::max(w, _maxColWidth);
+        _maxWidth = std::max(w, _maxWidth);
     }
-    this->_cols = fieldNames.size();
-    this->_taskTag = System::nextTask();
+    this->_colNum = static_cast<int>(fieldNames.size());
 }
 
 bool Table::insert(const std::vector<int64_t> &r) {
-    if (_dataCols.size() == 0) {
+    if (_dataCols.empty()) {
         _dataCols.resize(_fieldNames.size(), {});
     }
     if (r.size() != _fieldNames.size()) {
@@ -34,7 +33,7 @@ bool Table::insert(const std::vector<int64_t> &r) {
     return true;
 }
 
-const std::vector<int64_t> &Table::getColData(std::string colName) {
+std::vector<int64_t> &Table::getColData(std::string colName) {
     for (int i = 0; i < _dataCols.size(); i++) {
         if (_fieldNames[i] == colName) {
             return _dataCols[i];

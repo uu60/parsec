@@ -3,10 +3,11 @@
 //
 
 #include "conf/Conf.h"
-#include <boost/program_options.hpp>
 #include <iostream>
-namespace po = boost::program_options;
+#include <regex>
+#include <boost/program_options.hpp>
 
+namespace po = boost::program_options;
 void Conf::init(int argc, char **argv) {
     try {
         po::options_description desc("Allowed options");
@@ -148,11 +149,22 @@ void Conf::init(int argc, char **argv) {
 
         std::vector<std::string> extra_args = po::collect_unrecognized(parsed.options, po::include_positional);
         if (!extra_args.empty()) {
-            std::cout << "Warning: unrecognized params:";
+            std::cout << "Info: user params:";
             for (const auto &arg: extra_args) {
                 std::cout << " " << arg;
             }
             std::cout << std::endl;
+        }
+        static const std::regex EXTRA_ARG_RE{R"(^--([^=]+)=(.+)$)"};
+
+        for (auto const &arg : extra_args) {
+            std::smatch m;
+            if (!std::regex_match(arg, m, EXTRA_ARG_RE)) {
+                throw std::runtime_error("Wrong extra_args format: " + arg);
+            }
+            std::string key = m[1].str();
+            std::string val = m[2].str();
+            _userParams[key] = val;
         }
     } catch (const std::exception &ex) {
         std::cerr << "Error: " << ex.what() << std::endl;
