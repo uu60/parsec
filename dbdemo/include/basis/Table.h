@@ -26,7 +26,7 @@ public:
 
     bool insert(const std::vector<int64_t> &r);
 
-    std::vector<int64_t> &getColData(std::string colName);
+    std::vector<int64_t> &getColData(const std::string &colName);
 
     int getColWidth(const std::string &colName) const;
 };

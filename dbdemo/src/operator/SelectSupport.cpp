@@ -41,6 +41,11 @@ bool SelectSupport::clientSelect(std::ostringstream &resp, const hsql::SQLStatem
         }
     }
 
+    // filter
+    if (selectStmt->whereClause) {
+
+    }
+
     // order
     std::vector<std::string> orderFields;
     std::vector<bool> ascendings;
@@ -67,6 +72,9 @@ bool SelectSupport::clientSelect(std::ostringstream &resp, const hsql::SQLStatem
     js["type"] = SystemManager::getCommandPrefix(SystemManager::SELECT);
     js["name"] = tableName;
     js["fieldNames"] = selectedFieldNames;
+    if (selectStmt->whereClause) {
+
+    }
     if (selectStmt->order) {
         js["orderFields"] = orderFields;
         js["ascendings"] = ascendings;
@@ -122,11 +130,6 @@ void SelectSupport::serverSelect(json js) {
         v.sort(orderFields[0], ascendings[0], 0);
     }
 
-    // auto count = static_cast<int64_t>(v.size());
-    // if (Comm::rank() == 0) {
-    //     Comm::send(&count, Comm::CLIENT_RANK);
-    // }
-
     std::vector<int64_t> toReconstruct(v._dataCols[0].size() * (v._colNum - 1));
     for (int i = 0; i < v._dataCols[0].size(); ++i) {
         for (int j = 0; j < v._colNum - 1; ++j) {
@@ -134,29 +137,4 @@ void SelectSupport::serverSelect(json js) {
         }
     }
     Secrets::boolReconstruct(toReconstruct, 2, v._maxWidth, 0);
-
-    // const auto fieldNames = table->fieldNames();
-    // for (int i = 0; i < count; i++) {
-    //     TempRecord &cur = v[i];
-    //
-    //     for (const auto &selectedField: selectedFields) {
-    //         // column index in the table
-    //         int64_t idx = std::distance(fieldNames.begin(),
-    //                                     std::ranges::find(fieldNames, selectedField));
-    //         int t = table->fieldTypes()[idx];
-    //         if (t == 1) {
-    //             std::get<BitSecret>(cur._fieldValues[idx]).reconstruct();
-    //         } else if (t == 8) {
-    //             std::get<IntSecret<int8_t> >(cur._fieldValues[idx]).reconstruct();
-    //         } else if (t == 16) {
-    //             std::get<IntSecret<int16_t> >(cur._fieldValues[idx]).reconstruct();
-    //         } else if (t == 32) {
-    //             std::get<IntSecret<int32_t> >(cur._fieldValues[idx]).reconstruct();
-    //         } else {
-    //             std::get<IntSecret<int64_t> >(cur._fieldValues[idx]).reconstruct();
-    //         }
-    //     }
-    //
-    //     cur._valid.reconstruct();
-    // }
 }

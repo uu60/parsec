@@ -63,7 +63,7 @@ public:
     // Task tag bits
     inline static int TASK_TAG_BITS = 6;
     // Enable single-thread only
-    inline static bool DISABLE_MULTI_THREAD = true;
+    inline static bool DISABLE_MULTI_THREAD = false;
     // Enable multiple-thread computation in each single executor
     inline static bool ENABLE_INTRA_OPERATOR_PARALLELISM = false;
     // Sum of threads in a process

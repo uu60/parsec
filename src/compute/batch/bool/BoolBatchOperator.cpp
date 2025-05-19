@@ -25,8 +25,9 @@ BoolBatchOperator::BoolBatchOperator(std::vector<int64_t> &zs, int width, int ta
                 zv1.push_back(z1);
             }
             auto r = Comm::sendAsync(zv0, _width, 0, buildTag(_currentMsgTag));
-            Comm::send(zv1, _width, 1, buildTag(_currentMsgTag));
+            auto r1 = Comm::sendAsync(zv1, _width, 1, buildTag(_currentMsgTag));
             Comm::wait(r);
+            Comm::wait(r1);
         } else if (Comm::isServer()) {
             _zis.clear();
             // operator
@@ -62,8 +63,9 @@ BoolBatchOperator::BoolBatchOperator(std::vector<int64_t> *xs, std::vector<int64
                 v1.push_back(y1);
             }
             auto r = Comm::sendAsync(v0, _width, 0, buildTag(_currentMsgTag));
-            Comm::send(v1, _width, 1, buildTag(_currentMsgTag));
+            auto r1 = Comm::sendAsync(v1, _width, 1, buildTag(_currentMsgTag));
             Comm::wait(r);
+            Comm::wait(r1);
         } else if (Comm::isServer()) {
             // operator
             std::vector<int64_t> temp;

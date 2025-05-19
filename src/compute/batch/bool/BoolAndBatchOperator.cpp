@@ -142,10 +142,10 @@ void BoolAndBatchOperator::execute0() {
         for (int i = 0; i < num; i++) {
             int64_t e = efs[i];
             int64_t f = efs[num + i];
-            _zis[i] = (extendedRank & e & f) ^ (
-                          f & IntermediateDataSupport::_fixedBitwiseBmt._a) ^ (
-                          e & IntermediateDataSupport::_fixedBitwiseBmt._b) ^
-                      IntermediateDataSupport::_fixedBitwiseBmt._c;
+            _zis[i] = Math::ring((extendedRank & e & f) ^ (
+                                     f & IntermediateDataSupport::_fixedBitwiseBmt._a) ^ (
+                                     e & IntermediateDataSupport::_fixedBitwiseBmt._b) ^
+                                 IntermediateDataSupport::_fixedBitwiseBmt._c, _width);
         }
     } else {
         if (_width < 64 && bc != -2) {
@@ -154,7 +154,7 @@ void BoolAndBatchOperator::execute0() {
                 int64_t f = efs[num + i];
                 auto bmt = BitwiseBmt::extract(bmts, i, _width);
 
-                _zis[i] = (extendedRank & e & f) ^ (f & bmt._a) ^ (e & bmt._b) ^ bmt._c;
+                _zis[i] = Math::ring((extendedRank & e & f) ^ (f & bmt._a) ^ (e & bmt._b) ^ bmt._c, _width);
             }
         } else {
             for (int i = 0; i < num; i++) {
@@ -164,7 +164,7 @@ void BoolAndBatchOperator::execute0() {
                 int64_t a = bmt._a;
                 int64_t b = bmt._b;
                 int64_t c = bmt._c;
-                _zis[i] = (extendedRank & e & f) ^ (f & a) ^ (e & b) ^ c;
+                _zis[i] = Math::ring((extendedRank & e & f) ^ (f & a) ^ (e & b) ^ c, _width);
             }
         }
     }
@@ -240,10 +240,10 @@ void BoolAndBatchOperator::executeForMutex() {
         for (int i = 0; i < num * 2; i++) {
             int64_t e = efs[i];
             int64_t f = efs[num * 2 + i];
-            _zis[i] = (extendedRank & e & f) ^ (
-                          f & IntermediateDataSupport::_fixedBitwiseBmt._a) ^ (
-                          e & IntermediateDataSupport::_fixedBitwiseBmt._b) ^
-                      IntermediateDataSupport::_fixedBitwiseBmt._c;
+            _zis[i] = Math::ring((extendedRank & e & f) ^ (
+                                     f & IntermediateDataSupport::_fixedBitwiseBmt._a) ^ (
+                                     e & IntermediateDataSupport::_fixedBitwiseBmt._b) ^
+                                 IntermediateDataSupport::_fixedBitwiseBmt._c, _width);
         }
     } else {
         if (_width < 64 && bc != -2) {
@@ -252,14 +252,14 @@ void BoolAndBatchOperator::executeForMutex() {
                 int64_t f = efs[num * 2 + i];
                 // Multiple 64 bit bmts
                 auto bmt = BitwiseBmt::extract(bmts, i, _width);
-                _zis[i] = (extendedRank & e & f) ^ (f & bmt._a) ^ (e & bmt._b) ^ bmt._c;
+                _zis[i] = Math::ring((extendedRank & e & f) ^ (f & bmt._a) ^ (e & bmt._b) ^ bmt._c, _width);
             }
         } else {
             for (int i = 0; i < num * 2; i++) {
                 int64_t e = efs[i];
                 int64_t f = efs[num * 2 + i];
                 // Multiple 64 bit bmts
-                _zis[i] = (extendedRank & e & f) ^ (f & bmts[i]._a) ^ (e & bmts[i]._b) ^ bmts[i]._c;
+                _zis[i] = Math::ring((extendedRank & e & f) ^ (f & bmts[i]._a) ^ (e & bmts[i]._b) ^ bmts[i]._c, _width);
             }
         }
     }

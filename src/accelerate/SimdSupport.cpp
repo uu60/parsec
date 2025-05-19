@@ -683,10 +683,9 @@ std::vector<int64_t> SimdSupport::computeZ(const std::vector<int64_t> &efs, int6
 
 std::vector<int64_t> SimdSupport::computeDiag(const std::vector<int64_t> &_yis,
                                               const std::vector<int64_t> &x_xor_y) {
-    // 假设 _yis 与 x_xor_y 大小相同
     int n = static_cast<int>(_yis.size());
     std::vector<int64_t> diag(n);
-    int64_t rank = Comm::rank(); // 例如：0 或 -1
+    int64_t rank = Comm::rank();
 #ifdef SIMD_AVX512
     int i = 0;
     __m512i one     = _mm512_set1_epi64(1);
@@ -772,7 +771,6 @@ std::vector<int64_t> SimdSupport::computeDiag(const std::vector<int64_t> &_yis,
         diag[i] = m | xor_result;
     }
 #else
-    // fallback: 标量实现
     for (int i = 0; i < n; i++) {
         int64_t yis_lsb = _yis[i] & 1;
         int64_t xor_result = yis_lsb ^ rank;

@@ -13,16 +13,12 @@
 #include "intermediate/IntermediateDataSupport.h"
 #include "parallel/ThreadPoolSupport.h"
 
-BoolLessBatchOperator *BoolLessBatchOperator::execute() {
-    _currentMsgTag = _startMsgTag;
-    if (Comm::isClient()) {
-        return this;
-    }
+BoolLessBatchOperator::BoolLessBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys, int width, int taskTag,
+    int msgTagOffset) : BoolBatchOperator(ys, xs, width, taskTag, msgTagOffset, NO_CLIENT_COMPUTE) {
+    _doBidirectional = true;
+}
 
-    int64_t start;
-    if (Conf::ENABLE_CLASS_WISE_TIMING) {
-        start = System::currentTimeMillis();
-    }
+void BoolLessBatchOperator::execute0() {
     std::vector<BitwiseBmt> bmts;
     bool gotBmt = prepareBmts(bmts);
 
@@ -88,6 +84,42 @@ BoolLessBatchOperator *BoolLessBatchOperator::execute() {
             result = result ^ Math::getBit(final_accum[i], j);
         }
         _zis[i] = result;
+    }
+}
+
+void BoolLessBatchOperator::executeBidirectional() {
+    // memory copy for xs and ys
+    // s0.size() should be equal to s1.size()
+    auto s0 = _xis->size();
+    auto s1 = _yis->size();
+
+    _xis->reserve(s0 + s1);
+    _xis->insert(_xis->end(), _yis->end(), _yis->end());
+
+    _yis->reserve(s0 + s1);
+    _yis->insert(_yis->end(), _xis->begin(), _xis->begin() + s0);
+
+    execute0();
+
+    _xis->resize(s0);
+    _yis->resize(s1);
+}
+
+BoolLessBatchOperator *BoolLessBatchOperator::execute() {
+    _currentMsgTag = _startMsgTag;
+    if (Comm::isClient()) {
+        return this;
+    }
+
+    int64_t start;
+    if (Conf::ENABLE_CLASS_WISE_TIMING) {
+        start = System::currentTimeMillis();
+    }
+
+    if (_doBidirectional) {
+        executeBidirectional();
+    } else {
+        execute0();
     }
 
     if (Conf::ENABLE_CLASS_WISE_TIMING) {

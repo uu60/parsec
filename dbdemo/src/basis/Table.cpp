@@ -33,7 +33,7 @@ bool Table::insert(const std::vector<int64_t> &r) {
     return true;
 }
 
-std::vector<int64_t> &Table::getColData(std::string colName) {
+std::vector<int64_t> &Table::getColData(const std::string &colName) {
     for (int i = 0; i < _dataCols.size(); i++) {
         if (_fieldNames[i] == colName) {
             return _dataCols[i];
