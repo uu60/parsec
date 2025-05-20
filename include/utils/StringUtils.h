@@ -5,14 +5,24 @@
 #ifndef STRINGUTILS_H
 #define STRINGUTILS_H
 #include <cstdint>
+#include <sstream>
 #include <vector>
 
 
 class StringUtils {
 public:
-    static std::string toString(const std::vector<int64_t> &vec);
+    template<typename T>
+    static std::string toString(const std::vector<T> &vec) {
+        std::ostringstream oss;
+        oss << "[";
+        for (size_t i = 0; i < vec.size(); ++i) {
+            oss << vec[i];
+            if (i != vec.size() - 1) oss << ", ";
+        }
+        oss << "]";
+        return oss.str();
+    }
 };
-
 
 
 #endif //STRINGUTILS_H

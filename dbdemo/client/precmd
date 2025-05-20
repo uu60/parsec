@@ -1,0 +1,4 @@
+create database d;
+use d;
+create table t (a int(64), b int(64));
+insert into t values (10, 20);

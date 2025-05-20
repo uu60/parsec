@@ -62,31 +62,31 @@ void View::fa1B(std::vector<std::string> &fieldNames, std::vector<ComparatorType
 
             int startTag = tagOffset * i;
             switch (ct) {
-                case GREATER_THAN:
-                case NO_GREATER_THAN: {
+                case GREATER:
+                case LESS_EQ: {
                     currentCondition = BoolLessBatchOperator(&extendedConstShares, &_dataCols[colIndex],
                                                              _fieldWidths[colIndex], 0, startTag,
                                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
                 }
-                    if (ct == NO_GREATER_THAN) {
+                    if (ct == LESS_EQ) {
                         for (auto &v: currentCondition) {
                             v = v ^ Comm::rank();
                         }
                     }
                     break;
-                case LESS_THAN:
-                case NO_LESS_THAN:
+                case LESS:
+                case GREATER_EQ:
                     currentCondition = BoolLessBatchOperator(&_dataCols[colIndex], &extendedConstShares,
                                                              _fieldWidths[colIndex], 0, startTag,
                                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-                    if (ct == NO_LESS_THAN) {
+                    if (ct == GREATER_EQ) {
                         for (auto &v: currentCondition) {
                             v = v ^ Comm::rank();
                         }
                     }
                     break;
-                case EQUAL:
-                case UNEQUAL:
+                case EQUALS:
+                case NOT_EQUALS:
                     auto gtv_ltv = BoolLessBatchOperator(&extendedConstShares, &_dataCols[colIndex],
                                                          _fieldWidths[colIndex], 0,
                                                          startTag).execute()->_zis;
@@ -99,7 +99,7 @@ void View::fa1B(std::vector<std::string> &fieldNames, std::vector<ComparatorType
 
                     currentCondition = BoolAndBatchOperator(&gtv, &ltv, 1, 0, startTag,
                                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-                    if (ct == UNEQUAL) {
+                    if (ct == NOT_EQUALS) {
                         for (auto &v: currentCondition) {
                             v = v ^ Comm::rank();
                         }
@@ -114,6 +114,10 @@ void View::fa1B(std::vector<std::string> &fieldNames, std::vector<ComparatorType
     }
 
     int validColIndex = _colNum + VALID_COL_OFFSET;
+    if (n == 1) {
+        _dataCols[validColIndex] = collected[0];
+        return;
+    }
 
     if (Conf::DISABLE_MULTI_THREAD) {
         _dataCols[validColIndex] = collected[0];
@@ -210,36 +214,34 @@ void View::faNB(std::vector<std::string> &fieldNames, std::vector<ComparatorType
                         std::vector<int64_t> batch_result;
 
                         switch (ct) {
-                            case GREATER_THAN:
-                            case NO_GREATER_THAN: {
-                                auto op_result = BoolLessBatchOperator(&batch_const, &batch_data,
+                            case GREATER:
+                            case LESS_EQ: {
+                                batch_result = BoolLessBatchOperator(&batch_const, &batch_data,
                                                                        _fieldWidths[colIndex], 0, batch_start_tag,
                                                                        SecureOperator::NO_CLIENT_COMPUTE).execute()->
                                         _zis;
-                                if (ct == NO_GREATER_THAN) {
-                                    for (auto &v: op_result) {
+                                if (ct == LESS_EQ) {
+                                    for (auto &v: batch_result) {
                                         v ^= Comm::rank();
                                     }
                                 }
-                                batch_result = op_result;
                                 break;
                             }
-                            case LESS_THAN:
-                            case NO_LESS_THAN: {
-                                auto op_result = BoolLessBatchOperator(&batch_data, &batch_const,
+                            case LESS:
+                            case GREATER_EQ: {
+                                batch_result = BoolLessBatchOperator(&batch_data, &batch_const,
                                                                        _fieldWidths[colIndex], 0, batch_start_tag,
                                                                        SecureOperator::NO_CLIENT_COMPUTE).execute()->
                                         _zis;
-                                if (ct == NO_LESS_THAN) {
-                                    for (auto &v: op_result) {
+                                if (ct == GREATER_EQ) {
+                                    for (auto &v: batch_result) {
                                         v ^= Comm::rank();
                                     }
                                 }
-                                batch_result = op_result;
                                 break;
                             }
-                            case EQUAL:
-                            case UNEQUAL: {
+                            case EQUALS:
+                            case NOT_EQUALS: {
                                 auto gtv_ltv = BoolLessBatchOperator(&batch_const, &batch_data,
                                                                      _fieldWidths[colIndex], 0, batch_start_tag,
                                                                      SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
@@ -251,15 +253,14 @@ void View::faNB(std::vector<std::string> &fieldNames, std::vector<ComparatorType
                                 std::vector<int64_t> gtv(gtv_ltv.begin(), gtv_ltv.begin() + half);
                                 std::vector<int64_t> ltv(gtv_ltv.begin() + half, gtv_ltv.end());
 
-                                auto and_result = BoolAndBatchOperator(&gtv, &ltv, 1, 0, batch_start_tag,
+                                batch_result = BoolAndBatchOperator(&gtv, &ltv, 1, 0, batch_start_tag,
                                                                        SecureOperator::NO_CLIENT_COMPUTE).execute()->
                                         _zis;
-                                if (ct == UNEQUAL) {
-                                    for (auto &v: and_result) {
+                                if (ct == NOT_EQUALS) {
+                                    for (auto &v: batch_result) {
                                         v ^= Comm::rank();
                                     }
                                 }
-                                batch_result = std::move(and_result);
                                 break;
                             }
                         }
@@ -284,6 +285,10 @@ void View::faNB(std::vector<std::string> &fieldNames, std::vector<ComparatorType
     }
 
     int validColIndex = _colNum + VALID_COL_OFFSET;
+    if (n == 1) {
+        _dataCols[validColIndex] = collected[0];
+        return;
+    }
 
     std::vector<std::vector<int64_t> > andCols = std::move(collected);
     int level = 0;
@@ -563,9 +568,9 @@ void View::bsNB(const std::string &orderField, bool ascendingOrder, int msgTagOf
 View View::selectAll(Table &t) {
     View v(t._tableName, t._fieldNames, t._fieldWidths);
     v._dataCols = t._dataCols;
-    v._fieldNames.emplace_back("$padding");
-    v._dataCols.emplace_back(v._dataCols[0].size());
     v._fieldNames.emplace_back("$valid");
+    v._dataCols.emplace_back(v._dataCols[0].size());
+    v._fieldNames.emplace_back("$padding");
     v._dataCols.emplace_back(v._dataCols[0].size());
     return v;
 }
@@ -594,7 +599,9 @@ View View::selectColumns(Table &t, std::vector<std::string> &fieldNames) {
     for (auto idx: indices) {
         v._dataCols.push_back(t._dataCols[idx]);
     }
-    // padding col
+    v._fieldNames.emplace_back("$valid");
+    v._dataCols.emplace_back(v._dataCols[0].size());
+    v._fieldNames.emplace_back("$padding");
     v._dataCols.emplace_back(v._dataCols[0].size());
 
     return v;

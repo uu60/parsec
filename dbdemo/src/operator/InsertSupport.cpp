@@ -11,6 +11,8 @@
 #include "comm/Comm.h"
 #include "dbms/SystemManager.h"
 #include "secret/Secrets.h"
+#include "utils/Log.h"
+#include "utils/StringUtils.h"
 
 bool InsertSupport::clientInsert(std::ostringstream &resp, const hsql::SQLStatement *stmt) {
     int64_t done;

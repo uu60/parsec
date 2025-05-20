@@ -90,19 +90,28 @@ void BoolLessBatchOperator::execute0() {
 void BoolLessBatchOperator::executeBidirectional() {
     // memory copy for xs and ys
     // s0.size() should be equal to s1.size()
-    auto s0 = _xis->size();
-    auto s1 = _yis->size();
+    size_t s0 = _xis->size();
+    size_t s1 = _yis->size();
 
-    _xis->reserve(s0 + s1);
-    _xis->insert(_xis->end(), _yis->end(), _yis->end());
+    std::vector<int64_t> tmpX;
+    tmpX.reserve(s0 + s1);
+    tmpX.insert(tmpX.end(),
+                _xis->begin(), _xis->end());
+    tmpX.insert(tmpX.end(),
+                _yis->begin(), _yis->end());
 
-    _yis->reserve(s0 + s1);
-    _yis->insert(_yis->end(), _xis->begin(), _xis->begin() + s0);
+    std::vector<int64_t> tmpY;
+    tmpY.reserve(s0 + s1);
+    tmpY.insert(tmpY.end(),
+                _yis->begin(), _yis->end());
+    tmpY.insert(tmpY.end(),
+                _xis->begin(), _xis->end());
+
+    // no use after executing
+    _xis = &tmpX;
+    _yis = &tmpY;
 
     execute0();
-
-    _xis->resize(s0);
-    _yis->resize(s1);
 }
 
 BoolLessBatchOperator *BoolLessBatchOperator::execute() {

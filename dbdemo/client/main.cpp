@@ -3,6 +3,7 @@
 #include <sstream>
 #include <string>
 #include <cstring>
+#include <fstream>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -24,6 +25,35 @@ public:
     }
 
     void run() {
+        std::ifstream precmdFile("dbdemo/client/precmd");
+        if (precmdFile) {
+            std::cout << "Loaded precmd file." << std::endl;
+            std::string line;
+            while (std::getline(precmdFile, line)) {
+                if (line.empty())
+                    continue;
+
+                if (line.back() == ';')
+                    line.pop_back();
+
+                send(sock, line.c_str(), line.size(), 0);
+
+                std::string resp;
+                char buf[BUFFER_SIZE];
+                ssize_t n;
+                while ((n = recv(sock, buf, BUFFER_SIZE, 0)) > 0) {
+                    resp.append(buf, n);
+                    if ((size_t)n < BUFFER_SIZE)
+                        break;
+                }
+                if (n < 0) {
+                    std::cerr << "Error receiving data in precmd." << std::endl;
+                    break;
+                }
+                std::cout << resp << std::endl;
+            }
+        }
+
         std::cout << "Welcome to the SMPC-DB client.\n"
                   << "Type 'exit' or 'quit' to end the session.\n" << std::endl;
 

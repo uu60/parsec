@@ -7,6 +7,8 @@
 
 #include "../../include/basis/Table.h"
 
+#include "utils/Log.h"
+#include "utils/StringUtils.h"
 #include "utils/System.h"
 
 

@@ -14,17 +14,17 @@ using json = nlohmann::json;
 #include "../third_party/hsql/SQLParser.h"
 
 int main(int argc, char **argv) {
-    // System::init(argc, argv);
-    //
-    // if (Comm::isClient()) {
-    //     LocalServer &server = LocalServer::getInstance();
-    //     server.run();
-    // } else {
-    //     SystemManager::getInstance().serverExecute();
-    // }
-    //
-    // System::finalize();
-    hsql::SQLParserResult result;
-    hsql::SQLParser::parse("select * from t where (a > 10 or c = 6) and b < 20;", &result);
+    System::init(argc, argv);
+
+    if (Comm::isClient()) {
+        LocalServer &server = LocalServer::getInstance();
+        server.run();
+    } else {
+        SystemManager::getInstance().serverExecute();
+    }
+
+    System::finalize();
+    // hsql::SQLParserResult result;
+    // hsql::SQLParser::parse("select * from t where a > 9223372036854775808 and 20 <= b and 10 = c", &result);
     return 0;
 }
