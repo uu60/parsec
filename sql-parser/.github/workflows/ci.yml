@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    name: ${{matrix.name}}
+    runs-on: ${{matrix.os}}
+    container: ${{matrix.container}}
+    env:
+      CC: ${{matrix.cc}}
+      CXX: ${{matrix.cxx}}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: gcc-6
+            cc: gcc-6
+            cxx: g++-6
+            os: ubuntu-latest
+            container: ubuntu:18.04
+
+          - name: gcc-13
+            cc: gcc-13
+            cxx: g++-13
+            os: ubuntu-latest
+            container: ubuntu:24.04
+            # We need relaxed builds for debug mode with current GCC versions, see #218.
+            build_options: "relaxed_build=on"
+
+          - name: clang-18
+            cc: clang-18
+            cxx: clang++-18
+            os: ubuntu-latest
+            container: ubuntu:24.04
+
+          - name: clang-macOS
+            cc: clang
+            cxx: clang++
+            os: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        if: matrix.name != 'gcc-6'
+
+      - name: Checkout (Ubuntu 18.04)
+        if: matrix.name == 'gcc-6'
+        # Recent versions of Github's checkout action do not run on older Ubuntu versions because they use a too recent
+        # Node.js version. Thus, we have to checkout the code manually.
+        # Doing so is a bit tricky when it comes to PRs from forks (see #249 for details). The general idea here is that
+        # we access Github's context information for the event triggering the action's execution and use some details on
+        # the PR's HEAD if given. Otherwise (for executions due to master updates), we still use the provided
+        # environment variables.
+        run: |
+          apt-get update
+          apt-get install -y git
+          git config --global --add safe.directory '*'
+          git clone $(awk -v a=${{github.event.pull_request.head.repo.clone_url}} -v b="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" 'BEGIN { if (a == "")  { print b } else { print a } }') .
+          git checkout $GITHUB_HEAD_REF
+
+      - name: Setup (macOS)
+        if: matrix.name == 'clang-macOS'
+        run: |
+          brew install bison flex
+          echo "BISON=$(brew --prefix bison)/bin/bison" >> $GITHUB_ENV
+          echo "FLEX=$(brew --prefix flex)/bin/flex" >> $GITHUB_ENV
+
+      - name: Setup (Ubuntu)
+        if: matrix.name != 'clang-macOS'
+        run: |
+          apt-get update
+          apt-get install --no-install-recommends -y bison flex ${CC} ${CXX} make valgrind
+          echo "BISON=bison" >> $GITHUB_ENV
+          echo "FLEX=flex" >> $GITHUB_ENV
+
+      - name: System Information
+        run: |
+          awk -v a=$(uname) 'BEGIN { a == "Linux" ? system("cat /etc/issue") : system("sw_vers") }'
+          ${CC} --version
+          ${CXX} --version
+          ${BISON} --version
+          ${FLEX} --version
+          awk -v a=$(uname) 'BEGIN { if (a == "Linux") system("valgrind --version") }'
+
+      - name: Build Parser
+        run: |
+          make -j $(nproc)
+          BISON=${BISON} FLEX=${FLEX} make test
+          make test_example
+
+      - name: Build Parser and Lexer from Scratch
+        run: |
+          BISON=${BISON} FLEX=${FLEX} make cleanall
+          BISON=${BISON} FLEX=${FLEX} make -j $(nproc)
+          BISON=${BISON} FLEX=${FLEX} make test
+          make test_example
+
+      - name: Build Parser and Lexer from Scratch (Debug)
+        run: |
+          BISON=${BISON} FLEX=${FLEX} make cleanall
+          BISON=${BISON} FLEX=${FLEX} make -j $(nproc) mode=debug ${{matrix.build_options}}
+          BISON=${BISON} FLEX=${FLEX} make test
+          make test_example
