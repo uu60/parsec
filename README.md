@@ -1,18 +1,85 @@
-# MPC Secret Sharing Package
-## 1 Introduction
-A C++ package for implementing MPC secret sharing operations (including Oblivious Transfer, etc.) conveniently based on OpenMPI framework. This package is built for 3-party situation, including one client and two servers.
+# Secure 2PC Secret Sharing Computation Package
 
-The communicating framework can be changed according to real situation. Changing `utils/Mpi` class can change that.
+## 1. Introduction
 
-> There is a test case project of the mpc-package, which is https://github.com/uu60/mpc-package-test.
+This C++ library provides an efficient and flexible implementation of MPC (Multi-Party Computation) secret-sharing protocols in a three-party setup: one client and two servers. It focuses on 2-party secret-sharing–based secure computation, with easily replaceable components such as communication backends, thread pools, and more.
 
-Currently, the secret can be bool, int8, int16, int32 and int64. All the classes are implemented as template classes. So when you use them, please clarify the secret's type (like `AdditionExecutor<int64_t>`).
-## 2 Usage
-### 2.1 OpenMPI Environment
-#### 2.1.1 For macOS
+A demo project is also included: a secure 2PC (two-party computation) database that supports basic SQL-like operations via a command-line interface. Many detailed optimizations are also considered in this database demo project.
+
+### Key Features
+
+#### 1) MPC Operators
+
+- **High Performance and Easy to use**
+
+- **No Trusted Third Party Required**  
+  Secure computation is achieved using only two non-colluding servers—no need for a trusted third party.
+
+- **Modular and Configurable Architecture**  
+  The framework is highly modular. Core components like the communication layer, threading model, and logging can be customized by extending interfaces and updating `Conf.h`. Also, additional system-level settings can be configured in `Conf.h`. 
+  > For different platforms, you can try different configurations to find the best one with the highest performance. 
+
+- **Rich Data Type Support**  
+  The library supports secret values of various bit-widths (powers of two), including:
+    - Boolean (1-bit)
+    - 2-, 4-, 8-, 16-, 32-, and 64-bit integers
+
+- **Parallel Support**  
+  - Message isolation (serialization)
+  - Different parallel level
+  - Combined with batching
+  - Pipeline characteristic in one of BMT generation modes
+
+- **Optimized MPC Algorithms**  
+  - Performance optimizations for Boolean-share–based computation
+  - Optimized oblivious transfer (random OT and redundant random OT) 
+
+- **Hardware Acceleration**  
+  - Some components leverage SIMD instructions for faster computation
+  - CAS or memory barriers used instead of Lock (Boost lock-free queues)
+
+> **Note:** Interfaces for arithmetic shares are also defined and can be extended for future functionality.
+
+---
+
+This framework is designed to be adaptable to various application scenarios. Developers can customize or extend modules as needed for specific performance, security, or infrastructure requirements.
+
+---
+
+#### 2) 2PC Secure Database Demo
+
+A fully functional demo is provided to showcase the framework’s capabilities in a secure database setting.
+
+- **All Features in the Above**
+- **Command-Line SQL Interface**  
+  Includes a user-friendly CLI with a familiar SQL-like syntax. All query processing is executed securely using MPC protocols. Modified Hyrise SQL Parser is used for parsing SQL.
+
+- **Column-Based Storage**  
+  The database uses a columnar structure, which improves performance by enhancing parallelism during MPC computations.
+
+- **Boolean Share Based**  
+
+- **Supported Operations**  
+  The demo supports several core SQL operations, including:
+    - **DML Operations**
+    - **INSERT/DELETE**
+    - **PROJECT**
+    - **FILTER** (parallelized)
+    - **SORT** (using Bitonic Sort)
+    - **JOIN** (using Butterfly Shuffle)
+
+---
+
+This demo serves as a reference implementation and can be a foundation for building more advanced secure database systems.
+
+## 2 How to Install
+### 2.1 Environment
+#### 2.1.1 OpenMPI
+**For macOS**
 - execute
-`brew install openmpi`
-#### 2.1.2 For Linux (Ubuntu)
+`brew install openmpi`  
+
+**For Linux (Ubuntu)**
 - use source code to compile and install.
 1. `wget https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-4.1.5.tar.gz` (use same version for devices)
 2. `tar -xzvf openmpi-_data._data._data.tar.gz`
@@ -27,22 +94,23 @@ Currently, the secret can be bool, int8, int16, int32 and int64. All the classes
     ```
 8. `source ~/.bashrc`
 
-### 2.2 Install this package
+#### 2.1.2 Other Dependencies
+1. Boost
+2. TBB
+3. OpenSSL
+
+### 2.2 Compile this package
 1. Download the whole project
 2. `cd <project root>`
-3. `sh install.sh`
-> ⚠️ `install.sh` will delete former mpc_package.
-### 2.3 Import this package in your project
-CMakeLists.txt should contain the following content:
-```txt
-find_package(mpc_package REQUIRED)
+3. `sh build.sh`
+> `build.sh` will compile multiple projects to the `/build` directory.
 
-target_link_directories(demo PUBLIC ${mpc_package_LIBRARY_DIRS})
-target_link_libraries(demo mpc_package)
-target_include_directories(demo PUBLIC ${mpc_package_INCLUDE_DIRS})
-```
-which will imports the package into your project.
+### 2.3 Import this package in your project
+1. Copy all the header files under `/include` to your own project.
+2. Take macOS as an example, after compilation, `libsecure_2pc_package.a` will be generated under `/build`. Import this lib file to your own project.
+
 ### 2.4 Execute
+Take OpenMPI based as an example:
 1. Use the same username of Linux/macOS.
 2. Set up non-password login between 2 machines. Using `ssh-keygen` and `ssh-copy-id`.
 3. Place the executable file on the same path of 2 machines.
@@ -52,33 +120,88 @@ which will imports the package into your project.
 6. Your project should be complied by **CMake** instead of `mpicxx`. 
 7. Then use `mpirun` to execute it. Here is an example shell:
     ```shell
-    mpirun -np 2 -hostfile hostfile.txt a.out
+    mpirun -np 3 -hostfile hostfile.txt ./build/benchmark_sort
     ```
-## 3 Current Functions
+   (Or you can omit the host file to just run all processes on current machine)
+
+## 3 How to Call
+### 3.1 Base Abstract Operator
+`SecureOperator` is the root super class of all the operators, which has following basic member variables:
+- `int _taskTag`  
+  Each operator will be assigned a task tag and a start message tag. Combination of two tags will get a complete tag (int32) which used for message tags.   
+  To be more specific (comment written in `SecureOperator.h`), Whole tag for each message:
+  
+  | Field            | Bit Width   | Description       |
+  |------------------|-------------|-------------------|
+  | task tag         | 8 bits      | Identifies task   |
+  | message tag      | 24 bits     | Sub-message ID    |
+  | **Total width**  | **32 bits** | Full message tag  |
+
+  This design aims to separate different task streams (we can call operators with the same task tag forms task stream) by assigning different task tags, so that different task streams can execute in parallel. By default, task tag width is 8 bits and message tag width is 24 bits, which can be modified.  
+  In each task stream, message tag can be assigned according to the tasks in current stream.
+- `int _startMsgTag`  
+  The first message tag in current operator, which maybe assigned be caller operator.
+- `std::atomic_int _currentMsgTag`
+  The inner status of the message tag, which is supposed to be the next message tag. Atomic type is to avoid multiple-thread memory visible problems.
+
+There are two basic methods in `SecureOperator`:
+- `virtual SecureOperator *execute()`  
+  Execute the computation process of the operator.
+- `virtual SecureOperator *reconstruct(int clientRank)`
+  Reconstruct the computed share to the client with rank of argument.
+
+For constructor method of some operators, if the operator is not responsible for sharing data from the data owner client, client rank argument should be -1. This is used for easy test of using a operator, which means practically only two servers should call operator functions.
+
+### 3.2 Parallel
+#### 3.2.1 Tag Assignment
+Although it is easy to isolate task streams by task tags, the message tag what we need to pay more attention to.   
+In most operators, there is a static method called `msgCount()` which shows the max message tag num it will consume inside the operator. In that way, if we want to parallel some computation inside a task stream, we need to assign the `_startMsgTag` with a stride of the return value of `msgCount()` of the last operator.
+#### 3.2.2 BMT Usage
+If the BMT method in `Conf.h` is set to `BMT_FIXED` (only for experiments) or `BMT_JIT`, then BMT usage for parallel does not need considering because the BMT obtainance process has been included in the `execute()` process.  
+Otherwise, we need to promise the BMT obtainance sequence from `IntermediateDataSupport` and then assign the proper BMT to specific operator if parallelism is needed among these operators. 
+> In most situations, the performance of `BMT_JIT` is close to or exceeds the background generation mode. So we suggest using `BMT_JIT` strongly.
+#### 3.2.3 Combined with Batching
+When we do batching tasks, like using operator `BoolAndBatchOperator`, we may have a trade-off between batch size and degree of parallelism (The whole task will be separated into small batches according to the `BATCH_SIZE` in `Conf.h` which execute in parallel). There is a sweet point of the batch size for batching tasks, which can be found by trying different parameters.
+
+## 4 Current Supported Functions
 - Arithmetic Share:
-   - Multiplication Share with **RSA OT BMT** or **pre-generated BMT**
-   - Addition Share 
-   - Comparison
-   - Conversion between boolean and arithmetic
-   - Multiplex
+  - Multiplication Share with **RSA OT BMT** or **pre-generated BMT**
+  - Addition Share 
+  - Comparison
+  - Conversion between boolean and arithmetic
+  - Multiplex
 - Boolean Share:
   - And Share with **RSA OT BMT** or **pre-generated BMT**
   - XOR Share
-- Utility functions (under `utils` directory)
-> There are some new classes under api/ directory which can execute MPC more easily. Please refer to test cases for their usage.
-## 4 Test cases
-> There is a test case project of the mpc-package, which is https://github.com/uu60/mpc-package-test.
-Test case project will be compiled as `demo`. Please execute by:
-```shell
-cd <demo-project>
-cmake .
-make
-mpirun -np 2 -hostfile hostfile.txt demo
-```
-There is a script file `test.sh` under shell_scripts/ directory which can conveniently upload and compile the project to your test server. You can modify details for your situation.
+  - Comparison
+  - Conversion between boolean and arithmetic
+  - Multiplex
+- BMT:
+  - Just in time
+  - Simple background
+  - Pipeline background
+- Oblivious Transfer:
+  - Basic OT
+  - Random OT
+  - Redundant random OT
+- Encryption and Decryption
+  - RSA
+- Parallel Utilities:
+  - Multiple encapsulated thread pools
+    - CTPL thread pool
+    - TBB thread pool (by Intel)
+    - No thread pool (`std::async`)
+  - Multiple encapsulated blocking queues
+    - Lock-based queue
+    - Boost Lock free queue
+    - Boost spsc queue
+
+
 ## Main References
 [1] ABY (https://encrypto.de/papers/DSZ15.pdf) \
-[2] Crypten (https://arxiv.org/pdf/2109.00984)
+[2] Crypten (https://arxiv.org/pdf/2109.00984) \
+[3] Secrecy (https://arxiv.org/pdf/2102.01048) \
+[4] SecretFlow-SCQL (https://www.vldb.org/pvldb/vol17/p3987-fang.pdf)
   
 
 

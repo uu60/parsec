@@ -20,7 +20,7 @@ public:
 
     std::string name();
 
-    bool createTable(std::string &tableName, std::vector<std::string> fieldNames, std::vector<int> fieldWidths, std::string &msg);
+    bool createTable(std::string &tableName, std::vector<std::string> &fieldNames, std::vector<int> &fieldWidths, std::string &keyField, std::string &msg);
 
     bool dropTable(const std::string& tableName, std::string &msg);
 

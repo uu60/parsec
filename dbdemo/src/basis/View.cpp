@@ -15,9 +15,8 @@
 View::View(std::string &tableName,
            std::vector<std::string> &fieldNames,
            std::vector<int> &fieldWidths) : Table(
-    tableName, fieldNames, fieldWidths) {
+    tableName, fieldNames, fieldWidths, EMPTY_KEY_FIELD) {
     // for padding column and valid column
-    _colNum += 2;
 }
 
 void View::sort(const std::string &orderField, bool ascendingOrder, int msgTagOffset) {
@@ -113,7 +112,7 @@ void View::fa1B(std::vector<std::string> &fieldNames, std::vector<ComparatorType
         collected[i] = futures[i].get();
     }
 
-    int validColIndex = _colNum + VALID_COL_OFFSET;
+    int validColIndex = colNum() + VALID_COL_OFFSET;
     if (n == 1) {
         _dataCols[validColIndex] = collected[0];
         return;
@@ -217,8 +216,8 @@ void View::faNB(std::vector<std::string> &fieldNames, std::vector<ComparatorType
                             case GREATER:
                             case LESS_EQ: {
                                 batch_result = BoolLessBatchOperator(&batch_const, &batch_data,
-                                                                       _fieldWidths[colIndex], 0, batch_start_tag,
-                                                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->
+                                                                     _fieldWidths[colIndex], 0, batch_start_tag,
+                                                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->
                                         _zis;
                                 if (ct == LESS_EQ) {
                                     for (auto &v: batch_result) {
@@ -230,8 +229,8 @@ void View::faNB(std::vector<std::string> &fieldNames, std::vector<ComparatorType
                             case LESS:
                             case GREATER_EQ: {
                                 batch_result = BoolLessBatchOperator(&batch_data, &batch_const,
-                                                                       _fieldWidths[colIndex], 0, batch_start_tag,
-                                                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->
+                                                                     _fieldWidths[colIndex], 0, batch_start_tag,
+                                                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->
                                         _zis;
                                 if (ct == GREATER_EQ) {
                                     for (auto &v: batch_result) {
@@ -254,7 +253,7 @@ void View::faNB(std::vector<std::string> &fieldNames, std::vector<ComparatorType
                                 std::vector<int64_t> ltv(gtv_ltv.begin() + half, gtv_ltv.end());
 
                                 batch_result = BoolAndBatchOperator(&gtv, &ltv, 1, 0, batch_start_tag,
-                                                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->
+                                                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->
                                         _zis;
                                 if (ct == NOT_EQUALS) {
                                     for (auto &v: batch_result) {
@@ -284,7 +283,7 @@ void View::faNB(std::vector<std::string> &fieldNames, std::vector<ComparatorType
         collected[i] = futures[i].get();
     }
 
-    int validColIndex = _colNum + VALID_COL_OFFSET;
+    int validColIndex = colNum() + VALID_COL_OFFSET;
     if (n == 1) {
         _dataCols[validColIndex] = collected[0];
         return;
@@ -347,7 +346,7 @@ void View::filterAnd(std::vector<std::string> &fieldNames, std::vector<Comparato
 
 void View::bs1B(const std::string &orderField, bool ascendingOrder, int msgTagOffset) {
     auto n = _dataCols[0].size();
-    auto &col = getColData(orderField);
+    auto &col = _dataCols[colIndex(orderField)];
     for (int k = 2; k <= n; k *= 2) {
         for (int j = k / 2; j > 0; j /= 2) {
             std::vector<int64_t> xs;
@@ -369,7 +368,7 @@ void View::bs1B(const std::string &orderField, bool ascendingOrder, int msgTagOf
                 }
                 bool dir = (i & k) == 0;
                 // last col is padding bool
-                auto &paddings = _dataCols[_colNum + PADDING_COL_OFFSET];
+                auto &paddings = _dataCols[colNum() + PADDING_COL_OFFSET];
                 if (paddings[i] && paddings[l]) {
                     continue;
                 }
@@ -390,7 +389,7 @@ void View::bs1B(const std::string &orderField, bool ascendingOrder, int msgTagOf
             }
 
             std::vector<int64_t> zs;
-            int mw = getColWidth(orderField);
+            int mw = _fieldWidths[colIndex(orderField)];
             zs = BoolLessBatchOperator(&xs, &ys, mw, 0, msgTagOffset,
                                        SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
@@ -401,12 +400,12 @@ void View::bs1B(const std::string &orderField, bool ascendingOrder, int msgTagOf
                 }
             }
 
-            size_t sz = comparingCount * (_colNum - 1);
+            size_t sz = comparingCount * (colNum() - 1);
             xs.reserve(sz);
             ys.reserve(sz);
             // xs and ys has already stored one order column
             int ofi = 0; // Order field index
-            for (int i = 0; i < _colNum - 1; i++) {
+            for (int i = 0; i < colNum() - 1; i++) {
                 if (_fieldNames[i] == orderField) {
                     ofi = i;
                     continue;
@@ -423,19 +422,19 @@ void View::bs1B(const std::string &orderField, bool ascendingOrder, int msgTagOf
             auto &oc = _dataCols[ofi]; // order column
             for (int i = 0; i < comparingCount; i++) {
                 oc[xIdx[i]] = zs[i];
-                oc[yIdx[i]] = zs[(_colNum - 1) * comparingCount + i];
+                oc[yIdx[i]] = zs[(colNum() - 1) * comparingCount + i];
             }
 
             // skip first for order column
             int pos = 1;
-            for (int i = 0; i < _colNum - 1; i++) {
+            for (int i = 0; i < colNum() - 1; i++) {
                 if (i == ofi) {
                     continue;
                 }
                 auto &co = _dataCols[i];
                 for (int m = 0; m < comparingCount; m++) {
                     co[xIdx[m]] = zs[pos * comparingCount + m];
-                    co[yIdx[m]] = zs[(pos + _colNum - 1) * comparingCount + m];
+                    co[yIdx[m]] = zs[(pos + colNum() - 1) * comparingCount + m];
                 }
                 pos++;
             }
@@ -446,9 +445,9 @@ void View::bs1B(const std::string &orderField, bool ascendingOrder, int msgTagOf
 void View::bsNB(const std::string &orderField, bool ascendingOrder, int msgTagOffset) {
     const int batchSize = Conf::BATCH_SIZE;
     const int n = static_cast<int>(_dataCols[0].size());
-    auto &orderCol = getColData(orderField);
-    const int mw = getColWidth(orderField);
-    auto &paddings = _dataCols[_colNum + PADDING_COL_OFFSET];
+    auto &orderCol = _dataCols[colIndex(orderField)];
+    const int mw = _fieldWidths[colIndex(orderField)];
+    auto &paddings = _dataCols[colNum() + PADDING_COL_OFFSET];
     for (int k = 2; k <= n; k <<= 1) {
         for (int j = k >> 1; j > 0; j >>= 1) {
             int comparingCount = 0;
@@ -496,7 +495,7 @@ void View::bsNB(const std::string &orderField, bool ascendingOrder, int msgTagOf
                 ++pos;
             }
             const int numBatches = (comparingCount + batchSize - 1) / batchSize;
-            const int tagStride = BoolMutexBatchOperator::msgTagCount() * (_colNum - 1);
+            const int tagStride = BoolMutexBatchOperator::msgTagCount() * (colNum() - 1);
             std::vector<std::future<void> > futures;
             futures.reserve(numBatches);
             for (int b = 0; b < numBatches; ++b) {
@@ -525,8 +524,8 @@ void View::bsNB(const std::string &orderField, bool ascendingOrder, int msgTagOf
                     }
 
                     std::vector<std::future<void> > futures2;
-                    futures2.reserve(_colNum - 1);
-                    for (int c = 0; c < _colNum - 1; ++c) {
+                    futures2.reserve(colNum() - 1);
+                    for (int c = 0; c < colNum() - 1; ++c) {
                         futures2.push_back(ThreadPoolSupport::submit([&, c] {
                             std::vector<int64_t> subXs, subYs;
                             if (_fieldNames[c] == orderField) {
@@ -595,7 +594,7 @@ View View::selectColumns(Table &t, std::vector<std::string> &fieldNames) {
         return v;
     }
 
-    v._dataCols.reserve(indices.size());
+    v._dataCols.reserve(indices.size() + 2);
     for (auto idx: indices) {
         v._dataCols.push_back(t._dataCols[idx]);
     }
@@ -605,6 +604,11 @@ View View::selectColumns(Table &t, std::vector<std::string> &fieldNames) {
     v._dataCols.emplace_back(v._dataCols[0].size());
 
     return v;
+}
+
+View View::join(Table &t0, Table &t1, std::string &field0, std::string &field1) {
+
+    return {};
 }
 
 void View::bitonicSort(const std::string &orderField, bool ascendingOrder, int msgTagOffset) {

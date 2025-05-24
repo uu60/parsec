@@ -228,10 +228,10 @@ void SelectSupport::serverSelect(json js) {
         v.sort(orderFields[0], ascendings[0], 0);
     }
 
-    std::vector<int64_t> toReconstruct(v._dataCols[0].size() * (v._colNum - 1));
+    std::vector<int64_t> toReconstruct(v._dataCols[0].size() * (v.colNum() - 1));
     int idx = 0;
     for (int i = 0; i < v._dataCols[0].size(); ++i) {
-        for (int j = 0; j < v._colNum - 1; ++j) {
+        for (int j = 0; j < v.colNum() - 1; ++j) {
             toReconstruct[idx++] = v._dataCols[j][i];
         }
     }

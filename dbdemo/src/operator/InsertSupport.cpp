@@ -88,8 +88,8 @@ bool InsertSupport::clientInsert(std::ostringstream &resp, const hsql::SQLStatem
     Comm::send(m, 1, 0);
 
     // secret share
-    std::vector<int64_t> shareValues(table->_colNum);
-    for (size_t i = 0; i < table->_colNum; ++i) {
+    std::vector<int64_t> shareValues(table->colNum());
+    for (size_t i = 0; i < table->colNum(); ++i) {
         int type = table->_fieldWidths[i];
         // table field idx in the inserted columns
         const auto &find = std::find(cols.begin(), cols.end(), fieldNames[i]);

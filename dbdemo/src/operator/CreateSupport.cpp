@@ -24,10 +24,19 @@ bool CreateSupport::clientCreateTable(std::ostringstream &resp, const hsql::SQLS
     }
 
     std::vector<std::string> fieldNames;
+    std::string keyField;
     std::vector<int> fieldTypes;
 
     for (const auto *column: *createStmt->columns) {
         std::string fieldName = column->name;
+
+        if (!column->column_constraints->empty() && keyField.empty()) {
+            if (column->column_constraints->size() != 1 || *column->column_constraints->begin() != hsql::ConstraintType::PrimaryKey) {
+                resp << "Failed. Only primary key constraint supported." << std::endl;
+                return false;
+            }
+            keyField = *column->name;
+        }
 
         int type;
         switch (column->type.data_type) {
@@ -51,7 +60,7 @@ bool CreateSupport::clientCreateTable(std::ostringstream &resp, const hsql::SQLS
     }
 
     std::string msg;
-    if (!SystemManager::getInstance()._currentDatabase->createTable(tableName, fieldNames, fieldTypes, msg)) {
+    if (!SystemManager::getInstance()._currentDatabase->createTable(tableName, fieldNames, fieldTypes, keyField, msg)) {
         resp << "Failed. " << msg << std::endl;
         return false;
     }
@@ -61,6 +70,7 @@ bool CreateSupport::clientCreateTable(std::ostringstream &resp, const hsql::SQLS
     j["type"] = SystemManager::getCommandPrefix(SystemManager::CREATE_TABLE);
     j["name"] = tableName;
     j["fieldNames"] = fieldNames;
+    j["keyField"] = keyField;
     j["fieldTypes"] = fieldTypes;
     SystemManager::notifyServersSync(j);
 
@@ -71,7 +81,8 @@ bool CreateSupport::clientCreateTable(std::ostringstream &resp, const hsql::SQLS
 void CreateSupport::serverCreateTable(json &j) {
     std::string tbName = j.at("name").get<std::string>();
     std::vector<std::string> fieldNames = j.at("fieldNames").get<std::vector<std::string> >();
+    std::string keyField = j.at("keyField").get<std::string>();
     std::vector<int32_t> fieldTypes = j.at("fieldTypes").get<std::vector<int32_t> >();
     std::string msg;
-    SystemManager::getInstance()._currentDatabase->createTable(tbName, fieldNames, fieldTypes, msg);
+    SystemManager::getInstance()._currentDatabase->createTable(tbName, fieldNames, fieldTypes, keyField, msg);
 }

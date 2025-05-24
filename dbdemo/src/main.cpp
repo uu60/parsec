@@ -14,17 +14,19 @@ using json = nlohmann::json;
 #include "../third_party/hsql/SQLParser.h"
 
 int main(int argc, char **argv) {
-    System::init(argc, argv);
-
-    if (Comm::isClient()) {
-        LocalServer &server = LocalServer::getInstance();
-        server.run();
-    } else {
-        SystemManager::getInstance().serverExecute();
-    }
-
-    System::finalize();
-    // hsql::SQLParserResult result;
-    // hsql::SQLParser::parse("select * from t where a > 9223372036854775808 and 20 <= b and 10 = c", &result);
+    // System::init(argc, argv);
+    //
+    // if (Comm::isClient()) {
+    //     LocalServer &server = LocalServer::getInstance();
+    //     server.run();
+    // } else {
+    //     SystemManager::getInstance().serverExecute();
+    // }
+    //
+    // System::finalize();
+    hsql::SQLParserResult result;
+    hsql::SQLParser::parse("create table t (a int(16) primary key, b int(64));", &result);
+    const auto *createStmt = dynamic_cast<const hsql::CreateStatement *>(result.getStatement(0));
+    std::cout << createStmt->columns;
     return 0;
 }

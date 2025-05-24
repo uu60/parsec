@@ -12,6 +12,8 @@ public:
     static const int VALID_COL_OFFSET = -2;
     static const int PADDING_COL_OFFSET = -1;
 
+    inline static std::string EMPTY_KEY_FIELD;
+
     enum ComparatorType {
         LESS,
         GREATER,
@@ -32,6 +34,8 @@ public:
     static View selectAll(Table &t);
 
     static View selectColumns(Table &t, std::vector<std::string> &fieldNames);
+
+    static View join(Table &t0, Table &t1, std::string &field0, std::string &field1);
 
 private:
     void bs1B(const std::string &orderField, bool ascendingOrder, int msgTagOffset);

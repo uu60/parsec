@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
         }
         std::vector<int> ws(col, 64);
 
-        Table t(name, fn, ws);
+        Table t(name, fn, ws, "a0");
         for (int i = 0; i < shares.size(); i++) {
             std::vector<int64_t> r(col);
             for (int j = 0; j < col; j++) {

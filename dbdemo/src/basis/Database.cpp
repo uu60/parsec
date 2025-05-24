@@ -15,13 +15,13 @@ std::string Database::name() {
 }
 
 bool
-Database::createTable(std::string &tableName, std::vector<std::string> fieldNames, std::vector<int> fieldWidths,
-                      std::string &msg) {
+Database::createTable(std::string &tableName, std::vector<std::string> &fieldNames, std::vector<int> &fieldWidths,
+                      std::string &keyField, std::string &msg) {
     if (getTable(tableName)) {
         msg = "Table already exists.";
         return false;
     }
-    _tables[tableName] = Table(tableName, fieldNames, fieldWidths);
+    _tables[tableName] = Table(tableName, fieldNames, fieldWidths, keyField);
     return true;
 }
 

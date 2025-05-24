@@ -12,23 +12,23 @@ public:
 
     std::string _tableName;
     std::vector<std::string> _fieldNames;
+    std::string _keyField;
     std::vector<int> _fieldWidths;
     std::vector<std::vector<int64_t> > _dataCols;
     int _maxWidth{};
-    int _colNum{};
 
     inline static std::vector<int64_t> EMPTY_COL{};
 
 public:
     Table() = default;
 
-    explicit Table(std::string &tableName, std::vector<std::string> &fieldNames, std::vector<int> &fieldWidths);
+    explicit Table(std::string &tableName, std::vector<std::string> &fieldNames, std::vector<int> &fieldWidths, std::string keyField);
 
     bool insert(const std::vector<int64_t> &r);
 
-    std::vector<int64_t> &getColData(const std::string &colName);
+    int colIndex(const std::string &colName);
 
-    int getColWidth(const std::string &colName) const;
+    [[nodiscard]] size_t colNum() const;
 };
 
 
