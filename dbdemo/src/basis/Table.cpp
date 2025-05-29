@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <iomanip>
+#include <utility>
 
 #include "../../include/basis/Table.h"
 
@@ -15,12 +16,12 @@ Table::Table(std::string &tableName, std::vector<std::string> &fieldNames, std::
     this->_tableName = tableName;
 
     this->_fieldNames = fieldNames;
-    this->_fieldNames.emplace_back("$bucketTag");
+    // this->_fieldNames.emplace_back("$bucketTag");
 
     this->_fieldWidths = fieldWidths;
-    this->_fieldWidths.emplace_back(32);
+    // this->_fieldWidths.emplace_back(32);
 
-    this->_keyField = keyField;
+    this->_keyField = std::move(keyField);
 
     for (auto w: this->_fieldWidths) {
         _maxWidth = std::max(w, _maxWidth);
@@ -50,4 +51,11 @@ int Table::colIndex(const std::string &colName) {
 
 size_t Table::colNum() const {
     return _dataCols.size();
+}
+
+size_t Table::rowNum() const {
+    if (_dataCols.empty()) {
+        return 0;
+    }
+    return _dataCols[0].size();
 }

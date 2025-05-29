@@ -17,6 +17,7 @@
 #include "../include/secret/item/BoolSecret.h"
 #include "../include/utils/Log.h"
 #include "../include/utils/System.h"
+#include "utils/StringUtils.h"
 
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
@@ -24,15 +25,12 @@ int main(int argc, char *argv[]) {
     int num = 10000;
     int width = 64;
 
-    for (int i = 0; i < argc; i++) {
-        std::string arg = argv[i];
-        if (arg == "--num" && i + 1 < argc) {
-            num = std::stoi(argv[i + 1]);
-            continue;
-        }
-        if (arg == "--width" && i + 1 < argc) {
-            width = std::stoi(argv[i + 1]);
-        }
+    if (Conf::_userParams.count("num")) {
+        num = std::stoi(Conf::_userParams["num"]);
+    }
+
+    if (Conf::_userParams.count("width")) {
+        width = std::stoi(Conf::_userParams["width"]);
     }
 
     std::vector<BoolSecret> arr;
@@ -59,14 +57,17 @@ int main(int argc, char *argv[]) {
     }
 
     std::vector<BoolSecret> res;
+    std::vector<int64_t> intRes;
     for (int i = 0; i < num; i++) {
         res.push_back(arr[i].task(3).reconstruct(2));
+        intRes.push_back(res[i]._data);
     }
 
     if (Comm::isClient()) {
         int last = INT_MIN;
+        Log::i("Result: {}", StringUtils::vecString(intRes));
         for (auto s: res) {
-            if (s._data <= last) {
+            if (s._data < last) {
                 Log::i("Wrong: {}", s._data);
             }
             last = s._data;

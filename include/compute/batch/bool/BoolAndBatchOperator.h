@@ -33,7 +33,7 @@ public:
 
     BoolAndBatchOperator *setBmts(std::vector<BitwiseBmt> *bmts);
 
-    static int bmtCount(int num);
+    static int bmtCount(int num, int width);
 
 private:
     void execute0();

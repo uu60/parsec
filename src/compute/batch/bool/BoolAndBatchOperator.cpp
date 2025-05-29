@@ -84,8 +84,8 @@ BoolAndBatchOperator *BoolAndBatchOperator::setBmts(std::vector<BitwiseBmt> *bmt
     return this;
 }
 
-int BoolAndBatchOperator::bmtCount(int num) {
-    return num;
+int BoolAndBatchOperator::bmtCount(int num, int width) {
+    return (num * width + 63) / 64;
 }
 
 void BoolAndBatchOperator::execute0() {

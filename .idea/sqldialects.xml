@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="SqlDialectMappings">
+    <file url="file://$PROJECT_DIR$/dbdemo/third_party/sql-parser/test/queries/queries-bad.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/dbdemo/third_party/sql-parser/test/queries/queries-good.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/dbdemo/third_party/sql-parser/test/queries/tpc-h-01.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/dbdemo/third_party/sql-parser/test/queries/tpc-h-02.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/dbdemo/third_party/sql-parser/test/queries/tpc-h-03.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/dbdemo/third_party/sql-parser/test/queries/tpc-h-04.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/dbdemo/third_party/sql-parser/test/queries/tpc-h-05.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/dbdemo/third_party/sql-parser/test/queries/tpc-h-06.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/dbdemo/third_party/sql-parser/test/queries/tpc-h-07.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/dbdemo/third_party/sql-parser/test/queries/tpc-h-08.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/dbdemo/third_party/sql-parser/test/queries/tpc-h-09.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/dbdemo/third_party/sql-parser/test/queries/tpc-h-10.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/dbdemo/third_party/sql-parser/test/queries/tpc-h-11.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/dbdemo/third_party/sql-parser/test/queries/tpc-h-12.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/dbdemo/third_party/sql-parser/test/queries/tpc-h-13.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/dbdemo/third_party/sql-parser/test/queries/tpc-h-14.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/dbdemo/third_party/sql-parser/test/queries/tpc-h-15.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/dbdemo/third_party/sql-parser/test/queries/tpc-h-16.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/dbdemo/third_party/sql-parser/test/queries/tpc-h-17.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/dbdemo/third_party/sql-parser/test/queries/tpc-h-18.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/dbdemo/third_party/sql-parser/test/queries/tpc-h-19.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/dbdemo/third_party/sql-parser/test/queries/tpc-h-20.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/dbdemo/third_party/sql-parser/test/queries/tpc-h-21.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/dbdemo/third_party/sql-parser/test/queries/tpc-h-22.sql" dialect="GenericSQL" />
+  </component>
+</project>

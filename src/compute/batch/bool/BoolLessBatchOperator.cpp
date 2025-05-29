@@ -19,8 +19,8 @@ BoolLessBatchOperator::BoolLessBatchOperator(std::vector<int64_t> *xs, std::vect
 }
 
 void BoolLessBatchOperator::execute0() {
-    std::vector<BitwiseBmt> bmts;
-    bool gotBmt = prepareBmts(bmts);
+    std::vector<BitwiseBmt> allBmts;
+    bool gotBmt = prepareBmts(allBmts);
 
     std::vector<int64_t> x_xor_y, lbs;
     int64_t mask = Math::ring(-1ll, _width);
@@ -40,6 +40,12 @@ void BoolLessBatchOperator::execute0() {
 
     auto shifted_1 = shiftGreater(lbs, 1);
 
+    std::vector<BitwiseBmt> bmts;
+    int bmtCount = BoolAndBatchOperator::bmtCount(_xis->size(), _width);
+    if (gotBmt) {
+        bmts = std::vector(allBmts.end() - bmtCount, allBmts.end());
+        allBmts.resize(allBmts.size() - bmtCount);
+    }
     lbs = BoolAndBatchOperator(&lbs, &shifted_1, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
             .setBmts(gotBmt ? &bmts : nullptr)->execute()->_zis;
 
@@ -56,6 +62,10 @@ void BoolLessBatchOperator::execute0() {
     }
 
     // diag & x
+    if (gotBmt) {
+        bmts = std::vector(allBmts.end() - bmtCount, allBmts.end());
+        allBmts.resize(allBmts.size() - bmtCount);
+    }
     diag = BoolAndBatchOperator(&diag, _xis, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmts(
         gotBmt ? &bmts : nullptr)->execute()->_zis;
 
@@ -63,6 +73,10 @@ void BoolLessBatchOperator::execute0() {
     for (int r = 2; r <= rounds; r++) {
         auto shifted_r = shiftGreater(lbs, r);
 
+        if (gotBmt) {
+            bmts = std::vector(allBmts.end() - bmtCount, allBmts.end());
+            allBmts.resize(allBmts.size() - bmtCount);
+        }
         lbs = BoolAndBatchOperator(&lbs, &shifted_r, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
                 setBmts(gotBmt ? &bmts : nullptr)->execute()->_zis;
     }
@@ -74,7 +88,7 @@ void BoolLessBatchOperator::execute0() {
     }
 
     auto final_accum = BoolAndBatchOperator(&shifted_accum, &diag, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
-            .setBmts(gotBmt ? &bmts : nullptr)->execute()->_zis;
+            .setBmts(gotBmt ? &allBmts : nullptr)->execute()->_zis;
 
     int fn = static_cast<int>(final_accum.size());
     _zis.resize(fn);

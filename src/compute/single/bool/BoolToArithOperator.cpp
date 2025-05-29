@@ -21,9 +21,6 @@ BoolToArithOperator *BoolToArithOperator::execute() {
     std::atomic_int64_t temp = 0;
     bool isSender = Comm::rank() == 0;
 
-    std::vector<std::future<void> > futures;
-    futures.reserve(_width);
-
     std::vector<int64_t> ss0, ss1;
     std::vector<int> choices;
     std::vector<int64_t> rs;
@@ -68,7 +65,7 @@ BoolToArithOperator *BoolToArithOperator::execute() {
 }
 
 int BoolToArithOperator::msgTagCount(int width) {
-    return static_cast<int>(RandOtOperator::msgTagCount(width) * width);
+    return RandOtOperator::msgTagCount(width) * width;
 }
 
 BoolToArithOperator *BoolToArithOperator::reconstruct(int clientRank) {

@@ -3,13 +3,11 @@
 //
 
 #include "secret/Secrets.h"
-#include "utils/System.h"
 #include <cmath>
 
 #include "accelerate/SimdSupport.h"
 #include "compute/batch/bool/BoolLessBatchOperator.h"
 #include "compute/batch/bool/BoolMutexBatchOperator.h"
-#include "compute/single/bool/BoolLessOperator.h"
 #include "compute/single/bool/BoolMutexOperator.h"
 #include "conf/Conf.h"
 #include "parallel/ThreadPoolSupport.h"
@@ -22,13 +20,13 @@ using BatchOutput = std::tuple<
 >;
 
 void bs1B(std::vector<BoolSecret> &secrets, bool asc, int taskTag, int msgTagOffset) {
-    int n = secrets.size();
+    size_t n = secrets.size();
     for (int k = 2; k <= n; k *= 2) {
         for (int j = k / 2; j > 0; j /= 2) {
             std::vector<int64_t> xs, ys;
             std::vector<int64_t> xIdx, yIdx;
             std::vector<bool> ascs;
-            int halfN = n / 2;
+            size_t halfN = n / 2;
             xs.reserve(halfN);
             ys.reserve(halfN);
             xIdx.reserve(halfN);
@@ -37,7 +35,7 @@ void bs1B(std::vector<BoolSecret> &secrets, bool asc, int taskTag, int msgTagOff
 
             for (int i = 0; i < n; i++) {
                 int l = i ^ j;
-                if (l <= i) {
+                if (l <= i || l >= n) {
                     continue;
                 }
                 bool dir = (i & k) == 0;
@@ -80,13 +78,15 @@ void bs1B(std::vector<BoolSecret> &secrets, bool asc, int taskTag, int msgTagOff
 
 void bsNB(std::vector<BoolSecret> &secrets, bool asc, int taskTag, int msgTagOffset) {
     int batchSize = Conf::BATCH_SIZE;
-    int n = secrets.size();
+    size_t n = secrets.size();
     for (int k = 2; k <= n; k *= 2) {
         for (int j = k / 2; j > 0; j /= 2) {
             int comparingCount = 0;
             for (int i = 0; i < n; ++i) {
                 int l = i ^ j;
-                if (l <= i) continue;
+                if (l <= i || l >= n) {
+                    continue;
+                }
                 bool dir = (i & k) == 0;
                 if (secrets[i]._padding && secrets[l]._padding) continue;
                 if ((secrets[i]._padding && dir) || (secrets[l]._padding && !dir)) {

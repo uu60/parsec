@@ -211,7 +211,7 @@ void SelectSupport::serverSelect(json js) {
         std::vector<std::string> filterFields = js.at("filterFields").get<std::vector<std::string> >();
         std::vector<View::ComparatorType> filterCmps = js.at("filterCmps").get<std::vector<View::ComparatorType> >();
         std::vector<int64_t> filterVals = js.at("filterVals").get<std::vector<int64_t> >();
-        v.filterAnd(filterFields, filterCmps, filterVals);
+        v.filterAndConditions(filterFields, filterCmps, filterVals);
     }
 
     // order

@@ -14,7 +14,6 @@ public:
 
     BoolOperator *reconstruct(int clientRank) override;
 
-    [[deprecated("This function should not be called.")]]
     BoolOperator *execute() override;
 };
 

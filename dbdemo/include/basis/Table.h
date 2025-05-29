@@ -29,6 +29,8 @@ public:
     int colIndex(const std::string &colName);
 
     [[nodiscard]] size_t colNum() const;
+
+    [[nodiscard]] size_t rowNum() const;
 };
 
 
