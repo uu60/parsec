@@ -334,17 +334,17 @@ void View::filterAndConditions(std::vector<std::string> &fieldNames, std::vector
         facNB(fieldNames, comparatorTypes, constShares);
     }
 
-    clearInvalidEntriesObliviously();
+    clearInvalidEntries();
 }
 
-void View::clearInvalidEntriesObliviously() {
+void View::clearInvalidEntries() {
     // sort view by valid column
     sort(VALID_COL_NAME, false, 0);
 
     int64_t sumShare = 0, sumShare1;
     if (Conf::DISABLE_MULTI_THREAD || Conf::BATCH_SIZE <= 0) {
         // compute valid num
-        auto ta = BoolToArithBatchOperator(&_dataCols[_dataCols.size() + VALID_COL_OFFSET], 1, 0, 0,
+        auto ta = BoolToArithBatchOperator(&_dataCols[_dataCols.size() + VALID_COL_OFFSET], 64, 0, 0,
                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         sumShare = std::accumulate(ta.begin(), ta.end(), 0ll);
     } else {

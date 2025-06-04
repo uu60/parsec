@@ -21,7 +21,6 @@ BoolToArithBatchOperator *BoolToArithBatchOperator::execute() {
     std::vector<int64_t> rs;
 
     size_t n = _width * _xis->size();
-    Log::i("asdkadsbk width: {} xissize: {} n: {}", _width, _xis->size(), n);
     if (isSender) {
         ss0.reserve(n);
         ss1.reserve(n);

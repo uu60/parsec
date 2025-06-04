@@ -133,7 +133,7 @@ int main(int argc, char *argv[]) {
     // Reconstruct all data at once - combine all columns into one vector
     std::vector<int64_t> allSecrets;
     int numCols = 8;
-    int numRows = num0 * num1;
+    int numRows = std::min(num0, num1);
 
     if (Comm::isServer() && !joinResult._dataCols.empty()) {
         numCols = joinResult._dataCols.size();

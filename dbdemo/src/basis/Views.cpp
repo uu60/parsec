@@ -183,6 +183,8 @@ View Views::nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string 
         }
     }
 
+    joined.clearInvalidEntries();
+
     return joined;
 }
 

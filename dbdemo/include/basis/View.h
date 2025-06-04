@@ -36,7 +36,7 @@ public:
 
     void filterAndConditions(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes, std::vector<int64_t> &constShares);
 
-    void clearInvalidEntriesObliviously();
+    void clearInvalidEntries();
 
     void addRedundantCols();
 
