@@ -11,6 +11,7 @@
 #include "compute/batch/bool/BoolLessBatchOperator.h"
 #include "compute/batch/bool/BoolMutexBatchOperator.h"
 #include "compute/batch/bool/BoolToArithBatchOperator.h"
+#include "conf/DbConf.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "secret/Secrets.h"
 #include "utils/Log.h"
@@ -18,8 +19,14 @@
 
 View::View(std::vector<std::string> &fieldNames,
            std::vector<int> &fieldWidths) : Table(
-    VIEW_NAME, fieldNames, fieldWidths, EMPTY_KEY_FIELD) {
+    EMPTY_VIEW_NAME, fieldNames, fieldWidths, EMPTY_KEY_FIELD) {
     // for padding column and valid column
+    addRedundantCols();
+}
+
+View::View(std::string &tableName, std::vector<std::string> &fieldNames, std::vector<int> &fieldWidths) : Table(
+    tableName, fieldNames, fieldWidths, EMPTY_KEY_FIELD) {
+    addRedundantCols();
 }
 
 void View::sort(const std::string &orderField, bool ascendingOrder, int msgTagOffset) {
@@ -327,10 +334,10 @@ void View::filterAndConditions(std::vector<std::string> &fieldNames, std::vector
         facNB(fieldNames, comparatorTypes, constShares);
     }
 
-    clearInvalidEntries();
+    clearInvalidEntriesObliviously();
 }
 
-void View::clearInvalidEntries() {
+void View::clearInvalidEntriesObliviously() {
     // sort view by valid column
     sort(VALID_COL_NAME, false, 0);
 
@@ -350,7 +357,7 @@ void View::clearInvalidEntries() {
             futures[i] = ThreadPoolSupport::submit([this, i, batchSize, n] {
                 auto &validCol = _dataCols[_dataCols.size() + VALID_COL_OFFSET];
                 std::vector part(validCol.begin() + batchSize * i,
-                                          validCol.begin() + std::min(batchSize * (i + 1), n));
+                                 validCol.begin() + std::min(batchSize * (i + 1), n));
                 return BoolToArithBatchOperator(&part, 64, 0, BoolToArithBatchOperator::msgTagCount() * i,
                                                 SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
             });
@@ -376,6 +383,16 @@ void View::clearInvalidEntries() {
     }
 }
 
+void View::addRedundantCols() {
+    _fieldNames.emplace_back(View::VALID_COL_NAME);
+    _fieldWidths.emplace_back(1);
+    _dataCols.emplace_back(_dataCols[0].size(), Comm::rank());
+
+    _fieldNames.emplace_back(View::PADDING_COL_NAME);
+    _fieldWidths.emplace_back(1);
+    _dataCols.emplace_back(_dataCols[0].size());
+}
+
 void View::bs1B(const std::string &orderField, bool ascendingOrder, int msgTagOffset) {
     auto n = _dataCols[0].size();
     auto &col = _dataCols[colIndex(orderField)];
@@ -395,7 +412,7 @@ void View::bs1B(const std::string &orderField, bool ascendingOrder, int msgTagOf
 
             for (int i = 0; i < n; i++) {
                 int l = i ^ j;
-                if (l <= i || l >= n) {
+                if (l <= i) {
                     continue;
                 }
                 bool dir = (i & k) == 0;
@@ -485,7 +502,7 @@ void View::bsNB(const std::string &orderField, bool ascendingOrder, int msgTagOf
             int comparingCount = 0;
             for (int i = 0; i < n; ++i) {
                 int l = i ^ j;
-                if (l <= i || l >= n) {
+                if (l <= i) {
                     continue;
                 }
                 bool dir = (i & k) == 0;
@@ -594,172 +611,6 @@ void View::bsNB(const std::string &orderField, bool ascendingOrder, int msgTagOf
             }
         }
     }
-}
-
-void View::addRedundantCols(View &v) {
-    v._fieldNames.emplace_back(VALID_COL_NAME);
-    v._fieldWidths.emplace_back(1);
-    v._dataCols.emplace_back(v._dataCols[0].size());
-
-    v._fieldNames.emplace_back(PADDING_COL_NAME);
-    v._fieldWidths.emplace_back(1);
-    v._dataCols.emplace_back(v._dataCols[0].size());
-}
-
-View View::selectAll(Table &t) {
-    View v(t._fieldNames, t._fieldWidths);
-    v._dataCols = t._dataCols;
-    addRedundantCols(v);
-    return v;
-}
-
-View View::selectColumns(Table &t, std::vector<std::string> &fieldNames) {
-    std::vector<size_t> indices;
-    indices.reserve(fieldNames.size());
-    for (const auto &name: fieldNames) {
-        auto it = std::find(t._fieldNames.begin(), t._fieldNames.end(), name);
-        indices.push_back(std::distance(t._fieldNames.begin(), it));
-    }
-
-    std::vector<int> widths;
-    widths.reserve(indices.size());
-    for (auto idx: indices) {
-        widths.push_back(t._fieldWidths[idx]);
-    }
-
-    View v(fieldNames, widths);
-
-    if (t._dataCols.empty()) {
-        return v;
-    }
-
-    v._dataCols.reserve(indices.size() + 2);
-    for (auto idx: indices) {
-        v._dataCols.push_back(t._dataCols[idx]);
-    }
-
-    addRedundantCols(v);
-
-    return v;
-}
-
-View View::nestedLoopJoin(Table &t0, Table &t1, std::string &field0, std::string &field1) {
-    size_t fieldNum0 = t0._fieldNames.size();
-    size_t fieldNum1 = t1._fieldNames.size();
-    std::vector<std::string> fieldNames(fieldNum0 + fieldNum1);
-    for (int i = 0; i < fieldNum0; ++i) {
-        fieldNames[i] = t0._tableName + "." + t0._fieldNames[i];
-    }
-    for (int i = 0; i < fieldNum1; ++i) {
-        fieldNames[i + fieldNum0] = t1._tableName + "." + t1._fieldNames[i];
-    }
-
-    std::vector<int> fieldWidths(fieldNum0 + fieldNum1);
-    for (int i = 0; i < fieldNum0; ++i) {
-        fieldWidths[i] = t0._fieldWidths[i];
-    }
-    for (int i = 0; i < fieldNum1; ++i) {
-        fieldWidths[i + fieldNum0] = t1._fieldWidths[i];
-    }
-
-    View joined(fieldNames, fieldWidths);
-    if (t0._dataCols.empty() || t1._dataCols.empty()) {
-        return joined;
-    }
-
-    size_t rows0 = t0._dataCols[0].size();
-    size_t rows1 = t1._dataCols[0].size();
-    size_t n = rows0 * rows1;
-    joined._dataCols.resize(fieldNum0 + fieldNum1 + 2, std::vector<int64_t>(n));
-
-
-    int colIndex0 = t0.colIndex(field0);
-    int colIndex1 = t1.colIndex(field1);
-
-    auto &col0 = t0._dataCols[colIndex0];
-    auto &col1 = t1._dataCols[colIndex1];
-
-
-    int batchSize = Conf::BATCH_SIZE;
-    if (batchSize <= 0 || Conf::DISABLE_MULTI_THREAD) {
-        size_t rowIndex = 0;
-        std::vector<int64_t> cmp0, cmp1;
-        cmp0.reserve(n);
-        cmp1.reserve(n);
-
-
-        for (size_t i = 0; i < rows0; ++i) {
-            for (size_t j = 0; j < rows1; ++j) {
-                // For each column
-                for (size_t k = 0; k < fieldNum0; ++k) {
-                    joined._dataCols[k][rowIndex] = t0._dataCols[k][i];
-                }
-                for (size_t k = 0; k < fieldNum1; ++k) {
-                    joined._dataCols[k + fieldNum0][rowIndex] = t1._dataCols[k][j];
-                }
-                cmp0.push_back(col0[i]);
-                cmp1.push_back(col1[j]);
-                rowIndex++;
-            }
-        }
-
-        joined._dataCols[joined.colNum() + VALID_COL_OFFSET] = BoolEqualBatchOperator(
-            &cmp0, &cmp1, t0._fieldWidths[colIndex0], 0, 0, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-    } else {
-        size_t batchNum = (n + batchSize - 1) / batchSize;
-        std::vector<std::future<std::vector<int64_t> > > futures(batchNum);
-
-        int width = t0._fieldWidths[colIndex0];
-        for (int b = 0; b < batchNum; ++b) {
-            futures[b] = ThreadPoolSupport::submit([b, batchSize, batchNum, rows0, rows1, &col0, &col1, width] {
-                std::vector<int64_t> cmp0, cmp1;
-                cmp0.reserve(batchSize);
-                cmp1.reserve(batchSize);
-
-                size_t outerStart = b * batchSize / rows1;
-                size_t innerStart = b * batchSize % rows1;
-
-                for (size_t i = outerStart; i < rows0; ++i) {
-                    for (size_t j = innerStart; j < rows1; ++j) {
-                        cmp0.push_back(col0[i]);
-                        cmp1.push_back(col1[j]);
-                        if (cmp0.size() == batchSize) {
-                            goto OUTER_BREAK;
-                        }
-                    }
-                }
-            OUTER_BREAK: ;
-
-                return BoolEqualBatchOperator(
-                    &cmp0, &cmp1, width, 0, b * BoolEqualBatchOperator::msgTagCount(),
-                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-            });
-        }
-
-        size_t rowIndex = 0;
-        for (size_t i = 0; i < rows0; ++i) {
-            for (size_t j = 0; j < rows1; ++j) {
-                // For each column
-                for (size_t k = 0; k < fieldNum0; ++k) {
-                    joined._dataCols[k][rowIndex] = t0._dataCols[k][i];
-                }
-                for (size_t k = 0; k < fieldNum1; ++k) {
-                    joined._dataCols[k + fieldNum0][rowIndex] = t1._dataCols[k][j];
-                }
-                rowIndex++;
-            }
-        }
-
-        rowIndex = 0;
-        for (int i = 0; i < batchNum; ++i) {
-            auto r = futures[i].get();
-            for (int j = 0; j < r.size(); j++) {
-                joined._dataCols[joined.colNum() + VALID_COL_OFFSET][rowIndex++] = r[j];
-            }
-        }
-    }
-
-    return joined;
 }
 
 void View::bitonicSort(const std::string &orderField, bool ascendingOrder, int msgTagOffset) {

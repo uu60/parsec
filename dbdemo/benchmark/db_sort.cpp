@@ -7,6 +7,7 @@
 
 #include "../include/basis/View.h"
 #include "../include/operator/SelectSupport.h"
+#include "basis/Views.h"
 #include "utils/Log.h"
 #include "utils/StringUtils.h"
 
@@ -51,7 +52,7 @@ int main(int argc, char *argv[]) {
             t.insert(r);
         }
 
-        v = View::selectAll(t);
+        v = Views::selectAll(t);
 
         auto start = System::currentTimeMillis();
         v.sort("a0", false, 0);

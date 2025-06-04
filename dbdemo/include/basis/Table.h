@@ -8,6 +8,8 @@
 
 class Table {
 public:
+    inline static const std::string BUCKET_TAG_PREFIX = "$tag:";
+
     virtual ~Table() = default;
 
     std::string _tableName;
@@ -26,7 +28,7 @@ public:
 
     bool insert(const std::vector<int64_t> &r);
 
-    int colIndex(const std::string &colName);
+    [[nodiscard]] int colIndex(const std::string &colName) const;
 
     [[nodiscard]] size_t colNum() const;
 

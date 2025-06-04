@@ -14,20 +14,20 @@
 
 Table::Table(std::string &tableName, std::vector<std::string> &fieldNames, std::vector<int> &fieldWidths, std::string keyField) {
     this->_tableName = tableName;
-
     this->_fieldNames = fieldNames;
-    // this->_fieldNames.emplace_back("$bucketTag");
-
     this->_fieldWidths = fieldWidths;
-    // this->_fieldWidths.emplace_back(32);
-
     this->_keyField = std::move(keyField);
+
+    if (!this->_keyField.empty()) {
+        this->_fieldNames.push_back(BUCKET_TAG_PREFIX + _keyField);
+        this->_fieldWidths.push_back(32);
+    }
 
     for (auto w: this->_fieldWidths) {
         _maxWidth = std::max(w, _maxWidth);
     }
 
-    _dataCols.resize(fieldNames.size(), {});
+    _dataCols.resize(_fieldNames.size(), {});
 }
 
 bool Table::insert(const std::vector<int64_t> &r) {
@@ -40,7 +40,7 @@ bool Table::insert(const std::vector<int64_t> &r) {
     return true;
 }
 
-int Table::colIndex(const std::string &colName) {
+int Table::colIndex(const std::string &colName) const {
     for (int i = 0; i < _dataCols.size(); i++) {
         if (_fieldNames[i] == colName) {
             return i;

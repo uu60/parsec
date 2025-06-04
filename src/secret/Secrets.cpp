@@ -35,7 +35,7 @@ void bs1B(std::vector<BoolSecret> &secrets, bool asc, int taskTag, int msgTagOff
 
             for (int i = 0; i < n; i++) {
                 int l = i ^ j;
-                if (l <= i || l >= n) {
+                if (l <= i) {
                     continue;
                 }
                 bool dir = (i & k) == 0;
@@ -84,7 +84,7 @@ void bsNB(std::vector<BoolSecret> &secrets, bool asc, int taskTag, int msgTagOff
             int comparingCount = 0;
             for (int i = 0; i < n; ++i) {
                 int l = i ^ j;
-                if (l <= i || l >= n) {
+                if (l <= i) {
                     continue;
                 }
                 bool dir = (i & k) == 0;

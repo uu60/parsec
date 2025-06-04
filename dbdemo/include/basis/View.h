@@ -15,7 +15,7 @@ public:
     inline static const std::string PADDING_COL_NAME = "$padding";
 
     inline static std::string EMPTY_KEY_FIELD;
-    inline static std::string VIEW_NAME;
+    inline static std::string EMPTY_VIEW_NAME;
 
     enum ComparatorType {
         LESS,
@@ -30,24 +30,20 @@ public:
 
     View(std::vector<std::string> &fieldNames, std::vector<int> &fieldWidths);
 
+    View(std::string &tableName, std::vector<std::string> &fieldNames, std::vector<int> &fieldWidths);
+
     void sort(const std::string &orderField, bool ascendingOrder, int msgTagOffset);
 
     void filterAndConditions(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes, std::vector<int64_t> &constShares);
 
-    void clearInvalidEntries();
+    void clearInvalidEntriesObliviously();
 
-    static View selectAll(Table &t);
-
-    static View selectColumns(Table &t, std::vector<std::string> &fieldNames);
-
-    static View nestedLoopJoin(Table &t0, Table &t1, std::string &field0, std::string &field1);
+    void addRedundantCols();
 
 private:
     void bs1B(const std::string &orderField, bool ascendingOrder, int msgTagOffset);
 
     void bsNB(const std::string &orderField, bool ascendingOrder, int msgTagOffset);
-
-    static void addRedundantCols(View &v);
 
     void fac1B(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
                std::vector<int64_t> &constShares);

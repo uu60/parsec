@@ -22,6 +22,8 @@ public:
         oss << "]";
         return oss.str();
     }
+
+    static bool hasPrefix(const std::string &str, const std::string &prefix);
 };
 
 

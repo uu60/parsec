@@ -8,6 +8,7 @@
 #include "dbms/SystemManager.h"
 #include "../third_party/hsql/sql/SQLStatement.h"
 #include "../third_party/hsql/sql/SelectStatement.h"
+#include "basis/Views.h"
 #include "comm/Comm.h"
 #include "secret/Secrets.h"
 #include "utils/Log.h"
@@ -15,42 +16,86 @@
 #include "utils/StringUtils.h"
 #include "utils/System.h"
 
-bool SelectSupport::clientSelect(std::ostringstream &resp, const hsql::SQLStatement *stmt) {
-    int64_t done;
-
-    const auto *selectStmt = dynamic_cast<const hsql::SelectStatement *>(stmt);
-
-    std::string tableName = selectStmt->fromTable->getName();
-
-    Table *table = SystemManager::getInstance()._currentDatabase->getTable(tableName);
-    if (!table) {
-        resp << "Failed. Table `" << tableName << "` does not exist." << std::endl;
-        return false;
-    }
-    const auto fieldNames = table->_fieldNames;
-
-    // select content
-    std::vector<std::string> selectedFieldNames;
-    const auto list = selectStmt->selectList;
-    for (const auto c: *list) {
-        // select *
-        if (c->type == hsql::kExprStar) {
-            selectedFieldNames = table->_fieldNames;
-            break;
+bool SelectSupport::clientHandleOrder(std::ostringstream &resp, const hsql::SelectStatement *selectStmt,
+                                      std::vector<std::string> &fieldNames, std::vector<std::string> &orderFields,
+                                      std::vector<bool> &ascendings) {
+    if (selectStmt->order) {
+        const auto *order = selectStmt->order;
+        if (order->size() > 1) {
+            resp << "Failed. Only one order column allowed." << std::endl;
+            return false;
         }
-        if (c->type == hsql::kExprColumnRef) {
-            if (std::find(table->_fieldNames.begin(), table->_fieldNames.end(), c->getName()) == table->_fieldNames.end()) {
-                resp << "Failed. Table `" << tableName << "` does not has field `" << c->getName() << "`." << std::endl;
+        for (auto desc: *order) {
+            std::string name = desc->expr->getName();
+            if (std::find(fieldNames.begin(), fieldNames.end(), name) == fieldNames.end()) {
+                resp << "Failed. Table does not have field `" << name << "`." << std::endl;
                 return false;
             }
-            selectedFieldNames.emplace_back(c->getName());
+            orderFields.emplace_back(name);
+            bool isAscending = desc->type == hsql::kOrderAsc;
+            ascendings.emplace_back(isAscending);
         }
     }
+    return true;
+}
 
-    // filter
-    std::vector<std::string> filterCols;
-    std::vector<View::ComparatorType> filterCmps;
-    std::vector<int64_t> filterVals;
+void SelectSupport::clientHandleNotify(std::ostringstream &resp, const hsql::SelectStatement *selectStmt,
+                                       const std::string& tableName, Table *table, std::vector<std::string> selectedFieldNames,
+                                       const std::vector<std::string>& filterCols,
+                                       const std::vector<View::ComparatorType>& filterCmps, std::vector<int64_t> filterVals,
+                                       const std::vector<std::string>& orderFields, std::vector<bool> ascendings) {
+    json js;
+    js["type"] = SystemManager::getCommandPrefix(SystemManager::SELECT);
+    js["name"] = tableName;
+    js["fieldNames"] = selectedFieldNames;
+    std::vector<int64_t> fv0, fv1;
+    if (selectStmt->whereClause) {
+        fv0.resize(filterVals.size());
+        fv1.resize(filterVals.size());
+        js["filterFields"] = filterCols;
+        js["filterCmps"] = filterCmps;
+        for (int i = 0; i < filterVals.size(); ++i) {
+            fv0[i] = Math::randInt();
+            fv1[i] = fv0[i] ^ filterVals[i];
+        }
+        js["filterVals"] = fv0;
+    }
+    if (selectStmt->order) {
+        js["orderFields"] = orderFields;
+        js["ascendings"] = ascendings;
+    }
+    std::string m = js.dump();
+    Comm::send(m, 0, 0);
+
+    if (selectStmt->whereClause) {
+        js["filterVals"] = fv1;
+    }
+    m = js.dump();
+    Comm::send(m, 1, 0);
+
+    auto reconstructed = Secrets::boolReconstruct(Table::EMPTY_COL, 2, table->_maxWidth, 0);
+    size_t cols = selectedFieldNames.size();
+    size_t rows = reconstructed.size() / cols;
+    for (int i = 0; i < cols; ++i) {
+        resp << std::setw(10) << selectedFieldNames[i];
+    }
+
+    resp << std::endl;
+    for (int i = 0; i < rows; i++) {
+        if (!reconstructed[i * (cols + 1) + cols]) {
+            continue;
+        }
+        for (int j = 0; j < cols; j++) {
+            resp << std::setw(10) << reconstructed[i * (cols + 1) + j];
+        }
+        resp << std::endl;
+    }
+}
+
+bool SelectSupport::clientHandleFilter(std::ostringstream &resp, const hsql::SelectStatement *selectStmt,
+                                       const std::string &tableName, Table *table, std::vector<std::string> &filterCols,
+                                       std::vector<View::ComparatorType> &filterCmps,
+                                       std::vector<int64_t> &filterVals) {
     if (selectStmt->whereClause) {
         std::vector<const hsql::Expr *> stk;
         stk.push_back(selectStmt->whereClause);
@@ -102,10 +147,14 @@ bool SelectSupport::clientSelect(std::ostringstream &resp, const hsql::SQLStatem
                     break;
             }
 
-            if (!ok) break;
+            if (!ok) {
+                break;
+            }
 
-            if (std::find(table->_fieldNames.begin(), table->_fieldNames.end(), e->expr->getName()) == table->_fieldNames.end()) {
-                resp << "Failed. Table `" << tableName << "` does not has field `" << e->expr->getName() << "`." << std::endl;
+            if (std::find(table->_fieldNames.begin(), table->_fieldNames.end(), e->expr->getName()) == table->
+                _fieldNames.end()) {
+                resp << "Failed. Table `" << tableName << "` does not has field `" << e->expr->getName() << "`." <<
+                        std::endl;
                 return false;
             }
             filterCols.emplace_back(e->expr->getName());
@@ -118,78 +167,65 @@ bool SelectSupport::clientSelect(std::ostringstream &resp, const hsql::SQLStatem
             return false;
         }
     }
+    return true;
+}
+
+bool SelectSupport::clientSelect(std::ostringstream &resp, const hsql::SQLStatement *stmt) {
+    int64_t done;
+
+    auto *selectStmt = dynamic_cast<const hsql::SelectStatement *>(stmt);
+
+    std::string tableName = selectStmt->fromTable->getName();
+
+    Table *table = SystemManager::getInstance()._currentDatabase->getTable(tableName);
+    if (!table) {
+        resp << "Failed. Table `" << tableName << "` does not exist." << std::endl;
+        return false;
+    }
+    auto fieldNames = table->_fieldNames;
+
+    // select content
+    std::vector<std::string> selectedFieldNames;
+    const auto list = selectStmt->selectList;
+    for (const auto c: *list) {
+        // select *
+        if (c->type == hsql::kExprStar) {
+            selectedFieldNames = table->_fieldNames;
+            break;
+        }
+        if (c->type == hsql::kExprColumnRef) {
+            if (std::find(table->_fieldNames.begin(), table->_fieldNames.end(), c->getName()) == table->_fieldNames.
+                end()) {
+                resp << "Failed. Table `" << tableName << "` does not has field `" << c->getName() << "`." << std::endl;
+                return false;
+            }
+            selectedFieldNames.emplace_back(c->getName());
+        }
+    }
+
+    // filter
+    std::vector<std::string> filterCols;
+    std::vector<View::ComparatorType> filterCmps;
+    std::vector<int64_t> filterVals;
+    if (!clientHandleFilter(resp, selectStmt, tableName, table, filterCols, filterCmps, filterVals)) {
+        return false;
+    }
 
     // order
     std::vector<std::string> orderFields;
     std::vector<bool> ascendings;
-    if (selectStmt->order) {
-        const auto *order = selectStmt->order;
-        if (order->size() > 1) {
-            resp << "Failed. Only one order column allowed." << std::endl;
-            return false;
-        }
-        for (auto desc: *order) {
-            std::string name = desc->expr->getName();
-            if (std::find(fieldNames.begin(), fieldNames.end(), name) == fieldNames.end()) {
-                resp << "Failed. Table does not have field `" << name << "`." << std::endl;
-                return false;
-            }
-            orderFields.emplace_back(name);
-            bool isAscending = desc->type == hsql::kOrderAsc;
-            ascendings.emplace_back(isAscending);
-        }
+    if (!clientHandleOrder(resp, selectStmt, fieldNames, orderFields, ascendings)) {
+        return false;
     }
 
     // notify servers
-    json js;
-    js["type"] = SystemManager::getCommandPrefix(SystemManager::SELECT);
-    js["name"] = tableName;
-    js["fieldNames"] = selectedFieldNames;
-    std::vector<int64_t> fv0, fv1;
-    if (selectStmt->whereClause) {
-        fv0.resize(filterVals.size());
-        fv1.resize(filterVals.size());
-        js["filterFields"] = filterCols;
-        js["filterCmps"] = filterCmps;
-        for (int i = 0; i < filterVals.size(); ++i) {
-            fv0[i] = Math::randInt();
-            fv1[i] = fv0[i] ^ filterVals[i];
-        }
-        js["filterVals"] = fv0;
-    }
-    if (selectStmt->order) {
-        js["orderFields"] = orderFields;
-        js["ascendings"] = ascendings;
-    }
-    std::string m = js.dump();
-    Comm::send(m, 0, 0);
+    clientHandleNotify(resp, selectStmt, tableName, table, selectedFieldNames, filterCols, filterCmps, filterVals,
+                       orderFields, ascendings);
 
-    if (selectStmt->whereClause) {
-        js["filterVals"] = fv1;
-    }
-    m = js.dump();
-    Comm::send(m, 1, 0);
-
-    auto reconstructed = Secrets::boolReconstruct(Table::EMPTY_COL, 2, table->_maxWidth, 0);
-    size_t cols = selectedFieldNames.size();
-    size_t rows = reconstructed.size() / cols;
-    for (int i = 0; i < cols; ++i) {
-        resp << std::setw(10) << selectedFieldNames[i];
-    }
-
-    resp << std::endl;
-    for (int i = 0; i < rows; i++) {
-        if (!reconstructed[i * (cols + 1) + cols]) {
-            continue;
-        }
-        for (int j = 0; j < cols; j++) {
-            resp << std::setw(10) << reconstructed[i * (cols + 1) + j];
-        }
-        resp << std::endl;
-    }
-
-    Comm::receive(done, 1, 0, 0);
-    Comm::receive(done, 1, 1, 0);
+    auto r0 = Comm::receiveAsync(done, 1, 0, 0);
+    auto r1 = Comm::receiveAsync(done, 1, 1, 0);
+    Comm::wait(r0);
+    Comm::wait(r1);
     return true;
 }
 
@@ -199,7 +235,7 @@ void SelectSupport::serverSelect(json js) {
 
     Table *table = SystemManager::getInstance()._currentDatabase->getTable(tableName);
     // v's task tag is assigned by System::nextTag()
-    auto v = View::selectColumns(*table, selectedFields);
+    auto v = Views::selectColumns(*table, selectedFields);
 
     if (v._dataCols.empty()) {
         Secrets::boolReconstruct(Table::EMPTY_COL, 2, v._maxWidth, 0);
