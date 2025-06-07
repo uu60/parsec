@@ -135,24 +135,23 @@ View Views::nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string 
 
         int width = v0._fieldWidths[colIndex0];
         for (int b = 0; b < batchNum; ++b) {
-            futures[b] = ThreadPoolSupport::submit([b, batchSize, batchNum, rows0, rows1, &col0, &col1, width] {
+            futures[b] = ThreadPoolSupport::submit([b, batchSize, rows0, rows1, &col0, &col1, width] {
                 std::vector<int64_t> cmp0, cmp1;
                 cmp0.reserve(batchSize);
                 cmp1.reserve(batchSize);
 
-                size_t outerStart = b * batchSize / rows1;
-                size_t innerStart = b * batchSize % rows1;
+                // std::vector<int> idx0, idx1;
 
-                for (size_t i = outerStart; i < rows0; ++i) {
-                    for (size_t j = innerStart; j < rows1; ++j) {
-                        cmp0.push_back(col0[i]);
-                        cmp1.push_back(col1[j]);
-                        if (cmp0.size() == batchSize) {
-                            goto OUTER_BREAK;
-                        }
+                for (int i = 0; i < batchSize; ++i) {
+                    int temp = b * batchSize + i;
+                    if (temp / rows1 == rows0) {
+                        break;
                     }
+                    cmp0.push_back(col0[temp / rows1]);
+                    cmp1.push_back(col1[temp % rows1]);
+                    // idx0.push_back(temp / rows1);
+                    // idx1.push_back(temp % rows1);
                 }
-            OUTER_BREAK: ;
 
                 return BoolEqualBatchOperator(
                     &cmp0, &cmp1, width, 0, b * BoolEqualBatchOperator::msgTagCount(),
@@ -175,8 +174,8 @@ View Views::nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string 
         }
 
         rowIndex = 0;
-        for (int i = 0; i < batchNum; ++i) {
-            auto r = futures[i].get();
+        for (int b = 0; b < batchNum; ++b) {
+            auto r = futures[b].get();
             for (int j = 0; j < r.size(); j++) {
                 joined._dataCols[joined.colNum() + View::VALID_COL_OFFSET][rowIndex++] = r[j];
             }

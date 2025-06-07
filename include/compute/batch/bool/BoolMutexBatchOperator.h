@@ -10,7 +10,6 @@
 class BoolMutexBatchOperator : public BoolBatchOperator {
 public:
     std::vector<int64_t> *_conds_i{};
-    bool _dc{};
     inline static std::atomic_int64_t _totalTime = 0;
 
 private:

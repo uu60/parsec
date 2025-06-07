@@ -32,15 +32,12 @@ int main(int argc, char *argv[]) {
         testShuffle = (Conf::_userParams["shuffle"] == "1");
     }
 
-    Log::i("Testing join with {} records in table0, {} records in table1", num0, num1);
-    Log::i("Shuffle bucket join: {}", testShuffle ? "enabled" : "disabled");
-
     // Create test data for table 0
     std::vector<int64_t> shares0(num0);
     std::vector<int64_t> tagShares0(num0);
     if (Comm::rank() == 2) {
         for (int i = 0; i < num0; i++) {
-            shares0[i] = i % 10; // Join key values 0-9
+            shares0[i] = i; // Join key values 0-9
             // Compute bucket tag using hash of the key value
             int64_t keyValue = shares0[i];
             // Simple hash function: (key * 31 + 17) % numBuckets
@@ -48,10 +45,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-
-    if (Comm::isClient()) {
-        Log::i("shares0: {} tagShares0: {}", StringUtils::vecString(shares0), StringUtils::vecString(tagShares0));
-    }
     shares0 = Secrets::boolShare(shares0, 2, 64, 0);
     tagShares0 = Secrets::boolShare(tagShares0, 2, 64, 0);
 
@@ -60,7 +53,7 @@ int main(int argc, char *argv[]) {
     std::vector<int64_t> tagShares1(num1);
     if (Comm::rank() == 2) {
         for (int i = 0; i < num1; i++) {
-            shares1[i] = i % 10; // Join key values 0-9
+            shares1[i] = i; // Join key values 0-9
             // Compute bucket tag using the same hash function as table 0
             int64_t keyValue = shares1[i];
             // Same hash function: (key * 31 + 17) % numBuckets
@@ -68,12 +61,8 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if (Comm::isClient()) {
-        Log::i("shares1: {} tagShares1: {}", StringUtils::vecString(shares1), StringUtils::vecString(tagShares1));
-    }
     shares1 = Secrets::boolShare(shares1, 2, 64, 0);
     tagShares1 = Secrets::boolShare(tagShares1, 2, 64, 0);
-
 
     View joinResult;
 
@@ -133,7 +122,7 @@ int main(int argc, char *argv[]) {
     // Reconstruct all data at once - combine all columns into one vector
     std::vector<int64_t> allSecrets;
     int numCols = 8;
-    int numRows = std::min(num0, num1);
+    int numRows;
 
     if (Comm::isServer() && !joinResult._dataCols.empty()) {
         numCols = joinResult._dataCols.size();
@@ -151,7 +140,9 @@ int main(int argc, char *argv[]) {
     // Single reconstruct call for all data
     auto allReconstructed = Secrets::boolReconstruct(allSecrets, 2, 64, System::nextTask());
 
+    Log::i("all: {}", StringUtils::vecString(allReconstructed));
     if (Comm::rank() == 2) {
+        numRows = allReconstructed.size() / numCols;
         for (int col = 0; col < numCols; col++) {
             std::vector<int64_t> tempCol;
             for (int row = 0; row < numRows; row++) {

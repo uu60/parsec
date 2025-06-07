@@ -19,10 +19,9 @@ BoolMutexBatchOperator::BoolMutexBatchOperator(std::vector<int64_t> *xs, std::ve
         if (Comm::isClient()) {
             return;
         }
-        _conds_i = conds;
+        _conds_i = new std::vector(*conds);
     } else {
         _conds_i = new std::vector(std::move(BoolBatchOperator(*conds, 1, _taskTag, _currentMsgTag, clientRank)._zis));
-        _dc = true;
     }
     if (Comm::isClient()) {
         return;
@@ -39,7 +38,7 @@ BoolMutexBatchOperator::BoolMutexBatchOperator(std::vector<int64_t> *xs, std::ve
                                                std::vector<int64_t> *conds, int width, int taskTag,
                                                int msgTagOffset) : BoolBatchOperator(
     xs, ys, width, taskTag, msgTagOffset, NO_CLIENT_COMPUTE) {
-    _conds_i = conds;
+    _conds_i = new std::vector(*conds);
     for (int64_t &ci: *_conds_i) {
         if (ci != 0) {
             // Set to all 1 on each bit
@@ -50,9 +49,7 @@ BoolMutexBatchOperator::BoolMutexBatchOperator(std::vector<int64_t> *xs, std::ve
 }
 
 BoolMutexBatchOperator::~BoolMutexBatchOperator() {
-    if (_dc) {
-        delete _conds_i;
-    }
+    delete _conds_i;
 }
 
 bool BoolMutexBatchOperator::prepareBmts(std::vector<BitwiseBmt> &bmts) {
