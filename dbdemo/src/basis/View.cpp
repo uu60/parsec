@@ -6,6 +6,7 @@
 
 #include <numeric>
 
+#include "../../../../../../../opt/homebrew/Cellar/boost/1.87.0/include/boost/config/detail/posix_features.hpp"
 #include "compute/batch/bool/BoolAndBatchOperator.h"
 #include "compute/batch/bool/BoolEqualBatchOperator.h"
 #include "compute/batch/bool/BoolLessBatchOperator.h"
@@ -29,8 +30,16 @@ View::View(std::string &tableName, std::vector<std::string> &fieldNames, std::ve
     addRedundantCols();
 }
 
+View::View(std::string &tableName, std::vector<std::string> &fieldNames, std::vector<int> &fieldWidths,
+           bool dummy) : Table(
+    tableName, fieldNames, fieldWidths, EMPTY_KEY_FIELD) {
+}
+
 void View::sort(const std::string &orderField, bool ascendingOrder, int msgTagOffset) {
-    size_t n = _dataCols[0].size();
+    size_t n = rowNum();
+    if (n == 0) {
+        return;
+    }
     bool isPowerOf2 = (n > 0) && ((n & (n - 1)) == 0);
     if (!isPowerOf2) {
         size_t nextPow2 = static_cast<size_t>(1) <<
@@ -381,6 +390,24 @@ void View::clearInvalidEntries() {
     for (auto &v: _dataCols) {
         v.resize(validNum);
     }
+
+    // Not Oblivious Version
+    // std::vector<std::vector<int64_t>> newCols(colNum());
+    // for (int i = 0; i < rowNum(); i++) {
+    //     bool valid0 = _dataCols[colNum() + VALID_COL_OFFSET][i];
+    //     int64_t valid1;
+    //     auto r0 = Comm::sendAsync(valid0, 1, 1 - Comm::rank(), 0);
+    //     auto r1 = Comm::receiveAsync(valid1, 1, 1 - Comm::rank(), 0);
+    //     Comm::wait(r0);
+    //     Comm::wait(r1);
+    //     bool valid = valid0 ^ valid1;
+    //     if (valid) {
+    //         for (int j = 0; j < colNum(); j++) {
+    //             newCols[j].push_back(_dataCols[j][i]);
+    //         }
+    //     }
+    // }
+    // _dataCols = std::move(newCols);
 }
 
 void View::addRedundantCols() {
@@ -395,7 +422,7 @@ void View::addRedundantCols() {
 
 void View::bs1B(const std::string &orderField, bool ascendingOrder, int msgTagOffset) {
     auto n = _dataCols[0].size();
-    auto &col = _dataCols[colIndex(orderField)];
+    auto &orderCol = _dataCols[colIndex(orderField)];
     auto &paddings = _dataCols[colNum() + PADDING_COL_OFFSET];
     int ofi = colIndex(orderField);
     auto &oc = _dataCols[ofi]; // order column
@@ -432,9 +459,9 @@ void View::bs1B(const std::string &orderField, bool ascendingOrder, int msgTagOf
                 if (paddings[i] || paddings[l]) {
                     continue;
                 }
-                xs.push_back(col[i]);
+                xs.push_back(orderCol[i]);
                 xIdx.push_back(i);
-                ys.push_back(col[l]);
+                ys.push_back(orderCol[l]);
                 yIdx.push_back(l);
                 ascs.push_back(dir ^ !ascendingOrder);
             }

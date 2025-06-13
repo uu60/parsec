@@ -15,8 +15,8 @@ public:
 private:
     std::vector<BitwiseBmt> *_bmts{};
 
-    // for sort
-    bool _doSort{};
+    // for bidirectional
+    bool _bidir{};
 
 public:
     BoolMutexBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys, std::vector<int64_t> *conds, int width,
@@ -42,7 +42,7 @@ private:
 
     void execute0();
 
-    void executeForSort();
+    void executeBidirectionally();
 };
 
 

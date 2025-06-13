@@ -45,7 +45,7 @@ BoolMutexBatchOperator::BoolMutexBatchOperator(std::vector<int64_t> *xs, std::ve
             ci = ring(-1ll);
         }
     }
-    _doSort = true;
+    _bidir = true;
 }
 
 BoolMutexBatchOperator::~BoolMutexBatchOperator() {
@@ -73,15 +73,18 @@ void BoolMutexBatchOperator::execute0() {
     // Verified SIMD performance
     if (Conf::ENABLE_SIMD) {
         _zis = SimdSupport::xor3(zis.data(), _yis->data(), zis.data() + num, num);
+        for (auto &zi : _zis) {
+            zi = ring(zi);
+        }
     } else {
         _zis.resize(num);
         for (int i = 0; i < num; i++) {
-            _zis[i] = zis[i] ^ (*_yis)[i] ^ zis[num + i];
+            _zis[i] = ring(zis[i] ^ (*_yis)[i] ^ zis[num + i]);
         }
     }
 }
 
-void BoolMutexBatchOperator::executeForSort() {
+void BoolMutexBatchOperator::executeBidirectionally() {
     std::vector<BitwiseBmt> bmts;
     bool gotBmt = prepareBmts(bmts);
 
@@ -94,11 +97,14 @@ void BoolMutexBatchOperator::executeForSort() {
     // Verified SIMD performance
     if (Conf::ENABLE_SIMD) {
         _zis = SimdSupport::xor3Concat(zis.data(), _yis->data(), _xis->data(), zis.data() + num, num);
+        for (auto &zi : _zis) {
+            zi = ring(zi);
+        }
     } else {
         _zis.resize(num * 2);
         for (int i = 0; i < num; i++) {
-            _zis[i] = zis[i] ^ (*_yis)[i] ^ zis[num + i];
-            _zis[num + i] = zis[i] ^ (*_xis)[i] ^ zis[num + i];
+            _zis[i] = ring(zis[i] ^ (*_yis)[i] ^ zis[num + i]);
+            _zis[num + i] = ring(zis[i] ^ (*_xis)[i] ^ zis[num + i]);
         }
     }
 }
@@ -115,8 +121,8 @@ BoolMutexBatchOperator *BoolMutexBatchOperator::execute() {
         start = System::currentTimeMillis();
     }
 
-    if (_doSort) {
-        executeForSort();
+    if (_bidir) {
+        executeBidirectionally();
     } else {
         execute0();
     }

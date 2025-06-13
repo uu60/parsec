@@ -76,9 +76,6 @@ int main(int argc, char *argv[]) {
         Table table0(tableName0, fieldNames0, fieldWidths0, keyField0);
         for (int i = 0; i < shares0.size(); i++) {
             std::vector<int64_t> record = {shares0[i], shares0[i], tagShares0[i]};
-            if (testShuffle) {
-                record.push_back(tagShares0[i]);
-            }
             table0.insert(record);
         }
 
@@ -91,9 +88,6 @@ int main(int argc, char *argv[]) {
         Table table1(tableName1, fieldNames1, fieldWidths1, keyField1);
         for (int i = 0; i < shares1.size(); i++) {
             std::vector<int64_t> record = {shares1[i], shares1[i], tagShares1[i]};
-            if (testShuffle) {
-                record.push_back(tagShares1[i]);
-            }
             table1.insert(record);
         }
 
@@ -108,7 +102,7 @@ int main(int argc, char *argv[]) {
 
         if (testShuffle) {
             Log::i("Starting shuffle bucket join...");
-            joinResult = Views::shuffleBucketJoin(view0, view1, joinField0, joinField1);
+            joinResult = Views::hashJoin(view0, view1, joinField0, joinField1);
         } else {
             Log::i("Starting nested loop join...");
             joinResult = Views::nestedLoopJoin(view0, view1, joinField0, joinField1);
@@ -140,7 +134,6 @@ int main(int argc, char *argv[]) {
     // Single reconstruct call for all data
     auto allReconstructed = Secrets::boolReconstruct(allSecrets, 2, 64, System::nextTask());
 
-    Log::i("all: {}", StringUtils::vecString(allReconstructed));
     if (Comm::rank() == 2) {
         numRows = allReconstructed.size() / numCols;
         for (int col = 0; col < numCols; col++) {

@@ -13,6 +13,8 @@
 #include "comm/Comm.h"
 #include "secret/Secrets.h"
 #include "utils/StringUtils.h"
+#include "utils/Log.h"
+#include <cmath>
 
 View Views::selectAll(Table &t) {
     View v(t._tableName, t._fieldNames, t._fieldWidths);
@@ -22,10 +24,27 @@ View Views::selectAll(Table &t) {
     return v;
 }
 
+View Views::selectAllWithFieldPrefix(Table &t) {
+    std::vector<std::string> fieldNames(t._fieldNames.size());
+    for (int i = 0; i < t._fieldNames.size() - 2; i++) {
+        if (fieldNames[i] != View::VALID_COL_NAME && fieldNames[i] != View::PADDING_COL_NAME) {
+            fieldNames[i] = getAliasColName(t._tableName, t._fieldNames[i]);
+        } else {
+            fieldNames[i] = t._fieldNames[i];
+        }
+    }
+
+    View v(t._tableName, fieldNames, t._fieldWidths);
+    v._dataCols = t._dataCols;
+    v._dataCols.emplace_back(t._dataCols[0].size(), Comm::rank());
+    v._dataCols.emplace_back(t._dataCols[0].size());
+    return v;
+}
+
 View Views::selectColumns(Table &t, std::vector<std::string> &fieldNames) {
     std::vector<size_t> indices;
     indices.reserve(fieldNames.size());
-    for (const auto &name: fieldNames) {
+    for (auto &name: fieldNames) {
         auto it = std::find(t._fieldNames.begin(), t._fieldNames.end(), name);
         indices.push_back(std::distance(t._fieldNames.begin(), it));
     }
@@ -140,8 +159,6 @@ View Views::nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string 
                 cmp0.reserve(batchSize);
                 cmp1.reserve(batchSize);
 
-                // std::vector<int> idx0, idx1;
-
                 for (int i = 0; i < batchSize; ++i) {
                     int temp = b * batchSize + i;
                     if (temp / rows1 == rows0) {
@@ -149,8 +166,6 @@ View Views::nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string 
                     }
                     cmp0.push_back(col0[temp / rows1]);
                     cmp1.push_back(col1[temp % rows1]);
-                    // idx0.push_back(temp / rows1);
-                    // idx1.push_back(temp % rows1);
                 }
 
                 return BoolEqualBatchOperator(
@@ -187,182 +202,215 @@ View Views::nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string 
     return joined;
 }
 
-View Views::shuffleBucketJoin(View &v0, View &v1, std::string &field0, std::string &field1) {
-    std::string tagField0, tagField1;
-    int tagColIdx0 = v0.colIndex(Table::BUCKET_TAG_PREFIX + field0);
-    if (tagColIdx0 == -1) {
-        return nestedLoopJoin(v0, v1, field0, field1);
-    }
-    int tagColIdx1 = v1.colIndex(Table::BUCKET_TAG_PREFIX + field1);
-    if (tagColIdx1 == -1) {
-        return nestedLoopJoin(v0, v1, field0, field1);
-    }
-
-    // Get number of buckets from configuration
+std::vector<std::vector<std::vector<int64_t> > > Views::butterflyPermutation(
+    View &view,
+    int tagColIndex,
+    int msgTagBase
+) {
     int numBuckets = DbConf::SHUFFLE_BUCKET_NUM;
+    int numLayers = static_cast<int>(std::log2(numBuckets));
 
-    // Distribute records to buckets based on tag shares
-    auto buckets0 = distributeToBuckets(v0, tagColIdx0, numBuckets);
-    auto buckets1 = distributeToBuckets(v1, tagColIdx1, numBuckets);
+    std::vector<std::vector<std::vector<int64_t> > > buckets(numBuckets);
+    buckets[0].reserve(view.colNum() - 1);
 
-    // Perform nested loop join within each corresponding bucket
-    return joinBuckets(v0, v1, buckets0, buckets1, field0, field1);
-}
-
-std::string Views::getAliasColName(std::string &tableName, std::string &fieldName) {
-    return tableName + "." + fieldName;
-}
-
-std::vector<std::vector<size_t> > Views::distributeToBuckets(const View &v, int tagColIdx, int numBuckets) {
-    std::vector<std::vector<size_t> > buckets(numBuckets);
-
-    if (v._dataCols.empty() || tagColIdx == -1) {
-        return buckets;
+    for (int col = 0; col < view.colNum() - 1; col++) {
+        buckets[0].push_back(view._dataCols[col]);
     }
 
-    size_t numRows = v._dataCols[0].size();
+    for (int layer = 0; layer < numLayers; layer++) {
+        int stride = 1 << layer;
 
-    // For secret sharing, we need to use secure operations to determine bucket assignment
-    // Since tag shares are secret, we can't directly use them for bucketing
-    // We'll use secure equality comparison to assign records to buckets
+        for (int i = 0; i < numBuckets; i += stride * 2) {
+            for (int j = 0; j < stride; j++) {
+                int idx1 = i + j;
+                int idx2 = i + j + stride;
+                std::vector<std::vector<int64_t> > &bucket1 = buckets[idx1];
+                std::vector<std::vector<int64_t> > &bucket2 = buckets[idx2];
 
-    for (int bucketId = 0; bucketId < numBuckets; ++bucketId) {
-        // Create a vector of bucket IDs for comparison
-        std::vector<int64_t> bucketIdShares(numRows);
-        for (size_t i = 0; i < numRows; ++i) {
-            // For secret sharing, we need to create shares of the bucket ID
-            // Here we use a simple approach: party 0 holds the bucket ID, party 1 holds 0
-            bucketIdShares[i] = (Comm::rank() == 0) ? bucketId : 0;
-        }
+                if (idx2 < numBuckets) {
+                    int bitPosition = numLayers - layer - 1;
+                    size_t rows1 = bucket1.empty() ? 0 : bucket1[0].size();
+                    size_t rows2 = bucket2.empty() ? 0 : bucket2[0].size();
+                    size_t totalRows = rows1 + rows2;
 
-        // Get tag shares for all records
-        std::vector<int64_t> tagShares(v._dataCols[tagColIdx].begin(),
-                                       v._dataCols[tagColIdx].end());
 
-        // Perform secure equality comparison to determine which records belong to this bucket
-        auto equalityResults = BoolEqualBatchOperator(
-            &tagShares, &bucketIdShares, v._fieldWidths[tagColIdx], 0,
-            bucketId * BoolEqualBatchOperator::msgTagCount(),
-            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                    if (totalRows == 0) {
+                        continue;
+                    }
 
-        // For now, we'll use a simplified approach where we add all records to all buckets
-        // In a real implementation, we would use the equality results to filter
-        // This is a placeholder that maintains the interface
-        for (size_t i = 0; i < numRows; ++i) {
-            buckets[bucketId].push_back(i);
+                    // Prepare routing bits for all elements
+                    std::vector<int64_t> routingBits;
+                    routingBits.reserve(totalRows);
+
+                    for (size_t r = 0; r < rows1; r++) {
+                        routingBits.push_back(Math::getBit(bucket1[tagColIndex][r], bitPosition));
+                    }
+
+                    for (size_t r = 0; r < rows2; r++) {
+                        routingBits.push_back(Math::getBit(bucket2[tagColIndex][r], bitPosition));
+                    }
+
+                    std::vector<std::vector<int64_t> > newBucket1;
+                    std::vector<std::vector<int64_t> > newBucket2;
+
+                    for (int col = 0; col < bucket1.size(); col++) {
+                        std::vector<int64_t> mergedData;
+                        mergedData.reserve(totalRows);
+                        if (!bucket1.empty()) {
+                            mergedData.insert(mergedData.end(), bucket1[col].begin(), bucket1[col].end());
+                        }
+                        if (!bucket2.empty()) {
+                            mergedData.insert(mergedData.end(), bucket2[col].begin(), bucket2[col].end());
+                        }
+
+                        std::vector<int64_t> dummyData(totalRows, 0);
+
+                        auto bucket1Data =
+                                BoolMutexBatchOperator(
+                                    &mergedData, &dummyData, &routingBits, view._fieldWidths[col], 0,
+                                    msgTagBase + layer * 1000 + col * 10).execute()->_zis;
+
+
+                        size_t half = bucket1Data.size() / 2;
+                        auto bucket2Data = std::vector(bucket1Data.begin() + half, bucket1Data.end());
+                        bucket1Data.resize(half);
+
+                        newBucket1.push_back(std::move(bucket1Data));
+                        newBucket2.push_back(std::move(bucket2Data));
+                    }
+
+                    bucket1 = std::move(newBucket1);
+                    bucket2 = std::move(newBucket2);
+                }
+            }
         }
     }
 
     return buckets;
 }
 
-View Views::joinBuckets(View &v0, View &v1,
-                        const std::vector<std::vector<size_t> > &buckets0,
-                        const std::vector<std::vector<size_t> > &buckets1,
-                        const std::string &field0, const std::string &field1) {
-    // Create result view structure
-    size_t fieldNum0 = v0._fieldNames.size();
-    size_t fieldNum1 = v1._fieldNames.size();
-    std::vector<std::string> fieldNames(fieldNum0 + fieldNum1);
-    for (int i = 0; i < fieldNum0; ++i) {
-        fieldNames[i] = v0._tableName + "." + v0._fieldNames[i];
-    }
-    for (int i = 0; i < fieldNum1; ++i) {
-        fieldNames[i + fieldNum0] = v1._tableName + "." + v1._fieldNames[i];
-    }
+// Perform nested loop joins on bucket pairs
+View Views::performBucketJoins(
+    std::vector<std::vector<std::vector<int64_t> > > &buckets0,
+    std::vector<std::vector<std::vector<int64_t> > > &buckets1,
+    View &v0,
+    View &v1,
+    std::string &field0,
+    std::string &field1
+) {
+    const size_t numBuckets = buckets0.size();
+    bool firstResult = true;
+    View result;
 
-    std::vector<int> fieldWidths(fieldNum0 + fieldNum1);
-    for (int i = 0; i < fieldNum0; ++i) {
-        fieldWidths[i] = v0._fieldWidths[i];
-    }
-    for (int i = 0; i < fieldNum1; ++i) {
-        fieldWidths[i + fieldNum0] = v1._fieldWidths[i];
-    }
-
-    View joined(fieldNames, fieldWidths);
-
-    if (v0._dataCols.empty() || v1._dataCols.empty()) {
-        return joined;
-    }
-
-    // Initialize result columns
-    std::vector<std::vector<int64_t> > resultCols(fieldNum0 + fieldNum1 + 2);
-
-    int colIndex0 = v0.colIndex(field0);
-    int colIndex1 = v1.colIndex(field1);
-
-    // Process each bucket pair
-    int numBuckets = std::min(buckets0.size(), buckets1.size());
-
-    for (int bucketId = 0; bucketId < numBuckets; ++bucketId) {
-        const auto &bucket0 = buckets0[bucketId];
-        const auto &bucket1 = buckets1[bucketId];
-
-        if (bucket0.empty() || bucket1.empty()) {
+    for (size_t b = 0; b < numBuckets; ++b) {
+        if (buckets0[b].empty() || buckets1[b].empty() ||
+            buckets0[b][0].empty() || buckets1[b][0].empty()) {
             continue;
         }
 
-        // Perform nested loop join within this bucket
-        size_t bucketSize0 = bucket0.size();
-        size_t bucketSize1 = bucket1.size();
-        size_t bucketJoinSize = bucketSize0 * bucketSize1;
+        std::vector<std::string> names0 = v0._fieldNames;
+        std::vector<int> widths0 = v0._fieldWidths;
+        View left(v0._tableName, v0._fieldNames, v0._fieldWidths, false);
+        left._dataCols = buckets0[b];
+        left._dataCols.emplace_back(left.rowNum(), 0);
 
-        if (bucketJoinSize == 0) continue;
+        std::vector<std::string> names1 = v1._fieldNames;
+        std::vector<int> widths1 = v1._fieldWidths;
+        View right(v1._tableName, v1._fieldNames, v1._fieldWidths, false);
+        right._dataCols = buckets1[b];
+        right._dataCols.emplace_back(right.rowNum(), 0);
 
-        // Prepare comparison vectors for this bucket
-        std::vector<int64_t> cmp0, cmp1;
-        cmp0.reserve(bucketJoinSize);
-        cmp1.reserve(bucketJoinSize);
+        left.clearInvalidEntries();
+        right.clearInvalidEntries();
 
-        size_t startIdx = resultCols[0].size();
+        View joined = nestedLoopJoin(left, right, field0, field1);
 
-        // Resize result columns to accommodate new records
-        for (auto &col: resultCols) {
-            col.resize(startIdx + bucketJoinSize);
+        if (joined._dataCols.empty() || joined._dataCols[0].empty()) {
+            continue;
         }
 
-        size_t resultIdx = startIdx;
-
-        // Generate all pairs within this bucket
-        for (size_t i = 0; i < bucketSize0; ++i) {
-            size_t idx0 = bucket0[i];
-            for (size_t j = 0; j < bucketSize1; ++j) {
-                size_t idx1 = bucket1[j];
-
-                // Copy data from v0
-                for (size_t k = 0; k < fieldNum0; ++k) {
-                    resultCols[k][resultIdx] = v0._dataCols[k][idx0];
-                }
-
-                // Copy data from v1
-                for (size_t k = 0; k < fieldNum1; ++k) {
-                    resultCols[k + fieldNum0][resultIdx] = v1._dataCols[k][idx1];
-                }
-
-                // Prepare for equality comparison
-                cmp0.push_back(v0._dataCols[colIndex0][idx0]);
-                cmp1.push_back(v1._dataCols[colIndex1][idx1]);
-
-                resultIdx++;
+        if (firstResult) {
+            result = joined;
+            firstResult = false;
+        } else {
+            for (size_t col = 0; col < result._dataCols.size(); ++col) {
+                result._dataCols[col].insert(result._dataCols[col].end(),
+                                             joined._dataCols[col].begin(),
+                                             joined._dataCols[col].end());
             }
-        }
-
-        // Perform equality comparison for this bucket
-        auto equalityResults = BoolEqualBatchOperator(
-            &cmp0, &cmp1, v0._fieldWidths[colIndex0], 0,
-            bucketId * BoolEqualBatchOperator::msgTagCount(),
-            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-
-        // Store equality results
-        for (size_t i = 0; i < bucketJoinSize; ++i) {
-            resultCols[fieldNum0 + fieldNum1 + View::VALID_COL_OFFSET][startIdx + i] = equalityResults[i];
         }
     }
 
-    // Set the result columns
-    joined._dataCols = std::move(resultCols);
+    if (firstResult) {
+        std::vector<std::string> fieldNames;
+        std::vector<int> fieldWidths;
+        size_t eff0 = v0.colNum() - 2;
+        size_t eff1 = v1.colNum() - 2;
 
-    return joined;
+        fieldNames.reserve(eff0 + eff1);
+        fieldWidths.reserve(eff0 + eff1);
+
+        std::string t0 = v0._tableName.empty() ? "$t0" : v0._tableName;
+        std::string t1 = v1._tableName.empty() ? "$t1" : v1._tableName;
+
+        for (size_t i = 0; i < eff0; ++i) {
+            fieldNames.emplace_back(t0 + "." + v0._fieldNames[i]);
+            fieldWidths.emplace_back(v0._fieldWidths[i]);
+        }
+        for (size_t i = 0; i < eff1; ++i) {
+            fieldNames.emplace_back(t1 + "." + v1._fieldNames[i]);
+            fieldWidths.emplace_back(v1._fieldWidths[i]);
+        }
+
+        result = View(fieldNames, fieldWidths);
+    }
+
+    return result;
+}
+
+// Main shuffle bucket join function
+View Views::hashJoin(View &v0, View &v1, std::string &field0, std::string &field1) {
+    int numBuckets = DbConf::SHUFFLE_BUCKET_NUM;
+
+    int tagColIndex0 = -1, tagColIndex1 = -1;
+
+    for (int i = 0; i < v0._fieldNames.size(); i++) {
+        if (v0._fieldNames[i].find(Table::BUCKET_TAG_PREFIX) == 0) {
+            tagColIndex0 = i;
+            break;
+        }
+    }
+
+    for (int i = 0; i < v1._fieldNames.size(); i++) {
+        if (v1._fieldNames[i].find(Table::BUCKET_TAG_PREFIX) == 0) {
+            tagColIndex1 = i;
+            break;
+        }
+    }
+
+    if (tagColIndex0 == -1 || tagColIndex1 == -1) {
+        return nestedLoopJoin(v0, v1, field0, field1);
+    }
+
+    auto buckets0 = butterflyPermutation(v0, tagColIndex0, 0);
+
+    int msgTagBase1 = 10000; // Offset to avoid conflicts
+    auto buckets1 = butterflyPermutation(v1, tagColIndex1, msgTagBase1);
+
+    for (int i = 0; i < numBuckets; i++) {
+        if (!buckets0[i].empty() && !buckets1[i].empty() &&
+            !buckets0[i][0].empty() && !buckets1[i][0].empty()) {
+        }
+    }
+
+    int msgTagBase2 = 20000; // Offset for join operations
+    auto result = performBucketJoins(buckets0, buckets1, v0, v1, field0, field1);
+
+    return result;
+}
+
+std::string Views::getAliasColName(std::string &tableName, std::string &fieldName) {
+    return tableName + "." + fieldName;
 }
 
 void Views::addRedundantCols(View &v) {

@@ -11,6 +11,8 @@ class Views {
 public:
     static View selectAll(Table &t);
 
+    static View selectAllWithFieldPrefix(Table &t);
+
     static View selectColumns(Table &t, std::vector<std::string> &fieldNames);
 
     /**
@@ -18,19 +20,27 @@ public:
      */
     static View nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string &field1);
 
-    static View shuffleBucketJoin(View &v0, View &v1, std::string &field0, std::string &field1);
+    static View hashJoin(View &v0, View &v1, std::string &field0, std::string &field1);
 
     static std::string getAliasColName(std::string& tableName, std::string& fieldName);
 
 private:
     static void addRedundantCols(View &v);
     
-    static std::vector<std::vector<size_t>> distributeToBuckets(const View &v, int tagColIdx, int numBuckets);
+    static std::vector<std::vector<std::vector<int64_t>>> butterflyPermutation(
+        View& view,
+        int tagColIndex,
+        int msgTagBase
+    );
     
-    static View joinBuckets(View &v0, View &v1,
-                           const std::vector<std::vector<size_t>> &buckets0,
-                           const std::vector<std::vector<size_t>> &buckets1,
-                           const std::string &field0, const std::string &field1);
+    static View performBucketJoins(
+        std::vector<std::vector<std::vector<int64_t>>>& buckets0,
+        std::vector<std::vector<std::vector<int64_t>>>& buckets1,
+        View& v0,
+        View& v1,
+        std::string& field0,
+        std::string& field1
+    );
 };
 
 

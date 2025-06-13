@@ -7,7 +7,8 @@
 
 class DbConf {
 public:
-    inline static int SHUFFLE_BUCKET_NUM = 32;
+    inline static bool ENABLE_SHUFFLE_BUCKET_JOIN = true;
+    inline static int SHUFFLE_BUCKET_NUM = 4;
 };
 
 

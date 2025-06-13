@@ -45,8 +45,8 @@ int main(int argc, char *argv[]) {
 
         Table t(name, fn, ws, "a0");
         for (int i = 0; i < shares.size(); i++) {
-            std::vector<int64_t> r(col);
-            for (int j = 0; j < col; j++) {
+            std::vector<int64_t> r(col + 1);
+            for (int j = 0; j < col + 1; j++) {
                 r[j] = shares[i];
             }
             t.insert(r);

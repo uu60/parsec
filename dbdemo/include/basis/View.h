@@ -32,6 +32,9 @@ public:
 
     View(std::string &tableName, std::vector<std::string> &fieldNames, std::vector<int> &fieldWidths);
 
+    // without auto add redundant columns
+    View(std::string &tableName, std::vector<std::string> &fieldNames, std::vector<int> &fieldWidths, bool dummy);
+
     void sort(const std::string &orderField, bool ascendingOrder, int msgTagOffset);
 
     void filterAndConditions(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes, std::vector<int64_t> &constShares);

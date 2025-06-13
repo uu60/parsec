@@ -43,7 +43,7 @@ int main(int argc, char *argv[]) {
     if (Comm::isServer()) {
         auto start = System::currentTimeMillis();
 
-        Secrets::sort(arr, true, t);
+        Secrets::sort(arr, false, t);
 
         Log::i("total time: {}ms", System::currentTimeMillis() - start);
         if (Conf::ENABLE_CLASS_WISE_TIMING) {
