@@ -56,8 +56,8 @@ BoolAndOperator *BoolAndOperator::execute() {
     return this;
 }
 
-int BoolAndOperator::msgTagCount(int width) {
-    return BitwiseBmtGenerator::msgTagCount(width);
+int BoolAndOperator::tagStride(int width) {
+    return BitwiseBmtGenerator::tagStride(width);
 }
 
 BoolAndOperator *BoolAndOperator::setBmt(BitwiseBmt *bmt) {

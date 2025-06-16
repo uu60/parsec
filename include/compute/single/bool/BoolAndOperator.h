@@ -22,7 +22,7 @@ public:
 
     BoolAndOperator *execute() override;
 
-    [[nodiscard]] static int msgTagCount(int width);
+    [[nodiscard]] static int tagStride(int width);
 
     BoolAndOperator *setBmt(BitwiseBmt *bmt);
 };

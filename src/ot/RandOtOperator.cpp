@@ -32,6 +32,6 @@ RandOtOperator *RandOtOperator::execute() {
     return this;
 }
 
-int RandOtOperator::msgTagCount(int width) {
+int RandOtOperator::tagStride(int width) {
     return 1;
 }

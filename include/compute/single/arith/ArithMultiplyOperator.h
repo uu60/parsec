@@ -18,7 +18,7 @@ public:
 
     ArithMultiplyOperator *execute() override;
 
-    [[nodiscard]] static int msgTagCount(int width);
+    [[nodiscard]] static int tagStride(int width);
 
     ArithMultiplyOperator *setBmt(Bmt *bmt);
 };

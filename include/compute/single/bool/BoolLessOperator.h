@@ -23,7 +23,7 @@ public:
 
     BoolLessOperator *setBmts(std::vector<BitwiseBmt> *bmts);
 
-    static int msgTagCount(int width);
+    static int tagStride(int width);
 
     static int bmtCount(int width);
 

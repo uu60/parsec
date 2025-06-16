@@ -53,7 +53,7 @@ ArithMutexOperator *ArithMutexOperator::execute() {
         }
 
         auto mul1 = ArithMultiplyOperator(_cond_i, _yi, _width, _taskTag,
-                                          static_cast<int>(_currentMsgTag + ArithMultiplyOperator::msgTagCount(
+                                          static_cast<int>(_currentMsgTag + ArithMultiplyOperator::tagStride(
                                                                    _width)),
                                           NO_CLIENT_COMPUTE);
         cy = mul1.setBmt(bp1)->execute()->_zi;
@@ -66,9 +66,9 @@ ArithMutexOperator *ArithMutexOperator::execute() {
 }
 
 
-int ArithMutexOperator::msgTagCount(int width) {
-    return std::max(static_cast<int>(2 * ArithMultiplyOperator::msgTagCount(width)),
-                    BoolToArithOperator::msgTagCount(width));
+int ArithMutexOperator::tagStride(int width) {
+    return std::max(static_cast<int>(2 * ArithMultiplyOperator::tagStride(width)),
+                    BoolToArithOperator::tagStride(width));
 }
 
 ArithMutexOperator *ArithMutexOperator::setBmts(std::vector<Bmt> *bmts) {

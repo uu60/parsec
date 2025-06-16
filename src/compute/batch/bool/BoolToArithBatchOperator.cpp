@@ -64,6 +64,6 @@ BoolToArithBatchOperator *BoolToArithBatchOperator::execute() {
     return this;
 }
 
-int BoolToArithBatchOperator::msgTagCount() {
-    return RandOtBatchOperator::msgTagCount();
+int BoolToArithBatchOperator::tagStride() {
+    return RandOtBatchOperator::tagStride();
 }

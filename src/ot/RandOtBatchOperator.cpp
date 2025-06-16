@@ -280,6 +280,6 @@ RandOtBatchOperator *RandOtBatchOperator::execute() {
     return this;
 }
 
-int RandOtBatchOperator::msgTagCount() {
+int RandOtBatchOperator::tagStride() {
     return 1;
 }

@@ -16,7 +16,7 @@ int BoolAndBatchOperator::prepareBmts(std::vector<BitwiseBmt> &bmts) {
         bmts = std::move(*_bmts);
         return bmts.size();
     }
-    int num = static_cast<int>(_xis->size() * (_doMutex ? 2 : 1));
+    int num = static_cast<int>(_xis->size() * (_doWithConditions ? 2 : 1));
     int totalBits = num * _width;
     int bc = -1; // -1 means required bmt bits less than 64
     if (totalBits > 64) {
@@ -44,7 +44,7 @@ BoolAndBatchOperator::BoolAndBatchOperator(std::vector<int64_t> *xs, std::vector
                                            int msgTagOffset) : BoolBatchOperator(
     xs, ys, width, taskTag, msgTagOffset, NO_CLIENT_COMPUTE) {
     _conds_i = conds;
-    _doMutex = true;
+    _doWithConditions = true;
 }
 
 BoolAndBatchOperator *BoolAndBatchOperator::execute() {
@@ -59,7 +59,7 @@ BoolAndBatchOperator *BoolAndBatchOperator::execute() {
         start = System::currentTimeMillis();
     }
 
-    if (_doMutex) {
+    if (_doWithConditions) {
         executeForMutex();
     } else {
         execute0();
@@ -72,11 +72,11 @@ BoolAndBatchOperator *BoolAndBatchOperator::execute() {
     return this;
 }
 
-int BoolAndBatchOperator::msgTagCount() {
+int BoolAndBatchOperator::tagStride() {
     if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
         return 1;
     }
-    return BitwiseBmtBatchGenerator::msgTagCount();
+    return BitwiseBmtBatchGenerator::tagStride();
 }
 
 BoolAndBatchOperator *BoolAndBatchOperator::setBmts(std::vector<BitwiseBmt> *bmts) {

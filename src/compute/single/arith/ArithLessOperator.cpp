@@ -36,8 +36,8 @@ ArithLessOperator *ArithLessOperator::reconstruct(int clientRank) {
     return this;
 }
 
-int ArithLessOperator::msgTagCount(int l) {
-    return ArithToBoolOperator::msgTagCount(l);
+int ArithLessOperator::tagStride(int l) {
+    return ArithToBoolOperator::tagStride(l);
 }
 
 int ArithLessOperator::bmtCount(int width) {

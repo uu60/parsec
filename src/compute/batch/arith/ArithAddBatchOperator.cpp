@@ -18,6 +18,6 @@ ArithAddBatchOperator * ArithAddBatchOperator::execute() {
     return this;
 }
 
-int ArithAddBatchOperator::msgTagCount() {
+int ArithAddBatchOperator::tagStride() {
     return 0;
 }

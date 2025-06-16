@@ -157,8 +157,8 @@ BoolLessBatchOperator *BoolLessBatchOperator::setBmts(std::vector<BitwiseBmt> *b
     return this;
 }
 
-int BoolLessBatchOperator::msgTagCount() {
-    return BoolAndBatchOperator::msgTagCount();
+int BoolLessBatchOperator::tagStride() {
+    return BoolAndBatchOperator::tagStride();
 }
 
 int BoolLessBatchOperator::bmtCount(int num, int width) {

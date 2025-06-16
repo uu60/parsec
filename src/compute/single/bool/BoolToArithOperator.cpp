@@ -64,8 +64,8 @@ BoolToArithOperator *BoolToArithOperator::execute() {
     return this;
 }
 
-int BoolToArithOperator::msgTagCount(int width) {
-    return RandOtOperator::msgTagCount(width) * width;
+int BoolToArithOperator::tagStride(int width) {
+    return RandOtOperator::tagStride(width) * width;
 }
 
 BoolToArithOperator *BoolToArithOperator::reconstruct(int clientRank) {

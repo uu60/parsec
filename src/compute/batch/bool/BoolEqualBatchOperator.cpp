@@ -38,8 +38,8 @@ BoolEqualBatchOperator *BoolEqualBatchOperator::setBmts(std::vector<BitwiseBmt> 
     return this;
 }
 
-int BoolEqualBatchOperator::msgTagCount() {
-    return std::max(BoolLessBatchOperator::msgTagCount(), BoolAndBatchOperator::msgTagCount());
+int BoolEqualBatchOperator::tagStride() {
+    return std::max(BoolLessBatchOperator::tagStride(), BoolAndBatchOperator::tagStride());
 }
 
 int BoolEqualBatchOperator::bmtCount(int num, int width) {

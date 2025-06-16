@@ -14,7 +14,7 @@ private:
 
     // for mutex
     std::vector<int64_t> *_conds_i{};
-    bool _doMutex{};
+    bool _doWithConditions{};
 
 public:
     inline static std::atomic_int64_t _totalTime = 0;
@@ -29,7 +29,7 @@ public:
 
     BoolAndBatchOperator *execute() override;
 
-    [[nodiscard]] static int msgTagCount();
+    [[nodiscard]] static int tagStride();
 
     BoolAndBatchOperator *setBmts(std::vector<BitwiseBmt> *bmts);
 

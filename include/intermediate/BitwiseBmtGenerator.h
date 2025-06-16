@@ -33,7 +33,7 @@ private:
 public:
     SecureOperator * reconstruct(int clientRank) override;
 
-    static int msgTagCount(int width);
+    static int tagStride(int width);
 };
 
 

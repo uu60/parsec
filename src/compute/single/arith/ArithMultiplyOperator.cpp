@@ -35,8 +35,8 @@ ArithMultiplyOperator *ArithMultiplyOperator::execute() {
     return this;
 }
 
-int ArithMultiplyOperator::msgTagCount(int width) {
-    return BmtGenerator::msgTagCount(width);
+int ArithMultiplyOperator::tagStride(int width) {
+    return BmtGenerator::tagStride(width);
 }
 
 ArithMultiplyOperator *ArithMultiplyOperator::setBmt(Bmt *bmt) {

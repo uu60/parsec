@@ -67,8 +67,8 @@ BoolMutexOperator *BoolMutexOperator::setBmts(std::vector<BitwiseBmt> *bmts) {
     return this;
 }
 
-int BoolMutexOperator::msgTagCount(int width) {
-    return 2 * BoolAndOperator::msgTagCount(width);
+int BoolMutexOperator::tagStride(int width) {
+    return 2 * BoolAndOperator::tagStride(width);
 }
 
 int BoolMutexOperator::bmtCount() {

@@ -35,7 +35,7 @@ public:
 
     BaseOtOperator *execute() override;
 
-    [[nodiscard]] static int msgTagCount();
+    [[nodiscard]] static int tagStride();
 
 private:
     // methods for sender

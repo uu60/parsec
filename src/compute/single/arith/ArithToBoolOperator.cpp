@@ -78,7 +78,7 @@ ArithToBoolOperator *ArithToBoolOperator::execute() {
                         &bmt)->execute()->_zi;
                 }
 
-                _currentMsgTag += BoolAndOperator::msgTagCount(1);
+                _currentMsgTag += BoolAndOperator::tagStride(1);
 
                 auto bmt = b1.extract(i);
                 bool tempCarry_i = BoolAndOperator(propagate_i, carry_i, 1, _taskTag, _currentMsgTag, -1).setBmt(
@@ -102,8 +102,8 @@ ArithToBoolOperator *ArithToBoolOperator::execute() {
     return this;
 }
 
-int ArithToBoolOperator::msgTagCount(int l) {
-    return static_cast<int>(2 * BoolAndOperator::msgTagCount(l));
+int ArithToBoolOperator::tagStride(int l) {
+    return static_cast<int>(2 * BoolAndOperator::tagStride(l));
 }
 
 ArithToBoolOperator *ArithToBoolOperator::setBmts(std::vector<BitwiseBmt> *bmts) {

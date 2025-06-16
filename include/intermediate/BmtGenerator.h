@@ -30,7 +30,7 @@ protected:
 public:
     BmtGenerator *reconstruct(int clientRank) override;
 
-    static int msgTagCount(int width);
+    static int tagStride(int width);
 };
 
 

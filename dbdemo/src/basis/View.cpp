@@ -35,7 +35,7 @@ View::View(std::string &tableName, std::vector<std::string> &fieldNames, std::ve
     tableName, fieldNames, fieldWidths, EMPTY_KEY_FIELD) {
 }
 
-void View::sort(const std::string &orderField, bool ascendingOrder, int msgTagOffset) {
+void View::sort(const std::string &orderField, bool ascendingOrder, int msgTagBase) {
     size_t n = rowNum();
     if (n == 0) {
         return;
@@ -49,7 +49,7 @@ void View::sort(const std::string &orderField, bool ascendingOrder, int msgTagOf
             v.resize(nextPow2, 1);
         }
     }
-    bitonicSort(orderField, ascendingOrder, msgTagOffset);
+    bitonicSort(orderField, ascendingOrder, msgTagBase);
     if (n < _dataCols[0].size()) {
         for (auto &v: _dataCols) {
             v.resize(n);
@@ -57,13 +57,18 @@ void View::sort(const std::string &orderField, bool ascendingOrder, int msgTagOf
     }
 }
 
-void View::fac1B(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
-                 std::vector<int64_t> &constShares) {
+int View::sortTagStride() {
+    return ((rowNum() / 2 + Conf::BATCH_SIZE - 1) / Conf::BATCH_SIZE) * (colNum() - 1) *
+           BoolMutexBatchOperator::tagStride();
+}
+
+void View::filterSingleBatch(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
+                             std::vector<int64_t> &constShares) {
     size_t n = fieldNames.size();
     std::vector<std::vector<int64_t> > collected(n);
 
     std::vector<std::future<std::vector<int64_t> > > futures(n);
-    int tagOffset = std::max(BoolLessBatchOperator::msgTagCount(), BoolAndBatchOperator::msgTagCount());
+    int tagOffset = std::max(BoolLessBatchOperator::tagStride(), BoolAndBatchOperator::tagStride());
 
     for (int i = 0; i < n; i++) {
         futures[i] = ThreadPoolSupport::submit([&, i] {
@@ -141,7 +146,7 @@ void View::fac1B(std::vector<std::string> &fieldNames, std::vector<ComparatorTyp
         while (andCols.size() > 1) {
             int m = static_cast<int>(andCols.size());
             int pairs = m / 2;
-            int msgStride = BoolAndBatchOperator::msgTagCount();
+            int msgStride = BoolAndBatchOperator::tagStride();
 
             std::vector<std::future<std::vector<int64_t> > > futures1;
             futures1.reserve(pairs);
@@ -182,8 +187,8 @@ void View::fac1B(std::vector<std::string> &fieldNames, std::vector<ComparatorTyp
     }
 }
 
-void View::facNB(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
-                 std::vector<int64_t> &constShares) {
+void View::filterSplittedBatches(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
+                                 std::vector<int64_t> &constShares) {
     size_t n = fieldNames.size();
     std::vector<std::vector<int64_t> > collected(n);
 
@@ -191,7 +196,7 @@ void View::facNB(std::vector<std::string> &fieldNames, std::vector<ComparatorTyp
     size_t data_size = _dataCols[0].size();
     int batchSize = Conf::BATCH_SIZE;
     int batchNum = (data_size + batchSize - 1) / batchSize;
-    int tagOffset = std::max(BoolLessBatchOperator::msgTagCount(), BoolEqualBatchOperator::msgTagCount());
+    int tagOffset = std::max(BoolLessBatchOperator::tagStride(), BoolEqualBatchOperator::tagStride());
 
     for (int i = 0; i < n; i++) {
         futures[i] = ThreadPoolSupport::submit([&, i] {
@@ -294,7 +299,7 @@ void View::facNB(std::vector<std::string> &fieldNames, std::vector<ComparatorTyp
     while (andCols.size() > 1) {
         int m = static_cast<int>(andCols.size());
         int pairs = m / 2;
-        int msgStride = BoolAndBatchOperator::msgTagCount();
+        int msgStride = BoolAndBatchOperator::tagStride();
 
         std::vector<std::future<std::vector<int64_t> > > futures1;
         futures1.reserve(pairs);
@@ -338,36 +343,36 @@ void View::facNB(std::vector<std::string> &fieldNames, std::vector<ComparatorTyp
 void View::filterAndConditions(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
                                std::vector<int64_t> &constShares) {
     if (Conf::BATCH_SIZE <= 0 || Conf::DISABLE_MULTI_THREAD) {
-        fac1B(fieldNames, comparatorTypes, constShares);
+        filterSingleBatch(fieldNames, comparatorTypes, constShares);
     } else {
-        facNB(fieldNames, comparatorTypes, constShares);
+        filterSplittedBatches(fieldNames, comparatorTypes, constShares);
     }
 
-    clearInvalidEntries();
+    clearInvalidEntries(0);
 }
 
-void View::clearInvalidEntries() {
+void View::clearInvalidEntries(int msgTagBase) {
     // sort view by valid column
-    sort(VALID_COL_NAME, false, 0);
+    sort(VALID_COL_NAME, false, msgTagBase);
 
     int64_t sumShare = 0, sumShare1;
     if (Conf::DISABLE_MULTI_THREAD || Conf::BATCH_SIZE <= 0) {
         // compute valid num
-        auto ta = BoolToArithBatchOperator(&_dataCols[_dataCols.size() + VALID_COL_OFFSET], 64, 0, 0,
+        auto ta = BoolToArithBatchOperator(&_dataCols[_dataCols.size() + VALID_COL_OFFSET], 64, 0, msgTagBase,
                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         sumShare = std::accumulate(ta.begin(), ta.end(), 0ll);
     } else {
         size_t batchSize = Conf::BATCH_SIZE;
-        size_t n = _dataCols[0].size();
+        size_t n = rowNum();
         size_t batchNum = (n + batchSize - 1) / batchSize;
         std::vector<std::future<std::vector<int64_t> > > futures(batchNum);
 
         for (int i = 0; i < batchNum; ++i) {
-            futures[i] = ThreadPoolSupport::submit([this, i, batchSize, n] {
+            futures[i] = ThreadPoolSupport::submit([this, i, batchSize, n, msgTagBase] {
                 auto &validCol = _dataCols[_dataCols.size() + VALID_COL_OFFSET];
                 std::vector part(validCol.begin() + batchSize * i,
                                  validCol.begin() + std::min(batchSize * (i + 1), n));
-                return BoolToArithBatchOperator(&part, 64, 0, BoolToArithBatchOperator::msgTagCount() * i,
+                return BoolToArithBatchOperator(&part, 64, 0, msgTagBase + BoolToArithBatchOperator::tagStride() * i,
                                                 SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
             });
         }
@@ -380,8 +385,8 @@ void View::clearInvalidEntries() {
         }
     }
 
-    auto r0 = Comm::serverSendAsync(sumShare, 32, 0);
-    auto r1 = Comm::serverReceiveAsync(sumShare1, 32, 0);
+    auto r0 = Comm::serverSendAsync(sumShare, 32, msgTagBase);
+    auto r1 = Comm::serverReceiveAsync(sumShare1, 32, msgTagBase);
     Comm::wait(r0);
     Comm::wait(r1);
 
@@ -410,6 +415,12 @@ void View::clearInvalidEntries() {
     // _dataCols = std::move(newCols);
 }
 
+int View::clearInvalidEntriesTagStride() {
+    return std::max(sortTagStride(),
+                    static_cast<int>((rowNum() + Conf::BATCH_SIZE - 1) / Conf::BATCH_SIZE) *
+                    BoolToArithBatchOperator::tagStride());
+}
+
 void View::addRedundantCols() {
     _fieldNames.emplace_back(View::VALID_COL_NAME);
     _fieldWidths.emplace_back(1);
@@ -420,7 +431,7 @@ void View::addRedundantCols() {
     _dataCols.emplace_back(_dataCols[0].size());
 }
 
-void View::bs1B(const std::string &orderField, bool ascendingOrder, int msgTagOffset) {
+void View::bitonicSortSingleBatch(const std::string &orderField, bool ascendingOrder, int msgTagBase) {
     auto n = _dataCols[0].size();
     auto &orderCol = _dataCols[colIndex(orderField)];
     auto &paddings = _dataCols[colNum() + PADDING_COL_OFFSET];
@@ -472,7 +483,7 @@ void View::bs1B(const std::string &orderField, bool ascendingOrder, int msgTagOf
             }
 
             std::vector<int64_t> zs;
-            zs = BoolLessBatchOperator(&xs, &ys, _fieldWidths[ofi], 0, msgTagOffset,
+            zs = BoolLessBatchOperator(&xs, &ys, _fieldWidths[ofi], 0, msgTagBase,
                                        SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
             for (int i = 0; i < comparingCount; i++) {
@@ -495,7 +506,7 @@ void View::bs1B(const std::string &orderField, bool ascendingOrder, int msgTagOf
                 }
             }
 
-            zs = BoolMutexBatchOperator(&xs, &ys, &zs, _maxWidth, 0, msgTagOffset).
+            zs = BoolMutexBatchOperator(&xs, &ys, &zs, _maxWidth, 0, msgTagBase).
                     execute()->_zis;
 
             for (int i = 0; i < comparingCount; i++) {
@@ -520,9 +531,9 @@ void View::bs1B(const std::string &orderField, bool ascendingOrder, int msgTagOf
     }
 }
 
-void View::bsNB(const std::string &orderField, bool ascendingOrder, int msgTagOffset) {
+void View::bitonicSortSplittedBatches(const std::string &orderField, bool ascendingOrder, int msgTagBase) {
     const int batchSize = Conf::BATCH_SIZE;
-    const int n = static_cast<int>(_dataCols[0].size());
+    const int n = static_cast<int>(rowNum());
     int ofi = colIndex(orderField);
     auto &orderCol = _dataCols[ofi];
     auto &paddings = _dataCols[colNum() + PADDING_COL_OFFSET];
@@ -563,7 +574,7 @@ void View::bsNB(const std::string &orderField, bool ascendingOrder, int msgTagOf
             }
 
             const int numBatches = (comparingCount + batchSize - 1) / batchSize;
-            const int tagStride = static_cast<int>(BoolMutexBatchOperator::msgTagCount() * (colNum() - 1));
+            const int tagStride = static_cast<int>(BoolMutexBatchOperator::tagStride() * (colNum() - 1));
             std::vector<std::future<void> > futures;
             futures.reserve(numBatches);
             for (int b = 0; b < numBatches; ++b) {
@@ -582,7 +593,7 @@ void View::bsNB(const std::string &orderField, bool ascendingOrder, int msgTagOf
                         ascs2.push_back(ascs[t]);
                     }
                     auto zs = BoolLessBatchOperator(&xs, &ys, _fieldWidths[ofi], 0,
-                                                    msgTagOffset + tagStride * b,
+                                                    msgTagBase + tagStride * b,
                                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->
                             _zis;
                     for (int t = 0; t < cnt; ++t) {
@@ -612,8 +623,8 @@ void View::bsNB(const std::string &orderField, bool ascendingOrder, int msgTagOf
 
                             auto copy = zs;
                             auto zs2 = BoolMutexBatchOperator(&subXs, &subYs, &copy, _fieldWidths[c], 0,
-                                                              msgTagOffset + tagStride * b +
-                                                              BoolMutexBatchOperator::msgTagCount() * c).execute()->
+                                                              msgTagBase + tagStride * b +
+                                                              BoolMutexBatchOperator::tagStride() * c).execute()->
                                     _zis;
 
                             for (int t = 0; t < cnt; ++t) {
@@ -634,10 +645,10 @@ void View::bsNB(const std::string &orderField, bool ascendingOrder, int msgTagOf
     }
 }
 
-void View::bitonicSort(const std::string &orderField, bool ascendingOrder, int msgTagOffset) {
+void View::bitonicSort(const std::string &orderField, bool ascendingOrder, int msgTagBase) {
     if (Conf::BATCH_SIZE <= 0 || Conf::DISABLE_MULTI_THREAD) {
-        bs1B(orderField, ascendingOrder, msgTagOffset);
+        bitonicSortSingleBatch(orderField, ascendingOrder, msgTagBase);
     } else {
-        bsNB(orderField, ascendingOrder, msgTagOffset);
+        bitonicSortSplittedBatches(orderField, ascendingOrder, msgTagBase);
     }
 }

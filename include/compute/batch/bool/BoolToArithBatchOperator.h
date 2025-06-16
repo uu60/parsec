@@ -17,7 +17,7 @@ public:
 
     BoolToArithBatchOperator *execute() override;
 
-    static int msgTagCount();
+    static int tagStride();
 };
 
 

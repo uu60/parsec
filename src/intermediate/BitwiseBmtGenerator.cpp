@@ -70,7 +70,7 @@ void BitwiseBmtGenerator::computeMix(int sender) {
 
     auto s = Math::randInt();
     auto results = RandOtBatchOperator(sender, &ss0, &ss1, &choices, 1, _taskTag,
-                                       _currentMsgTag + sender * RandOtBatchOperator::msgTagCount()).execute()->
+                                       _currentMsgTag + sender * RandOtBatchOperator::tagStride()).execute()->
             _results;
 
     if (isSender) {
@@ -102,6 +102,6 @@ SecureOperator *BitwiseBmtGenerator::reconstruct(int clientRank) {
     throw std::runtime_error("Not support.");
 }
 
-int BitwiseBmtGenerator::msgTagCount(int width) {
-    return 2 * RandOtBatchOperator::msgTagCount();
+int BitwiseBmtGenerator::tagStride(int width) {
+    return 2 * RandOtBatchOperator::tagStride();
 }

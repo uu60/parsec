@@ -41,6 +41,8 @@ private:
         std::string& field0,
         std::string& field1
     );
+
+    static int butterflyPermutationTagStride(View& v);
 };
 
 

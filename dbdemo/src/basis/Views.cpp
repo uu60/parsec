@@ -169,7 +169,7 @@ View Views::nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string 
                 }
 
                 return BoolEqualBatchOperator(
-                    &cmp0, &cmp1, width, 0, b * BoolEqualBatchOperator::msgTagCount(),
+                    &cmp0, &cmp1, width, 0, b * BoolEqualBatchOperator::tagStride(),
                     SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
             });
         }
@@ -197,7 +197,7 @@ View Views::nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string 
         }
     }
 
-    joined.clearInvalidEntries();
+    joined.clearInvalidEntries(0);
 
     return joined;
 }
@@ -217,8 +217,24 @@ std::vector<std::vector<std::vector<int64_t> > > Views::butterflyPermutation(
         buckets[0].push_back(view._dataCols[col]);
     }
 
+    int reserved = numBuckets / 2;
     for (int layer = 0; layer < numLayers; layer++) {
         int stride = 1 << layer;
+
+        std::vector<int> totalRowsV;
+        std::vector<int> indices1;
+        std::vector<int> indices2;
+        totalRowsV.reserve(reserved);
+        indices1.reserve(reserved * view.rowNum());
+        indices2.reserve(reserved * view.rowNum());
+
+        std::vector<int64_t> mergedDatas;
+        mergedDatas.reserve((view.colNum() * view.rowNum() * reserved));
+
+        std::vector<int64_t> dummyDatas;
+
+        std::vector<int64_t> routingBits;
+        routingBits.reserve((view.colNum() * view.rowNum() * reserved));
 
         for (int i = 0; i < numBuckets; i += stride * 2) {
             for (int j = 0; j < stride; j++) {
@@ -233,63 +249,125 @@ std::vector<std::vector<std::vector<int64_t> > > Views::butterflyPermutation(
                     size_t rows2 = bucket2.empty() ? 0 : bucket2[0].size();
                     size_t totalRows = rows1 + rows2;
 
-
                     if (totalRows == 0) {
                         continue;
                     }
 
-                    // Prepare routing bits for all elements
-                    std::vector<int64_t> routingBits;
-                    routingBits.reserve(totalRows);
-
-                    for (size_t r = 0; r < rows1; r++) {
-                        routingBits.push_back(Math::getBit(bucket1[tagColIndex][r], bitPosition));
-                    }
-
-                    for (size_t r = 0; r < rows2; r++) {
-                        routingBits.push_back(Math::getBit(bucket2[tagColIndex][r], bitPosition));
-                    }
+                    totalRowsV.push_back(totalRows);
+                    indices1.push_back(idx1);
+                    indices2.push_back(idx2);
 
                     std::vector<std::vector<int64_t> > newBucket1;
                     std::vector<std::vector<int64_t> > newBucket2;
 
                     for (int col = 0; col < bucket1.size(); col++) {
-                        std::vector<int64_t> mergedData;
-                        mergedData.reserve(totalRows);
+                        for (size_t r = 0; r < rows1; r++) {
+                            routingBits.push_back(Math::getBit(bucket1[tagColIndex][r], bitPosition));
+                        }
+
+                        for (size_t r = 0; r < rows2; r++) {
+                            routingBits.push_back(Math::getBit(bucket2[tagColIndex][r], bitPosition));
+                        }
+
                         if (!bucket1.empty()) {
-                            mergedData.insert(mergedData.end(), bucket1[col].begin(), bucket1[col].end());
+                            mergedDatas.insert(mergedDatas.end(), bucket1[col].begin(), bucket1[col].end());
                         }
                         if (!bucket2.empty()) {
-                            mergedData.insert(mergedData.end(), bucket2[col].begin(), bucket2[col].end());
+                            mergedDatas.insert(mergedDatas.end(), bucket2[col].begin(), bucket2[col].end());
                         }
 
-                        std::vector<int64_t> dummyData(totalRows, 0);
-
-                        auto bucket1Data =
-                                BoolMutexBatchOperator(
-                                    &mergedData, &dummyData, &routingBits, view._fieldWidths[col], 0,
-                                    msgTagBase + layer * 1000 + col * 10).execute()->_zis;
-
-
-                        size_t half = bucket1Data.size() / 2;
-                        auto bucket2Data = std::vector(bucket1Data.begin() + half, bucket1Data.end());
-                        bucket1Data.resize(half);
-
-                        newBucket1.push_back(std::move(bucket1Data));
-                        newBucket2.push_back(std::move(bucket2Data));
+                        dummyDatas.resize(mergedDatas.size(), 0);
                     }
-
-                    bucket1 = std::move(newBucket1);
-                    bucket2 = std::move(newBucket2);
                 }
             }
+        }
+
+        std::vector<int64_t> allResults;
+        if (Conf::DISABLE_MULTI_THREAD || Conf::BATCH_SIZE <= 0 || mergedDatas.size() <= Conf::BATCH_SIZE) {
+            allResults = BoolMutexBatchOperator(
+                &mergedDatas, &dummyDatas, &routingBits, view._maxWidth, 0,
+                msgTagBase).execute()->_zis;
+        } else {
+            const size_t totalCnt = mergedDatas.size();
+            const int batchSize = Conf::BATCH_SIZE;
+            const int numBatches = static_cast<int>((totalCnt + batchSize - 1) / batchSize);
+
+            allResults.resize(totalCnt * 2);
+
+            const int tagStride = BoolMutexBatchOperator::tagStride();
+
+            std::vector<std::future<std::vector<int64_t> > > futures;
+            futures.reserve(numBatches);
+
+            for (int b = 0; b < numBatches; ++b) {
+                futures.emplace_back(ThreadPoolSupport::submit([&, b] {
+                    const size_t start = static_cast<size_t>(b) * batchSize;
+                    const size_t end = std::min(totalCnt, start + batchSize);
+                    const size_t cnt = end - start;
+
+                    std::vector<int64_t> subMerged(cnt);
+                    std::vector<int64_t> subDummy(cnt);
+                    std::vector<int64_t> subRouting(cnt);
+                    std::copy_n(mergedDatas.begin() + start, cnt, subMerged.begin());
+                    std::copy_n(dummyDatas.begin() + start, cnt, subDummy.begin());
+                    std::copy_n(routingBits.begin() + start, cnt, subRouting.begin());
+
+                    auto subResults = BoolMutexBatchOperator(
+                        &subMerged, &subDummy, &subRouting,
+                        view._maxWidth, 0,
+                        msgTagBase + tagStride * b
+                    ).execute()->_zis;
+
+                    return subResults;
+                }));
+            }
+
+            size_t frontPos = 0;
+            size_t backPos = totalCnt;
+            for (auto &f: futures) {
+                auto subResult = f.get();
+                int subHalf = subResult.size() / 2;
+                std::copy_n(subResult.begin(), subHalf, allResults.begin() + frontPos);
+                std::copy_n(subResult.begin() + subHalf, subHalf, allResults.begin() + backPos);
+
+                frontPos += subHalf;
+                backPos += subHalf;
+            }
+        }
+
+        int resultIndex = 0;
+        int half = static_cast<int>(allResults.size() / 2);
+        for (int i = 0; i < indices1.size(); i++) {
+            if (totalRowsV[i] == 0) {
+                continue;
+            }
+            std::vector<std::vector<int64_t> > &bucket1 = buckets[indices1[i]];
+            std::vector<std::vector<int64_t> > &bucket2 = buckets[indices2[i]];
+            std::vector<std::vector<int64_t> > newBucket1;
+            std::vector<std::vector<int64_t> > newBucket2;
+
+            for (int col = 0; col < bucket1.size(); col++) {
+                auto data1Start = allResults.begin() + resultIndex;
+                auto data1End = data1Start + totalRowsV[i];
+                auto data2Start = data1Start + half;
+                auto data2End = data2Start + totalRowsV[i];
+                auto bucket1Data = std::vector(data1Start, data1End);
+                auto bucket2Data = std::vector(data2Start, data2End);
+
+
+                newBucket1.push_back(std::move(bucket1Data));
+                newBucket2.push_back(std::move(bucket2Data));
+                resultIndex += totalRowsV[i];
+            }
+
+            bucket1 = std::move(newBucket1);
+            bucket2 = std::move(newBucket2);
         }
     }
 
     return buckets;
 }
 
-// Perform nested loop joins on bucket pairs
 View Views::performBucketJoins(
     std::vector<std::vector<std::vector<int64_t> > > &buckets0,
     std::vector<std::vector<std::vector<int64_t> > > &buckets1,
@@ -320,8 +398,16 @@ View Views::performBucketJoins(
         right._dataCols = buckets1[b];
         right._dataCols.emplace_back(right.rowNum(), 0);
 
-        left.clearInvalidEntries();
-        right.clearInvalidEntries();
+        if (Conf::DISABLE_MULTI_THREAD) {
+            left.clearInvalidEntries(0);
+            right.clearInvalidEntries(0);
+        } else {
+            auto f = ThreadPoolSupport::submit([&left] {
+                left.clearInvalidEntries(0);
+            });
+            right.clearInvalidEntries(left.clearInvalidEntriesTagStride());
+            f.wait();
+        }
 
         View joined = nestedLoopJoin(left, right, field0, field1);
 
@@ -368,6 +454,12 @@ View Views::performBucketJoins(
     return result;
 }
 
+int Views::butterflyPermutationTagStride(View &v) {
+    size_t totalCount = v.colNum() * v.rowNum() * DbConf::SHUFFLE_BUCKET_NUM / 2;
+    return static_cast<int>((totalCount + Conf::BATCH_SIZE - 1) / Conf::BATCH_SIZE) *
+           BoolMutexBatchOperator::tagStride();
+}
+
 // Main shuffle bucket join function
 View Views::hashJoin(View &v0, View &v1, std::string &field0, std::string &field1) {
     int numBuckets = DbConf::SHUFFLE_BUCKET_NUM;
@@ -392,10 +484,17 @@ View Views::hashJoin(View &v0, View &v1, std::string &field0, std::string &field
         return nestedLoopJoin(v0, v1, field0, field1);
     }
 
-    auto buckets0 = butterflyPermutation(v0, tagColIndex0, 0);
-
-    int msgTagBase1 = 10000; // Offset to avoid conflicts
-    auto buckets1 = butterflyPermutation(v1, tagColIndex1, msgTagBase1);
+    std::vector<std::vector<std::vector<int64_t> > > buckets0, buckets1;
+    if (Conf::DISABLE_MULTI_THREAD) {
+        buckets0 = butterflyPermutation(v0, tagColIndex0, 0);
+        buckets1 = butterflyPermutation(v1, tagColIndex1, 0);
+    } else {
+        auto f = ThreadPoolSupport::submit([&] {
+            return butterflyPermutation(v0, tagColIndex0, 0);
+        });
+        buckets1 = butterflyPermutation(v1, tagColIndex1, butterflyPermutationTagStride(v0));
+        buckets0 = f.get();
+    }
 
     for (int i = 0; i < numBuckets; i++) {
         if (!buckets0[i].empty() && !buckets1[i].empty() &&
@@ -403,7 +502,6 @@ View Views::hashJoin(View &v0, View &v1, std::string &field0, std::string &field
         }
     }
 
-    int msgTagBase2 = 20000; // Offset for join operations
     auto result = performBucketJoins(buckets0, buckets1, v0, v1, field0, field1);
 
     return result;

@@ -97,6 +97,6 @@ void BaseOtOperator::process() {
     }
 }
 
-int BaseOtOperator::msgTagCount() {
+int BaseOtOperator::tagStride() {
     return 1;
 }

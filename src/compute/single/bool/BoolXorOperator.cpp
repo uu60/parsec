@@ -11,6 +11,6 @@ BoolXorOperator *BoolXorOperator::execute() {
     return this;
 }
 
-int BoolXorOperator::msgTagCount() {
+int BoolXorOperator::tagStride() {
     return 0;
 }

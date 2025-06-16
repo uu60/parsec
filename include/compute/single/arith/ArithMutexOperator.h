@@ -18,7 +18,7 @@ public:
 
     ArithMutexOperator *execute() override;
 
-    static int msgTagCount(int width);
+    static int tagStride(int width);
 
     ArithMutexOperator *setBmts(std::vector<Bmt> *bmts);
 

@@ -21,7 +21,7 @@ public:
 
     ArithToBoolOperator *execute() override;
 
-    [[nodiscard]] static int msgTagCount(int l);
+    [[nodiscard]] static int tagStride(int l);
 
     ArithToBoolOperator *setBmts(std::vector<BitwiseBmt> *bmts);
 

@@ -35,26 +35,30 @@ public:
     // without auto add redundant columns
     View(std::string &tableName, std::vector<std::string> &fieldNames, std::vector<int> &fieldWidths, bool dummy);
 
-    void sort(const std::string &orderField, bool ascendingOrder, int msgTagOffset);
+    void sort(const std::string &orderField, bool ascendingOrder, int msgTagBase);
+
+    int sortTagStride();
 
     void filterAndConditions(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes, std::vector<int64_t> &constShares);
 
-    void clearInvalidEntries();
+    void clearInvalidEntries(int msgTagBase);
+
+    int clearInvalidEntriesTagStride();
 
     void addRedundantCols();
 
 private:
-    void bs1B(const std::string &orderField, bool ascendingOrder, int msgTagOffset);
+    void bitonicSortSingleBatch(const std::string &orderField, bool ascendingOrder, int msgTagBase);
 
-    void bsNB(const std::string &orderField, bool ascendingOrder, int msgTagOffset);
+    void bitonicSortSplittedBatches(const std::string &orderField, bool ascendingOrder, int msgTagBase);
 
-    void fac1B(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
+    void filterSingleBatch(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
                std::vector<int64_t> &constShares);
 
-    void facNB(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
+    void filterSplittedBatches(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
               std::vector<int64_t> &constShares);
 
-    void bitonicSort(const std::string &orderField, bool ascendingOrder, int msgTagOffset);
+    void bitonicSort(const std::string &orderField, bool ascendingOrder, int msgTagBase);
 };
 
 

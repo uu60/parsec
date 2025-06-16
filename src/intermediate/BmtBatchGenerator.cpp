@@ -29,8 +29,8 @@ BmtBatchGenerator *BmtBatchGenerator::reconstruct(int clientRank) {
     throw std::runtime_error("Not support.");
 }
 
-int BmtBatchGenerator::msgTagCount(int bmtCount, int width) {
-    return static_cast<int>(2 * width * bmtCount * RandOtOperator::msgTagCount(width));
+int BmtBatchGenerator::tagStride(int bmtCount, int width) {
+    return static_cast<int>(2 * width * bmtCount * RandOtOperator::tagStride(width));
 }
 
 void BmtBatchGenerator::computeMix(int sender) {
@@ -60,7 +60,7 @@ void BmtBatchGenerator::computeMix(int sender) {
     }
 
     auto results = RandOtBatchOperator(sender, &ss0, &ss1, &choices, _width, _taskTag,
-                                       _currentMsgTag + sender * RandOtBatchOperator::msgTagCount()).execute()->
+                                       _currentMsgTag + sender * RandOtBatchOperator::tagStride()).execute()->
             _results;
 
     std::vector<int64_t> sums;

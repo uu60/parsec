@@ -20,7 +20,7 @@ public:
 
     ArithLessOperator *reconstruct(int clientRank) override;
 
-    [[nodiscard]] static int msgTagCount(int l);
+    [[nodiscard]] static int tagStride(int l);
 
     static int bmtCount(int width);
 

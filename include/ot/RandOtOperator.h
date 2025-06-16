@@ -15,7 +15,7 @@ public:
 
     RandOtOperator *execute() override;
 
-    static int msgTagCount(int width);
+    static int tagStride(int width);
 };
 
 #endif //RANDOTEXECUTOR_H

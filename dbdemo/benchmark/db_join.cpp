@@ -130,7 +130,6 @@ int main(int argc, char *argv[]) {
             }
         }
     }
-    Log::i("numcols: {} fields: {}", numCols, StringUtils::vecString(joinResult._fieldNames));
     // Single reconstruct call for all data
     auto allReconstructed = Secrets::boolReconstruct(allSecrets, 2, 64, System::nextTask());
 
@@ -141,8 +140,9 @@ int main(int argc, char *argv[]) {
             for (int row = 0; row < numRows; row++) {
                 tempCol.push_back(allReconstructed[col * numRows + row]);
             }
-            Log::i("col[{}]: {}", col, StringUtils::vecString(tempCol));
+            // Log::i("col[{}]: {}", col, StringUtils::vecString(tempCol));
         }
+        Log::i("cols: {} rows: {}", numCols, numRows);
     }
 
 

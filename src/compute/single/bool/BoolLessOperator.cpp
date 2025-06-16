@@ -84,8 +84,8 @@ BoolLessOperator *BoolLessOperator::setBmts(std::vector<BitwiseBmt> *bmts) {
     return this;
 }
 
-int BoolLessOperator::msgTagCount(int width) {
-    return bmtCount(width) * BitwiseBmtGenerator::msgTagCount(width);
+int BoolLessOperator::tagStride(int width) {
+    return bmtCount(width) * BitwiseBmtGenerator::tagStride(width);
 }
 
 int BoolLessOperator::bmtCount(int width) {

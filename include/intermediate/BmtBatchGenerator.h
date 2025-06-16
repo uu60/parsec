@@ -27,7 +27,7 @@ protected:
 public:
     BmtBatchGenerator *reconstruct(int clientRank) override;
 
-    static int msgTagCount(int bmtCount, int width);
+    static int tagStride(int bmtCount, int width);
 };
 
 

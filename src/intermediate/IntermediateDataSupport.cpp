@@ -103,7 +103,7 @@ void IntermediateDataSupport::prepareRot() {
             _rRot0->_b = static_cast<int>(Math::randInt(0, 1));
         }
         BaseOtOperator e(i, isSender ? _sRot0->_r0 : -1, isSender ? _sRot0->_r1 : -1, !isSender ? _rRot0->_b : -1,
-                         64, 2, i * BaseOtOperator::msgTagCount());
+                         64, 2, i * BaseOtOperator::tagStride());
         e.execute();
         if (!isSender) {
             _rRot0->_rb = e._result;
@@ -121,7 +121,7 @@ void IntermediateDataSupport::prepareRot() {
             _rRot1->_b = 1 - _rRot0->_b;
         }
         BaseOtOperator e(i, isSender ? _sRot1->_r0 : -1, isSender ? _sRot1->_r1 : -1, !isSender ? _rRot1->_b : -1,
-                         64, 2, i * BaseOtOperator::msgTagCount());
+                         64, 2, i * BaseOtOperator::tagStride());
         e.execute();
         if (!isSender) {
             _rRot1->_rb = e._result;

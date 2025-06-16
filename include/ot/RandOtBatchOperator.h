@@ -24,7 +24,7 @@ public:
 
     RandOtBatchOperator *execute() override;
 
-    static int msgTagCount();
+    static int tagStride();
 
 private:
     void execute0();

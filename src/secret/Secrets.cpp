@@ -19,7 +19,7 @@ using BatchOutput = std::tuple<
     std::vector<int64_t>
 >;
 
-void bs1B(std::vector<BoolSecret> &secrets, bool asc, int taskTag, int msgTagOffset) {
+void bitonicSortSingleBatch(std::vector<BoolSecret> &secrets, bool asc, int taskTag, int msgTagOffset) {
     size_t n = secrets.size();
     for (int k = 2; k <= n; k *= 2) {
         for (int j = k / 2; j > 0; j /= 2) {
@@ -76,7 +76,7 @@ void bs1B(std::vector<BoolSecret> &secrets, bool asc, int taskTag, int msgTagOff
     }
 }
 
-void bsNB(std::vector<BoolSecret> &secrets, bool asc, int taskTag, int msgTagOffset) {
+void bitonicSortSplittedBatches(std::vector<BoolSecret> &secrets, bool asc, int taskTag, int msgTagOffset) {
     int batchSize = Conf::BATCH_SIZE;
     size_t n = secrets.size();
     for (int k = 2; k <= n; k *= 2) {
@@ -143,7 +143,7 @@ void bsNB(std::vector<BoolSecret> &secrets, bool asc, int taskTag, int msgTagOff
                         auto &ascB = ascsBatches[b];
                         int sz = static_cast<int>(xsB.size());
 
-                        int offset = std::max(BoolLessBatchOperator::msgTagCount(), BoolMutexBatchOperator::msgTagCount());
+                        int offset = std::max(BoolLessBatchOperator::tagStride(), BoolMutexBatchOperator::tagStride());
                         auto zs1 = BoolLessBatchOperator(
                             &xsB, &ysB,
                             secrets[0]._width,
@@ -182,9 +182,9 @@ void bsNB(std::vector<BoolSecret> &secrets, bool asc, int taskTag, int msgTagOff
 
 void bitonicSort(std::vector<BoolSecret> &secrets, bool asc, int taskTag, int msgTagOffset) {
     if (Conf::BATCH_SIZE <= 0 && Conf::DISABLE_MULTI_THREAD) {
-        bs1B(secrets, asc, taskTag, msgTagOffset);
+        bitonicSortSingleBatch(secrets, asc, taskTag, msgTagOffset);
     } else {
-        bsNB(secrets, asc, taskTag, msgTagOffset);
+        bitonicSortSplittedBatches(secrets, asc, taskTag, msgTagOffset);
     }
 }
 

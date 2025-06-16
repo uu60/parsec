@@ -15,7 +15,7 @@ public:
 
     ArithAddBatchOperator *execute() override;
 
-    static int msgTagCount();
+    static int tagStride();
 };
 
 
