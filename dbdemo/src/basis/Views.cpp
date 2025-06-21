@@ -26,18 +26,14 @@ View Views::selectAll(Table &t) {
 
 View Views::selectAllWithFieldPrefix(Table &t) {
     std::vector<std::string> fieldNames(t._fieldNames.size());
-    for (int i = 0; i < t._fieldNames.size() - 2; i++) {
-        if (fieldNames[i] != View::VALID_COL_NAME && fieldNames[i] != View::PADDING_COL_NAME) {
-            fieldNames[i] = getAliasColName(t._tableName, t._fieldNames[i]);
-        } else {
-            fieldNames[i] = t._fieldNames[i];
-        }
+    for (int i = 0; i < t._fieldNames.size(); i++) {
+        fieldNames[i] = getAliasColName(t._tableName, t._fieldNames[i]);
     }
 
     View v(t._tableName, fieldNames, t._fieldWidths);
     v._dataCols = t._dataCols;
-    v._dataCols.emplace_back(t._dataCols[0].size(), Comm::rank());
-    v._dataCols.emplace_back(t._dataCols[0].size());
+    v._dataCols.emplace_back(t.rowNum(), Comm::rank());
+    v._dataCols.emplace_back(t.rowNum());
     return v;
 }
 
@@ -61,13 +57,13 @@ View Views::selectColumns(Table &t, std::vector<std::string> &fieldNames) {
         return v;
     }
 
-    v._dataCols.reserve(indices.size() + 2);
+    int colIndex = 0;
     for (auto idx: indices) {
-        v._dataCols.push_back(t._dataCols[idx]);
+        v._dataCols[colIndex++] = t._dataCols[idx];
     }
 
-    v._dataCols.emplace_back(v._dataCols[0].size());
-    v._dataCols.emplace_back(v._dataCols[0].size());
+    v._dataCols[v.colNum() + View::PADDING_COL_OFFSET] = std::vector<int64_t>(v.rowNum(), 0);
+    v._dataCols[v.colNum() + View::VALID_COL_OFFSET] = std::vector<int64_t>(v.rowNum(), Comm::rank());
 
     return v;
 }
@@ -82,10 +78,10 @@ View Views::nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string 
     std::string tableName1 = v1._tableName.empty() ? "$t1" : v1._tableName;
 
     for (int i = 0; i < effectiveFieldNum0; ++i) {
-        fieldNames[i] = tableName0 + "." + v0._fieldNames[i];
+        fieldNames[i] = v0._fieldNames[i];
     }
     for (int i = 0; i < effectiveFieldNum1; ++i) {
-        fieldNames[i + effectiveFieldNum0] = getAliasColName(tableName1, v1._fieldNames[i]);
+        fieldNames[i + effectiveFieldNum0] = v1._fieldNames[i];
     }
 
     std::vector<int> fieldWidths(effectiveFieldNum0 + effectiveFieldNum1);
@@ -509,6 +505,10 @@ View Views::hashJoin(View &v0, View &v1, std::string &field0, std::string &field
 
 std::string Views::getAliasColName(std::string &tableName, std::string &fieldName) {
     return tableName + "." + fieldName;
+}
+
+int64_t Views::hash(int64_t keyValue) {
+    return (keyValue * 31 + 17) % DbConf::SHUFFLE_BUCKET_NUM;
 }
 
 void Views::addRedundantCols(View &v) {

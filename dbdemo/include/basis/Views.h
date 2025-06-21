@@ -24,6 +24,8 @@ public:
 
     static std::string getAliasColName(std::string& tableName, std::string& fieldName);
 
+    static int64_t hash(int64_t keyValue);
+
 private:
     static void addRedundantCols(View &v);
     

@@ -10,10 +10,15 @@
 using json = nlohmann::json;
 #include "socket/LocalServer.h"
 #include "dbms/SystemManager.h"
-#include "../third_party/hsql/SQLParserResult.h"
-#include "../third_party/hsql/SQLParser.h"
+
+void runDb(int argc, char **argv);
 
 int main(int argc, char **argv) {
+    runDb(argc, argv);
+    return 0;
+}
+
+void runDb(int argc, char **argv) {
     System::init(argc, argv);
 
     if (Comm::isClient()) {
@@ -24,9 +29,4 @@ int main(int argc, char **argv) {
     }
 
     System::finalize();
-    // hsql::SQLParserResult result;
-    // hsql::SQLParser::parse("create table t (a int(16) primary key, b int(64));", &result);
-    // const auto *createStmt = dynamic_cast<const hsql::CreateStatement *>(result.getStatement(0));
-    // std::cout << createStmt->columns;
-    return 0;
 }

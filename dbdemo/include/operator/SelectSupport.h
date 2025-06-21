@@ -15,7 +15,6 @@ struct JoinInfo {
     std::string rightTable;
     std::string leftField;
     std::string rightField;
-    std::string joinType; // "INNER", "LEFT", "RIGHT", "FULL"
 };
 
 class SelectSupport {
@@ -30,22 +29,17 @@ private:
                                   std::vector<bool> &ascendings);
 
     static void clientHandleNotify(std::ostringstream &resp, const hsql::SelectStatement *selectStmt,
-                                   const std::string& tableName,
+                                   const std::string &tableName,
                                    Table *table, std::vector<std::string> selectedFieldNames,
-                                   const std::vector<std::string>& filterCols, const std::vector<View::ComparatorType>& filterCmps,
-                                   std::vector<int64_t> filterVals, const std::vector<std::string>& orderFields,
+                                   const std::vector<std::string> &filterCols,
+                                   const std::vector<View::ComparatorType> &filterCmps,
+                                   std::vector<int64_t> filterVals, const std::vector<std::string> &orderFields,
                                    std::vector<bool> ascendings);
 
-    static void clientHandleNotifyJoin(std::ostringstream &resp, const hsql::SelectStatement *selectStmt,
-                                       const std::vector<JoinInfo>& joinInfos,
-                                       std::vector<std::string> selectedFieldNames,
-                                       const std::vector<std::string>& filterCols, const std::vector<View::ComparatorType>& filterCmps,
-                                       std::vector<int64_t> filterVals, const std::vector<std::string>& orderFields,
-                                       std::vector<bool> ascendings);
 
     static bool clientHandleFilter(std::ostringstream &resp, const hsql::SelectStatement *selectStmt,
-                                   const std::string &tableName,
-                                   Table *table, std::vector<std::string> &filterCols,
+                                   std::vector<JoinInfo> joinInfos,
+                                   std::vector<std::string> &filterCols,
                                    std::vector<View::ComparatorType> &filterCmps, std::vector<int64_t> &filterVals);
 
     static bool clientHandleJoin(std::ostringstream &resp, const hsql::SelectStatement *selectStmt,
@@ -54,8 +48,6 @@ private:
     static bool parseJoinCondition(std::ostringstream &resp, const hsql::Expr *condition,
                                    const std::string &leftTable, const std::string &rightTable,
                                    std::string &leftField, std::string &rightField);
-
-    static std::string getJoinTypeString(hsql::JoinType joinType);
 };
 
 

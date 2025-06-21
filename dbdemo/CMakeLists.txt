@@ -24,3 +24,7 @@ add_executable(dbdemo_client ${CMAKE_CURRENT_SOURCE_DIR}/client/main.cpp)
 
 # Link readline to the executable
 target_link_libraries(dbdemo_client ${READLINE_LIBRARY})
+
+add_executable(dbdemo_debugSql "${CMAKE_CURRENT_SOURCE_DIR}/src/debugParser.cpp")
+
+target_link_libraries(dbdemo_debugSql PRIVATE dbdemo_core)
