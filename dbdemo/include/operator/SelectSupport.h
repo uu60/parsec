@@ -28,14 +28,6 @@ private:
                                   std::vector<std::string> &fieldNames, std::vector<std::string> &orderFields,
                                   std::vector<bool> &ascendings);
 
-    static void clientHandleNotify(std::ostringstream &resp, const hsql::SelectStatement *selectStmt,
-                                   const std::string &tableName,
-                                   Table *table, std::vector<std::string> selectedFieldNames,
-                                   const std::vector<std::string> &filterCols,
-                                   const std::vector<View::ComparatorType> &filterCmps,
-                                   std::vector<int64_t> filterVals, const std::vector<std::string> &orderFields,
-                                   std::vector<bool> ascendings);
-
 
     static bool clientHandleFilter(std::ostringstream &resp, const hsql::SelectStatement *selectStmt,
                                    std::vector<JoinInfo> joinInfos,

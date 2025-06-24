@@ -43,61 +43,6 @@ bool SelectSupport::clientHandleOrder(std::ostringstream &resp, const hsql::Sele
     return true;
 }
 
-void SelectSupport::clientHandleNotify(std::ostringstream &resp, const hsql::SelectStatement *selectStmt,
-                                       const std::string &tableName, Table *table,
-                                       std::vector<std::string> selectedFieldNames,
-                                       const std::vector<std::string> &filterCols,
-                                       const std::vector<View::ComparatorType> &filterCmps,
-                                       std::vector<int64_t> filterVals,
-                                       const std::vector<std::string> &orderFields, std::vector<bool> ascendings) {
-    json js;
-    js["type"] = SystemManager::getCommandPrefix(SystemManager::SELECT);
-    js["name"] = tableName;
-    js["fieldNames"] = selectedFieldNames;
-    std::vector<int64_t> fv0, fv1;
-    if (selectStmt->whereClause) {
-        fv0.resize(filterVals.size());
-        fv1.resize(filterVals.size());
-        js["filterFields"] = filterCols;
-        js["filterCmps"] = filterCmps;
-        for (int i = 0; i < filterVals.size(); ++i) {
-            fv0[i] = Math::randInt();
-            fv1[i] = fv0[i] ^ filterVals[i];
-        }
-        js["filterVals"] = fv0;
-    }
-    if (selectStmt->order) {
-        js["orderFields"] = orderFields;
-        js["ascendings"] = ascendings;
-    }
-    std::string m = js.dump();
-    Comm::send(m, 0, 0);
-
-    if (selectStmt->whereClause) {
-        js["filterVals"] = fv1;
-    }
-    m = js.dump();
-    Comm::send(m, 1, 0);
-
-    auto reconstructed = Secrets::boolReconstruct(Table::EMPTY_COL, 2, table->_maxWidth, 0);
-    size_t cols = selectedFieldNames.size();
-    size_t rows = reconstructed.size() / cols;
-    for (int i = 0; i < cols; ++i) {
-        resp << std::setw(10) << selectedFieldNames[i];
-    }
-
-    resp << std::endl;
-    for (int i = 0; i < rows; i++) {
-        if (!reconstructed[i * (cols + 1) + cols]) {
-            continue;
-        }
-        for (int j = 0; j < cols; j++) {
-            resp << std::setw(10) << reconstructed[i * (cols + 1) + j];
-        }
-        resp << std::endl;
-    }
-}
-
 bool SelectSupport::clientHandleFilter(std::ostringstream &resp, const hsql::SelectStatement *selectStmt,
                                        std::vector<JoinInfo> joinInfos,
                                        std::vector<std::string> &filterCols,
@@ -457,19 +402,6 @@ void SelectSupport::serverSelect(json js) {
         }
 
         v = Views::selectColumns(currentResult, finalSelectedFields);
-
-        // // Reconstruct the result
-        // std::vector<int64_t> toReconstruct;
-        // if (!finalView._dataCols.empty()) {
-        //     toReconstruct.resize(finalView._dataCols[0].size() * (finalView.colNum() - 1));
-        //     int idx = 0;
-        //     for (int i = 0; i < finalView._dataCols[0].size(); ++i) {
-        //         for (int j = 0; j < finalView.colNum() - 1; ++j) {
-        //             toReconstruct[idx++] = finalView._dataCols[j][i];
-        //         }
-        //     }
-        // }
-        // Secrets::boolReconstruct(toReconstruct, 2, finalView._maxWidth, 0);
     } else {
         // Handle single table operation (original logic)
         std::string tableName = js.at("name").get<std::string>();
