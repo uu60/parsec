@@ -5,4 +5,4 @@ insert into t0 values (10, 20);
 create table t1 (a int(64) primary key, b int(64));
 insert into t1 values (10, 30);
 
-select * from t0 join t1 on t0.a = t1.a;
+select * from t0 join t1 on t0.a = t1.a where t0.b != 20;

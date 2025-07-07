@@ -169,7 +169,7 @@ For constructor method of some operators, if the operator is not responsible for
 ### 3.2 Parallel
 #### 3.2.1 Tag Assignment
 Although it is easy to isolate task streams by task tags, the message tag what we need to pay more attention to.   
-In most operators, there is a static method called `msgCount()` which shows the max message tag num it will consume inside the operator. In that way, if we want to parallel some computation inside a task stream, we need to assign the `_startMsgTag` with a stride of the return value of `msgCount()` of the last operator.
+In most operators, there is a static method called `tagStride()` which shows the max message tag num it will consume inside the operator. In that way, if we want to parallel some computation inside a task stream, we need to assign the `_startMsgTag` with a stride of the return value of `tagStride()` of the last operator.
 #### 3.2.2 BMT Usage
 If the BMT method in `Conf.h` is set to `BMT_FIXED` (only for experiments) or `BMT_JIT`, then BMT usage for parallel does not need considering because the BMT obtainance process has been included in the `execute()` process.  
 Otherwise, we need to promise the BMT obtainance sequence from `IntermediateDataSupport` and then assign the proper BMT to specific operator if parallelism is needed among these operators. 

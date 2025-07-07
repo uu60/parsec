@@ -15,7 +15,7 @@ public:
 
     BoolXorBatchOperator *execute() override;
 
-    int msgCount();
+    int tagStride();
 };
 
 

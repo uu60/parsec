@@ -18,7 +18,7 @@ BoolXorBatchOperator * BoolXorBatchOperator::execute() {
     return this;
 }
 
-int BoolXorBatchOperator::msgCount() {
+int BoolXorBatchOperator::tagStride() {
     return 0;
 }
 
