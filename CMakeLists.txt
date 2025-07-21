@@ -1,6 +1,6 @@
  cmake_minimum_required(VERSION 3.22)
 
- project(secure_2pc_package)
+ project(parsec)
 
  set(CMAKE_CXX_STANDARD 17)
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
@@ -16,31 +16,31 @@
  endif ()
  find_package(Boost REQUIRED CONFIG COMPONENTS program_options)
 
- file(GLOB_RECURSE LIB_SOURCES
-         "include/*.h"
-         "include/*.cpp"
-         "src/*.cpp"
- )
+file(GLOB_RECURSE LIB_SOURCES
+        "primitives/include/*.h"
+        "primitives/include/*.cpp"
+        "primitives/src/*.cpp"
+)
 
  add_library(${PROJECT_NAME} STATIC ${LIB_SOURCES})
 
- target_include_directories(${PROJECT_NAME} PUBLIC
-         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-         $<INSTALL_INTERFACE:include>)
+target_include_directories(${PROJECT_NAME} PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/primitives/include>
+        $<INSTALL_INTERFACE:include>)
 
  target_link_libraries(
          ${PROJECT_NAME} PUBLIC MPI::MPI_CXX OpenSSL::SSL OpenSSL::Crypto TBB::tbb Boost::boost Boost::program_options
  )
 
- file(GLOB BENCH_SOURCES "benchmark/*.cpp")
- foreach (src ${BENCH_SOURCES})
-     get_filename_component(exe ${src} NAME_WE)
-     add_executable(${exe} ${src})
-     target_link_libraries(${exe} PRIVATE ${PROJECT_NAME})
- endforeach ()
+file(GLOB BENCH_SOURCES "primitives/benchmark/*.cpp")
+foreach (src ${BENCH_SOURCES})
+    get_filename_component(exe ${src} NAME_WE)
+    add_executable(${exe} ${src})
+    target_link_libraries(${exe} PRIVATE ${PROJECT_NAME})
+endforeach ()
 
- add_subdirectory(dbdemo)
- add_subdirectory(dbdemo/benchmark)
+add_subdirectory(db)
+add_subdirectory(db/benchmark)
 
  #
  # # install libxx.so to ${CMAKE_INSTALL_PREFIX}/lib

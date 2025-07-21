@@ -121,7 +121,7 @@ This demo serves as a reference implementation and can be a foundation for build
 
 ### 2.3 Import this package in your project
 1. Copy all the header files under `/include` to your own project.
-2. Take macOS as an example, after compilation, `libsecure_2pc_package.a` will be generated under `/build`. Import this lib file to your own project.
+2. Take macOS as an example, after compilation, `libparsec.a` will be generated under `/build`. Import this lib file to your own project.
 
 ### 2.4 Execute
 Take OpenMPI based as an example:
@@ -216,6 +216,3 @@ When we do batching tasks, like using operator `BoolAndBatchOperator`, we may ha
 [2] Crypten (https://arxiv.org/pdf/2109.00984) \
 [3] Secrecy (https://arxiv.org/pdf/2102.01048) \
 [4] SecretFlow-SCQL (https://www.vldb.org/pvldb/vol17/p3987-fang.pdf)
-  
-
-

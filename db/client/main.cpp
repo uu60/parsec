@@ -28,7 +28,7 @@ public:
         std::cout << "Welcome to the SMPC-DB client.\n"
                   << "Type 'exit' or 'quit' to end the session.\n" << std::endl;
 
-        std::ifstream precmdFile("dbdemo/client/precmd");
+        std::ifstream precmdFile("db/client/precmd");
         if (precmdFile) {
             std::cout << "Loaded precmd file." << std::endl;
             std::string line;

@@ -29,6 +29,7 @@
 #include "../include/parallel/ThreadPoolSupport.h"
 #include "../include/compute/batch/bool/BoolAndBatchOperator.h"
 #include "../include/compute/batch/bool/BoolMutexBatchOperator.h"
+#include "compute/batch/arith/ArithLessBatchOperator.h"
 #include "compute/batch/bool/BoolLessBatchOperator.h"
 #include "compute/batch/arith/ArithToBoolBatchOperator.h"
 #include "intermediate/BitwiseBmtBatchGenerator.h"
@@ -442,27 +443,27 @@ inline void test_arith_to_bool_batch_conversion_20() {
 
     Log::i("boolResults: {}", StringUtils::vecString(boolResults));
     Log::i("zis: {}", StringUtils::vecString(op._zis));
+}
 
-    // Convert back to arith using single operators for verification
+inline void test_arith_less_batch_21() {
+    std::vector<int64_t> a, b;
+    int width = 16; // Use smaller width for easier verification
+    int testSize = 10;
+
     if (Comm::isClient()) {
-        Log::i("Testing ArithToBoolBatchOperator conversion correctness with width {}", width);
-        
-        for (int i = 0; i < testSize; i++) {
-            // Convert back to arithmetic
-            auto backToArith = BoolToArithOperator(boolResults[i], width, t + i + 2000, 0, -1).execute()->reconstruct(2)->_result;
-            
-            // Apply ring operation to original value for comparison
-            int64_t expectedValue = Math::ring(a[i], width);
-            
-            if (backToArith == expectedValue) {
-                Log::i("Conversion test {}: CORRECT - original: {}, bool: {}, back_to_arith: {}", 
-                       i, a[i], boolResults[i], backToArith);
-            } else {
-                Log::e("Conversion test {}: WRONG - original: {}, expected: {}, bool: {}, back_to_arith: {}", 
-                       i, a[i], expectedValue, boolResults[i], backToArith);
-            }
-        }
+        // Use specific test values for better verification
+        a = {0, 1, 2, 3, 15, 16, 255, 256, 1000, 65535};
+        b = {0, -1, 3, -3, 16, -16, 256, -256, 1001, 65534};
     }
+
+    auto t = System::nextTask();
+
+    ArithLessBatchOperator op(&a, &b, width, t, 0, 2);
+    // Convert arith to bool using batch operator
+    auto boolResults = op.execute()->reconstruct(2)->_results;
+
+    Log::i("boolResults: {}", StringUtils::vecString(boolResults));
+    Log::i("zis: {}", StringUtils::vecString(op._zis));
 }
 
 

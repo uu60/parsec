@@ -3,9 +3,9 @@ foreach(src ${BENCH_SRCS})
     get_filename_component(execName ${src} NAME_WE)
     add_executable(${execName} ${src})
     target_include_directories(${execName} PRIVATE
-            ${CMAKE_SOURCE_DIR}/dbdemo/include
+            ${CMAKE_SOURCE_DIR}/db/include
     )
     target_link_libraries(${execName} PRIVATE
-            dbdemo_core
+            db_core
     )
 endforeach()

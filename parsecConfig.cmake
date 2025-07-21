@@ -1,7 +1,7 @@
 
 ####### Expanded from @PACKAGE_INIT@ by configure_package_config_file() #######
 ####### Any changes to this file will be overwritten by the next CMake run ####
-####### The input file was secure_2pc_packageConfig.cmake.in                            ########
+####### The input file was parsecConfig.cmake.in                            ########
 
 get_filename_component(PACKAGE_PREFIX_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../" ABSOLUTE)
 
@@ -24,8 +24,8 @@ endmacro()
 
 ####################################################################################
 
-set( secure_2pc_package_LIBRARIES  secure_2pc_package)
-set( secure_2pc_package_INCLUDE_DIRS  ${PACKAGE_PREFIX_DIR}/include)
-set( secure_2pc_package_LIBRARY_DIRS ${PACKAGE_PREFIX_DIR}/lib)
+set( parsec_LIBRARIES  parsec)
+set( parsec_INCLUDE_DIRS  ${PACKAGE_PREFIX_DIR}/include)
+set( parsec_LIBRARY_DIRS ${PACKAGE_PREFIX_DIR}/lib)
 
 check_required_components(${PROJECT_NAME})

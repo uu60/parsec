@@ -88,6 +88,9 @@ int main(int argc, char **argv) {
         case 20:
             test_arith_to_bool_batch_conversion_20();
             break;
+        case 21:
+            test_arith_less_batch_21();
+            break;
     }
 
     System::finalize();
