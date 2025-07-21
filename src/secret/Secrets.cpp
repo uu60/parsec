@@ -6,6 +6,7 @@
 #include <cmath>
 
 #include "accelerate/SimdSupport.h"
+#include "compute/batch/arith/ArithBatchOperator.h"
 #include "compute/batch/bool/BoolLessBatchOperator.h"
 #include "compute/batch/bool/BoolMutexBatchOperator.h"
 #include "compute/single/bool/BoolMutexOperator.h"
@@ -217,4 +218,12 @@ std::vector<int64_t> Secrets::boolShare(std::vector<int64_t> &origins, int clien
 
 std::vector<int64_t> Secrets::boolReconstruct(std::vector<int64_t> &secrets, int clientRank, int width, int taskTag) {
     return BoolBatchOperator(secrets, width, taskTag, 0, SecureOperator::NO_CLIENT_COMPUTE).reconstruct(clientRank)->_results;
+}
+
+std::vector<int64_t> Secrets::arithShare(std::vector<int64_t> &origins, int clientRank, int width, int taskTag) {
+    return ArithBatchOperator(origins, width, taskTag, 0, clientRank)._zis;
+}
+
+std::vector<int64_t> Secrets::arithReconstruct(std::vector<int64_t> &secrets, int clientRank, int width, int taskTag) {
+    return ArithBatchOperator(secrets, width, taskTag, 0, SecureOperator::NO_CLIENT_COMPUTE).reconstruct(clientRank)->_results;
 }

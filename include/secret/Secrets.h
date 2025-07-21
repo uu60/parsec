@@ -20,6 +20,10 @@ public:
     static std::vector<int64_t> boolShare(std::vector<int64_t> &origins, int clientRank, int width, int taskTag);
 
     static std::vector<int64_t> boolReconstruct(std::vector<int64_t> &secrets, int clientRank, int width, int taskTag);
+
+    static std::vector<int64_t> arithShare(std::vector<int64_t> &origins, int clientRank, int width, int taskTag);
+
+    static std::vector<int64_t> arithReconstruct(std::vector<int64_t> &secrets, int clientRank, int width, int taskTag);
 };
 
 

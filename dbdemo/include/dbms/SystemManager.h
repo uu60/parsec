@@ -65,7 +65,7 @@ public:
     static std::string getCommandPrefix(CommandType type);
 
 private:
-    bool clientCreateDeleteDb(std::istringstream &iss, std::ostringstream &resp, std::string &word, bool create);
+    bool clientCreateOrDeleteDb(std::istringstream &iss, std::ostringstream &resp, std::string &word, bool create);
 
     void clientUseDb(std::istringstream &iss, std::ostringstream &resp);
 };

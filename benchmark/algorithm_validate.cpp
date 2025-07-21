@@ -81,6 +81,13 @@ int main(int argc, char **argv) {
             break;
         case 18:
             test_bits_ot_18();
+            break;
+        case 19:
+            test_arith_to_bool_batch_19();
+            break;
+        case 20:
+            test_arith_to_bool_batch_conversion_20();
+            break;
     }
 
     System::finalize();

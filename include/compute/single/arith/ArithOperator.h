@@ -29,7 +29,6 @@ public:
 
     ArithOperator *reconstruct(int clientRank) override;
 
-    [[deprecated("This function should not be called.")]]
     ArithOperator *execute() override;
 };
 

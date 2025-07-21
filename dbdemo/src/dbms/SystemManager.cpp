@@ -125,7 +125,7 @@ void SystemManager::notifyServersSync(json &j) {
 }
 
 // return if is create table
-bool SystemManager::clientCreateDeleteDb(std::istringstream &iss, std::ostringstream &resp, std::string &word,
+bool SystemManager::clientCreateOrDeleteDb(std::istringstream &iss, std::ostringstream &resp, std::string &word,
                                          bool create) {
     iss >> word;
     if (strcasecmp(word.c_str(), "database") == 0) {
@@ -198,7 +198,9 @@ void SystemManager::clientExecute(const std::string &command) {
     bool drop = strcasecmp(word.c_str(), "drop") == 0;
     if (create || drop) {
         // return if create table
-        if (!clientCreateDeleteDb(iss, resp, word, create)) goto over;
+        if (!clientCreateOrDeleteDb(iss, resp, word, create)) {
+            goto over;
+        }
     }
 
     if (strcasecmp(word.c_str(), "use") == 0) {

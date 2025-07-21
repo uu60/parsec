@@ -30,7 +30,9 @@
 #include "../include/compute/batch/bool/BoolAndBatchOperator.h"
 #include "../include/compute/batch/bool/BoolMutexBatchOperator.h"
 #include "compute/batch/bool/BoolLessBatchOperator.h"
+#include "compute/batch/arith/ArithToBoolBatchOperator.h"
 #include "intermediate/BitwiseBmtBatchGenerator.h"
+#include "utils/StringUtils.h"
 
 inline void test_bitwise_bmt_gen_0(int num, int width) {
     if (Comm::isServer()) {
@@ -369,6 +371,96 @@ inline void test_bits_ot_18() {
         if (Comm::rank() == 1) {
             Log::i("result: {}", Math::toBinString<64>(e._results[0]));
             Log::i("result: {}", Math::toBinString<64>(e._results[1]));
+        }
+    }
+}
+
+inline void test_arith_to_bool_batch_19() {
+    std::vector<int64_t> a;
+    int width = 32;
+    int testSize = 50;
+    
+    if (Comm::isClient()) {
+        for (int i = 0; i < testSize; i++) {
+            // Generate test values in a reasonable range for the given width
+            a.push_back(Math::randInt(0, (1LL << (width - 1)) - 1));
+        }
+    }
+    
+    auto t = System::nextTask();
+    
+    // Test ArithToBoolBatchOperator
+    auto batchResult = ArithToBoolBatchOperator(&a, width, t, 0, 2).execute()->reconstruct(2)->_results;
+    
+    if (Comm::isClient()) {
+        Log::i("Testing ArithToBoolBatchOperator with {} values, width {}", testSize, width);
+        
+        int correctCount = 0;
+        int wrongCount = 0;
+        
+        for (int i = 0; i < testSize; i++) {
+            // Test against single operator for verification
+            auto singleResult = ArithToBoolOperator(a[i], width, t + i + 1000, 0, 2).execute()->reconstruct(2)->_result;
+            
+            if (batchResult[i] == singleResult) {
+                correctCount++;
+                Log::i("Test {}: CORRECT - input: {}, batch: {}, single: {}", 
+                       i, a[i], batchResult[i], singleResult);
+            } else {
+                wrongCount++;
+                Log::e("Test {}: WRONG - input: {}, batch: {}, single: {}", 
+                       i, a[i], batchResult[i], singleResult);
+            }
+        }
+        
+        Log::i("ArithToBoolBatchOperator Test Summary: {} correct, {} wrong out of {} tests", 
+               correctCount, wrongCount, testSize);
+        
+        if (wrongCount == 0) {
+            Log::i("✅ All ArithToBoolBatchOperator tests PASSED!");
+        } else {
+            Log::e("❌ ArithToBoolBatchOperator tests FAILED with {} errors", wrongCount);
+        }
+    }
+}
+
+inline void test_arith_to_bool_batch_conversion_20() {
+    std::vector<int64_t> a;
+    int width = 16; // Use smaller width for easier verification
+    int testSize = 10;
+    
+    if (Comm::isClient()) {
+        // Use specific test values for better verification
+        a = {0, 1, 2, 3, 15, 16, 255, 256, 1000, 65535};
+    }
+    
+    auto t = System::nextTask();
+
+    ArithToBoolBatchOperator op(&a, width, t, 0, 2);
+    // Convert arith to bool using batch operator
+    auto boolResults = op.execute()->reconstruct(2)->_results;
+
+    Log::i("boolResults: {}", StringUtils::vecString(boolResults));
+    Log::i("zis: {}", StringUtils::vecString(op._zis));
+
+    // Convert back to arith using single operators for verification
+    if (Comm::isClient()) {
+        Log::i("Testing ArithToBoolBatchOperator conversion correctness with width {}", width);
+        
+        for (int i = 0; i < testSize; i++) {
+            // Convert back to arithmetic
+            auto backToArith = BoolToArithOperator(boolResults[i], width, t + i + 2000, 0, -1).execute()->reconstruct(2)->_result;
+            
+            // Apply ring operation to original value for comparison
+            int64_t expectedValue = Math::ring(a[i], width);
+            
+            if (backToArith == expectedValue) {
+                Log::i("Conversion test {}: CORRECT - original: {}, bool: {}, back_to_arith: {}", 
+                       i, a[i], boolResults[i], backToArith);
+            } else {
+                Log::e("Conversion test {}: WRONG - original: {}, expected: {}, bool: {}, back_to_arith: {}", 
+                       i, a[i], expectedValue, boolResults[i], backToArith);
+            }
         }
     }
 }

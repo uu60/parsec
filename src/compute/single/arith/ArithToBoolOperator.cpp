@@ -66,7 +66,7 @@ ArithToBoolOperator *ArithToBoolOperator::execute() {
                 std::future<int64_t> f;
                 bool generate_i;
 
-                if (Conf::ENABLE_INTRA_OPERATOR_PARALLELISM) {
+                if (!Conf::DISABLE_MULTI_THREAD && Conf::ENABLE_INTRA_OPERATOR_PARALLELISM) {
                     f = ThreadPoolSupport::submit([&] {
                         auto bmt = b0.extract(i);
                         return BoolAndOperator(ai, bi, 1, _taskTag, cm, NO_CLIENT_COMPUTE).setBmt(
@@ -102,8 +102,8 @@ ArithToBoolOperator *ArithToBoolOperator::execute() {
     return this;
 }
 
-int ArithToBoolOperator::tagStride(int l) {
-    return static_cast<int>(2 * BoolAndOperator::tagStride(l));
+int ArithToBoolOperator::tagStride(int width) {
+    return static_cast<int>(2 * BoolAndOperator::tagStride(width));
 }
 
 ArithToBoolOperator *ArithToBoolOperator::setBmts(std::vector<BitwiseBmt> *bmts) {
