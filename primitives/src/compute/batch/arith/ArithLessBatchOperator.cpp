@@ -19,9 +19,13 @@ ArithLessBatchOperator::ArithLessBatchOperator(std::vector<int64_t> *xs, std::ve
 
 ArithLessBatchOperator *ArithLessBatchOperator::execute() {
     _currentMsgTag = _startMsgTag;
-    
+
     if (Comm::isClient()) {
         return this;
+    }
+
+    if (Conf::BMT_METHOD != Conf::BMT_JIT) {
+        throw std::runtime_error("Temporarily only support BMT JIT generation for experiment.");
     }
     
     int64_t start;

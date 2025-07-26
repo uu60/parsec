@@ -19,6 +19,7 @@ BoolLessBatchOperator::BoolLessBatchOperator(std::vector<int64_t> *xs, std::vect
 }
 
 void BoolLessBatchOperator::execute0() {
+    int64_t stamp = Math::randInt();
     std::vector<BitwiseBmt> allBmts;
     bool gotBmt = prepareBmts(allBmts);
 
@@ -153,6 +154,12 @@ BoolLessBatchOperator *BoolLessBatchOperator::execute() {
 }
 
 BoolLessBatchOperator *BoolLessBatchOperator::setBmts(std::vector<BitwiseBmt> *bmts) {
+    if (bmts == nullptr) {
+        return this;
+    }
+    if (bmts->size() != bmtCount(_xis->size(), _width)) {
+        throw std::runtime_error("Invalid BMT size for BoolLessBatchOperator.");
+    }
     this->_bmts = bmts;
     return this;
 }

@@ -91,6 +91,12 @@ int main(int argc, char **argv) {
         case 21:
             test_arith_less_batch_21();
             break;
+        case 22:
+            test_arith_multiply_batch_22();
+            break;
+        case 23:
+            test_arith_mutex_batch_23();
+            break;
     }
 
     System::finalize();

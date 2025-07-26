@@ -32,15 +32,12 @@ target_include_directories(${PROJECT_NAME} PUBLIC
          ${PROJECT_NAME} PUBLIC MPI::MPI_CXX OpenSSL::SSL OpenSSL::Crypto TBB::tbb Boost::boost Boost::program_options
  )
 
-file(GLOB BENCH_SOURCES "primitives/benchmark/*.cpp")
-foreach (src ${BENCH_SOURCES})
-    get_filename_component(exe ${src} NAME_WE)
-    add_executable(${exe} ${src})
-    target_link_libraries(${exe} PRIVATE ${PROJECT_NAME})
-endforeach ()
-
+add_subdirectory(primitives)
 add_subdirectory(db)
 add_subdirectory(db/benchmark)
+
+add_executable(test_multiply_comparison test_multiply_comparison.cpp)
+target_link_libraries(test_multiply_comparison parsec ${MPI_LIBRARIES} ${OPENSSL_LIBRARIES})
 
  #
  # # install libxx.so to ${CMAKE_INSTALL_PREFIX}/lib

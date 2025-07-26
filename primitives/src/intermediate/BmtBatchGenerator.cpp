@@ -29,8 +29,8 @@ BmtBatchGenerator *BmtBatchGenerator::reconstruct(int clientRank) {
     throw std::runtime_error("Not support.");
 }
 
-int BmtBatchGenerator::tagStride(int bmtCount, int width) {
-    return static_cast<int>(2 * width * bmtCount * RandOtOperator::tagStride(width));
+int BmtBatchGenerator::tagStride() {
+    return RandOtBatchOperator::tagStride();
 }
 
 void BmtBatchGenerator::computeMix(int sender) {
@@ -47,14 +47,14 @@ void BmtBatchGenerator::computeMix(int sender) {
         for (int i = 0; i < bmtCount; i++) {
             for (int j = 0; j < _width; ++j) {
                 ss0.push_back(Math::randInt());
-                ss1.push_back(corr(i, j, ss0[i]));
+                ss1.push_back(corr(i, j, ss0[i * _width + j]));
             }
         }
     } else {
         choices.reserve(all);
         for (int i = 0; i < bmtCount; i++) {
             for (int j = 0; j < _width; ++j) {
-                choices.push_back(static_cast<int>((_bmts[i]._b >> i) & 1));
+                choices.push_back(static_cast<int>((_bmts[i]._b >> j) & 1));
             }
         }
     }
@@ -78,7 +78,7 @@ void BmtBatchGenerator::computeMix(int sender) {
             sums.push_back(0);
             for (int j = 0; j < _width; ++j) {
                 int idx = i * _width + j;
-                int64_t temp = _results[idx];
+                int64_t temp = results[idx];
                 if (choices[idx] == 0) {
                     temp = -temp;
                 }

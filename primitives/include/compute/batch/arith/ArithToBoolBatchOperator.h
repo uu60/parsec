@@ -14,9 +14,7 @@ public:
 public:
     ArithToBoolBatchOperator(std::vector<int64_t> *xs, int width, int taskTag, int msgTagOffset, int clientRank);
 
-    ~ArithToBoolBatchOperator() override {
-        delete _xis;
-    }
+    ~ArithToBoolBatchOperator() override;
 
     ArithToBoolBatchOperator *execute() override;
 

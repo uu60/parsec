@@ -25,6 +25,10 @@ ArithToBoolBatchOperator::ArithToBoolBatchOperator(std::vector<int64_t> *xs, int
     _zis.resize(xs->size(), 0);
 }
 
+ArithToBoolBatchOperator::~ArithToBoolBatchOperator() {
+    delete _xis;
+}
+
 ArithToBoolBatchOperator *ArithToBoolBatchOperator::execute() {
     _currentMsgTag = _startMsgTag;
 
@@ -33,7 +37,7 @@ ArithToBoolBatchOperator *ArithToBoolBatchOperator::execute() {
     }
 
     if (Conf::BMT_METHOD != Conf::BMT_JIT) {
-        throw std::runtime_error("Only support BMT JIT generation for experiment.");
+        throw std::runtime_error("Temporarily only support BMT JIT generation for experiment.");
     }
 
     int64_t start;

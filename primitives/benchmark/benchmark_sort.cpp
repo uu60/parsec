@@ -43,7 +43,7 @@ int main(int argc, char *argv[]) {
     if (Comm::isServer()) {
         auto start = System::currentTimeMillis();
 
-        Secrets::sort(arr, false, t);
+        Secrets::sort(arr, true, t);
 
         Log::i("total time: {}ms", System::currentTimeMillis() - start);
         if (Conf::ENABLE_CLASS_WISE_TIMING) {
@@ -63,15 +63,15 @@ int main(int argc, char *argv[]) {
         intRes.push_back(res[i]._data);
     }
 
-    if (Comm::isClient()) {
-        int last = INT_MIN;
-        Log::i("Result: {}", StringUtils::vecString(intRes));
-        for (auto s: res) {
-            if (s._data < last) {
-                Log::i("Wrong: {}", s._data);
-            }
-            last = s._data;
-        }
-    }
+    // if (Comm::isClient()) {
+    //     int last = INT_MIN;
+    //     Log::i("Result: {}", StringUtils::vecString(intRes));
+    //     for (auto s: res) {
+    //         if (s._data < last) {
+    //             Log::i("Wrong: {}", s._data);
+    //         }
+    //         last = s._data;
+    //     }
+    // }
     System::finalize();
 }

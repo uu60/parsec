@@ -9,14 +9,12 @@
 #include "../../../intermediate/item/BitwiseBmt.h"
 
 class ArithLessBatchOperator : public ArithBatchOperator {
-private:
-    std::vector<BitwiseBmt> *_bmts{};
-
 public:
     inline static std::atomic_int64_t _totalTime = 0;
 
 public:
-    ArithLessBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys, int width, int taskTag, int msgTagOffset, int clientRank);
+    ArithLessBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys, int width, int taskTag, int msgTagOffset,
+                           int clientRank);
 
     ~ArithLessBatchOperator() override = default;
 

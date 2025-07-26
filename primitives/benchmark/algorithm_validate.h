@@ -32,6 +32,8 @@
 #include "compute/batch/arith/ArithLessBatchOperator.h"
 #include "compute/batch/bool/BoolLessBatchOperator.h"
 #include "compute/batch/arith/ArithToBoolBatchOperator.h"
+#include "compute/batch/arith/ArithMultiplyBatchOperator.h"
+#include "compute/batch/arith/ArithMutexBatchOperator.h"
 #include "intermediate/BitwiseBmtBatchGenerator.h"
 #include "utils/StringUtils.h"
 
@@ -337,22 +339,78 @@ inline void test_batch_bool_mux_16() {
 
 inline void test_batch_less_17() {
     std::vector<int64_t> a, b;
+    bool testBatch = true;
     if (Comm::isClient()) {
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 1000000; i++) {
             a.push_back(Math::randInt());
             b.push_back(Math::randInt());
         }
     }
-    auto t = System::nextTask();
-    auto r = BoolLessBatchOperator(&a, &b, 64, t, 0, 2).execute()->reconstruct(2)->_results;
-    auto r1 = BoolLessOperator(2, 5, 64, t, 0, 2).execute()->reconstruct(2)->_result;
 
+    auto t = System::nextTask();
+    auto as = Secrets::boolShare(a, 2, 64, t);
+    auto bs = Secrets::boolShare(b, 2, 64, t);
+
+    std::vector<int64_t> z(as.size());
+    if (Comm::isServer()) {
+        auto start = System::currentTimeMillis();
+
+        std::vector<BitwiseBmt> bmts;
+        if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
+            bmts = IntermediateDataSupport::pollBitwiseBmts(BoolLessBatchOperator::bmtCount(as.size(), 64), 64);
+        }
+
+        if (testBatch) {
+            int batch_size = Conf::BATCH_SIZE;
+            int batch_num = (as.size() + batch_size - 1) / batch_size;
+            std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
+
+            for (int i = 0; i < batch_num; i++) {
+                futures[i] = ThreadPoolSupport::submit([&, i] {
+                    std::vector<int64_t> batch_a, batch_b;
+                    batch_a.reserve(batch_size);
+                    batch_b.reserve(batch_size);
+
+                    for (int ii = i * batch_size; ii < (i + 1) * batch_size; ii++) {
+                        batch_a.push_back(as[ii]);
+                        batch_b.push_back(bs[ii]);
+                    }
+
+                    std::vector<BitwiseBmt> batch_bmts;
+                    batch_bmts.reserve(BoolLessBatchOperator::bmtCount(batch_size, 64));
+                    if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
+                        for (int ii = i * BoolLessBatchOperator::bmtCount(batch_size, 64);
+                             ii < (i + 1) * BoolLessBatchOperator::bmtCount(batch_size, 64); ii++) {
+                            batch_bmts.push_back(bmts[ii]);
+                            if (ii == bmts.size() - 1) {
+                                break;
+                            }
+                        }
+                    }
+                    return BoolLessBatchOperator(&batch_a, &batch_b, 64, t, BoolLessBatchOperator::tagStride() * i, -1).
+                            setBmts(Conf::BMT_METHOD == Conf::BMT_BACKGROUND ? &batch_bmts : nullptr)->execute()->_zis;
+                });
+            }
+
+            int cur = 0;
+            for (auto &f: futures) {
+                auto batch_res = f.get();
+                for (int i = 0; i < batch_res.size(); i++) {
+                    z[cur++] = batch_res[i];
+                }
+            }
+        } else {
+            BoolLessBatchOperator op(&as, &bs, 64, 0, 0, -1);
+            z = op.execute()->_zis;
+        }
+        Log::i("time: {}ms", System::currentTimeMillis() - start);
+    }
+
+    auto res = Secrets::boolReconstruct(z, 2, 64, t);
     if (Comm::isClient()) {
-        for (int i = 0; i < r.size(); i++) {
-            if ((static_cast<uint64_t>(a[i]) < static_cast<uint64_t>(b[i])) != r[i]) {
-                Log::i("a:{}, b:{}, Wrong: {} r1: {}", a[i], b[i], r[i], r1);
-            } else {
-                Log::i("a:{}, b:{}, Correct: {} r1: {}", a[i], b[i], r[i], r1);
+        for (int i = 0; i < res.size(); i++) {
+            if ((static_cast<uint64_t>(a[i]) < static_cast<uint64_t>(b[i])) != res[i]) {
+                Log::i("a:{}, b:{}, Wrong: {} r1: {}", a[i], b[i]);
             }
         }
     }
@@ -380,43 +438,43 @@ inline void test_arith_to_bool_batch_19() {
     std::vector<int64_t> a;
     int width = 32;
     int testSize = 50;
-    
+
     if (Comm::isClient()) {
         for (int i = 0; i < testSize; i++) {
             // Generate test values in a reasonable range for the given width
             a.push_back(Math::randInt(0, (1LL << (width - 1)) - 1));
         }
     }
-    
+
     auto t = System::nextTask();
-    
+
     // Test ArithToBoolBatchOperator
     auto batchResult = ArithToBoolBatchOperator(&a, width, t, 0, 2).execute()->reconstruct(2)->_results;
-    
+
     if (Comm::isClient()) {
         Log::i("Testing ArithToBoolBatchOperator with {} values, width {}", testSize, width);
-        
+
         int correctCount = 0;
         int wrongCount = 0;
-        
+
         for (int i = 0; i < testSize; i++) {
             // Test against single operator for verification
             auto singleResult = ArithToBoolOperator(a[i], width, t + i + 1000, 0, 2).execute()->reconstruct(2)->_result;
-            
+
             if (batchResult[i] == singleResult) {
                 correctCount++;
-                Log::i("Test {}: CORRECT - input: {}, batch: {}, single: {}", 
+                Log::i("Test {}: CORRECT - input: {}, batch: {}, single: {}",
                        i, a[i], batchResult[i], singleResult);
             } else {
                 wrongCount++;
-                Log::e("Test {}: WRONG - input: {}, batch: {}, single: {}", 
+                Log::e("Test {}: WRONG - input: {}, batch: {}, single: {}",
                        i, a[i], batchResult[i], singleResult);
             }
         }
-        
-        Log::i("ArithToBoolBatchOperator Test Summary: {} correct, {} wrong out of {} tests", 
+
+        Log::i("ArithToBoolBatchOperator Test Summary: {} correct, {} wrong out of {} tests",
                correctCount, wrongCount, testSize);
-        
+
         if (wrongCount == 0) {
             Log::i("✅ All ArithToBoolBatchOperator tests PASSED!");
         } else {
@@ -429,12 +487,12 @@ inline void test_arith_to_bool_batch_conversion_20() {
     std::vector<int64_t> a;
     int width = 16; // Use smaller width for easier verification
     int testSize = 10;
-    
+
     if (Comm::isClient()) {
         // Use specific test values for better verification
         a = {0, 1, 2, 3, 15, 16, 255, 256, 1000, 65535};
     }
-    
+
     auto t = System::nextTask();
 
     ArithToBoolBatchOperator op(&a, width, t, 0, 2);
@@ -464,6 +522,65 @@ inline void test_arith_less_batch_21() {
 
     Log::i("boolResults: {}", StringUtils::vecString(boolResults));
     Log::i("zis: {}", StringUtils::vecString(op._zis));
+}
+
+inline void test_arith_multiply_batch_22() {
+    std::vector<int64_t> a, b;
+    int width = 32;
+    int testSize = 20;
+
+    if (Comm::isClient()) {
+        Log::i("Testing ArithMultiplyBatchOperator with {} values, width {}", testSize, width);
+
+        // Generate test values in a reasonable range for the given width
+        for (int i = 0; i < testSize; i++) {
+            a.push_back(Math::randInt(1, 1000)); // Use smaller values to avoid overflow
+            b.push_back(Math::randInt(1, 1000));
+        }
+
+        Log::i("Input vectors a: {}", StringUtils::vecString(a));
+        Log::i("Input vectors b: {}", StringUtils::vecString(b));
+    }
+
+    auto t = System::nextTask();
+
+    // Test ArithMultiplyBatchOperator
+    ArithMultiplyBatchOperator batchOp(&a, &b, width, t, 0, 2);
+    auto batchResults = batchOp.execute()->reconstruct(2)->_results;
+    if (Comm::isClient()) {
+        Log::i("batchResults: {}", StringUtils::vecString(batchResults));
+    }
+}
+
+inline void test_arith_mutex_batch_23() {
+    std::vector<int64_t> a, b, c;
+    int width = 32;
+    int testSize = 20;
+
+    if (Comm::isClient()) {
+        Log::i("Testing ArithMutexBatchOperator with {} values, width {}", testSize, width);
+
+        // Generate test values
+        for (int i = 0; i < testSize; i++) {
+            a.push_back(Math::randInt(1, 1000));
+            b.push_back(Math::randInt(1, 1000));
+            c.push_back(Math::randInt(0, 1)); // Boolean condition
+        }
+
+        Log::i("Input vectors a: {}", StringUtils::vecString(a));
+        Log::i("Input vectors b: {}", StringUtils::vecString(b));
+        Log::i("Input vectors c: {}", StringUtils::vecString(c));
+    }
+
+    auto t = System::nextTask();
+
+    // Test ArithMutexBatchOperator
+    ArithMutexBatchOperator batchOp(&a, &b, &c, width, t, 0, 2);
+    auto batchResults = batchOp.execute()->reconstruct(2)->_results;
+
+    if (Comm::isClient()) {
+        Log::i("batchResults: {}", StringUtils::vecString(batchResults));
+    }
 }
 
 
