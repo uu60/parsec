@@ -19,19 +19,6 @@ ArithMutexBatchOperator::ArithMutexBatchOperator(std::vector<int64_t> *xs, std::
                                                  std::vector<int64_t> *conds, int width, int taskTag, 
                                                  int msgTagOffset, int clientRank)
     : ArithBatchOperator(xs, ys, width, taskTag, msgTagOffset, clientRank) {
-    
-    // if (clientRank < 0 && conds != nullptr) {
-    //     // Convert boolean conditions to arithmetic shares if needed using batch operation
-    //     if (_width > 1) {
-    //         // Use batch conversion for better performance
-    //         _conds_i = BoolToArithBatchOperator(conds, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).execute()->_zis;
-    //     } else {
-    //         _conds_i = *conds;
-    //     }
-    // } else if (conds != nullptr) {
-    //     _conds_i = *conds;
-    // }
-
     if (clientRank < 0 && _width > 1) {
         _conds_i = BoolToArithBatchOperator(conds, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).execute()->_zis;
     } else {

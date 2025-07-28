@@ -34,6 +34,8 @@
 #include "compute/batch/arith/ArithToBoolBatchOperator.h"
 #include "compute/batch/arith/ArithMultiplyBatchOperator.h"
 #include "compute/batch/arith/ArithMutexBatchOperator.h"
+#include "compute/batch/arith/ArithEqualBatchOperator.h"
+#include "compute/batch/bool/BoolEqualBatchOperator.h"
 #include "intermediate/BitwiseBmtBatchGenerator.h"
 #include "utils/StringUtils.h"
 
@@ -580,6 +582,215 @@ inline void test_arith_mutex_batch_23() {
 
     if (Comm::isClient()) {
         Log::i("batchResults: {}", StringUtils::vecString(batchResults));
+    }
+}
+
+inline void test_bool_equal_batch_24() {
+    std::vector<int64_t> a, b;
+    int width = 32;
+    int testSize = 20;
+
+    if (Comm::isClient()) {
+        Log::i("Testing BoolEqualBatchOperator with {} values, width {}", testSize, width);
+
+        // Generate test values with some equal pairs for better testing
+        for (int i = 0; i < testSize; i++) {
+            if (i % 3 == 0) {
+                // Make some pairs equal
+                int64_t val = Math::randInt(0, 1000);
+                a.push_back(val);
+                b.push_back(val);
+            } else {
+                // Make some pairs different
+                a.push_back(Math::randInt(0, 1000));
+                b.push_back(Math::randInt(0, 1000));
+            }
+        }
+
+        Log::i("Input vectors a: {}", StringUtils::vecString(a));
+        Log::i("Input vectors b: {}", StringUtils::vecString(b));
+    }
+
+    auto t = System::nextTask();
+
+    // Test BoolEqualBatchOperator
+    BoolEqualBatchOperator batchOp(&a, &b, width, t, 0, 2);
+    auto batchResults = batchOp.execute()->reconstruct(2)->_results;
+
+    if (Comm::isClient()) {
+        Log::i("BoolEqualBatchOperator results: {}", StringUtils::vecString(batchResults));
+        
+        // Verify results
+        int correctCount = 0;
+        int wrongCount = 0;
+        
+        for (int i = 0; i < testSize; i++) {
+            // Convert to unsigned for proper comparison
+            uint64_t ua = static_cast<uint64_t>(Math::ring(a[i], width));
+            uint64_t ub = static_cast<uint64_t>(Math::ring(b[i], width));
+            bool expected = (ua == ub);
+            bool actual = (batchResults[i] == 1);
+            
+            if (expected == actual) {
+                correctCount++;
+                Log::i("Test {}: CORRECT - a: {}, b: {}, expected: {}, actual: {}", 
+                       i, ua, ub, expected, actual);
+            } else {
+                wrongCount++;
+                Log::e("Test {}: WRONG - a: {}, b: {}, expected: {}, actual: {}", 
+                       i, ua, ub, expected, actual);
+            }
+        }
+        
+        Log::i("BoolEqualBatchOperator Test Summary: {} correct, {} wrong out of {} tests",
+               correctCount, wrongCount, testSize);
+               
+        if (wrongCount == 0) {
+            Log::i("✅ All BoolEqualBatchOperator tests PASSED!");
+        } else {
+            Log::e("❌ BoolEqualBatchOperator tests FAILED with {} errors", wrongCount);
+        }
+    }
+}
+
+inline void test_arith_equal_batch_25() {
+    std::vector<int64_t> a, b;
+    int width = 32;
+    int testSize = 20;
+
+    if (Comm::isClient()) {
+        Log::i("Testing ArithEqualBatchOperator with {} values, width {}", testSize, width);
+
+        // Generate test values with some equal pairs for better testing
+        for (int i = 0; i < testSize; i++) {
+            if (i % 3 == 0) {
+                // Make some pairs equal
+                int64_t val = Math::randInt(-500, 500);
+                a.push_back(val);
+                b.push_back(val);
+            } else {
+                // Make some pairs different
+                a.push_back(Math::randInt(-1000, 1000));
+                b.push_back(Math::randInt(-1000, 1000));
+            }
+        }
+
+        Log::i("Input vectors a: {}", StringUtils::vecString(a));
+        Log::i("Input vectors b: {}", StringUtils::vecString(b));
+    }
+
+    auto t = System::nextTask();
+
+    // Test ArithEqualBatchOperator
+    ArithEqualBatchOperator batchOp(&a, &b, width, t, 0, 2);
+    auto batchResults = batchOp.execute()->reconstruct(2)->_results;
+
+    if (Comm::isClient()) {
+        Log::i("ArithEqualBatchOperator results: {}", StringUtils::vecString(batchResults));
+        
+        // Verify results
+        int correctCount = 0;
+        int wrongCount = 0;
+        
+        for (int i = 0; i < testSize; i++) {
+            // For arithmetic comparison, use signed comparison
+            int64_t sa = Math::ring(a[i], width);
+            int64_t sb = Math::ring(b[i], width);
+            bool expected = (sa == sb);
+            bool actual = (batchResults[i] == 1);
+            
+            if (expected == actual) {
+                correctCount++;
+                Log::i("Test {}: CORRECT - a: {}, b: {}, expected: {}, actual: {}", 
+                       i, sa, sb, expected, actual);
+            } else {
+                wrongCount++;
+                Log::e("Test {}: WRONG - a: {}, b: {}, expected: {}, actual: {}", 
+                       i, sa, sb, expected, actual);
+            }
+        }
+        
+        Log::i("ArithEqualBatchOperator Test Summary: {} correct, {} wrong out of {} tests",
+               correctCount, wrongCount, testSize);
+               
+        if (wrongCount == 0) {
+            Log::i("✅ All ArithEqualBatchOperator tests PASSED!");
+        } else {
+            Log::e("❌ ArithEqualBatchOperator tests FAILED with {} errors", wrongCount);
+        }
+    }
+}
+
+inline void test_equal_operators_comparison_26() {
+    std::vector<int64_t> a, b;
+    int width = 32;
+    int testSize = 15;
+
+    if (Comm::isClient()) {
+        Log::i("Testing comparison between ArithEqualBatchOperator and BoolEqualBatchOperator with {} values, width {}", testSize, width);
+
+        // Generate test values with some equal pairs for better testing
+        for (int i = 0; i < testSize; i++) {
+            if (i % 3 == 0) {
+                // Make some pairs equal
+                int64_t val = Math::randInt(0, 500);
+                a.push_back(val);
+                b.push_back(val);
+            } else {
+                // Make some pairs different
+                a.push_back(Math::randInt(0, 1000));
+                b.push_back(Math::randInt(0, 1000));
+            }
+        }
+
+        Log::i("Input vectors a: {}", StringUtils::vecString(a));
+        Log::i("Input vectors b: {}", StringUtils::vecString(b));
+    }
+
+    auto t = System::nextTask();
+
+    // Test ArithEqualBatchOperator
+    ArithEqualBatchOperator arithOp(&a, &b, width, t, 0, 2);
+    auto arithResults = arithOp.execute()->reconstruct(2)->_results;
+
+    // Test BoolEqualBatchOperator
+    BoolEqualBatchOperator boolOp(&a, &b, width, t, 0, 2);
+    auto boolResults = boolOp.execute()->reconstruct(2)->_results;
+
+    if (Comm::isClient()) {
+        Log::i("ArithEqual results: {}", StringUtils::vecString(arithResults));
+        Log::i("BoolEqual results:  {}", StringUtils::vecString(boolResults));
+        
+        // Compare results between the two operators
+        int matchCount = 0;
+        int mismatchCount = 0;
+        
+        for (int i = 0; i < testSize; i++) {
+            int64_t sa = Math::ring(a[i], width);
+            int64_t sb = Math::ring(b[i], width);
+            bool expected = (sa == sb);
+            bool arithActual = (arithResults[i] == 1);
+            bool boolActual = (boolResults[i] == 1);
+            
+            if (arithActual == boolActual && arithActual == expected) {
+                matchCount++;
+                Log::i("Test {}: MATCH - a: {}, b: {}, expected: {}, arith: {}, bool: {}", 
+                       i, sa, sb, expected, arithActual, boolActual);
+            } else {
+                mismatchCount++;
+                Log::e("Test {}: MISMATCH - a: {}, b: {}, expected: {}, arith: {}, bool: {}", 
+                       i, sa, sb, expected, arithActual, boolActual);
+            }
+        }
+        
+        Log::i("Equal Operators Comparison Summary: {} matches, {} mismatches out of {} tests",
+               matchCount, mismatchCount, testSize);
+               
+        if (mismatchCount == 0) {
+            Log::i("✅ All Equal Operators Comparison tests PASSED!");
+        } else {
+            Log::e("❌ Equal Operators Comparison tests FAILED with {} errors", mismatchCount);
+        }
     }
 }
 

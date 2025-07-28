@@ -13,13 +13,17 @@
 #include "intermediate/IntermediateDataSupport.h"
 #include "parallel/ThreadPoolSupport.h"
 
-BoolLessBatchOperator::BoolLessBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys, int width, int taskTag,
-    int msgTagOffset) : BoolBatchOperator(ys, xs, width, taskTag, msgTagOffset, NO_CLIENT_COMPUTE) {
-    _doBidirectional = true;
-}
+BoolLessBatchOperator *BoolLessBatchOperator::execute() {
+    _currentMsgTag = _startMsgTag;
+    if (Comm::isClient()) {
+        return this;
+    }
 
-void BoolLessBatchOperator::execute0() {
-    int64_t stamp = Math::randInt();
+    int64_t start;
+    if (Conf::ENABLE_CLASS_WISE_TIMING) {
+        start = System::currentTimeMillis();
+    }
+
     std::vector<BitwiseBmt> allBmts;
     bool gotBmt = prepareBmts(allBmts);
 
@@ -99,51 +103,6 @@ void BoolLessBatchOperator::execute0() {
             result = result ^ Math::getBit(final_accum[i], j);
         }
         _zis[i] = result;
-    }
-}
-
-void BoolLessBatchOperator::executeBidirectional() {
-    // memory copy for xs and ys
-    // s0.size() should be equal to s1.size()
-    size_t s0 = _xis->size();
-    size_t s1 = _yis->size();
-
-    std::vector<int64_t> tmpX;
-    tmpX.reserve(s0 + s1);
-    tmpX.insert(tmpX.end(),
-                _xis->begin(), _xis->end());
-    tmpX.insert(tmpX.end(),
-                _yis->begin(), _yis->end());
-
-    std::vector<int64_t> tmpY;
-    tmpY.reserve(s0 + s1);
-    tmpY.insert(tmpY.end(),
-                _yis->begin(), _yis->end());
-    tmpY.insert(tmpY.end(),
-                _xis->begin(), _xis->end());
-
-    // no use after executing
-    _xis = &tmpX;
-    _yis = &tmpY;
-
-    execute0();
-}
-
-BoolLessBatchOperator *BoolLessBatchOperator::execute() {
-    _currentMsgTag = _startMsgTag;
-    if (Comm::isClient()) {
-        return this;
-    }
-
-    int64_t start;
-    if (Conf::ENABLE_CLASS_WISE_TIMING) {
-        start = System::currentTimeMillis();
-    }
-
-    if (_doBidirectional) {
-        executeBidirectional();
-    } else {
-        execute0();
     }
 
     if (Conf::ENABLE_CLASS_WISE_TIMING) {

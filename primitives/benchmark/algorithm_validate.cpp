@@ -97,6 +97,15 @@ int main(int argc, char **argv) {
         case 23:
             test_arith_mutex_batch_23();
             break;
+        case 24:
+            test_bool_equal_batch_24();
+            break;
+        case 25:
+            test_arith_equal_batch_25();
+            break;
+        case 26:
+            test_equal_operators_comparison_26();
+            break;
     }
 
     System::finalize();
