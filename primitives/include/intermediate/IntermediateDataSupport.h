@@ -38,7 +38,7 @@ public:
     inline static SRot *_sRot1 = nullptr;
     inline static RRot *_rRot1 = nullptr;
 
-private:
+public:
     static void prepareBmt();
 
     static void prepareRot();
@@ -51,7 +51,6 @@ private:
 
     static void startGenerateBitwiseBmtsAsync();
 
-public:
     static void init();
 
     static void finalize();

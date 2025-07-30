@@ -30,7 +30,7 @@ ArithMultiplyBatchOperator *ArithMultiplyBatchOperator::execute() {
 
     int num = static_cast<int>(_xis->size());
     _zis.resize(num);
-    
+
     std::vector<Bmt> bmts = BmtBatchGenerator(num, _width, _taskTag, _currentMsgTag).execute()->_bmts;
 
     std::vector<int64_t> eis(num), fis(num);

@@ -1,5 +1,5 @@
 //
-// Created by 杜建璋 on 25-7-16.
+// Created by 杜建璋 on 25-7-28.
 //
 
 #include "compute/batch/arith/ArithLessBatchOperator.h"
@@ -21,6 +21,8 @@
 #include "compute/batch/bool/BoolEqualBatchOperator.h"
 #include "compute/batch/bool/BoolMutexBatchOperator.h"
 #include "compute/batch/bool/BoolToArithBatchOperator.h"
+#include "intermediate/IntermediateDataSupport.h"
+#include "parallel/ThreadPoolSupport.h"
 
 void prepareOrigins(int num, std::vector<int64_t> &originsA, std::vector<int64_t> &originsB,
                     std::vector<int64_t> &conditions) {
@@ -37,14 +39,6 @@ void prepareOrigins(int num, std::vector<int64_t> &originsA, std::vector<int64_t
     }
 }
 
-void arithShare(int width, std::vector<int64_t> &originsA, std::vector<int64_t> &originsB,
-                std::vector<int64_t> &conditions, std::vector<int64_t> &secretsA,
-                std::vector<int64_t> &secretsB, std::vector<int64_t> &secretConditions) {
-    secretsA = Secrets::arithShare(originsA, 2, width, 0);
-    secretsB = Secrets::arithShare(originsB, 2, width, 0);
-    secretConditions = Secrets::arithShare(conditions, 2, 1, 0);
-}
-
 void boolShare(int width, std::vector<int64_t> &originsA, std::vector<int64_t> &originsB,
                std::vector<int64_t> &conditions, std::vector<int64_t> &secretsA,
                std::vector<int64_t> &secretsB, std::vector<int64_t> &secretConditions) {
@@ -53,119 +47,138 @@ void boolShare(int width, std::vector<int64_t> &originsA, std::vector<int64_t> &
     secretConditions = Secrets::boolShare(conditions, 2, 1, 0);
 }
 
-bool testArith(std::vector<std::string> &testPmts, std::string pmt, int width, std::vector<int64_t> &originsA,
-               std::vector<int64_t> &originsB, std::vector<int64_t> &conditions, int64_t &arithTime) {
-    std::vector<int64_t> secretsA;
-    std::vector<int64_t> secretsB;
-    std::vector<int64_t> secretConditions;
-
-    arithShare(width, originsA, originsB, conditions, secretsA, secretsB, secretConditions);
-
-    if (Comm::isServer()) {
-        int64_t start = System::currentTimeMillis();
-        if (pmt == testPmts[0]) {
-            // "<"
-            ArithLessBatchOperator(&secretsA, &secretsB, width, 0, 0, -1).execute();
-        } else if (pmt == testPmts[1]) {
-            // "<="
-            auto tempZ = ArithLessBatchOperator(&secretsB, &secretsA, width, 0, 0, -1).
-                    execute()
-                    ->_zis;
-            for (auto &t: tempZ) {
-                t = t ^ Comm::rank();
-            }
-        } else if (pmt == testPmts[2]) {
-            // "=="
-            ArithEqualBatchOperator(&secretsA, &secretsB, width, 0, 0, -1).execute();
-        } else if (pmt == testPmts[3]) {
-            // "!="
-            auto tempZ = ArithEqualBatchOperator(&secretsA, &secretsB, width, 0, 0, -2).
-                    execute()->_zis;
-            for (auto &t: tempZ) {
-                t = t ^ Comm::rank();
-            }
-        } else if (pmt == testPmts[4]) {
-            // "mux"
-            ArithMutexBatchOperator(&secretsA, &secretsB, &secretConditions, width, 0, 0, -1)
-                    .execute();
-        } else if (pmt == testPmts[5]) {
-            // "ar"
-            int64_t sumShare = 0, sumShare1;
-            auto ta = BoolToArithBatchOperator(&secretConditions, 64, 0, 0,
-                                               SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-            sumShare = std::accumulate(ta.begin(), ta.end(), 0ll);
-            auto r0 = Comm::serverSendAsync(sumShare, 32, 0);
-            auto r1 = Comm::serverReceiveAsync(sumShare1, 32, 0);
-            Comm::wait(r0);
-            Comm::wait(r1);
-
-            int64_t validNum = sumShare + sumShare1;
-        } else if (pmt == testPmts[6]) {
-            // "sort"
-            std::vector<ArithSecret> arithSecrets;
-            arithSecrets.reserve(secretsA.size());
-            for (size_t i = 0; i < secretsA.size(); i++) {
-                arithSecrets.emplace_back(secretsA[i], width, 0);
-            }
-            start = System::currentTimeMillis();
-            Secrets::sort(arithSecrets, true, 0);
-        } else {
-            Log::e("Unknown primitive: {}", pmt);
-            return false;
-        }
-        arithTime = System::currentTimeMillis() - start;
-    }
+bool testBackground(std::vector<std::string> &testPmts, std::string pmt, int width, std::vector<int64_t> &originsA,
+                    std::vector<int64_t> &originsB, std::vector<int64_t> &conditions, int64_t &arithTime) {
+    Conf::BMT_METHOD = Conf::BMT_BACKGROUND;
+    IntermediateDataSupport::startGenerateBitwiseBmtsAsync();
     return true;
 }
 
-bool testBool(std::vector<std::string> &testPmt, std::string pmt, int width, std::vector<int64_t> &originsA,
-              std::vector<int64_t> &originsB, std::vector<int64_t> &conditions, int64_t &boolTime) {
+bool testJit(std::vector<std::string> &testPmt, std::string pmt, int width, std::vector<int64_t> &originsA,
+             std::vector<int64_t> &originsB, std::vector<int64_t> &conditions, int64_t &boolTime) {
     std::vector<int64_t> secretsA;
     std::vector<int64_t> secretsB;
     std::vector<int64_t> secretConditions;
 
     boolShare(width, originsA, originsB, conditions, secretsA, secretsB, secretConditions);
 
+    int batch_size = Conf::BATCH_SIZE;
+    int batch_num = (static_cast<int>(secretsA.size()) + batch_size - 1) / batch_size;
     if (Comm::isServer()) {
         int64_t start = System::currentTimeMillis();
         if (pmt == testPmt[0]) {
             // "<"
-            BoolLessBatchOperator(&secretsA, &secretsB, width, 0, 0, -1).execute();
+            std::vector<int64_t> zs;
+            zs.reserve(secretsA.size());
+            std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
+            for (int b = 0; b < batch_num; ++b) {
+                futures[b] = ThreadPoolSupport::submit([&, b] {
+                    int startIdx = b * batch_size;
+                    int endIdx = std::min((b + 1) * batch_size, static_cast<int>(secretsA.size()));
+                    std::vector<int64_t> batchA(secretsA.begin() + startIdx, secretsA.begin() + endIdx);
+                    std::vector<int64_t> batchB(secretsB.begin() + startIdx, secretsB.begin() + endIdx);
+                    return BoolLessBatchOperator(&batchA, &batchB, width, 0, BoolLessBatchOperator::tagStride() * b,
+                                                 -1).
+                            execute()->_zis;
+                });
+            }
+            for (auto &f: futures) {
+                auto v = f.get();
+                zs.insert(zs.end(), v.begin(), v.end());
+            }
         } else if (pmt == testPmt[1]) {
             // "<="
-            auto tempZ = BoolLessBatchOperator(&secretsB, &secretsA, width, 0, 0, -1).
-                    execute()
-                    ->_zis;
-            for (auto &t: tempZ) {
-                t = t ^ Comm::rank();
+            std::vector<int64_t> zs;
+            zs.reserve(secretsA.size());
+            std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
+            for (int b = 0; b < batch_num; ++b) {
+                futures[b] = ThreadPoolSupport::submit([&, b] {
+                    int startIdx = b * batch_size;
+                    int endIdx = std::min((b + 1) * batch_size, static_cast<int>(secretsA.size()));
+                    std::vector<int64_t> batchA(secretsA.begin() + startIdx, secretsA.begin() + endIdx);
+                    std::vector<int64_t> batchB(secretsB.begin() + startIdx, secretsB.begin() + endIdx);
+                    auto zsB = BoolLessBatchOperator(&batchB, &batchA, width, 0, BoolLessBatchOperator::tagStride() * b,
+                                                     -1).
+                            execute()->_zis;
+                    for (auto &t: zsB) {
+                        t = t ^ Comm::rank();
+                    }
+                    return zsB;
+                });
+            }
+            for (auto &f: futures) {
+                auto v = f.get();
+                zs.insert(zs.end(), v.begin(), v.end());
             }
         } else if (pmt == testPmt[2]) {
             // "=="
-            BoolEqualBatchOperator(&secretsA, &secretsB, width, 0, 0, -1).execute();
+            std::vector<int64_t> zs;
+            zs.reserve(secretsA.size());
+            std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
+            for (int b = 0; b < batch_num; ++b) {
+                futures[b] = ThreadPoolSupport::submit([&, b] {
+                    int startIdx = b * batch_size;
+                    int endIdx = std::min((b + 1) * batch_size, static_cast<int>(secretsA.size()));
+                    std::vector<int64_t> batchA(secretsA.begin() + startIdx, secretsA.begin() + endIdx);
+                    std::vector<int64_t> batchB(secretsB.begin() + startIdx, secretsB.begin() + endIdx);
+                    return BoolEqualBatchOperator(&batchA, &batchB, width, 0, BoolEqualBatchOperator::tagStride() * b,
+                                                  -1).
+                            execute()->_zis;
+                });
+            }
+            for (auto &f: futures) {
+                auto v = f.get();
+                zs.insert(zs.end(), v.begin(), v.end());
+            }
         } else if (pmt == testPmt[3]) {
             // "!="
-            auto tempZ = BoolEqualBatchOperator(&secretsA, &secretsB, width, 0, 0, -2).
-                    execute()->_zis;
-            for (auto &t: tempZ) {
-                t = t ^ Comm::rank();
+            std::vector<int64_t> zs;
+            zs.reserve(secretsA.size());
+            std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
+            for (int b = 0; b < batch_num; ++b) {
+                futures[b] = ThreadPoolSupport::submit([&, b] {
+                    int startIdx = b * batch_size;
+                    int endIdx = std::min((b + 1) * batch_size, static_cast<int>(secretsA.size()));
+                    std::vector<int64_t> batchA(secretsA.begin() + startIdx, secretsA.begin() + endIdx);
+                    std::vector<int64_t> batchB(secretsB.begin() + startIdx, secretsB.begin() + endIdx);
+                    auto zsB = BoolEqualBatchOperator(&batchA, &batchB, width, 0,
+                                                      BoolEqualBatchOperator::tagStride() * b,
+                                                      -1).
+                            execute()->_zis;
+                    for (auto &t: zsB) {
+                        t = t ^ Comm::rank();
+                    }
+                    return zsB;
+                });
+            }
+            for (auto &f: futures) {
+                auto v = f.get();
+                zs.insert(zs.end(), v.begin(), v.end());
             }
         } else if (pmt == testPmt[4]) {
             // "mux"
-            BoolMutexBatchOperator(&secretsA, &secretsB, &secretConditions, width, 0, 0, -1)
-                    .execute();
+            std::vector<int64_t> zs;
+            zs.reserve(secretsA.size());
+            std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
+            for (int b = 0; b < batch_num; ++b) {
+                futures[b] = ThreadPoolSupport::submit([&, b] {
+                    int startIdx = b * batch_size;
+                    int endIdx = std::min((b + 1) * batch_size, static_cast<int>(secretsA.size()));
+                    std::vector<int64_t> batchA(secretsA.begin() + startIdx, secretsA.begin() + endIdx);
+                    std::vector<int64_t> batchB(secretsB.begin() + startIdx, secretsB.begin() + endIdx);
+                    std::vector<int64_t> batchC(secretConditions.begin() + startIdx,
+                                                secretConditions.begin() + endIdx);
+                    return BoolMutexBatchOperator(&batchA, &batchB, &batchC, width, 0,
+                                                  BoolMutexBatchOperator::tagStride() * b,
+                                                  -1).
+                            execute()->_zis;
+                });
+            }
+            for (auto &f: futures) {
+                auto v = f.get();
+                zs.insert(zs.end(), v.begin(), v.end());
+            }
         } else if (pmt == testPmt[5]) {
-            // "ar"
-            int64_t sumShare = 0, sumShare1;
-            auto ta = BoolToArithBatchOperator(&secretConditions, 64, 0, 0,
-                                               SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-            sumShare = std::accumulate(ta.begin(), ta.end(), 0ll);
-            auto r0 = Comm::serverSendAsync(sumShare, 32, 0);
-            auto r1 = Comm::serverReceiveAsync(sumShare1, 32, 0);
-            Comm::wait(r0);
-            Comm::wait(r1);
-
-            int64_t validNum = sumShare + sumShare1;
-        } else if (pmt == testPmt[6]) {
             // "sort"
             std::vector<BoolSecret> boolSecrets;
             boolSecrets.reserve(secretsA.size());
@@ -205,9 +218,9 @@ int main(int argc, char *argv[]) {
     ss << std::put_time(std::localtime(&time_t), "%Y%m%d_%H%M%S");
     std::string timestamp = ss.str();
 
-    std::vector testNums = {10000, 100000, 1000000, /*10000000*/};
+    std::vector testNums = {10000, 100000, 1000000, 10000000};
     std::vector testWidths = {1, 2, 4, 8, 16, 32, 64,};
-    std::vector<std::string> testPmts = {"<", "<=", "==", "!=", "mux", "ar", "sort"};
+    std::vector<std::string> testPmts = {"<", "<=", "==", "!=", "mux", "sort"};
 
     // Calculate total number of tests for progress tracking
     int totalTests = testPmts.size() * testNums.size() * testWidths.size();
@@ -228,11 +241,11 @@ int main(int argc, char *argv[]) {
                 prepareOrigins(num, originsA, originsB, conditions);
 
                 int64_t arithTime;
-                if (!testArith(testPmts, pmt, width, originsA, originsB, conditions, arithTime))
+                if (!testBackground(testPmts, pmt, width, originsA, originsB, conditions, arithTime))
                     continue;
 
                 int64_t boolTime;
-                if (!testBool(testPmts, pmt, width, originsA, originsB, conditions, boolTime))
+                if (!testJit(testPmts, pmt, width, originsA, originsB, conditions, boolTime))
                     continue;
 
                 // Collect timing data from servers and compute average on client

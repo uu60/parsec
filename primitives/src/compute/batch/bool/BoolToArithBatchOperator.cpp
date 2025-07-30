@@ -47,7 +47,7 @@ BoolToArithBatchOperator *BoolToArithBatchOperator::execute() {
     RandOtBatchOperator e(0, &ss0, &ss1, &choices, _width, _taskTag, _currentMsgTag);
     e.execute();
 
-    _zis.resize(n, 0);
+    _zis.resize(_xis->size(), 0);
     if (isSender) {
         for (int i = 0; i < _xis->size(); i++) {
             for (int j = 0; j < _width; j++) {

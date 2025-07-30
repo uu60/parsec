@@ -22,6 +22,8 @@ public:
 
     ArithSecret(int64_t x, int l, int taskTag);
 
+    ArithSecret(int64_t x, int l, int taskTag, int msgTagOffset);
+
     ArithSecret task(int taskTag) const;
 
     ArithSecret msg(int msgTagOffset) const;

@@ -35,7 +35,8 @@ public:
 
     static int tagStride();
 
-    static int bmtCount(int num);
+    // Returns needed bmt num when _bidir is false, else *2
+    static int bmtCount(int num, int width);
 
 private:
     bool prepareBmts(std::vector<BitwiseBmt> &bmts);

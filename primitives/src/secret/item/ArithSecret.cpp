@@ -19,6 +19,8 @@ ArithSecret::ArithSecret() = default;
 
 ArithSecret::ArithSecret(int64_t x, int l, int taskTag) : _data(x), _width(l), _taskTag(taskTag) {}
 
+ArithSecret::ArithSecret(int64_t x, int l, int taskTag, int msgTagOffset) : _data(x), _width(l), _taskTag(taskTag), _currentMsgTag(msgTagOffset) {}
+
 ArithSecret ArithSecret::task(int taskTag) const {
     return {_data, _width, taskTag};
 }

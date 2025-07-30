@@ -117,7 +117,9 @@ BoolLessBatchOperator *BoolLessBatchOperator::setBmts(std::vector<BitwiseBmt> *b
         return this;
     }
     if (bmts->size() != bmtCount(_xis->size(), _width)) {
-        throw std::runtime_error("Invalid BMT size for BoolLessBatchOperator.");
+        throw std::runtime_error(
+            "Invalid BMT size for BoolLessBatchOperator. Given: " + std::to_string(bmts->size()) + ", expected: " +
+            std::to_string(bmtCount(_xis->size(), _width)) + ".");
     }
     this->_bmts = bmts;
     return this;
@@ -131,7 +133,7 @@ int BoolLessBatchOperator::bmtCount(int num, int width) {
     if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
         return 0;
     }
-    return num * BoolLessOperator::bmtCount(width);
+    return ((std::floor(std::log2(width))) + 2) * BoolAndBatchOperator::bmtCount(num, width);
 }
 
 std::vector<int64_t> BoolLessBatchOperator::shiftGreater(std::vector<int64_t> &in, int r) const {

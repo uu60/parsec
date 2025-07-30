@@ -135,9 +135,6 @@ BoolMutexBatchOperator *BoolMutexBatchOperator::execute() {
 }
 
 BoolMutexBatchOperator *BoolMutexBatchOperator::setBmts(std::vector<BitwiseBmt> *bmts) {
-    if (bmts != nullptr && bmts->size() != bmtCount(_width)) {
-        throw std::runtime_error("Mismatched bmts count");
-    }
     _bmts = bmts;
     return this;
 }
@@ -146,9 +143,9 @@ int BoolMutexBatchOperator::tagStride() {
     return BoolAndBatchOperator::tagStride();
 }
 
-int BoolMutexBatchOperator::bmtCount(int num) {
+int BoolMutexBatchOperator::bmtCount(int num, int width) {
     if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
         return 0;
     }
-    return num * 2;
+    return BoolAndBatchOperator::bmtCount(num, width);
 }
