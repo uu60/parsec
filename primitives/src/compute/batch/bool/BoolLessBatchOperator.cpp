@@ -133,7 +133,7 @@ int BoolLessBatchOperator::bmtCount(int num, int width) {
     if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
         return 0;
     }
-    return ((std::floor(std::log2(width))) + 2) * BoolAndBatchOperator::bmtCount(num, width);
+    return ((std::floor(std::log2(width))) + 3) * BoolAndBatchOperator::bmtCount(num, width);
 }
 
 std::vector<int64_t> BoolLessBatchOperator::shiftGreater(std::vector<int64_t> &in, int r) const {

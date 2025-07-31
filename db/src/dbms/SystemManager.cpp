@@ -20,6 +20,7 @@
 #include "operator/SelectSupport.h"
 #include "utils/System.h"
 
+#include <string>
 using json = nlohmann::json;
 
 SystemManager::CommandType SystemManager::getCommandType(const std::string &prefix) {

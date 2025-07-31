@@ -7,6 +7,7 @@
 #include "./Comm.h"
 #include "item/MpiRequestWrapper.h"
 
+#include <string>
 /**
  * For sender, mpi rank must be 0 or 1.
  * The task publisher must be rank of 2.

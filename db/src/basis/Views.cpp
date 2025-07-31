@@ -16,6 +16,7 @@
 #include "utils/Log.h"
 #include <cmath>
 
+#include <string>
 View Views::selectAll(Table &t) {
     View v(t._tableName, t._fieldNames, t._fieldWidths);
     v._dataCols = t._dataCols;

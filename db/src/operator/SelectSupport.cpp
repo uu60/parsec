@@ -20,6 +20,7 @@
 #include "utils/StringUtils.h"
 #include "utils/System.h"
 
+#include <string>
 bool SelectSupport::clientHandleOrder(std::ostringstream &resp, const hsql::SelectStatement *selectStmt,
                                       std::vector<std::string> &fieldNames, std::vector<std::string> &orderFields,
                                       std::vector<bool> &ascendings) {

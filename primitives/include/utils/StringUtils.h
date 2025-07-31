@@ -9,6 +9,7 @@
 #include <vector>
 
 
+#include <string>
 class StringUtils {
 public:
     template<typename T>

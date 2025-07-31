@@ -5,6 +5,7 @@
 #include "operator/DropSupport.h"
 
 #include <sstream>
+#include <string>
 #include "../third_party/hsql/SQLParser.h"
 
 #include "dbms/SystemManager.h"

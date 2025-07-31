@@ -16,6 +16,7 @@
 #include "utils/Log.h"
 #include "utils/StringUtils.h"
 
+#include <string>
 bool InsertSupport::clientInsert(std::ostringstream &resp, const hsql::SQLStatement *stmt) {
     int64_t done;
     const auto *insertStmt = dynamic_cast<const hsql::InsertStatement *>(stmt);

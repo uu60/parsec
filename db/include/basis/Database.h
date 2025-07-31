@@ -8,6 +8,7 @@
 #include <map>
 #include "./Table.h"
 
+#include <string>
 class Database {
 private:
     std::string _databaseName;

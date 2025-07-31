@@ -89,7 +89,7 @@ int BoolLessOperator::tagStride(int width) {
 }
 
 int BoolLessOperator::bmtCount(int width) {
-    return static_cast<int>(std::floor(std::log2(width))) + 2;
+    return static_cast<int>(std::floor(std::log2(width))) + 3;
 }
 
 int64_t BoolLessOperator::shiftGreater(int64_t in, int r) const {

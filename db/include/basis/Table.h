@@ -6,6 +6,7 @@
 #define SMPC_DATABASE_TABLE_H
 #include <vector>
 
+#include <string>
 class Table {
 public:
     inline static const std::string BUCKET_TAG_PREFIX = "$tag:";

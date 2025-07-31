@@ -22,6 +22,7 @@
 #include "compute/batch/bool/BoolMutexBatchOperator.h"
 #include "compute/batch/bool/BoolToArithBatchOperator.h"
 
+#include <string>
 void prepareOrigins(int num, std::vector<int64_t> &originsA, std::vector<int64_t> &originsB,
                     std::vector<int64_t> &conditions) {
     // arith compare less than

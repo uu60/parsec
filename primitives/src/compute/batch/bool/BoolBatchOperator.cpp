@@ -65,14 +65,12 @@ BoolBatchOperator::BoolBatchOperator(std::vector<int64_t> *xs, std::vector<int64
             }
             auto r = Comm::sendAsync(v0, _width, 0, buildTag(_currentMsgTag));
             auto r1 = Comm::sendAsync(v1, _width, 1, buildTag(_currentMsgTag));
-            Log::i("v0 : {} v1 : {}", v0.size(), v1.size());
             Comm::wait(r);
             Comm::wait(r1);
         } else if (Comm::isServer()) {
             // operator
             std::vector<int64_t> temp;
             Comm::receive(temp, _width, clientRank, buildTag(_currentMsgTag));
-            Log::i("temp size: {}", temp.size());
             size_t size = temp.size() / 2;
             _xis = new std::vector<int64_t>(size);
             _yis = new std::vector<int64_t>(size);

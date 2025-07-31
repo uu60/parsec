@@ -6,6 +6,7 @@
 #define BITWISEBMT_H
 #include "./Bmt.h"
 #include "../../utils/Math.h"
+#include "utils/Log.h"
 
 // Just for distinguish
 class BitwiseBmt : public Bmt {

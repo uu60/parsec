@@ -13,6 +13,7 @@
 #include "intermediate/IntermediateDataSupport.h"
 #include "utils/Log.h"
 
+#include <string>
 void MpiComm::finalize_() {
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize();

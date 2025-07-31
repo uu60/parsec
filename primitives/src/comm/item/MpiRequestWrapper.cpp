@@ -90,4 +90,6 @@ void MpiRequestWrapper::wait() {
                 break;
         }
     }
+    if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND)
+        Log::i("3");
 }

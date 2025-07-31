@@ -5,6 +5,7 @@
 #include "../../include/socket/LocalServer.h"
 #include <iostream>
 #include <cstring>
+#include <string>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>

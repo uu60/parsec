@@ -12,6 +12,7 @@
 #include "../third_party/json.hpp"
 #include "../third_party/hsql/sql/SQLStatement.h"
 
+#include <string>
 using json = nlohmann::json;
 
 class SystemManager {

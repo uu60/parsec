@@ -11,6 +11,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
+#include <string>
 #define PORT 3307
 #define BUFFER_SIZE 1024
 

@@ -53,6 +53,20 @@ public:
 
 public:
     explicit MpiRequestWrapper(bool recv);
+    
+    ~MpiRequestWrapper() {
+        delete _r;
+        
+        if (_si1) delete _si1;
+        if (_si8) delete _si8;
+        if (_si16) delete _si16;
+        if (_si32) delete _si32;
+        if (_sv1) delete[] _sv1;
+        if (_sv8) delete _sv8;
+        if (_sv16) delete _sv16;
+        if (_sv32) delete _sv32;
+        if (_vec1) delete[] _vec1;
+    }
 
     void wait() override;
 };

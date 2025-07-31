@@ -147,5 +147,5 @@ int BoolMutexBatchOperator::bmtCount(int num, int width) {
     if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
         return 0;
     }
-    return BoolAndBatchOperator::bmtCount(num, width);
+    return 2 * BoolAndBatchOperator::bmtCount(num, width);
 }

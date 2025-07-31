@@ -6,17 +6,16 @@
 
 #include <numeric>
 
-#include "../../../../../../../opt/homebrew/Cellar/boost/1.87.0/include/boost/config/detail/posix_features.hpp"
 #include "compute/batch/bool/BoolAndBatchOperator.h"
 #include "compute/batch/bool/BoolEqualBatchOperator.h"
 #include "compute/batch/bool/BoolLessBatchOperator.h"
 #include "compute/batch/bool/BoolMutexBatchOperator.h"
 #include "compute/batch/bool/BoolToArithBatchOperator.h"
-#include "conf/DbConf.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "secret/Secrets.h"
 #include "utils/Log.h"
-#include "utils/StringUtils.h"
+
+#include <string>
 
 View::View(std::vector<std::string> &fieldNames,
            std::vector<int> &fieldWidths) : Table(

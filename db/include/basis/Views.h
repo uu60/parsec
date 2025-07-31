@@ -7,6 +7,7 @@
 #include "View.h"
 
 
+#include <string>
 class Views {
 public:
     static View selectAll(Table &t);

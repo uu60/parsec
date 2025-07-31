@@ -96,7 +96,6 @@ void BoolAndBatchOperator::execute0() {
     // The first num elements are ei, and the left num elements are fi
     std::vector<int64_t> efi(num * 2);
 
-
     if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
         for (int i = 0; i < num; i++) {
             efi[i] = (*_xis)[i] ^ IntermediateDataSupport::_fixedBitwiseBmt._a;

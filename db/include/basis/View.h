@@ -7,6 +7,7 @@
 #include "Table.h"
 
 
+#include <string>
 class View : public Table {
 public:
     static const int VALID_COL_OFFSET = -2;

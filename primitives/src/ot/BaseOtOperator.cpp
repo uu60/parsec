@@ -4,6 +4,7 @@
 
 #include "ot/BaseOtOperator.h"
 
+#include <string>
 #include "comm/Comm.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Math.h"

@@ -7,6 +7,7 @@
 #include <iostream>
 #include <unordered_map>
 
+#include <string>
 class Crypto {
 public:
     static std::unordered_map<int, std::string> _selfPubs;

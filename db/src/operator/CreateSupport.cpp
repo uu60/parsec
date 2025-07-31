@@ -5,6 +5,7 @@
 #include "../../include/operator/CreateSupport.h"
 
 #include <sstream>
+#include <string>
 #include "../third_party/hsql/SQLParser.h"
 
 #include "../../include/dbms/SystemManager.h"

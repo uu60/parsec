@@ -33,6 +33,7 @@ public:
 
     BoolAndBatchOperator *setBmts(std::vector<BitwiseBmt> *bmts);
 
+    // *2 needed when for mutex
     static int bmtCount(int num, int width);
 
 private:

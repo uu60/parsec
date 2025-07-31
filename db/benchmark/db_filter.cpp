@@ -11,6 +11,7 @@
 #include "utils/Log.h"
 #include "utils/StringUtils.h"
 
+#include <string>
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
 
@@ -57,7 +58,7 @@ int main(int argc, char *argv[]) {
         auto start = System::currentTimeMillis();
         std::vector<std::string> a0 = {"a0", "a1"};
         std::vector a1 = {View::ComparatorType::GREATER, View::ComparatorType::GREATER};
-        std::vector a2 = {Comm::rank() == 1 ? 0ll : 10ll, Comm::rank() == 1 ? 0ll : 20ll};
+        std::vector<int64_t> a2 = {Comm::rank() == 1 ? 0ll : 10ll, Comm::rank() == 1 ? 0ll : 20ll};
         v.filterAndConditions(a0, a1, a2);
         Log::i("Filter time: {}ms", System::currentTimeMillis() - start);
     }

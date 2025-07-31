@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <iomanip>
+#include <string>
 #include <utility>
 
 #include "../../include/basis/Table.h"

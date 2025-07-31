@@ -8,6 +8,7 @@
 #include <climits>
 #include <map>
 
+#include <string>
 class Conf {
 public:
     inline static std::map<std::string,std::string> _userParams{};
@@ -69,7 +70,7 @@ public:
     // Sum of threads in a process
     inline static int LOCAL_THREADS = static_cast<int>(std::thread::hardware_concurrency() * 10);
     // Index of thread pool type (0 = ctpl, 1 = tbb)
-    inline static int THREAD_POOL_TYPE = ASYNC;
+    inline static int THREAD_POOL_TYPE = CTPL_POOL;
 
     // ---------------Settings for networks---------------
     // Communication object index (0 = OpenMpi)

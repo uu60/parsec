@@ -11,6 +11,7 @@
 #include "utils/Log.h"
 #include "utils/StringUtils.h"
 
+#include <string>
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
 

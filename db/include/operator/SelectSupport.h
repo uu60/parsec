@@ -10,6 +10,7 @@
 #include "../third_party/hsql/sql/SQLStatement.h"
 #include "../third_party/hsql/sql/Table.h"
 
+#include <string>
 struct JoinInfo {
     std::string leftTable;
     std::string rightTable;
