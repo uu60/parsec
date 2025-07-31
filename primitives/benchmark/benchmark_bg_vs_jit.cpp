@@ -26,7 +26,8 @@
 #include "parallel/ThreadPoolSupport.h"
 
 #include <string>
-static int task = System::nextTask();
+
+static int task;
 
 void prepareOrigins(int num, std::vector<int64_t> &originsA, std::vector<int64_t> &originsB,
                     std::vector<int64_t> &conditions) {
@@ -41,6 +42,7 @@ void prepareOrigins(int num, std::vector<int64_t> &originsA, std::vector<int64_t
             conditions[i] = Math::randInt(0, 1);
         }
     }
+    task = System::nextTask();
 }
 
 void boolShare(int width, std::vector<int64_t> &originsA, std::vector<int64_t> &originsB,
@@ -53,7 +55,6 @@ void boolShare(int width, std::vector<int64_t> &originsA, std::vector<int64_t> &
 
 bool testBackground(std::vector<std::string> &testPmts, std::string pmt, int width, std::vector<int64_t> &originsA,
                     std::vector<int64_t> &originsB, std::vector<int64_t> &conditions, int64_t &backgroundTime) {
-
     if (Conf::BMT_METHOD != Conf::BMT_BACKGROUND) {
         Conf::BMT_METHOD = Conf::BMT_BACKGROUND;
         IntermediateDataSupport::init();
@@ -75,19 +76,18 @@ bool testBackground(std::vector<std::string> &testPmts, std::string pmt, int wid
             zs.reserve(secretsA.size());
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
             for (int b = 0; b < batch_num; ++b) {
-                if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
-                    int startIdx = b * batch_size;
-                    int endIdx = std::min((b + 1) * batch_size, static_cast<int>(secretsA.size()));
-                    std::shared_ptr<std::vector<BitwiseBmt> > bmtB = std::make_shared<std::vector<BitwiseBmt> >(
-                        IntermediateDataSupport::pollBitwiseBmts(
-                            BoolLessBatchOperator::bmtCount(endIdx - startIdx, width), 64));
-                    futures[b] = ThreadPoolSupport::submit([&, b, bmtB, startIdx, endIdx] {
-                        std::vector<int64_t> batchA(secretsA.begin() + startIdx, secretsA.begin() + endIdx);
-                        std::vector<int64_t> batchB(secretsB.begin() + startIdx, secretsB.begin() + endIdx);
-                        return BoolLessBatchOperator(&batchA, &batchB, width, task, BoolLessBatchOperator::tagStride() * b,
-                                                     -1).setBmts(bmtB.get())->execute()->_zis;
-                    });
-                }
+                int startIdx = b * batch_size;
+                int endIdx = std::min((b + 1) * batch_size, static_cast<int>(secretsA.size()));
+                std::shared_ptr<std::vector<BitwiseBmt> > bmtB = std::make_shared<std::vector<BitwiseBmt> >(
+                    IntermediateDataSupport::pollBitwiseBmts(
+                        BoolLessBatchOperator::bmtCount(endIdx - startIdx, width), 64));
+                futures[b] = ThreadPoolSupport::submit([&, b, bmtB, startIdx, endIdx] {
+                    std::vector<int64_t> batchA(secretsA.begin() + startIdx, secretsA.begin() + endIdx);
+                    std::vector<int64_t> batchB(secretsB.begin() + startIdx, secretsB.begin() + endIdx);
+                    return BoolLessBatchOperator(&batchA, &batchB, width, task,
+                                                 BoolLessBatchOperator::tagStride() * b,
+                                                 -1).setBmts(bmtB.get())->execute()->_zis;
+                });
             }
             for (auto &f: futures) {
                 auto v = f.get();
@@ -99,24 +99,22 @@ bool testBackground(std::vector<std::string> &testPmts, std::string pmt, int wid
             zs.reserve(secretsA.size());
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
             for (int b = 0; b < batch_num; ++b) {
-                if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
-                    int startIdx = b * batch_size;
-                    int endIdx = std::min((b + 1) * batch_size, static_cast<int>(secretsA.size()));
-                    std::shared_ptr<std::vector<BitwiseBmt> > bmtB = std::make_shared<std::vector<BitwiseBmt> >(
-                        IntermediateDataSupport::pollBitwiseBmts(
-                            BoolLessBatchOperator::bmtCount(endIdx - startIdx, width), 64));
-                    futures[b] = ThreadPoolSupport::submit([&, b, bmtB, startIdx, endIdx] {
-                        std::vector<int64_t> batchA(secretsA.begin() + startIdx, secretsA.begin() + endIdx);
-                        std::vector<int64_t> batchB(secretsB.begin() + startIdx, secretsB.begin() + endIdx);
-                        auto zsB = BoolLessBatchOperator(&batchB, &batchA, width, task,
-                                                         BoolLessBatchOperator::tagStride() * b,
-                                                         -1).setBmts(bmtB.get())->execute()->_zis;
-                        for (auto &t: zsB) {
-                            t = t ^ Comm::rank();
-                        }
-                        return zsB;
-                    });
-                }
+                int startIdx = b * batch_size;
+                int endIdx = std::min((b + 1) * batch_size, static_cast<int>(secretsA.size()));
+                std::shared_ptr<std::vector<BitwiseBmt> > bmtB = std::make_shared<std::vector<BitwiseBmt> >(
+                    IntermediateDataSupport::pollBitwiseBmts(
+                        BoolLessBatchOperator::bmtCount(endIdx - startIdx, width), 64));
+                futures[b] = ThreadPoolSupport::submit([&, b, bmtB, startIdx, endIdx] {
+                    std::vector<int64_t> batchA(secretsA.begin() + startIdx, secretsA.begin() + endIdx);
+                    std::vector<int64_t> batchB(secretsB.begin() + startIdx, secretsB.begin() + endIdx);
+                    auto zsB = BoolLessBatchOperator(&batchB, &batchA, width, task,
+                                                     BoolLessBatchOperator::tagStride() * b,
+                                                     -1).setBmts(bmtB.get())->execute()->_zis;
+                    for (auto &t: zsB) {
+                        t = t ^ Comm::rank();
+                    }
+                    return zsB;
+                });
             }
             for (auto &f: futures) {
                 auto v = f.get();
@@ -128,20 +126,18 @@ bool testBackground(std::vector<std::string> &testPmts, std::string pmt, int wid
             zs.reserve(secretsA.size());
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
             for (int b = 0; b < batch_num; ++b) {
-                if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
-                    int startIdx = b * batch_size;
-                    int endIdx = std::min((b + 1) * batch_size, static_cast<int>(secretsA.size()));
-                    std::shared_ptr<std::vector<BitwiseBmt> > bmtB = std::make_shared<std::vector<BitwiseBmt> >(
-                        IntermediateDataSupport::pollBitwiseBmts(
-                            BoolEqualBatchOperator::bmtCount(endIdx - startIdx, width), 64));
-                    futures[b] = ThreadPoolSupport::submit([&, b, bmtB, startIdx, endIdx] {
-                        std::vector<int64_t> batchA(secretsA.begin() + startIdx, secretsA.begin() + endIdx);
-                        std::vector<int64_t> batchB(secretsB.begin() + startIdx, secretsB.begin() + endIdx);
-                        return BoolEqualBatchOperator(&batchA, &batchB, width, task,
-                                                      BoolEqualBatchOperator::tagStride() * b,
-                                                      -1).setBmts(bmtB.get())->execute()->_zis;
-                    });
-                }
+                int startIdx = b * batch_size;
+                int endIdx = std::min((b + 1) * batch_size, static_cast<int>(secretsA.size()));
+                std::shared_ptr<std::vector<BitwiseBmt> > bmtB = std::make_shared<std::vector<BitwiseBmt> >(
+                    IntermediateDataSupport::pollBitwiseBmts(
+                        BoolEqualBatchOperator::bmtCount(endIdx - startIdx, width), 64));
+                futures[b] = ThreadPoolSupport::submit([&, b, bmtB, startIdx, endIdx] {
+                    std::vector<int64_t> batchA(secretsA.begin() + startIdx, secretsA.begin() + endIdx);
+                    std::vector<int64_t> batchB(secretsB.begin() + startIdx, secretsB.begin() + endIdx);
+                    return BoolEqualBatchOperator(&batchA, &batchB, width, task,
+                                                  BoolEqualBatchOperator::tagStride() * b,
+                                                  -1).setBmts(bmtB.get())->execute()->_zis;
+                });
             }
             for (auto &f: futures) {
                 auto v = f.get();
@@ -153,24 +149,22 @@ bool testBackground(std::vector<std::string> &testPmts, std::string pmt, int wid
             zs.reserve(secretsA.size());
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
             for (int b = 0; b < batch_num; ++b) {
-                if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
-                    int startIdx = b * batch_size;
-                    int endIdx = std::min((b + 1) * batch_size, static_cast<int>(secretsA.size()));
-                    std::shared_ptr<std::vector<BitwiseBmt> > bmtB = std::make_shared<std::vector<BitwiseBmt> >(
-                        IntermediateDataSupport::pollBitwiseBmts(
-                            BoolEqualBatchOperator::bmtCount(endIdx - startIdx, width), 64));
-                    futures[b] = ThreadPoolSupport::submit([&, b, bmtB, startIdx, endIdx] {
-                        std::vector<int64_t> batchA(secretsA.begin() + startIdx, secretsA.begin() + endIdx);
-                        std::vector<int64_t> batchB(secretsB.begin() + startIdx, secretsB.begin() + endIdx);
-                        auto zsB = BoolEqualBatchOperator(&batchA, &batchB, width, task,
-                                                          BoolEqualBatchOperator::tagStride() * b,
-                                                          -1).setBmts(bmtB.get())->execute()->_zis;
-                        for (auto &t: zsB) {
-                            t = t ^ Comm::rank();
-                        }
-                        return zsB;
-                    });
-                }
+                int startIdx = b * batch_size;
+                int endIdx = std::min((b + 1) * batch_size, static_cast<int>(secretsA.size()));
+                std::shared_ptr<std::vector<BitwiseBmt> > bmtB = std::make_shared<std::vector<BitwiseBmt> >(
+                    IntermediateDataSupport::pollBitwiseBmts(
+                        BoolEqualBatchOperator::bmtCount(endIdx - startIdx, width), 64));
+                futures[b] = ThreadPoolSupport::submit([&, b, bmtB, startIdx, endIdx] {
+                    std::vector<int64_t> batchA(secretsA.begin() + startIdx, secretsA.begin() + endIdx);
+                    std::vector<int64_t> batchB(secretsB.begin() + startIdx, secretsB.begin() + endIdx);
+                    auto zsB = BoolEqualBatchOperator(&batchA, &batchB, width, task,
+                                                      BoolEqualBatchOperator::tagStride() * b,
+                                                      -1).setBmts(bmtB.get())->execute()->_zis;
+                    for (auto &t: zsB) {
+                        t = t ^ Comm::rank();
+                    }
+                    return zsB;
+                });
             }
             for (auto &f: futures) {
                 auto v = f.get();
@@ -182,22 +176,20 @@ bool testBackground(std::vector<std::string> &testPmts, std::string pmt, int wid
             zs.reserve(secretsA.size());
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
             for (int b = 0; b < batch_num; ++b) {
-                if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
-                    int startIdx = b * batch_size;
-                    int endIdx = std::min((b + 1) * batch_size, static_cast<int>(secretsA.size()));
-                    std::shared_ptr<std::vector<BitwiseBmt> > bmtB = std::make_shared<std::vector<BitwiseBmt> >(
-                        IntermediateDataSupport::pollBitwiseBmts(
-                            BoolMutexBatchOperator::bmtCount(endIdx - startIdx, width), 64));
-                    futures[b] = ThreadPoolSupport::submit([&, b, bmtB, startIdx, endIdx] {
-                        std::vector<int64_t> batchA(secretsA.begin() + startIdx, secretsA.begin() + endIdx);
-                        std::vector<int64_t> batchB(secretsB.begin() + startIdx, secretsB.begin() + endIdx);
-                        std::vector<int64_t> batchC(secretConditions.begin() + startIdx,
-                                                    secretConditions.begin() + endIdx);
-                        return BoolMutexBatchOperator(&batchA, &batchB, &batchC, width, task,
-                                                      BoolMutexBatchOperator::tagStride() * b,
-                                                      -1).setBmts(bmtB.get())->execute()->_zis;
-                    });
-                }
+                int startIdx = b * batch_size;
+                int endIdx = std::min((b + 1) * batch_size, static_cast<int>(secretsA.size()));
+                std::shared_ptr<std::vector<BitwiseBmt> > bmtB = std::make_shared<std::vector<BitwiseBmt> >(
+                    IntermediateDataSupport::pollBitwiseBmts(
+                        BoolMutexBatchOperator::bmtCount(endIdx - startIdx, width), 64));
+                futures[b] = ThreadPoolSupport::submit([&, b, bmtB, startIdx, endIdx] {
+                    std::vector<int64_t> batchA(secretsA.begin() + startIdx, secretsA.begin() + endIdx);
+                    std::vector<int64_t> batchB(secretsB.begin() + startIdx, secretsB.begin() + endIdx);
+                    std::vector<int64_t> batchC(secretConditions.begin() + startIdx,
+                                                secretConditions.begin() + endIdx);
+                    return BoolMutexBatchOperator(&batchA, &batchB, &batchC, width, task,
+                                                  BoolMutexBatchOperator::tagStride() * b,
+                                                  -1).setBmts(bmtB.get())->execute()->_zis;
+                });
             }
             for (auto &f: futures) {
                 auto v = f.get();
@@ -447,7 +439,7 @@ int main(int argc, char *argv[]) {
     if (Comm::isClient()) {
         Log::i("Starting Background tests...");
     }
-    for (const std::string& pmt: testPmts) {
+    for (const std::string &pmt: testPmts) {
         if (Comm::isClient()) {
             Log::i("Starting Background tests for primitive: {}", pmt);
         }
@@ -493,8 +485,9 @@ int main(int argc, char *argv[]) {
                         results.push_back(result);
                     }
 
-                    Log::i("Background - Primitive: {}, Num: {}, Width: {} - Server0: {}ms, Server1: {}ms, Average: {}ms",
-                           pmt, num, width, backgroundTime0, backgroundTime1, avgBackgroundTime);
+                    Log::i(
+                        "Background - Primitive: {}, Num: {}, Width: {} - Server0: {}ms, Server1: {}ms, Average: {}ms",
+                        pmt, num, width, backgroundTime0, backgroundTime1, avgBackgroundTime);
                 }
             }
         }

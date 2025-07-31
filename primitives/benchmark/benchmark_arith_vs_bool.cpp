@@ -206,7 +206,7 @@ int main(int argc, char *argv[]) {
     ss << std::put_time(std::localtime(&time_t), "%Y%m%d_%H%M%S");
     std::string timestamp = ss.str();
 
-    std::vector testNums = {10000, 100000, 1000000, /*10000000*/};
+    std::vector testNums = {10000, /*100000, 1000000,*/ /*10000000*/};
     std::vector testWidths = {1, 2, 4, 8, 16, 32, 64,};
     std::vector<std::string> testPmts = {"<", "<=", "==", "!=", "mux", "ar", "sort"};
 

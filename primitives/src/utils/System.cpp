@@ -36,7 +36,7 @@ void System::init(int argc, char **argv) {
 }
 
 void System::finalize() {
-    Log::i("Prepare to shutdown...");
+    Log::i("Prepare to shutdown... (if not finalized please press Ctrl + C)");
     // Wait all threads done
     _shutdown = true;
     // Wait for generators to stop

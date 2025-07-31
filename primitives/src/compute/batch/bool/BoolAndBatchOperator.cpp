@@ -10,6 +10,7 @@
 #include "intermediate/BitwiseBmtGenerator.h"
 #include "intermediate/IntermediateDataSupport.h"
 #include "utils/Log.h"
+#include <mpi.h>
 
 int BoolAndBatchOperator::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     if (_bmts != nullptr) {

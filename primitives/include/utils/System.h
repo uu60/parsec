@@ -16,7 +16,7 @@ private:
      * 2 is preserved for BaseOtOperator. (No need for preservation)
      * 3 is preserved for ABPairGenerator. (Abort)
      */
-    inline static int PRESERVED_TASK_TAGS = 0;
+    inline static int PRESERVED_TASK_TAGS = 2 * Conf::BMT_QUEUE_NUM;
     inline static std::atomic_int _currentTaskTag = PRESERVED_TASK_TAGS;
 
 public:
