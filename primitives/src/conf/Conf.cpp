@@ -39,9 +39,12 @@ void Conf::init(int argc, char **argv) {
             thread_pool = "async";
         } else if (THREAD_POOL_TYPE == CTPL_POOL) {
             thread_pool = "ctpl_pool";
-        } else if (THREAD_POOL_TYPE == TBB_POOL) {
+        }
+#ifdef PARSEC_HAS_TBB
+        else if (THREAD_POOL_TYPE == TBB_POOL) {
             thread_pool = "tbb_pool";
         }
+#endif
 
         if (COMM_TYPE == MPI) {
             comm_type = "mpi";
@@ -132,7 +135,12 @@ void Conf::init(int argc, char **argv) {
             if (thread_pool == "ctpl_pool") {
                 THREAD_POOL_TYPE = CTPL_POOL;
             } else if (thread_pool == "tbb_pool") {
+#ifdef PARSEC_HAS_TBB
                 THREAD_POOL_TYPE = TBB_POOL;
+#else
+                std::cerr << "Warning: TBB is not available, falling back to ctpl_pool" << std::endl;
+                THREAD_POOL_TYPE = CTPL_POOL;
+#endif
             } else if (thread_pool == "async") {
                 THREAD_POOL_TYPE = ASYNC;
             } else {

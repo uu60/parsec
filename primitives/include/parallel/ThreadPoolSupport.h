@@ -27,8 +27,10 @@ public:
         }
         if (Conf::THREAD_POOL_TYPE == Conf::CTPL_POOL) {
             _ctplPool = new CtplThreadPool(Conf::LOCAL_THREADS);
+#ifdef PARSEC_HAS_TBB
         } else if (Conf::THREAD_POOL_TYPE == Conf::TBB_POOL) {
             _tbbPool = new TbbThreadPool(Conf::LOCAL_THREADS);
+#endif
         } else if (Conf::THREAD_POOL_TYPE == Conf::ASYNC) {
             _async = new Async();
         }
@@ -63,9 +65,11 @@ public:
         if (Conf::THREAD_POOL_TYPE == Conf::CTPL_POOL) {
             return _ctplPool->submit(f);
         }
+#ifdef PARSEC_HAS_TBB
         if (Conf::THREAD_POOL_TYPE == Conf::TBB_POOL) {
             return _tbbPool->submit(f);
         }
+#endif
         if (Conf::THREAD_POOL_TYPE == Conf::ASYNC) {
             return _async->submit(f);
         }

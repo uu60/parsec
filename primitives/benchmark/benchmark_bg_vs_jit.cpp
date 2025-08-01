@@ -2,7 +2,6 @@
 // Created by 杜建璋 on 25-7-28.
 //
 
-#include "compute/batch/arith/ArithLessBatchOperator.h"
 #include "compute/batch/bool/BoolLessBatchOperator.h"
 #include "compute/single/arith/ArithLessOperator.h"
 #include "secret/Secrets.h"
@@ -17,11 +16,8 @@
 #include <numeric>
 #include <map>
 
-#include "compute/batch/arith/ArithEqualBatchOperator.h"
-#include "compute/batch/arith/ArithMutexBatchOperator.h"
 #include "compute/batch/bool/BoolEqualBatchOperator.h"
 #include "compute/batch/bool/BoolMutexBatchOperator.h"
-#include "compute/batch/bool/BoolToArithBatchOperator.h"
 #include "intermediate/IntermediateDataSupport.h"
 #include "parallel/ThreadPoolSupport.h"
 
@@ -378,7 +374,7 @@ int main(int argc, char *argv[]) {
     ss << std::put_time(std::localtime(&time_t), "%Y%m%d_%H%M%S");
     std::string timestamp = ss.str();
 
-    std::vector testNums = {10000, /*100000, 1000000*//*, 10000000*/};
+    std::vector testNums = {10000, 100000, 1000000, 10000000};
     std::vector testWidths = {1, 2, 4, 8, 16, 32, 64,};
     std::vector<std::string> testPmts = {"<", "<=", "==", "!=", "mux", "sort"};
 

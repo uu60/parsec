@@ -16,7 +16,9 @@ public:
     // pool type
     enum PoolT {
         CTPL_POOL,
+#ifdef PARSEC_HAS_TBB
         TBB_POOL,
+#endif
         ASYNC,
     };
 
