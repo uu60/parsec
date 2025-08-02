@@ -20,6 +20,8 @@
 
 #include <string>
 
+#include "utils/StringUtils.h"
+
 View::View(std::vector<std::string> &fieldNames,
            std::vector<int> &fieldWidths) : Table(
     EMPTY_VIEW_NAME, fieldNames, fieldWidths, EMPTY_KEY_FIELD) {
@@ -435,10 +437,9 @@ void View::addRedundantCols() {
 
 void View::bitonicSortSingleBatch(const std::string &orderField, bool ascendingOrder, int msgTagBase) {
     auto n = _dataCols[0].size();
-    auto &orderCol = _dataCols[colIndex(orderField)];
-    auto &paddings = _dataCols[colNum() + PADDING_COL_OFFSET];
     int ofi = colIndex(orderField);
-    auto &oc = _dataCols[ofi]; // order column
+    auto &orderCol = _dataCols[ofi];
+    auto &paddings = _dataCols[colNum() + PADDING_COL_OFFSET];
     for (int k = 2; k <= n; k *= 2) {
         for (int j = k / 2; j > 0; j /= 2) {
             std::vector<int64_t> xs;
@@ -446,6 +447,7 @@ void View::bitonicSortSingleBatch(const std::string &orderField, bool ascendingO
             std::vector<int64_t> xIdx;
             std::vector<int64_t> yIdx;
             std::vector<bool> ascs;
+
             size_t halfN = n / 2;
             xs.reserve(halfN);
             ys.reserve(halfN);
@@ -486,7 +488,7 @@ void View::bitonicSortSingleBatch(const std::string &orderField, bool ascendingO
 
             std::vector<int64_t> zs;
             zs = BoolLessBatchOperator(&xs, &ys, _fieldWidths[ofi], 0, msgTagBase,
-                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
             for (int i = 0; i < comparingCount; i++) {
                 if (!ascs[i]) {
@@ -512,8 +514,8 @@ void View::bitonicSortSingleBatch(const std::string &orderField, bool ascendingO
                     execute()->_zis;
 
             for (int i = 0; i < comparingCount; i++) {
-                oc[xIdx[i]] = zs[i];
-                oc[yIdx[i]] = zs[(colNum() - 1) * comparingCount + i];
+                orderCol[xIdx[i]] = zs[i];
+                orderCol[yIdx[i]] = zs[(colNum() - 1) * comparingCount + i];
             }
 
             // skip first for order column
@@ -533,7 +535,7 @@ void View::bitonicSortSingleBatch(const std::string &orderField, bool ascendingO
     }
 }
 
-void View::bitonicSortSplittedBatches(const std::string &orderField, bool ascendingOrder, int msgTagBase) {
+void View::bitonicSortMultiBatches(const std::string &orderField, bool ascendingOrder, int msgTagBase) {
     const int batchSize = Conf::BATCH_SIZE;
     const int n = static_cast<int>(rowNum());
     int ofi = colIndex(orderField);
@@ -651,7 +653,7 @@ void View::bitonicSort(const std::string &orderField, bool ascendingOrder, int m
     if (Conf::BATCH_SIZE <= 0 || Conf::DISABLE_MULTI_THREAD) {
         bitonicSortSingleBatch(orderField, ascendingOrder, msgTagBase);
     } else {
-        bitonicSortSplittedBatches(orderField, ascendingOrder, msgTagBase);
+        bitonicSortMultiBatches(orderField, ascendingOrder, msgTagBase);
     }
 }
 
@@ -660,18 +662,18 @@ void View::sort(const std::vector<std::string> &orderFields, const std::vector<b
     if (orderFields.empty()) {
         return;
     }
-    
+
     // For single column, use existing implementation
     if (orderFields.size() == 1) {
         sort(orderFields[0], ascendingOrders[0], msgTagBase);
         return;
     }
-    
+
     size_t n = rowNum();
     if (n == 0) {
         return;
     }
-    
+
     bool isPowerOf2 = (n > 0) && ((n & (n - 1)) == 0);
     if (!isPowerOf2) {
         size_t nextPow2 = static_cast<size_t>(1) <<
@@ -681,9 +683,9 @@ void View::sort(const std::vector<std::string> &orderFields, const std::vector<b
             v.resize(nextPow2, 1);
         }
     }
-    
+
     bitonicSort(orderFields, ascendingOrders, msgTagBase);
-    
+
     if (n < _dataCols[0].size()) {
         for (auto &v: _dataCols) {
             v.resize(n);
@@ -691,11 +693,12 @@ void View::sort(const std::vector<std::string> &orderFields, const std::vector<b
     }
 }
 
-void View::bitonicSort(const std::vector<std::string> &orderFields, const std::vector<bool> &ascendingOrders, int msgTagBase) {
+void View::bitonicSort(const std::vector<std::string> &orderFields, const std::vector<bool> &ascendingOrders,
+                       int msgTagBase) {
     if (Conf::BATCH_SIZE <= 0 || Conf::DISABLE_MULTI_THREAD) {
         bitonicSortSingleBatch(orderFields, ascendingOrders, msgTagBase);
     } else {
-        bitonicSortSplittedBatches(orderFields, ascendingOrders, msgTagBase);
+        bitonicSortMultiBatches(orderFields, ascendingOrders, msgTagBase);
     }
 }
 
@@ -703,90 +706,39 @@ int View::sortTagStride(const std::vector<std::string> &orderFields) {
     if (orderFields.empty()) {
         return 0;
     }
-    
+
     // For single column, use existing calculation
     if (orderFields.size() == 1) {
         return sortTagStride();
     }
-    
+
     // For multi-column, we need more tags for comparison operations
     // Each comparison involves multiple columns, so multiply by number of columns
     int base_stride = ((rowNum() / 2 + Conf::BATCH_SIZE - 1) / Conf::BATCH_SIZE) * (colNum() - 1) *
-                     BoolMutexBatchOperator::tagStride();
-    
+                      BoolMutexBatchOperator::tagStride();
+
     // Additional tags for multi-column comparison
     int multi_col_factor = static_cast<int>(orderFields.size() * 2); // Conservative estimate
-    
+
     return base_stride * multi_col_factor;
 }
 
-std::vector<int64_t> View::compareMultiColumn(const std::vector<std::string> &orderFields, 
-                                             const std::vector<bool> &ascendingOrders,
-                                             int row1, int row2, int msgTagBase) {
-    // This method compares two rows based on multiple columns
-    // Returns a boolean share indicating if row1 should come before row2 in sorted order
-    
-    std::vector<int64_t> result(1, 0); // Initialize as false (row1 >= row2)
-    std::vector<int64_t> equal_so_far(1, Comm::rank() == 0 ? 1 : 0); // Initialize as true
-    
-    int tagOffset = msgTagBase;
-    
-    for (size_t i = 0; i < orderFields.size(); i++) {
-        int colIdx = colIndex(orderFields[i]);
-        bool ascending = ascendingOrders[i];
-        
-        // Compare values in this column
-        std::vector<int64_t> val1 = {_dataCols[colIdx][row1]};
-        std::vector<int64_t> val2 = {_dataCols[colIdx][row2]};
-        
-        // Check if val1 < val2
-        std::vector<int64_t> less_than = BoolLessBatchOperator(&val1, &val2, _fieldWidths[colIdx], 0, 
-                                        tagOffset++, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-        
-        // Check if val1 == val2
-        auto equal = BoolEqualBatchOperator(&val1, &val2, _fieldWidths[colIdx], 0, 
-                                          tagOffset++, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-        
-        // For descending order, we want val1 > val2, which is equivalent to val2 < val1
-        if (!ascending) {
-            // For descending order, we need to check val2 < val1 instead of val1 < val2
-            less_than = BoolLessBatchOperator(&val2, &val1, _fieldWidths[colIdx], 0, 
-                                            tagOffset++, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-        }
-        
-        // If equal_so_far AND less_than, then this column determines the order
-        auto condition = BoolAndBatchOperator(&equal_so_far, &less_than, 1, 0, 
-                                            tagOffset++, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-        
-        // result = result OR condition (using XOR since conditions are mutually exclusive)
-        for (size_t j = 0; j < result.size(); j++) {
-            result[j] = result[j] ^ condition[j];
-        }
-        
-        // Update equal_so_far = equal_so_far AND equal
-        equal_so_far = BoolAndBatchOperator(&equal_so_far, &equal, 1, 0, 
-                                          tagOffset++, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-    }
-    
-    return result;
-}
-
-void View::bitonicSortSingleBatch(const std::vector<std::string> &orderFields, const std::vector<bool> &ascendingOrders, int msgTagBase) {
+void View::bitonicSortSingleBatch(const std::vector<std::string> &orderFields, const std::vector<bool> &ascendingOrders,
+                                  int msgTagBase) {
     auto n = _dataCols[0].size();
+
+    std::vector<int> orderFieldIndices(orderFields.size());
+    for (size_t i = 0; i < orderFields.size(); i++) {
+        orderFieldIndices[i] = colIndex(orderFields[i]);
+    }
+
     auto &paddings = _dataCols[colNum() + PADDING_COL_OFFSET];
-    
-    int tagOffset = msgTagBase;
-    
     for (int k = 2; k <= n; k *= 2) {
         for (int j = k / 2; j > 0; j /= 2) {
-            std::vector<int64_t> xs;
-            std::vector<int64_t> ys;
             std::vector<int64_t> xIdx;
             std::vector<int64_t> yIdx;
             std::vector<bool> dirs;
             size_t halfN = n / 2;
-            xs.reserve(halfN);
-            ys.reserve(halfN);
             xIdx.reserve(halfN);
             yIdx.reserve(halfN);
             dirs.reserve(halfN);
@@ -797,8 +749,7 @@ void View::bitonicSortSingleBatch(const std::vector<std::string> &orderFields, c
                     continue;
                 }
                 bool dir = (i & k) == 0;
-                
-                // Handle padding
+                // last col is padding bool
                 if (paddings[i] && paddings[l]) {
                     continue;
                 }
@@ -811,7 +762,6 @@ void View::bitonicSortSingleBatch(const std::vector<std::string> &orderFields, c
                 if (paddings[i] || paddings[l]) {
                     continue;
                 }
-                
                 xIdx.push_back(i);
                 yIdx.push_back(l);
                 dirs.push_back(dir);
@@ -822,60 +772,105 @@ void View::bitonicSortSingleBatch(const std::vector<std::string> &orderFields, c
                 continue;
             }
 
-            // Perform multi-column comparison for each pair
-            std::vector<int64_t> comparison_results;
-            comparison_results.reserve(comparingCount);
-            
-            for (size_t idx = 0; idx < comparingCount; idx++) {
-                auto comp_result = compareMultiColumn(orderFields, ascendingOrders, 
-                                                    xIdx[idx], yIdx[idx], tagOffset);
-                comparison_results.insert(comparison_results.end(), comp_result.begin(), comp_result.end());
-                tagOffset += static_cast<int>(orderFields.size() * 6); // Rough estimate of tags used
-                
-                // Apply direction
-                if (!dirs[idx]) {
-                    for (auto &val : comp_result) {
-                        val = val ^ Comm::rank();
-                    }
+            std::vector<int64_t> xs, ys;
+            xs.reserve(comparingCount);
+            ys.reserve(comparingCount);
+            for (auto idx: xIdx) {
+                xs.push_back(_dataCols[orderFieldIndices[0]][idx]);
+            }
+            for (auto idx: yIdx) {
+                ys.push_back(_dataCols[orderFieldIndices[0]][idx]);
+            }
+
+            // lts shows if X should be before Y
+            std::vector<int64_t> lts = ascendingOrders[0]
+                                           ? BoolLessBatchOperator(&xs, &ys, _fieldWidths[orderFieldIndices[0]], 0,
+                                                                   msgTagBase,
+                                                                   SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis
+                                           : BoolLessBatchOperator(&ys, &xs, _fieldWidths[orderFieldIndices[0]], 0,
+                                                                   msgTagBase,
+                                                                   SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+            std::vector<int64_t> eqs = BoolEqualBatchOperator(&xs, &ys, _fieldWidths[orderFieldIndices[0]], 0,
+                                                              msgTagBase,
+                                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+            for (int i = 1; i < orderFields.size(); i++) {
+                xs.clear();
+                ys.clear();
+                for (auto idx: xIdx) {
+                    xs.push_back(_dataCols[orderFieldIndices[i]][idx]);
+                }
+                for (auto idx: yIdx) {
+                    ys.push_back(_dataCols[orderFieldIndices[i]][idx]);
+                }
+                std::vector<int64_t> lts_i = ascendingOrders[i]
+                                                 ? BoolLessBatchOperator(
+                                                     &xs, &ys, _fieldWidths[orderFieldIndices[i]], 0,
+                                                     msgTagBase,
+                                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis
+                                                 : BoolLessBatchOperator(
+                                                     &ys, &xs, _fieldWidths[orderFieldIndices[i]], 0,
+                                                     msgTagBase,
+                                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+
+                // If eqs is true, use lts_i (current column result), otherwise use lts (previous result)
+                lts = BoolMutexBatchOperator(&lts_i, &lts, &eqs, 1, 0, msgTagBase,
+                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+
+                std::vector<int64_t> eqs_i = BoolEqualBatchOperator(&xs, &ys, _fieldWidths[orderFieldIndices[i]], 0,
+                                                                    msgTagBase,
+                                                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+
+                eqs = BoolAndBatchOperator(&eqs, &eqs_i, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE).execute()
+                        ->_zis;
+            }
+
+
+            for (int i = 0; i < comparingCount; i++) {
+                if (!dirs[i]) {
+                    lts[i] = lts[i] ^ Comm::rank();
                 }
             }
 
-            // Collect all column data for swapping
-            size_t sz = comparingCount * (colNum() - 1);
+            size_t sz = comparingCount * colNum();
             xs.clear();
             ys.clear();
             xs.reserve(sz);
             ys.reserve(sz);
-            
-            for (int col = 0; col < colNum() - 1; col++) {
-                for (size_t idx = 0; idx < comparingCount; idx++) {
-                    xs.push_back(_dataCols[col][xIdx[idx]]);
-                    ys.push_back(_dataCols[col][yIdx[idx]]);
+
+            for (int i = 0; i < colNum() - 1; i++) {
+                for (int m = 0; m < comparingCount; m++) {
+                    xs.push_back(_dataCols[i][xIdx[m]]);
+                    ys.push_back(_dataCols[i][yIdx[m]]);
                 }
             }
 
-            // Use BoolMutex to swap based on comparison results
-            auto swapped_results = BoolMutexBatchOperator(&xs, &ys, &comparison_results, _maxWidth, 0, tagOffset).
+            auto zs = BoolMutexBatchOperator(&xs, &ys, &lts, _maxWidth, 0, msgTagBase).
                     execute()->_zis;
-            tagOffset += BoolMutexBatchOperator::tagStride();
 
-            // Update the data columns with swapped results
-            for (int col = 0; col < colNum() - 1; col++) {
-                for (size_t idx = 0; idx < comparingCount; idx++) {
-                    _dataCols[col][xIdx[idx]] = swapped_results[col * comparingCount + idx];
-                    _dataCols[col][yIdx[idx]] = swapped_results[(col + colNum() - 1) * comparingCount + idx];
+            int pos = 0;
+            for (int i = 0; i < colNum() - 1; i++) {
+                auto &co = _dataCols[i];
+                for (int m = 0; m < comparingCount; m++) {
+                    co[xIdx[m]] = zs[pos * comparingCount + m];
+                    co[yIdx[m]] = zs[(pos + colNum() - 1) * comparingCount + m];
                 }
+                pos++;
             }
         }
     }
 }
 
-void View::bitonicSortSplittedBatches(const std::vector<std::string> &orderFields, const std::vector<bool> &ascendingOrders, int msgTagBase) {
+void View::bitonicSortMultiBatches(const std::vector<std::string> &orderFields,
+                                   const std::vector<bool> &ascendingOrders, int msgTagBase) {
     const int batchSize = Conf::BATCH_SIZE;
     const int n = static_cast<int>(rowNum());
-    auto &paddings = _dataCols[colNum() + PADDING_COL_OFFSET];
     
-    int tagOffset = msgTagBase;
+    std::vector<int> orderFieldIndices(orderFields.size());
+    for (size_t i = 0; i < orderFields.size(); i++) {
+        orderFieldIndices[i] = colIndex(orderFields[i]);
+    }
+    
+    auto &paddings = _dataCols[colNum() + PADDING_COL_OFFSET];
     
     for (int k = 2; k <= n; k <<= 1) {
         for (int j = k >> 1; j > 0; j >>= 1) {
@@ -915,65 +910,116 @@ void View::bitonicSortSplittedBatches(const std::vector<std::string> &orderField
             }
 
             const int numBatches = (comparingCount + batchSize - 1) / batchSize;
-            const int tagStride = static_cast<int>(BoolMutexBatchOperator::tagStride() * (colNum() - 1) * orderFields.size());
+            // Calculate tag stride considering multi-column comparisons
+            const int baseTagStride = BoolLessBatchOperator::tagStride();
+            const int eqTagStride = BoolEqualBatchOperator::tagStride();
+            const int andTagStride = BoolAndBatchOperator::tagStride();
+            const int mutexTagStride = BoolMutexBatchOperator::tagStride();
+            
+            // For sequential execution, we only need the maximum tag stride among all operators
+            // since tags can be reused for sequential operations
+            const int maxOperatorTagStride = std::max({baseTagStride, eqTagStride, andTagStride, mutexTagStride});
+            const int tagsPerBatch = maxOperatorTagStride + (colNum() - 1) * mutexTagStride;
             
             std::vector<std::future<void> > futures;
             futures.reserve(numBatches);
             
             for (int b = 0; b < numBatches; ++b) {
-                futures.emplace_back(ThreadPoolSupport::submit([&, b, tagOffset]() {
+                futures.emplace_back(ThreadPoolSupport::submit([&, b]() {
                     const int start = b * batchSize;
                     const int end = std::min(start + batchSize, comparingCount);
                     const int cnt = end - start;
+                    const int batchTagBase = msgTagBase + tagsPerBatch * b;
+                    int currentTag = batchTagBase;
                     
-                    // Perform multi-column comparison for this batch
-                    std::vector<int64_t> batch_comparison_results;
-                    batch_comparison_results.reserve(cnt);
+                    // Multi-column comparison logic
+                    std::vector<int64_t> xs, ys;
+                    xs.reserve(cnt);
+                    ys.reserve(cnt);
                     
-                    int local_tag_offset = tagOffset + tagStride * b;
+                    // Start with first column comparison
+                    for (int t = start; t < end; ++t) {
+                        xs.push_back(_dataCols[orderFieldIndices[0]][xIdx[t]]);
+                        ys.push_back(_dataCols[orderFieldIndices[0]][yIdx[t]]);
+                    }
                     
-                    for (int idx = start; idx < end; ++idx) {
-                        auto comp_result = compareMultiColumn(orderFields, ascendingOrders, 
-                                                            xIdx[idx], yIdx[idx], local_tag_offset);
-                        batch_comparison_results.insert(batch_comparison_results.end(), comp_result.begin(), comp_result.end());
-                        local_tag_offset += static_cast<int>(orderFields.size() * 6);
+                    // lts shows if X should be before Y for first column
+                    std::vector<int64_t> lts = ascendingOrders[0]
+                                                   ? BoolLessBatchOperator(&xs, &ys, _fieldWidths[orderFieldIndices[0]], 0,
+                                                                           batchTagBase,
+                                                                           SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis
+                                                   : BoolLessBatchOperator(&ys, &xs, _fieldWidths[orderFieldIndices[0]], 0,
+                                                                           batchTagBase,
+                                                                           SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                    
+                    std::vector<int64_t> eqs = BoolEqualBatchOperator(&xs, &ys, _fieldWidths[orderFieldIndices[0]], 0,
+                                                                      batchTagBase,
+                                                                      SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                    
+                    // Process remaining columns - reuse the same tag base since operations are sequential
+                    for (int col = 1; col < orderFields.size(); col++) {
+                        xs.clear();
+                        ys.clear();
+                        for (int t = start; t < end; ++t) {
+                            xs.push_back(_dataCols[orderFieldIndices[col]][xIdx[t]]);
+                            ys.push_back(_dataCols[orderFieldIndices[col]][yIdx[t]]);
+                        }
                         
-                        // Apply direction
-                        if (!dirs[idx]) {
-                            for (auto &val : comp_result) {
-                                val = val ^ Comm::rank();
-                            }
+                        std::vector<int64_t> lts_i = ascendingOrders[col]
+                                                         ? BoolLessBatchOperator(&xs, &ys, _fieldWidths[orderFieldIndices[col]], 0,
+                                                                                 batchTagBase,
+                                                                                 SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis
+                                                         : BoolLessBatchOperator(&ys, &xs, _fieldWidths[orderFieldIndices[col]], 0,
+                                                                                 batchTagBase,
+                                                                                 SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                        
+                        // If eqs is true, use lts_i (current column result), otherwise use lts (previous result)
+                        lts = BoolMutexBatchOperator(&lts_i, &lts, &eqs, 1, 0, batchTagBase,
+                                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                        
+                        std::vector<int64_t> eqs_i = BoolEqualBatchOperator(&xs, &ys, _fieldWidths[orderFieldIndices[col]], 0,
+                                                                            batchTagBase,
+                                                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                        
+                        eqs = BoolAndBatchOperator(&eqs, &eqs_i, 1, 0, batchTagBase, 
+                                                   SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                    }
+                    
+                    // Apply direction
+                    for (int t = 0; t < cnt; ++t) {
+                        if (!dirs[start + t]) {
+                            lts[t] ^= Comm::rank();
                         }
                     }
 
-                    // Process each column in parallel
-                    std::vector<std::future<void> > column_futures;
-                    column_futures.reserve(colNum() - 1);
+                    // Parallel process each column (except padding column)
+                    std::vector<std::future<void> > futures2;
+                    futures2.reserve(colNum() - 1);
                     
                     for (int c = 0; c < colNum() - 1; ++c) {
-                        column_futures.push_back(ThreadPoolSupport::submit([&, b, c, start, end, cnt, local_tag_offset] {
+                        futures2.push_back(ThreadPoolSupport::submit([&, b, c, currentTag, start, end, cnt] {
                             auto &col = _dataCols[c];
                             std::vector<int64_t> subXs, subYs;
                             subXs.reserve(cnt);
                             subYs.reserve(cnt);
                             
-                            for (int idx = start; idx < end; ++idx) {
-                                subXs.push_back(col[xIdx[idx]]);
-                                subYs.push_back(col[yIdx[idx]]);
+                            for (int t = start; t < end; ++t) {
+                                subXs.push_back(col[xIdx[t]]);
+                                subYs.push_back(col[yIdx[t]]);
                             }
 
-                            auto copy = batch_comparison_results;
-                            auto swapped_results = BoolMutexBatchOperator(&subXs, &subYs, &copy, _fieldWidths[c], 0,
-                                                              local_tag_offset + BoolMutexBatchOperator::tagStride() * c).execute()->_zis;
+                            auto copy = lts;
+                            auto zs2 = BoolMutexBatchOperator(&subXs, &subYs, &copy, _fieldWidths[c], 0,
+                                                              currentTag + mutexTagStride * c).execute()->_zis;
 
-                            for (int idx = 0; idx < cnt; ++idx) {
-                                col[xIdx[start + idx]] = swapped_results[idx];
-                                col[yIdx[start + idx]] = swapped_results[cnt + idx];
+                            for (int t = 0; t < cnt; ++t) {
+                                col[xIdx[start + t]] = zs2[t];
+                                col[yIdx[start + t]] = zs2[cnt + t];
                             }
                         }));
                     }
                     
-                    for (auto &f: column_futures) {
+                    for (auto &f: futures2) {
                         f.wait();
                     }
                 }));
@@ -982,8 +1028,6 @@ void View::bitonicSortSplittedBatches(const std::vector<std::string> &orderField
             for (auto &f: futures) {
                 f.wait();
             }
-            
-            tagOffset += tagStride * numBatches;
         }
     }
 }

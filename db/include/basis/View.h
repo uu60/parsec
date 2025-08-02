@@ -56,12 +56,12 @@ public:
 private:
     void bitonicSortSingleBatch(const std::string &orderField, bool ascendingOrder, int msgTagBase);
 
-    void bitonicSortSplittedBatches(const std::string &orderField, bool ascendingOrder, int msgTagBase);
+    void bitonicSortMultiBatches(const std::string &orderField, bool ascendingOrder, int msgTagBase);
 
     // Multi-column sort private methods
     void bitonicSortSingleBatch(const std::vector<std::string> &orderFields, const std::vector<bool> &ascendingOrders, int msgTagBase);
 
-    void bitonicSortSplittedBatches(const std::vector<std::string> &orderFields, const std::vector<bool> &ascendingOrders, int msgTagBase);
+    void bitonicSortMultiBatches(const std::vector<std::string> &orderFields, const std::vector<bool> &ascendingOrders, int msgTagBase);
 
     void filterSingleBatch(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
                std::vector<int64_t> &constShares);
@@ -72,12 +72,6 @@ private:
     void bitonicSort(const std::string &orderField, bool ascendingOrder, int msgTagBase);
 
     void bitonicSort(const std::vector<std::string> &orderFields, const std::vector<bool> &ascendingOrders, int msgTagBase);
-
-    // Helper method for multi-column comparison
-    std::vector<int64_t> compareMultiColumn(const std::vector<std::string> &orderFields, 
-                                           const std::vector<bool> &ascendingOrders,
-                                           int row1, int row2, int msgTagBase);
-    
 };
 
 

@@ -1,0 +1,112 @@
+代码行数统计分析
+================================================================================
+分析时间: 2025年 8月 2日 星期六 14时42分42秒 EDT
+基础目录: /Users/dujianzhang/CLionProjects/parsec
+
+起始文件:
+  primitives/benchmark/benchmark_bg_vs_jit.cpp
+  primitives/benchmark/benchmark_arith_vs_bool.cpp
+  primitives/benchmark/benchmark_dyn_batch_size.cpp
+
+统计结果:
+总文件数: 91
+总代码行数: 9228
+源文件数量: 43 (共 7121 行)
+头文件数量: 48 (共 2107 行)
+
+详细文件列表:
+--------------------------------------------------------------------------------
+源文件:
+  primitives/benchmark/benchmark_arith_vs_bool.cpp                311 行
+  primitives/benchmark/benchmark_bg_vs_jit.cpp                    525 行
+  primitives/benchmark/benchmark_dyn_batch_size.cpp               395 行
+  primitives/src/ot/RandOtOperator.cpp                             37 行
+  primitives/src/accelerate/SimdSupport.cpp                       783 行
+  primitives/src/base/SecureOperator.cpp                           21 行
+  primitives/src/comm/Comm.cpp                                    222 行
+  primitives/src/comm/MpiComm.cpp                                 375 行
+  primitives/src/comm/item/MpiRequestWrapper.cpp                   95 行
+  primitives/src/compute/batch/arith/ArithBatchOperator.cpp       103 行
+  primitives/src/compute/batch/arith/ArithEqualBatchOperator.cpp     83 行
+  primitives/src/compute/batch/arith/ArithLessBatchOperator.cpp     75 行
+  primitives/src/compute/batch/arith/ArithMultiplyBatchOperator.cpp     77 行
+  primitives/src/compute/batch/arith/ArithMutexBatchOperator.cpp     92 行
+  primitives/src/compute/batch/arith/ArithToBoolBatchOperator.cpp    181 行
+  primitives/src/compute/batch/bool/BoolAndBatchOperator.cpp      266 行
+  primitives/src/compute/batch/bool/BoolBatchOperator.cpp         104 行
+  primitives/src/compute/batch/bool/BoolEqualBatchOperator.cpp     63 行
+  primitives/src/compute/batch/bool/BoolLessBatchOperator.cpp     178 行
+  primitives/src/compute/batch/bool/BoolMutexBatchOperator.cpp    151 行
+  primitives/src/compute/batch/bool/BoolToArithBatchOperator.cpp     69 行
+  primitives/src/compute/single/arith/ArithLessOperator.cpp        56 行
+  primitives/src/compute/single/arith/ArithMultiplyOperator.cpp     45 行
+  primitives/src/compute/single/arith/ArithOperator.cpp            76 行
+  primitives/src/compute/single/arith/ArithToBoolOperator.cpp     129 行
+  primitives/src/compute/single/bool/BoolAndOperator.cpp           66 行
+  primitives/src/compute/single/bool/BoolLessOperator.cpp         121 行
+  primitives/src/compute/single/bool/BoolMutexOperator.cpp         76 行
+  primitives/src/compute/single/bool/BoolToArithOperator.cpp      116 行
+  primitives/src/conf/Conf.cpp                                    181 行
+  primitives/src/intermediate/BitwiseBmtBatchGenerator.cpp        110 行
+  primitives/src/intermediate/BitwiseBmtGenerator.cpp             107 行
+  primitives/src/intermediate/BmtBatchGenerator.cpp               123 行
+  primitives/src/intermediate/BmtGenerator.cpp                    105 行
+  primitives/src/intermediate/IntermediateDataSupport.cpp         243 行
+  primitives/src/intermediate/PipelineBitwiseBmtBatchGenerator.cpp    166 行
+  primitives/src/ot/BaseOtOperator.cpp                            103 行
+  primitives/src/ot/RandOtBatchOperator.cpp                       285 行
+  primitives/src/ot/RandOtOperator.cpp                             37 行
+  primitives/src/secret/Secrets.cpp                               461 行
+  primitives/src/utils/Crypto.cpp                                  97 行
+  primitives/src/utils/Math.cpp                                   139 行
+  primitives/src/utils/System.cpp                                  73 行
+
+头文件:
+  primitives/include/ot/RandOtOperator.h                           21 行
+  primitives/include/accelerate/SimdSupport.h                      53 行
+  primitives/include/base/AbstractBatchOperator.h                  36 行
+  primitives/include/base/SecureOperator.h                         64 行
+  primitives/include/comm/Comm.h                                  137 行
+  primitives/include/comm/MpiComm.h                                70 行
+  primitives/include/comm/item/MpiRequestWrapper.h                 76 行
+  primitives/include/compute/batch/arith/ArithBatchOperator.h      23 行
+  primitives/include/compute/batch/arith/ArithEqualBatchOperator.h     27 行
+  primitives/include/compute/batch/arith/ArithLessBatchOperator.h     28 行
+  primitives/include/compute/batch/arith/ArithMultiplyBatchOperator.h     23 行
+  primitives/include/compute/batch/arith/ArithMutexBatchOperator.h     33 行
+  primitives/include/compute/batch/arith/ArithToBoolBatchOperator.h     26 行
+  primitives/include/compute/batch/bool/BoolAndBatchOperator.h     48 行
+  primitives/include/compute/batch/bool/BoolBatchOperator.h        23 行
+  primitives/include/compute/batch/bool/BoolEqualBatchOperator.h     38 行
+  primitives/include/compute/batch/bool/BoolLessBatchOperator.h     40 行
+  primitives/include/compute/batch/bool/BoolMutexBatchOperator.h     50 行
+  primitives/include/compute/batch/bool/BoolToArithBatchOperator.h     24 行
+  primitives/include/compute/single/arith/ArithLessOperator.h      30 行
+  primitives/include/compute/single/arith/ArithMultiplyOperator.h     27 行
+  primitives/include/compute/single/arith/ArithOperator.h          36 行
+  primitives/include/compute/single/arith/ArithToBoolOperator.h     37 行
+  primitives/include/compute/single/bool/BoolAndOperator.h         31 行
+  primitives/include/compute/single/bool/BoolLessOperator.h        38 行
+  primitives/include/compute/single/bool/BoolMutexOperator.h       35 行
+  primitives/include/compute/single/bool/BoolToArithOperator.h     28 行
+  primitives/include/conf/Conf.h                                   95 行
+  primitives/include/intermediate/BitwiseBmtBatchGenerator.h       39 行
+  primitives/include/intermediate/BitwiseBmtGenerator.h            40 行
+  primitives/include/intermediate/BmtBatchGenerator.h              35 行
+  primitives/include/intermediate/BmtGenerator.h                   37 行
+  primitives/include/intermediate/IntermediateDataSupport.h        66 行
+  primitives/include/intermediate/PipelineBitwiseBmtBatchGenerator.h     54 行
+  primitives/include/intermediate/item/BitwiseBmt.h                35 行
+  primitives/include/ot/BaseOtOperator.h                           51 行
+  primitives/include/ot/RandOtBatchOperator.h                      43 行
+  primitives/include/ot/RandOtOperator.h                           21 行
+  primitives/include/parallel/ThreadPoolSupport.h                  81 行
+  primitives/include/secret/Secrets.h                              32 行
+  primitives/include/sync/AbstractBlockingQueue.h                  23 行
+  primitives/include/sync/BoostLockFreeQueue.h                     47 行
+  primitives/include/sync/BoostSpscQueue.h                         48 行
+  primitives/include/sync/LockBlockingQueue.h                      52 行
+  primitives/include/utils/Crypto.h                                26 行
+  primitives/include/utils/Log.h                                   99 行
+  primitives/include/utils/Math.h                                  45 行
+  primitives/include/utils/System.h                                36 行

@@ -4326,12 +4326,16 @@ YY_RULE_SETUP
 {
   errno = 0;
   yylval->ival = static_cast<long long>(strtoull(yytext, nullptr, 0));
+  if (errno) {
+    return fprintf(stderr, "[SQL-Lexer-Error] Integer cannot be parsed - is it out of range?");
+    return 0;
+  }
   return SQL_INTVAL;
 }
 	YY_BREAK
 case 180:
 YY_RULE_SETUP
-#line 263 "flex_lexer.l"
+#line 267 "flex_lexer.l"
 {
   // Crop the leading and trailing quote char
   yylval->sval = hsql::substr(yytext, 1, strlen(yytext)-1);
@@ -4340,7 +4344,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 181:
 YY_RULE_SETUP
-#line 269 "flex_lexer.l"
+#line 273 "flex_lexer.l"
 {
   yylval->sval = strdup(yytext);
   return SQL_IDENTIFIER;
@@ -4348,40 +4352,40 @@ YY_RULE_SETUP
 	YY_BREAK
 case 182:
 YY_RULE_SETUP
-#line 274 "flex_lexer.l"
+#line 278 "flex_lexer.l"
 { BEGIN singlequotedstring; strbuf.clear(); strbuf.str(""); }  // Clear strbuf manually, see #170
 	YY_BREAK
 case 183:
 YY_RULE_SETUP
-#line 275 "flex_lexer.l"
+#line 279 "flex_lexer.l"
 { strbuf << '\''; }
 	YY_BREAK
 case 184:
 /* rule 184 can match eol */
 YY_RULE_SETUP
-#line 276 "flex_lexer.l"
+#line 280 "flex_lexer.l"
 { strbuf << yytext; }
 	YY_BREAK
 case 185:
 YY_RULE_SETUP
-#line 277 "flex_lexer.l"
+#line 281 "flex_lexer.l"
 { BEGIN 0; yylval->sval = strdup(strbuf.str().c_str()); return SQL_STRING; }
 	YY_BREAK
 case YY_STATE_EOF(singlequotedstring):
-#line 278 "flex_lexer.l"
+#line 282 "flex_lexer.l"
 { fprintf(stderr, "[SQL-Lexer-Error] Unterminated string\n"); return 0; }
 	YY_BREAK
 case 186:
 YY_RULE_SETUP
-#line 280 "flex_lexer.l"
+#line 284 "flex_lexer.l"
 { fprintf(stderr, "[SQL-Lexer-Error] Unknown Character: %c\n", yytext[0]); return 0; }
 	YY_BREAK
 case 187:
 YY_RULE_SETUP
-#line 282 "flex_lexer.l"
+#line 286 "flex_lexer.l"
 ECHO;
 	YY_BREAK
-#line 4384 "flex_lexer.cpp"
+#line 4388 "flex_lexer.cpp"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(COMMENT):
 	yyterminate();
@@ -5538,7 +5542,7 @@ void yyfree (void * ptr , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 282 "flex_lexer.l"
+#line 286 "flex_lexer.l"
 
 /***************************
  ** Section 3: User code
