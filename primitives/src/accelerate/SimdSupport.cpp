@@ -261,7 +261,7 @@ std::vector<int64_t> SimdSupport::xorVC(const std::vector<int64_t> &arr, int64_t
     int i = 0;
     __m512i const_vec = _mm512_set1_epi64(constant);
     for (; i + 8 <= num; i += 8) {
-        __m512i vec = _mm512_loadu_si512(&input[i]);
+        __m512i vec = _mm512_loadu_si512(&arr[i]);
         __m512i result = _mm512_xor_si512(vec, const_vec);
         _mm512_storeu_si512(&output[i], result);
     }
@@ -272,7 +272,7 @@ std::vector<int64_t> SimdSupport::xorVC(const std::vector<int64_t> &arr, int64_t
     int i = 0;
     __m256i const_vec = _mm256_set1_epi64x(constant);
     for (; i + 4 <= num; i += 4) {
-        __m256i vec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(&input[i]));
+        __m256i vec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(&arr[i]));
         __m256i result = _mm256_xor_si256(vec, const_vec);
         _mm256_storeu_si256(reinterpret_cast<__m256i*>(&output[i]), result);
     }
