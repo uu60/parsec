@@ -53,6 +53,15 @@ public:
 
     void addRedundantCols();
 
+    // Group by functionality for 2PC secret sharing
+    std::vector<std::pair<std::vector<int64_t>, int64_t>> groupBy(const std::string &groupField, int msgTagBase);
+
+    void distinct(int msgTagBase);
+
+    int groupByTagStride();
+    
+    int distinctTagStride();
+
 private:
     void bitonicSortSingleBatch(const std::string &orderField, bool ascendingOrder, int msgTagBase);
 
@@ -66,7 +75,7 @@ private:
     void filterSingleBatch(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
                std::vector<int64_t> &constShares);
 
-    void filterSplittedBatches(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
+    void filterMultiBatches(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
               std::vector<int64_t> &constShares);
 
     void bitonicSort(const std::string &orderField, bool ascendingOrder, int msgTagBase);

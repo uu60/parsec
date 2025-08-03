@@ -273,6 +273,19 @@ db_filter/fast:
 .PHONY : db_filter/fast
 
 #=============================================================================
+# Target rules for targets named db_group_by
+
+# Build rule for target.
+db_group_by: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 db_group_by
+.PHONY : db_group_by
+
+# fast build rule for target.
+db_group_by/fast:
+	$(MAKE) $(MAKESILENT) -f db/benchmark/CMakeFiles/db_group_by.dir/build.make db/benchmark/CMakeFiles/db_group_by.dir/build
+.PHONY : db_group_by/fast
+
+#=============================================================================
 # Target rules for targets named db_join
 
 # Build rule for target.
@@ -297,6 +310,19 @@ db_sort: cmake_check_build_system
 db_sort/fast:
 	$(MAKE) $(MAKESILENT) -f db/benchmark/CMakeFiles/db_sort.dir/build.make db/benchmark/CMakeFiles/db_sort.dir/build
 .PHONY : db_sort/fast
+
+#=============================================================================
+# Target rules for targets named db_sort_mul_col
+
+# Build rule for target.
+db_sort_mul_col: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 db_sort_mul_col
+.PHONY : db_sort_mul_col
+
+# fast build rule for target.
+db_sort_mul_col/fast:
+	$(MAKE) $(MAKESILENT) -f db/benchmark/CMakeFiles/db_sort_mul_col.dir/build.make db/benchmark/CMakeFiles/db_sort_mul_col.dir/build
+.PHONY : db_sort_mul_col/fast
 
 primitives/src/accelerate/SimdSupport.o: primitives/src/accelerate/SimdSupport.cpp.o
 .PHONY : primitives/src/accelerate/SimdSupport.o
@@ -1588,8 +1614,10 @@ help:
 	@echo "... db_core"
 	@echo "... db_debugSql"
 	@echo "... db_filter"
+	@echo "... db_group_by"
 	@echo "... db_join"
 	@echo "... db_sort"
+	@echo "... db_sort_mul_col"
 	@echo "... parsec"
 	@echo "... test_multiply_comparison"
 	@echo "... primitives/src/accelerate/SimdSupport.o"

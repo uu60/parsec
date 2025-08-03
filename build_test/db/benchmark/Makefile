@@ -131,6 +131,20 @@ db_filter/fast:
 .PHONY : db_filter/fast
 
 # Convenience name for target.
+db/benchmark/CMakeFiles/db_group_by.dir/rule:
+	cd /Users/dujianzhang/CLionProjects/parsec/build_test && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 db/benchmark/CMakeFiles/db_group_by.dir/rule
+.PHONY : db/benchmark/CMakeFiles/db_group_by.dir/rule
+
+# Convenience name for target.
+db_group_by: db/benchmark/CMakeFiles/db_group_by.dir/rule
+.PHONY : db_group_by
+
+# fast build rule for target.
+db_group_by/fast:
+	cd /Users/dujianzhang/CLionProjects/parsec/build_test && $(MAKE) $(MAKESILENT) -f db/benchmark/CMakeFiles/db_group_by.dir/build.make db/benchmark/CMakeFiles/db_group_by.dir/build
+.PHONY : db_group_by/fast
+
+# Convenience name for target.
 db/benchmark/CMakeFiles/db_join.dir/rule:
 	cd /Users/dujianzhang/CLionProjects/parsec/build_test && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 db/benchmark/CMakeFiles/db_join.dir/rule
 .PHONY : db/benchmark/CMakeFiles/db_join.dir/rule
@@ -158,6 +172,20 @@ db_sort/fast:
 	cd /Users/dujianzhang/CLionProjects/parsec/build_test && $(MAKE) $(MAKESILENT) -f db/benchmark/CMakeFiles/db_sort.dir/build.make db/benchmark/CMakeFiles/db_sort.dir/build
 .PHONY : db_sort/fast
 
+# Convenience name for target.
+db/benchmark/CMakeFiles/db_sort_mul_col.dir/rule:
+	cd /Users/dujianzhang/CLionProjects/parsec/build_test && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 db/benchmark/CMakeFiles/db_sort_mul_col.dir/rule
+.PHONY : db/benchmark/CMakeFiles/db_sort_mul_col.dir/rule
+
+# Convenience name for target.
+db_sort_mul_col: db/benchmark/CMakeFiles/db_sort_mul_col.dir/rule
+.PHONY : db_sort_mul_col
+
+# fast build rule for target.
+db_sort_mul_col/fast:
+	cd /Users/dujianzhang/CLionProjects/parsec/build_test && $(MAKE) $(MAKESILENT) -f db/benchmark/CMakeFiles/db_sort_mul_col.dir/build.make db/benchmark/CMakeFiles/db_sort_mul_col.dir/build
+.PHONY : db_sort_mul_col/fast
+
 db_filter.o: db_filter.cpp.o
 .PHONY : db_filter.o
 
@@ -181,6 +209,30 @@ db_filter.s: db_filter.cpp.s
 db_filter.cpp.s:
 	cd /Users/dujianzhang/CLionProjects/parsec/build_test && $(MAKE) $(MAKESILENT) -f db/benchmark/CMakeFiles/db_filter.dir/build.make db/benchmark/CMakeFiles/db_filter.dir/db_filter.cpp.s
 .PHONY : db_filter.cpp.s
+
+db_group_by.o: db_group_by.cpp.o
+.PHONY : db_group_by.o
+
+# target to build an object file
+db_group_by.cpp.o:
+	cd /Users/dujianzhang/CLionProjects/parsec/build_test && $(MAKE) $(MAKESILENT) -f db/benchmark/CMakeFiles/db_group_by.dir/build.make db/benchmark/CMakeFiles/db_group_by.dir/db_group_by.cpp.o
+.PHONY : db_group_by.cpp.o
+
+db_group_by.i: db_group_by.cpp.i
+.PHONY : db_group_by.i
+
+# target to preprocess a source file
+db_group_by.cpp.i:
+	cd /Users/dujianzhang/CLionProjects/parsec/build_test && $(MAKE) $(MAKESILENT) -f db/benchmark/CMakeFiles/db_group_by.dir/build.make db/benchmark/CMakeFiles/db_group_by.dir/db_group_by.cpp.i
+.PHONY : db_group_by.cpp.i
+
+db_group_by.s: db_group_by.cpp.s
+.PHONY : db_group_by.s
+
+# target to generate assembly for a file
+db_group_by.cpp.s:
+	cd /Users/dujianzhang/CLionProjects/parsec/build_test && $(MAKE) $(MAKESILENT) -f db/benchmark/CMakeFiles/db_group_by.dir/build.make db/benchmark/CMakeFiles/db_group_by.dir/db_group_by.cpp.s
+.PHONY : db_group_by.cpp.s
 
 db_join.o: db_join.cpp.o
 .PHONY : db_join.o
@@ -230,6 +282,30 @@ db_sort.cpp.s:
 	cd /Users/dujianzhang/CLionProjects/parsec/build_test && $(MAKE) $(MAKESILENT) -f db/benchmark/CMakeFiles/db_sort.dir/build.make db/benchmark/CMakeFiles/db_sort.dir/db_sort.cpp.s
 .PHONY : db_sort.cpp.s
 
+db_sort_mul_col.o: db_sort_mul_col.cpp.o
+.PHONY : db_sort_mul_col.o
+
+# target to build an object file
+db_sort_mul_col.cpp.o:
+	cd /Users/dujianzhang/CLionProjects/parsec/build_test && $(MAKE) $(MAKESILENT) -f db/benchmark/CMakeFiles/db_sort_mul_col.dir/build.make db/benchmark/CMakeFiles/db_sort_mul_col.dir/db_sort_mul_col.cpp.o
+.PHONY : db_sort_mul_col.cpp.o
+
+db_sort_mul_col.i: db_sort_mul_col.cpp.i
+.PHONY : db_sort_mul_col.i
+
+# target to preprocess a source file
+db_sort_mul_col.cpp.i:
+	cd /Users/dujianzhang/CLionProjects/parsec/build_test && $(MAKE) $(MAKESILENT) -f db/benchmark/CMakeFiles/db_sort_mul_col.dir/build.make db/benchmark/CMakeFiles/db_sort_mul_col.dir/db_sort_mul_col.cpp.i
+.PHONY : db_sort_mul_col.cpp.i
+
+db_sort_mul_col.s: db_sort_mul_col.cpp.s
+.PHONY : db_sort_mul_col.s
+
+# target to generate assembly for a file
+db_sort_mul_col.cpp.s:
+	cd /Users/dujianzhang/CLionProjects/parsec/build_test && $(MAKE) $(MAKESILENT) -f db/benchmark/CMakeFiles/db_sort_mul_col.dir/build.make db/benchmark/CMakeFiles/db_sort_mul_col.dir/db_sort_mul_col.cpp.s
+.PHONY : db_sort_mul_col.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -239,17 +315,25 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... db_filter"
+	@echo "... db_group_by"
 	@echo "... db_join"
 	@echo "... db_sort"
+	@echo "... db_sort_mul_col"
 	@echo "... db_filter.o"
 	@echo "... db_filter.i"
 	@echo "... db_filter.s"
+	@echo "... db_group_by.o"
+	@echo "... db_group_by.i"
+	@echo "... db_group_by.s"
 	@echo "... db_join.o"
 	@echo "... db_join.i"
 	@echo "... db_join.s"
 	@echo "... db_sort.o"
 	@echo "... db_sort.i"
 	@echo "... db_sort.s"
+	@echo "... db_sort_mul_col.o"
+	@echo "... db_sort_mul_col.i"
+	@echo "... db_sort_mul_col.s"
 .PHONY : help
 
 
