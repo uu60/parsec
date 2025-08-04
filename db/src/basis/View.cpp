@@ -652,14 +652,70 @@ void View::bitonicSortMultiBatches(const std::string &orderField, bool ascending
 }
 
 // Group by functionality for 2PC secret sharing
-std::vector<std::pair<std::vector<int64_t>, int64_t> > View::groupBy(const std::string &groupField, int msgTagBase) {
+std::pair<std::vector<int64_t>, int64_t> View::groupBy(const std::string &groupField, int msgTagBase) {
     size_t n = rowNum();
     if (n == 0) {
-        return {};
+        return {std::vector<int64_t>(), 0};
     }
 
     // First, sort by the group field to ensure records with same keys are adjacent
     sort(groupField, true, msgTagBase);
+
+    int groupFieldIndex = colIndex(groupField);
+    auto &groupCol = _dataCols[groupFieldIndex];
+    
+    // Step 2: Identify group boundaries by comparing adjacent rows
+    // Create a boundary indicator vector: 1 if current row starts a new group, 0 otherwise
+    std::vector<int64_t> groupHeads(n);
+    groupHeads[0] = Comm::rank(); // First row always starts a new group (Alice=1, Bob=0, XOR=1)
+    
+    if (n > 1) {
+        std::vector<int64_t> currData, prevData;
+        currData.reserve(n - 1);
+        prevData.reserve(n - 1);
+        
+        for (size_t i = 1; i < n; i++) {
+            currData.push_back(groupCol[i]);
+            prevData.push_back(groupCol[i - 1]);
+        }
+        
+        // Compare current row with previous row
+        auto eqs = BoolEqualBatchOperator(&currData, &prevData, _fieldWidths[groupFieldIndex],
+                                         0, msgTagBase,
+                                         SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        
+        // If equal to previous, not a boundary (0), if different, is a boundary (1)
+        for (size_t i = 1; i < n; i++) {
+            groupHeads[i] = eqs[i - 1] ^ Comm::rank(); // XOR with rank to flip: equal=0, different=1
+        }
+    }
+    
+    // Step 3: Convert boundary indicators to arithmetic shares for counting
+    auto boundaryArith = BoolToArithBatchOperator(&groupHeads, 64, 0, msgTagBase,
+                                                 SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+    
+    // Step 4: Calculate cumulative group IDs for each row
+    std::vector<int64_t> groupIds(n);
+    groupIds[0] = boundaryArith[0];
+    for (size_t i = 1; i < n; i++) {
+        groupIds[i] = groupIds[i - 1] + boundaryArith[i];
+    }
+    
+    // Step 5: Find the total number of groups
+    int64_t maxGroupIdShare = groupIds[n - 1];
+    int64_t maxGroupIdOther;
+    auto r0 = Comm::serverSendAsync(maxGroupIdShare, 64, msgTagBase);
+    auto r1 = Comm::serverReceiveAsync(maxGroupIdOther, 64, msgTagBase);
+    Comm::wait(r0);
+    Comm::wait(r1);
+    
+    int64_t totalGroups = maxGroupIdShare + maxGroupIdOther;
+    
+    // Return the group IDs for each row and the total number of groups
+    // This is all that's needed for aggregation functions:
+    // - groupIds[i] tells us which group row i belongs to
+    // - totalGroups tells us how many groups there are
+    return {groupIds, totalGroups};
 }
 
 void View::distinct(int msgTagBase) {
@@ -747,8 +803,8 @@ int View::groupByTagStride() {
 }
 
 int View::distinctTagStride() {
-    return std::max(BoolEqualBatchOperator::tagStride(), BoolAndBatchOperator::tagStride(),
-                    clearInvalidEntriesTagStride());
+    return std::max({BoolEqualBatchOperator::tagStride(), BoolAndBatchOperator::tagStride(),
+                    clearInvalidEntriesTagStride()});
 }
 
 void View::bitonicSort(const std::string &orderField, bool ascendingOrder, int msgTagBase) {

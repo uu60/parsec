@@ -13,7 +13,8 @@
 #include "utils/StringUtils.h"
 
 
-Table::Table(std::string &tableName, std::vector<std::string> &fieldNames, std::vector<int> &fieldWidths, std::string keyField) {
+Table::Table(std::string &tableName, std::vector<std::string> &fieldNames, std::vector<int> &fieldWidths,
+             std::string keyField) {
     this->_tableName = tableName;
     this->_fieldNames = fieldNames;
     this->_fieldWidths = fieldWidths;
@@ -33,7 +34,9 @@ Table::Table(std::string &tableName, std::vector<std::string> &fieldNames, std::
 
 bool Table::insert(const std::vector<int64_t> &r) {
     if (r.size() != colNum()) {
-        return false;
+        throw std::runtime_error(
+            "Table::insert: wrong column number, expected " + std::to_string(colNum()) + ", got " +
+            std::to_string(r.size()));
     }
     for (int i = 0; i < r.size(); i++) {
         _dataCols[i].push_back(r[i]);

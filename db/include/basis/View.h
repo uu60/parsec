@@ -54,7 +54,8 @@ public:
     void addRedundantCols();
 
     // Group by functionality for 2PC secret sharing
-    std::vector<std::pair<std::vector<int64_t>, int64_t>> groupBy(const std::string &groupField, int msgTagBase);
+    // Returns: pair<groupIds for each row, total number of groups>
+    std::pair<std::vector<int64_t>, int64_t> groupBy(const std::string &groupField, int msgTagBase);
 
     void distinct(int msgTagBase);
 
