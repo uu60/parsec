@@ -27,7 +27,13 @@ public:
 
     static int64_t hash(int64_t keyValue);
 
+    static std::vector<int64_t> in(std::vector<int64_t> &col1, std::vector<int64_t> &col2);
+
 private:
+    static std::vector<int64_t> inSingleBatch(std::vector<int64_t> &col1, std::vector<int64_t> &col2);
+    
+    static std::vector<int64_t> inMultiBatches(std::vector<int64_t> &col1, std::vector<int64_t> &col2);
+    
     static void addRedundantCols(View &v);
     
     static std::vector<std::vector<std::vector<int64_t>>> butterflyPermutation(

@@ -28,3 +28,5 @@ target_link_libraries(db_client ${READLINE_LIBRARY})
 add_executable(db_debugSql "${CMAKE_CURRENT_SOURCE_DIR}/src/debugParser.cpp")
 
 target_link_libraries(db_debugSql PRIVATE db_core)
+
+add_subdirectory(exp)

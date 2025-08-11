@@ -12,15 +12,15 @@ class BoolEqualBatchOperator : public BoolBatchOperator {
 private:
     // BitwiseBmt *_bmt{};
     std::vector<BitwiseBmt> *_bmts{};
-    bool _doBidirectional{};
+    bool _dbIn{}; // If _dbIn is true, operator is used for database operation IN
 
 public:
     inline static std::atomic_int64_t _totalTime = 0;
 
 public:
     // reverse x and y to obey less than logic
-    BoolEqualBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys, int width, int taskTag, int msgTagOffset,
-                          int clientRank) : BoolBatchOperator(xs, ys, width, taskTag, msgTagOffset, clientRank) {
+    BoolEqualBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *afterCol, int width, int taskTag, int msgTagOffset,
+                          int clientRank) : BoolBatchOperator(xs, afterCol, width, taskTag, msgTagOffset, clientRank) {
     }
 
     BoolEqualBatchOperator *execute() override;

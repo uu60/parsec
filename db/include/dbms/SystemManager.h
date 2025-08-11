@@ -13,10 +13,14 @@
 #include "../third_party/hsql/sql/SQLStatement.h"
 
 #include <string>
+
+#include "utils/System.h"
 using json = nlohmann::json;
 
 class SystemManager {
 public:
+    inline static int UNIFIED_TAG_ID = System::nextTask();
+
     enum CommandType {
         EXIT,
         CREATE_DB,

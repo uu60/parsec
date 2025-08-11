@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
     value_shares = Secrets::boolShare(value_shares, 2, 64, System::nextTask());
 
     View v;
-    std::pair<std::vector<int64_t>, int64_t> group_result;
+    std::vector<int64_t> group_result;
     
     if (Comm::isServer()) {
         // Create a view with the test data
@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
         
         auto end = System::currentTimeMillis();
         Log::i("Group by operation completed in {}ms", end - start);
-        Log::i("groups: {}", group_result.second);
+        Log::i("groups: {}", StringUtils::vecString(group_result));
     }
 
     System::finalize();

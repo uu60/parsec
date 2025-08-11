@@ -106,6 +106,9 @@ int main(int argc, char **argv) {
         case 26:
             test_equal_operators_comparison_26();
             break;
+        case 27:
+            test_bool_equal_batch_performance_27();
+            break;
     }
 
     System::finalize();

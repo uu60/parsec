@@ -794,5 +794,92 @@ inline void test_equal_operators_comparison_26() {
     }
 }
 
+inline void test_bool_equal_batch_performance_27() {
+    std::vector<int64_t> a, b;
+    int width = 64;
+    int testSize = 1000000; // Large test size for performance testing
+
+    if (Comm::isClient()) {
+        Log::i("Testing BoolEqualBatchOperator PERFORMANCE with {} values, width {}", testSize, width);
+
+        // Generate test values with mix of equal and different pairs
+        for (int i = 0; i < testSize; i++) {
+            if (i % 4 == 0) {
+                // Make 25% pairs equal
+                int64_t val = Math::randInt(0, 1000000);
+                a.push_back(val);
+                b.push_back(val);
+            } else {
+                // Make 75% pairs different
+                a.push_back(Math::randInt(0, 1000000));
+                b.push_back(Math::randInt(0, 1000000));
+            }
+        }
+        Log::i("Generated {} test pairs", testSize);
+    }
+
+    auto t = System::nextTask();
+
+    if (Comm::isServer()) {
+        a = Secrets::boolShare(a, 2, 64, t);
+        b = Secrets::boolShare(b, 2, 64, t);
+    } else {
+        Secrets::boolShare(a, 2, 64, t);
+        Secrets::boolShare(b, 2, 64, t);
+    }
+
+    std::vector<int64_t> results;
+    if (Comm::isServer()) {
+        auto start = System::currentTimeMillis();
+        
+        // Test optimized BoolEqualBatchOperator with byBitComp = true
+        BoolEqualBatchOperator batchOp(&a, &b, width, t, 0, -1);
+        results = batchOp.execute()->_zis;
+        
+        auto end = System::currentTimeMillis();
+        Log::i("BoolEqualBatchOperator (optimized) execution time: {}ms", end - start);
+        Log::i("Throughput: {} comparisons/ms", static_cast<double>(testSize) / (end - start));
+        
+        // Measure memory usage
+        Log::i("Result vector size: {} elements", results.size());
+    }
+
+    // Reconstruct results for verification
+    results = Secrets::boolReconstruct(results, 2, 1, t);
+
+    if (Comm::isClient()) {
+        // Verify a sample of results for correctness
+        int sampleSize = std::min(100, testSize);
+        int correctCount = 0;
+        int wrongCount = 0;
+        
+        for (int i = 0; i < sampleSize; i++) {
+            uint64_t ua = static_cast<uint64_t>(Math::ring(a[i], width));
+            uint64_t ub = static_cast<uint64_t>(Math::ring(b[i], width));
+            bool expected = (ua == ub);
+            bool actual = (results[i] == 1);
+            
+            if (expected == actual) {
+                correctCount++;
+            } else {
+                wrongCount++;
+                if (wrongCount <= 5) { // Only log first 5 errors
+                    Log::e("Sample {}: WRONG - a: {}, b: {}, expected: {}, actual: {}", 
+                           i, ua, ub, expected, actual);
+                }
+            }
+        }
+        
+        Log::i("Performance Test Sample Verification: {} correct, {} wrong out of {} samples",
+               correctCount, wrongCount, sampleSize);
+               
+        if (wrongCount == 0) {
+            Log::i("✅ BoolEqualBatchOperator performance test PASSED!");
+        } else {
+            Log::e("❌ BoolEqualBatchOperator performance test FAILED with {} errors in sample", wrongCount);
+        }
+    }
+}
+
 
 #endif //DEMO_TEST_CASES_H

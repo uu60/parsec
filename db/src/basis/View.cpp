@@ -13,8 +13,6 @@
 #include "compute/batch/bool/BoolToArithBatchOperator.h"
 #include "compute/batch/arith/ArithMutexBatchOperator.h"
 #include "compute/batch/arith/ArithMultiplyBatchOperator.h"
-#include "compute/batch/arith/ArithLessBatchOperator.h"
-#include "compute/batch/arith/ArithEqualBatchOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "secret/Secrets.h"
 #include "utils/Log.h"
@@ -584,7 +582,7 @@ void View::bitonicSortMultiBatches(const std::string &orderField, bool ascending
             std::vector<std::future<void> > futures;
             futures.reserve(numBatches);
             for (int b = 0; b < numBatches; ++b) {
-                futures.emplace_back(ThreadPoolSupport::submit([&,b]() {
+                futures.emplace_back(ThreadPoolSupport::submit([&, b]() {
                     const int start = b * batchSize;
                     const int end = std::min(start + batchSize, comparingCount);
                     const int cnt = end - start;
@@ -633,6 +631,7 @@ void View::bitonicSortMultiBatches(const std::string &orderField, bool ascending
                                                               BoolMutexBatchOperator::tagStride() * c).execute()->
                                     _zis;
 
+                            int64_t time = System::currentTimeMillis();
                             for (int t = 0; t < cnt; ++t) {
                                 col[xIdx[start + t]] = zs2[t];
                                 col[yIdx[start + t]] = zs2[cnt + t];
@@ -652,10 +651,10 @@ void View::bitonicSortMultiBatches(const std::string &orderField, bool ascending
 }
 
 // Group by functionality for 2PC secret sharing
-std::pair<std::vector<int64_t>, int64_t> View::groupBy(const std::string &groupField, int msgTagBase) {
+std::vector<int64_t> View::groupBy(const std::string &groupField, int msgTagBase) {
     size_t n = rowNum();
     if (n == 0) {
-        return {std::vector<int64_t>(), 0};
+        return std::vector<int64_t>();
     }
 
     // First, sort by the group field to ensure records with same keys are adjacent
@@ -663,59 +662,76 @@ std::pair<std::vector<int64_t>, int64_t> View::groupBy(const std::string &groupF
 
     int groupFieldIndex = colIndex(groupField);
     auto &groupCol = _dataCols[groupFieldIndex];
-    
+
     // Step 2: Identify group boundaries by comparing adjacent rows
     // Create a boundary indicator vector: 1 if current row starts a new group, 0 otherwise
     std::vector<int64_t> groupHeads(n);
     groupHeads[0] = Comm::rank(); // First row always starts a new group (Alice=1, Bob=0, XOR=1)
-    
+
     if (n > 1) {
         std::vector<int64_t> currData, prevData;
         currData.reserve(n - 1);
         prevData.reserve(n - 1);
-        
+
         for (size_t i = 1; i < n; i++) {
             currData.push_back(groupCol[i]);
             prevData.push_back(groupCol[i - 1]);
         }
-        
+
         // Compare current row with previous row
         auto eqs = BoolEqualBatchOperator(&currData, &prevData, _fieldWidths[groupFieldIndex],
-                                         0, msgTagBase,
-                                         SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-        
+                                          0, msgTagBase,
+                                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+
         // If equal to previous, not a boundary (0), if different, is a boundary (1)
         for (size_t i = 1; i < n; i++) {
             groupHeads[i] = eqs[i - 1] ^ Comm::rank(); // XOR with rank to flip: equal=0, different=1
         }
     }
-    
-    // Step 3: Convert boundary indicators to arithmetic shares for counting
-    auto boundaryArith = BoolToArithBatchOperator(&groupHeads, 64, 0, msgTagBase,
-                                                 SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-    
-    // Step 4: Calculate cumulative group IDs for each row
-    std::vector<int64_t> groupIds(n);
-    groupIds[0] = boundaryArith[0];
-    for (size_t i = 1; i < n; i++) {
-        groupIds[i] = groupIds[i - 1] + boundaryArith[i];
-    }
-    
+
+    return groupHeads;
+
+    /*
+     * Non Oblivious Version
+     */
+    // std::vector<int64_t> groupHeadsOther;
+    // auto r0 = Comm::serverSendAsync(groupHeads, 64, msgTagBase);
+    // auto r1 = Comm::serverReceiveAsync(groupHeadsOther, n, 64, msgTagBase);
+    // Comm::wait(r0);
+    // Comm::wait(r1);
+    //
+    // for (int i = 0; i < n; i++) {
+    //     groupHeads[i] ^= groupHeadsOther[i]; // Combine results from both parties
+    // }
+    //
+    // std::vector<int64_t> groupIds(n, 0);
+    // for (int i = 1; i < n; i++) {
+    //     groupIds[i] = groupHeads[i] + groupIds[i - 1];
+    // }
+
+    // // Step 3: Convert boundary indicators to arithmetic shares for counting
+    // auto boundaryArith = BoolToArithBatchOperator(&groupHeads, 64, 0, msgTagBase,
+    //                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+    //
+    // // Step 4: Calculate cumulative group IDs for each row
+    // std::vector<int64_t> groupIds(n);
+    // groupIds[0] = boundaryArith[0];
+    // for (size_t i = 1; i < n; i++) {
+    //     groupIds[i] = groupIds[i - 1] + boundaryArith[i];
+    // }
+
     // Step 5: Find the total number of groups
-    int64_t maxGroupIdShare = groupIds[n - 1];
-    int64_t maxGroupIdOther;
-    auto r0 = Comm::serverSendAsync(maxGroupIdShare, 64, msgTagBase);
-    auto r1 = Comm::serverReceiveAsync(maxGroupIdOther, 64, msgTagBase);
-    Comm::wait(r0);
-    Comm::wait(r1);
-    
-    int64_t totalGroups = maxGroupIdShare + maxGroupIdOther;
-    
-    // Return the group IDs for each row and the total number of groups
-    // This is all that's needed for aggregation functions:
-    // - groupIds[i] tells us which group row i belongs to
-    // - totalGroups tells us how many groups there are
-    return {groupIds, totalGroups};
+    // std::vector<int64_t> groupIdsOther;
+    // auto r0 = Comm::serverSendAsync(groupIds, 64, msgTagBase);
+    // auto r1 = Comm::serverReceiveAsync(groupIdsOther, groupIds.size(), 64, msgTagBase);
+    // Comm::wait(r0);
+    // Comm::wait(r1);
+    //
+    // for (int i = 0; i < groupIds.size(); i++) {
+    //     groupIds[i] ^= groupIdsOther[i];
+    // }
+    //
+    // return groupIds;
 }
 
 void View::distinct(int msgTagBase) {
@@ -803,8 +819,10 @@ int View::groupByTagStride() {
 }
 
 int View::distinctTagStride() {
-    return std::max({BoolEqualBatchOperator::tagStride(), BoolAndBatchOperator::tagStride(),
-                    clearInvalidEntriesTagStride()});
+    return std::max({
+        BoolEqualBatchOperator::tagStride(), BoolAndBatchOperator::tagStride(),
+        clearInvalidEntriesTagStride()
+    });
 }
 
 void View::bitonicSort(const std::string &orderField, bool ascendingOrder, int msgTagBase) {
