@@ -20,6 +20,7 @@
 
 #include <string>
 
+#include "compute/batch/arith/ArithToBoolBatchOperator.h"
 #include "utils/StringUtils.h"
 
 View::View(std::vector<std::string> &fieldNames,
@@ -689,6 +690,34 @@ std::vector<int64_t> View::groupBy(const std::string &groupField, int msgTagBase
         }
     }
 
+    // Remove all columns except the group field and the redundant columns (valid, padding)
+    std::vector<std::vector<int64_t>> newDataCols;
+    std::vector<std::string> newFieldNames;
+    std::vector<int> newFieldWidths;
+    
+    // Reserve space to prevent reallocation
+    newDataCols.reserve(3); // group field + valid + padding
+    newFieldNames.reserve(3);
+    newFieldWidths.reserve(3);
+    
+    // Move the group field data (avoid copy)
+    newDataCols.push_back(std::move(_dataCols[groupFieldIndex]));
+    newFieldNames.push_back(std::move(_fieldNames[groupFieldIndex]));
+    newFieldWidths.push_back(_fieldWidths[groupFieldIndex]);
+    
+    // Move the redundant columns (valid and padding)
+    newDataCols.push_back(std::move(_dataCols[colNum() + VALID_COL_OFFSET]));
+    newDataCols.push_back(std::move(_dataCols[colNum() + PADDING_COL_OFFSET]));
+    newFieldNames.push_back(VALID_COL_NAME);
+    newFieldNames.push_back(PADDING_COL_NAME);
+    newFieldWidths.push_back(1);
+    newFieldWidths.push_back(1);
+    
+    // Replace the current view's data
+    _dataCols = std::move(newDataCols);
+    _fieldNames = std::move(newFieldNames);
+    _fieldWidths = std::move(newFieldWidths);
+
     return groupHeads;
 
     /*
@@ -732,6 +761,179 @@ std::vector<int64_t> View::groupBy(const std::string &groupField, int msgTagBase
     // }
     //
     // return groupIds;
+}
+
+// Multi-column group by functionality for 2PC secret sharing
+std::vector<int64_t> View::groupBy(const std::vector<std::string> &groupFields, int msgTagBase) {
+    size_t n = rowNum();
+    if (n == 0 || groupFields.empty()) {
+        return std::vector<int64_t>();
+    }
+
+    // For single column, use existing implementation
+    if (groupFields.size() == 1) {
+        return groupBy(groupFields[0], msgTagBase);
+    }
+
+    // Step 1: Sort by all group fields to ensure records with same keys are adjacent
+    std::vector<bool> ascendingOrders(groupFields.size(), true);
+    sort(groupFields, ascendingOrders, msgTagBase);
+
+    // Step 2: Get column indices for all group fields
+    std::vector<int> groupFieldIndices(groupFields.size());
+    for (size_t i = 0; i < groupFields.size(); i++) {
+        groupFieldIndices[i] = colIndex(groupFields[i]);
+    }
+
+    // Step 3: Identify group boundaries by comparing adjacent rows across all columns
+    std::vector<int64_t> groupHeads(n);
+    groupHeads[0] = Comm::rank(); // First row always starts a new group (Alice=1, Bob=0, XOR=1)
+
+    if (n > 1) {
+        // Compare each row with the previous row across all group columns
+        std::vector<int64_t> currData, prevData;
+        currData.reserve((n - 1) * groupFields.size());
+        prevData.reserve((n - 1) * groupFields.size());
+
+        // Collect data for all columns and all adjacent row pairs
+        for (size_t col = 0; col < groupFields.size(); col++) {
+            int fieldIndex = groupFieldIndices[col];
+            for (size_t i = 1; i < n; i++) {
+                currData.push_back(_dataCols[fieldIndex][i]);
+                prevData.push_back(_dataCols[fieldIndex][i - 1]);
+            }
+        }
+
+        // Compare current row with previous row for first column
+        std::vector<int64_t> firstColCurr(currData.begin(), currData.begin() + (n - 1));
+        std::vector<int64_t> firstColPrev(prevData.begin(), prevData.begin() + (n - 1));
+
+        auto eqs = BoolEqualBatchOperator(&firstColCurr, &firstColPrev,
+                                          _fieldWidths[groupFieldIndices[0]],
+                                          0, msgTagBase,
+                                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+
+        // For remaining columns, compute equality and combine with AND
+        for (size_t col = 1; col < groupFields.size(); col++) {
+            size_t startIdx = col * (n - 1);
+            std::vector<int64_t> colCurr(currData.begin() + startIdx, currData.begin() + startIdx + (n - 1));
+            std::vector<int64_t> colPrev(prevData.begin() + startIdx, prevData.begin() + startIdx + (n - 1));
+
+            auto colEqs = BoolEqualBatchOperator(&colCurr, &colPrev,
+                                                 _fieldWidths[groupFieldIndices[col]],
+                                                 0, msgTagBase,
+                                                 SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+
+            // Combine with previous equality results using AND
+            eqs = BoolAndBatchOperator(&eqs, &colEqs, 1, 0, msgTagBase,
+                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        }
+
+        // If all columns are equal to previous row, not a boundary (0)
+        // If any column is different, is a boundary (1)
+        for (size_t i = 1; i < n; i++) {
+            groupHeads[i] = eqs[i - 1] ^ Comm::rank(); // XOR with rank to flip: equal=0, different=1
+        }
+    }
+
+    // Remove all columns except the group fields and the redundant columns (valid, padding)
+    std::vector<std::vector<int64_t>> newDataCols;
+    std::vector<std::string> newFieldNames;
+    std::vector<int> newFieldWidths;
+    
+    // Reserve space to prevent reallocation
+    size_t totalCols = groupFields.size() + 2; // group fields + valid + padding
+    newDataCols.reserve(totalCols);
+    newFieldNames.reserve(totalCols);
+    newFieldWidths.reserve(totalCols);
+    
+    // Move the group field data (avoid copy)
+    for (size_t i = 0; i < groupFields.size(); i++) {
+        int fieldIndex = groupFieldIndices[i];
+        newDataCols.push_back(std::move(_dataCols[fieldIndex]));
+        newFieldNames.push_back(std::move(_fieldNames[fieldIndex]));
+        newFieldWidths.push_back(_fieldWidths[fieldIndex]);
+    }
+    
+    // Move the redundant columns (valid and padding)
+    newDataCols.push_back(std::move(_dataCols[colNum() + VALID_COL_OFFSET]));
+    newDataCols.push_back(std::move(_dataCols[colNum() + PADDING_COL_OFFSET]));
+    newFieldNames.push_back(VALID_COL_NAME);
+    newFieldNames.push_back(PADDING_COL_NAME);
+    newFieldWidths.push_back(1);
+    newFieldWidths.push_back(1);
+    
+    // Replace the current view's data
+    _dataCols = std::move(newDataCols);
+    _fieldNames = std::move(newFieldNames);
+    _fieldWidths = std::move(newFieldWidths);
+
+    return groupHeads;
+}
+
+void View::count(std::vector<int64_t> &heads, std::string alias, int msgTagBase) {
+    size_t n = rowNum();
+    if (n == 0) {
+        return;
+    }
+
+    std::vector<int64_t> vs = std::vector<int64_t>(n, Comm::rank());
+    std::vector<int64_t> bs_bool = heads;
+    std::vector<int64_t> bs_arith = BoolToArithBatchOperator(&heads, 64, 0, msgTagBase,
+                                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->
+            _zis;
+
+    // (v,b) ⊕ (v’,b’) = ( v + (1 - a(b)) * v’,   b OR b’ )
+    for (int delta = 1; delta < n; delta *= 2) {
+        std::vector<int64_t> mul_left(n - delta), mul_right(n - delta);
+        for (int i = 0; i < n - delta; i++) {
+            mul_left[i] = Comm::rank() - bs_arith[i + delta];
+            mul_right[i] = vs[i];
+        }
+        auto temp_vs = ArithMultiplyBatchOperator(&mul_left, &mul_right, 64, 0, msgTagBase,
+                                                  SecureOperator::NO_CLIENT_COMPUTE).
+                execute()->_zis;
+
+        for (int i = 0; i < n - delta; i++) {
+            vs[i + delta] += temp_vs[i];
+        }
+
+        // compute or for
+        std::vector<int64_t> not_bs_left(n - delta), not_bs_right(n - delta);
+        for (int i = 0; i < n - delta; i++) {
+            not_bs_left[i] = bs_bool[i] ^ Comm::rank();
+            not_bs_right[i] = bs_bool[i + delta] ^ Comm::rank();
+        }
+
+        auto temp_bs = BoolAndBatchOperator(&not_bs_left, &not_bs_right, 1, 0, msgTagBase,
+                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+
+        for (int i = 0; i < n - delta; i++) {
+            bs_bool[i + delta] = temp_bs[i] ^ Comm::rank();
+        }
+
+        bs_arith = BoolToArithBatchOperator(&bs_bool, 64, 0, msgTagBase,
+                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->
+                _zis;
+    }
+
+    vs = ArithToBoolBatchOperator(&vs, 64, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+
+    std::vector<int64_t> group_tails(heads.size());
+    for (int i = 0; i < heads.size() - 1; i++) {
+        group_tails[i] = heads[i + 1];
+    }
+    group_tails[group_tails.size() - 1] = Comm::rank();
+
+    _fieldNames.reserve(_fieldNames.size() + 1);
+    _fieldWidths.reserve(_fieldWidths.size() + 1);
+    _dataCols.reserve(_dataCols.size() + 1);
+    _fieldNames.insert(_fieldNames.begin() + colNum() - 2, 1, alias.empty() ? COUNT_COL_NAME : alias);
+    _fieldWidths.insert(_fieldWidths.begin() + colNum() - 2, 1, 64);
+    _dataCols.insert(_dataCols.begin() + colNum() - 2, 1, vs);
+    _dataCols[colNum() + VALID_COL_OFFSET] = std::move(group_tails);
+
+    clearInvalidEntries(0);
 }
 
 void View::distinct(int msgTagBase) {

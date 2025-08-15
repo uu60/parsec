@@ -14,6 +14,7 @@ public:
     static const int PADDING_COL_OFFSET = -1;
     inline static const std::string VALID_COL_NAME = "$valid";
     inline static const std::string PADDING_COL_NAME = "$padding";
+    inline static const std::string COUNT_COL_NAME = "$cnt";
 
     inline static std::string EMPTY_KEY_FIELD;
     inline static std::string EMPTY_VIEW_NAME;
@@ -56,6 +57,13 @@ public:
     // Group by functionality for 2PC secret sharing
     // Returns: pair<groupIds for each row, total number of groups>
     std::vector<int64_t> groupBy(const std::string &groupField, int msgTagBase);
+    
+    // Multi-column group by functionality for 2PC secret sharing
+    // Returns: group boundary indicators for each row (1 if starts new group, 0 otherwise)
+    std::vector<int64_t> groupBy(const std::vector<std::string> &groupFields, int msgTagBase);
+
+    // View must have run group by before calling this
+    void count(std::vector<int64_t> &heads, std::string alias, int msgTagBase);
 
     void distinct(int msgTagBase);
 

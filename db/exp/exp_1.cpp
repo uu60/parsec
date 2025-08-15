@@ -42,9 +42,7 @@ std::vector<int64_t> executeWhereInClause(View &diagnosis_view, View &cdiff_coho
 
 View filterDiagnosisTable(View &diagnosis_view, std::vector<int64_t> &in_results, int tid);
 
-std::vector<int64_t> executeGroupBy(View &filtered_diagnosis, int tid);
-
-View executeGroupByCount(View &filtered_diagnosis, std::vector<int64_t> &group_heads, int tid);
+View executeGroupByCount(View &filtered_diagnosis, int tid);
 
 View executeSortAndLimit(View result_view, int tid);
 
@@ -95,8 +93,7 @@ int main(int argc, char *argv[]) {
         // Execute query steps
         auto in_results = executeWhereInClause(diagnosis_view, cdiff_cohort_view);
         auto filtered_diagnosis = filterDiagnosisTable(diagnosis_view, in_results, tid);
-        auto group_ids = executeGroupBy(filtered_diagnosis, tid);
-        result_view = executeGroupByCount(filtered_diagnosis, group_ids, tid);
+        result_view = executeGroupByCount(filtered_diagnosis, tid);
         result_view = executeSortAndLimit(std::move(result_view), tid);
 
         auto query_end = System::currentTimeMillis();
@@ -228,96 +225,43 @@ std::vector<int64_t> executeGroupBy(View &filtered_diagnosis, int tid) {
     return group_heads;
 }
 
-View executeGroupByCount(View &filtered_diagnosis, std::vector<int64_t> &group_heads, int tid) {
-    Log::i("Step 4: Computing COUNT(*) using segmented scan algorithm...");
-    auto step4_start = System::currentTimeMillis();
+View executeGroupByCount(View &filtered_diagnosis, int tid) {
+    Log::i("Step 3: Computing COUNT(*) GROUP BY using segmented scan algorithm...");
+    auto step3_start = System::currentTimeMillis();
+
+    std::string diag_field = "diag";
+    // View mutable_diagnosis = filtered_diagnosis; // Remove to call groupBy
+    auto group_heads = filtered_diagnosis.groupBy(diag_field, tid);
 
     size_t n = filtered_diagnosis.rowNum();
     if (n == 0) {
         std::vector<std::string> result_fields = {"diag", "cnt"};
         std::vector<int> result_widths = {64, 64};
         View result_view(result_fields, result_widths);
-        auto step4_end = System::currentTimeMillis();
-        Log::i("Step 4 completed in {}ms", step4_end - step4_start);
+        auto step3_end = System::currentTimeMillis();
+        Log::i("Step 3 completed in {}ms", step3_end - step3_start);
         return result_view;
     }
 
-    std::vector<int64_t> vs = std::vector<int64_t>(n, Comm::rank());
-    std::vector<int64_t> bs_bool = group_heads;
-    std::vector<int64_t> bs_arith = BoolToArithBatchOperator(&group_heads, 64, tid, 0,
-                                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->
-            _zis;
+    filtered_diagnosis.count(group_heads, "cnt", tid);
 
-    // (v,b) ⊕ (v’,b’) = ( v + (1 - a(b)) * v’,   b OR b’ )
-    for (int delta = 1; delta < n; delta *= 2) {
-        std::vector<int64_t> mul_left(n - delta), mul_right(n - delta);
-        for (int i = 0; i < n - delta; i++) {
-            mul_left[i] = Comm::rank() - bs_arith[i + delta];
-            mul_right[i] = vs[i];
-        }
-        auto temp_vs = ArithMultiplyBatchOperator(&mul_left, &mul_right, 64, tid, 0, SecureOperator::NO_CLIENT_COMPUTE).
-                execute()->_zis;
-
-        for (int i = 0; i < n - delta; i++) {
-            vs[i + delta] += temp_vs[i];
-        }
-
-        // compute or for
-        std::vector<int64_t> not_bs_left(n - delta), not_bs_right(n - delta);
-        for (int i = 0; i < n - delta; i++) {
-            not_bs_left[i] = bs_bool[i] ^ Comm::rank();
-            not_bs_right[i] = bs_bool[i + delta] ^ Comm::rank();
-        }
-
-        auto temp_bs = BoolAndBatchOperator(&not_bs_left, &not_bs_right, 1, tid, 0,
-                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-
-        for (int i = 0; i < n - delta; i++) {
-            bs_bool[i + delta] = temp_bs[i] ^ Comm::rank();
-        }
-
-        bs_arith = BoolToArithBatchOperator(&bs_bool, 64, tid, 0,
-                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->
-                _zis;
-    }
-
-    vs = ArithToBoolBatchOperator(&vs, 64, tid, 0, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-
-    std::vector<int64_t> group_tails(group_heads.size());
-    for (int i = 0; i < group_heads.size() - 1; i++) {
-        group_tails[i] = group_heads[i + 1];
-    }
-    group_tails[group_tails.size() - 1] = Comm::rank();
-
-    std::vector<std::string> result_fields = {"diag", "cnt"};
-    std::vector<int> result_widths = {64, 64};
-    View result_view(result_fields, result_widths);
-    result_view._dataCols[result_view.colIndex(result_fields[0])] = filtered_diagnosis._dataCols[filtered_diagnosis.
-        colIndex(result_fields[0])];
-    result_view._dataCols[result_view.colIndex(result_fields[1])] = std::move(vs);
-    result_view._dataCols[result_view.colNum() + View::VALID_COL_OFFSET] = std::move(group_tails);
-    result_view._dataCols[result_view.colNum() + View::PADDING_COL_OFFSET] = std::vector<int64_t>(
-        result_view.rowNum(), 0);
-
-    result_view.clearInvalidEntries(tid);
-
-    return result_view;
+    return filtered_diagnosis;
 }
 
 View executeSortAndLimit(View result_view, int tid) {
-    // Step 5: ORDER BY cnt DESC
-    Log::i("Step 5: Executing ORDER BY cnt DESC...");
-    auto step5_start = System::currentTimeMillis();
+    // Step 4: ORDER BY cnt DESC
+    Log::i("Step 4: Executing ORDER BY cnt DESC...");
+    auto step4_start = System::currentTimeMillis();
 
     std::string count_field = "cnt";
     result_view.sort(count_field, false, tid); // false for descending order
 
-    auto step5_end = System::currentTimeMillis();
-    Log::i("Step 5 completed in {}ms", step5_end - step5_start);
+    auto step4_end = System::currentTimeMillis();
+    Log::i("Step 4 completed in {}ms", step4_end - step4_start);
 
-    // Step 6: LIMIT 10
-    Log::i("Step 6: Applying LIMIT 10...");
-    auto step6_start = System::currentTimeMillis();
+    // Step 5: LIMIT 10
+    Log::i("Step 5: Applying LIMIT 10...");
+    auto step5_start = System::currentTimeMillis();
 
     int limit = std::min(10, (int) result_view.rowNum());
     if (limit < result_view.rowNum()) {
@@ -327,8 +271,8 @@ View executeSortAndLimit(View result_view, int tid) {
         }
     }
 
-    auto step6_end = System::currentTimeMillis();
-    Log::i("Step 6 completed in {}ms", step6_end - step6_start);
+    auto step5_end = System::currentTimeMillis();
+    Log::i("Step 5 completed in {}ms", step5_end - step5_start);
     Log::i("Final result has {} rows", result_view.rowNum());
 
     return result_view;
