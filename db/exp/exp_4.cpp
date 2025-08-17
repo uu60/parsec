@@ -136,6 +136,7 @@ View executeGroupByCount(View &r_view, int tid) {
 
     std::vector<std::string> group_fields = {"ID", "PWD"};
     auto group_heads = r_view.groupBy(group_fields, tid);
+    Log::i("Step 1 group by completed in {}ms", System::currentTimeMillis() - step1_start);
 
     size_t n = r_view.rowNum();
     if (n == 0) {
@@ -143,14 +144,14 @@ View executeGroupByCount(View &r_view, int tid) {
         std::vector<int> result_widths = {64, 64, 64};
         View result_view(result_fields, result_widths);
         auto step1_end = System::currentTimeMillis();
-        Log::i("Step 2 completed in {}ms", step1_end - step1_start);
+        Log::i("Step 1 completed in {}ms", step1_end - step1_start);
         return result_view;
     }
 
     r_view.count(group_heads, "cnt", tid);
 
     auto step1_end = System::currentTimeMillis();
-    Log::i("Step 2 completed in {}ms", step1_end - step1_start);
+    Log::i("Step 1 completed in {}ms", step1_end - step1_start);
     Log::i("Grouped result has {} rows", r_view.rowNum());
 
     return r_view;

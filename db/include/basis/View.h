@@ -90,6 +90,22 @@ private:
     void bitonicSort(const std::string &orderField, bool ascendingOrder, int msgTagBase);
 
     void bitonicSort(const std::vector<std::string> &orderFields, const std::vector<bool> &ascendingOrders, int msgTagBase);
+
+    void distinctSingleBatch(int msgTagBase);
+
+    void distinctMultiBatches(int msgTagBase);
+
+    std::vector<int64_t> groupBySingleBatch(const std::string &groupField, int msgTagBase);
+
+    std::vector<int64_t> groupByMultiBatches(const std::string &groupField, int msgTagBase);
+
+    std::vector<int64_t> groupBySingleBatch(const std::vector<std::string> &groupFields, int msgTagBase);
+
+    std::vector<int64_t> groupByMultiBatches(const std::vector<std::string> &groupFields, int msgTagBase);
+
+    void countSingleBatch(std::vector<int64_t> &heads, std::string alias, int msgTagBase);
+
+    void countMultiBatches(std::vector<int64_t> &heads, std::string alias, int msgTagBase);
 };
 
 

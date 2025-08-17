@@ -3,38 +3,47 @@
 # Parse command line arguments
 USE_ASAN=false
 while [[ $# -gt 0 ]]; do
-    case $1 in
-        --asan)
-            USE_ASAN=true
-            shift
-            ;;
-        -h|--help)
-            echo "Usage: $0 [--asan] [--help]"
-            echo "  --asan    Enable AddressSanitizer for memory leak detection"
-            echo "  --help    Show this help message"
-            exit 0
-            ;;
-        *)
-            echo "Unknown option: $1"
-            echo "Use --help for usage information"
-            exit 1
-            ;;
-    esac
+  case $1 in
+    --asan)
+      USE_ASAN=true
+      shift
+      ;;
+    -h|--help)
+      echo "Usage: $0 [--asan] [--help]"
+      echo "  --asan    Enable AddressSanitizer build"
+      echo "  --help    Show this help message"
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1"
+      echo "Use --help for usage information"
+      exit 1
+      ;;
+  esac
 done
 
-cd "$(dirname $(readlink -f "$0"))"
-sudo rm -rf build
-mkdir build && cd build
+# cd to script dir (portable; avoids 'readlink -f' on macOS)
+SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd -P)"
+cd "$SCRIPT_DIR" || exit 1
 
-# Configure cmake with or without ASAN
-if [ "$USE_ASAN" = true ]; then
-    echo "Building with AddressSanitizer enabled..."
-    cmake .. -G Ninja -DENABLE_ASAN=ON
+sudo rm -rf build
+mkdir build && cd build || exit 1
+
+# Configure CMake with or without ASAN
+if [[ "$USE_ASAN" == true ]]; then
+  echo "Building with AddressSanitizer enabled (O1)…"
+  cmake .. -G Ninja \
+    -DENABLE_ASAN=ON \
+    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+    -DCMAKE_C_FLAGS_RELWITHDEBINFO="-O1 -g -fno-omit-frame-pointer" \
+    -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="-O1 -g -fno-omit-frame-pointer"
 else
-    echo "Building without AddressSanitizer..."
-    cmake .. -G Ninja
+  echo "Building without AddressSanitizer (O2)…"
+  cmake .. -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG" \
+    -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG"
 fi
 
 ninja
-#sudo rm -rf /usr/local/include/parsec
-#sudo ninja install
+# sudo ninja install
