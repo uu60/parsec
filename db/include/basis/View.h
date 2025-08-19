@@ -63,7 +63,10 @@ public:
     std::vector<int64_t> groupBy(const std::vector<std::string> &groupFields, int msgTagBase);
 
     // View must have run group by before calling this
-    void count(std::vector<int64_t> &heads, std::string alias, int msgTagBase);
+    void count(std::vector<std::string> &groupFields, std::vector<int64_t> &heads, std::string alias, int msgTagBase);
+
+    // Max aggregation function - must have run group by before calling this
+    void max(std::vector<int64_t> &heads, const std::string &fieldName, std::string alias, int msgTagBase);
 
     void distinct(int msgTagBase);
 
@@ -106,6 +109,10 @@ private:
     void countSingleBatch(std::vector<int64_t> &heads, std::string alias, int msgTagBase);
 
     void countMultiBatches(std::vector<int64_t> &heads, std::string alias, int msgTagBase);
+
+    void maxSingleBatch(std::vector<int64_t> &heads, const std::string &fieldName, std::string alias, int msgTagBase);
+
+    void maxMultiBatches(std::vector<int64_t> &heads, const std::string &fieldName, std::string alias, int msgTagBase);
 };
 
 

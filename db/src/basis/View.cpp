@@ -93,33 +93,33 @@ std::vector<int64_t> View::groupBySingleBatch(const std::string &groupField, int
         }
     }
 
-    // Remove all columns except the group field and the redundant columns (valid, padding)
-    std::vector<std::vector<int64_t> > newDataCols;
-    std::vector<std::string> newFieldNames;
-    std::vector<int> newFieldWidths;
-
-    // Reserve space to prevent reallocation
-    newDataCols.reserve(3); // group field + valid + padding
-    newFieldNames.reserve(3);
-    newFieldWidths.reserve(3);
-
-    // Move the group field data (avoid copy)
-    newDataCols.push_back(std::move(_dataCols[groupFieldIndex]));
-    newFieldNames.push_back(std::move(_fieldNames[groupFieldIndex]));
-    newFieldWidths.push_back(_fieldWidths[groupFieldIndex]);
-
-    // Move the redundant columns (valid and padding)
-    newDataCols.push_back(std::move(_dataCols[colNum() + VALID_COL_OFFSET]));
-    newDataCols.push_back(std::move(_dataCols[colNum() + PADDING_COL_OFFSET]));
-    newFieldNames.push_back(VALID_COL_NAME);
-    newFieldNames.push_back(PADDING_COL_NAME);
-    newFieldWidths.push_back(1);
-    newFieldWidths.push_back(1);
-
-    // Replace the current view's data
-    _dataCols = std::move(newDataCols);
-    _fieldNames = std::move(newFieldNames);
-    _fieldWidths = std::move(newFieldWidths);
+    // // Remove all columns except the group field and the redundant columns (valid, padding)
+    // std::vector<std::vector<int64_t> > newDataCols;
+    // std::vector<std::string> newFieldNames;
+    // std::vector<int> newFieldWidths;
+    //
+    // // Reserve space to prevent reallocation
+    // newDataCols.reserve(3); // group field + valid + padding
+    // newFieldNames.reserve(3);
+    // newFieldWidths.reserve(3);
+    //
+    // // Move the group field data (avoid copy)
+    // newDataCols.push_back(std::move(_dataCols[groupFieldIndex]));
+    // newFieldNames.push_back(std::move(_fieldNames[groupFieldIndex]));
+    // newFieldWidths.push_back(_fieldWidths[groupFieldIndex]);
+    //
+    // // Move the redundant columns (valid and padding)
+    // newDataCols.push_back(std::move(_dataCols[colNum() + VALID_COL_OFFSET]));
+    // newDataCols.push_back(std::move(_dataCols[colNum() + PADDING_COL_OFFSET]));
+    // newFieldNames.push_back(VALID_COL_NAME);
+    // newFieldNames.push_back(PADDING_COL_NAME);
+    // newFieldWidths.push_back(1);
+    // newFieldWidths.push_back(1);
+    //
+    // // Replace the current view's data
+    // _dataCols = std::move(newDataCols);
+    // _fieldNames = std::move(newFieldNames);
+    // _fieldWidths = std::move(newFieldWidths);
 
     return groupHeads;
 }
@@ -186,33 +186,33 @@ std::vector<int64_t> View::groupByMultiBatches(const std::string &groupField, in
         }
     }
 
-    // Remove all columns except the group field and the redundant columns (valid, padding)
-    std::vector<std::vector<int64_t> > newDataCols;
-    std::vector<std::string> newFieldNames;
-    std::vector<int> newFieldWidths;
-
-    // Reserve space to prevent reallocation
-    newDataCols.reserve(3); // group field + valid + padding
-    newFieldNames.reserve(3);
-    newFieldWidths.reserve(3);
-
-    // Move the group field data (avoid copy)
-    newDataCols.push_back(std::move(_dataCols[groupFieldIndex]));
-    newFieldNames.push_back(std::move(_fieldNames[groupFieldIndex]));
-    newFieldWidths.push_back(_fieldWidths[groupFieldIndex]);
-
-    // Move the redundant columns (valid and padding)
-    newDataCols.push_back(std::move(_dataCols[colNum() + VALID_COL_OFFSET]));
-    newDataCols.push_back(std::move(_dataCols[colNum() + PADDING_COL_OFFSET]));
-    newFieldNames.push_back(VALID_COL_NAME);
-    newFieldNames.push_back(PADDING_COL_NAME);
-    newFieldWidths.push_back(1);
-    newFieldWidths.push_back(1);
-
-    // Replace the current view's data
-    _dataCols = std::move(newDataCols);
-    _fieldNames = std::move(newFieldNames);
-    _fieldWidths = std::move(newFieldWidths);
+    // // Remove all columns except the group field and the redundant columns (valid, padding)
+    // std::vector<std::vector<int64_t> > newDataCols;
+    // std::vector<std::string> newFieldNames;
+    // std::vector<int> newFieldWidths;
+    //
+    // // Reserve space to prevent reallocation
+    // newDataCols.reserve(3); // group field + valid + padding
+    // newFieldNames.reserve(3);
+    // newFieldWidths.reserve(3);
+    //
+    // // Move the group field data (avoid copy)
+    // newDataCols.push_back(std::move(_dataCols[groupFieldIndex]));
+    // newFieldNames.push_back(std::move(_fieldNames[groupFieldIndex]));
+    // newFieldWidths.push_back(_fieldWidths[groupFieldIndex]);
+    //
+    // // Move the redundant columns (valid and padding)
+    // newDataCols.push_back(std::move(_dataCols[colNum() + VALID_COL_OFFSET]));
+    // newDataCols.push_back(std::move(_dataCols[colNum() + PADDING_COL_OFFSET]));
+    // newFieldNames.push_back(VALID_COL_NAME);
+    // newFieldNames.push_back(PADDING_COL_NAME);
+    // newFieldWidths.push_back(1);
+    // newFieldWidths.push_back(1);
+    //
+    // // Replace the current view's data
+    // _dataCols = std::move(newDataCols);
+    // _fieldNames = std::move(newFieldNames);
+    // _fieldWidths = std::move(newFieldWidths);
 
     return groupHeads;
 }
@@ -277,39 +277,41 @@ std::vector<int64_t> View::groupBySingleBatch(const std::vector<std::string> &gr
         }
     }
 
-    // Remove all columns except the group fields and the redundant columns (valid, padding)
-    std::vector<std::vector<int64_t> > newDataCols;
-    std::vector<std::string> newFieldNames;
-    std::vector<int> newFieldWidths;
-
-    // Reserve space to prevent reallocation
-    size_t totalCols = groupFields.size() + 2; // group fields + valid + padding
-    newDataCols.reserve(totalCols);
-    newFieldNames.reserve(totalCols);
-    newFieldWidths.reserve(totalCols);
-
-    // Move the group field data (avoid copy)
-    for (size_t i = 0; i < groupFields.size(); i++) {
-        int fieldIndex = groupFieldIndices[i];
-        newDataCols.push_back(std::move(_dataCols[fieldIndex]));
-        newFieldNames.push_back(std::move(_fieldNames[fieldIndex]));
-        newFieldWidths.push_back(_fieldWidths[fieldIndex]);
-    }
-
-    // Move the redundant columns (valid and padding)
-    newDataCols.push_back(std::move(_dataCols[colNum() + VALID_COL_OFFSET]));
-    newDataCols.push_back(std::move(_dataCols[colNum() + PADDING_COL_OFFSET]));
-    newFieldNames.push_back(VALID_COL_NAME);
-    newFieldNames.push_back(PADDING_COL_NAME);
-    newFieldWidths.push_back(1);
-    newFieldWidths.push_back(1);
-
-    // Replace the current view's data
-    _dataCols = std::move(newDataCols);
-    _fieldNames = std::move(newFieldNames);
-    _fieldWidths = std::move(newFieldWidths);
-
     return groupHeads;
+
+    // // Remove all columns except the group fields and the redundant columns (valid, padding)
+    // std::vector<std::vector<int64_t> > newDataCols;
+    // std::vector<std::string> newFieldNames;
+    // std::vector<int> newFieldWidths;
+    //
+    // // Reserve space to prevent reallocation
+    // size_t totalCols = groupFields.size() + 2; // group fields + valid + padding
+    // newDataCols.reserve(totalCols);
+    // newFieldNames.reserve(totalCols);
+    // newFieldWidths.reserve(totalCols);
+    //
+    // // Move the group field data (avoid copy)
+    // for (size_t i = 0; i < groupFields.size(); i++) {
+    //     int fieldIndex = groupFieldIndices[i];
+    //     newDataCols.push_back(std::move(_dataCols[fieldIndex]));
+    //     newFieldNames.push_back(std::move(_fieldNames[fieldIndex]));
+    //     newFieldWidths.push_back(_fieldWidths[fieldIndex]);
+    // }
+    //
+    // // Move the redundant columns (valid and padding)
+    // newDataCols.push_back(std::move(_dataCols[colNum() + VALID_COL_OFFSET]));
+    // newDataCols.push_back(std::move(_dataCols[colNum() + PADDING_COL_OFFSET]));
+    // newFieldNames.push_back(VALID_COL_NAME);
+    // newFieldNames.push_back(PADDING_COL_NAME);
+    // newFieldWidths.push_back(1);
+    // newFieldWidths.push_back(1);
+    //
+    // // Replace the current view's data
+    // _dataCols = std::move(newDataCols);
+    // _fieldNames = std::move(newFieldNames);
+    // _fieldWidths = std::move(newFieldWidths);
+    //
+    // return groupHeads;
 }
 
 std::vector<int64_t> View::groupByMultiBatches(const std::vector<std::string> &groupFields, int msgTagBase) {
@@ -406,39 +408,40 @@ std::vector<int64_t> View::groupByMultiBatches(const std::vector<std::string> &g
         }
     }
 
-    // Remove all columns except the group fields and the redundant columns (valid, padding)
-    std::vector<std::vector<int64_t> > newDataCols;
-    std::vector<std::string> newFieldNames;
-    std::vector<int> newFieldWidths;
-
-    // Reserve space to prevent reallocation
-    size_t totalCols = groupFields.size() + 2; // group fields + valid + padding
-    newDataCols.reserve(totalCols);
-    newFieldNames.reserve(totalCols);
-    newFieldWidths.reserve(totalCols);
-
-    // Move the group field data (avoid copy)
-    for (size_t i = 0; i < groupFields.size(); i++) {
-        int fieldIndex = groupFieldIndices[i];
-        newDataCols.push_back(std::move(_dataCols[fieldIndex]));
-        newFieldNames.push_back(std::move(_fieldNames[fieldIndex]));
-        newFieldWidths.push_back(_fieldWidths[fieldIndex]);
-    }
-
-    // Move the redundant columns (valid and padding)
-    newDataCols.push_back(std::move(_dataCols[colNum() + VALID_COL_OFFSET]));
-    newDataCols.push_back(std::move(_dataCols[colNum() + PADDING_COL_OFFSET]));
-    newFieldNames.push_back(VALID_COL_NAME);
-    newFieldNames.push_back(PADDING_COL_NAME);
-    newFieldWidths.push_back(1);
-    newFieldWidths.push_back(1);
-
-    // Replace the current view's data
-    _dataCols = std::move(newDataCols);
-    _fieldNames = std::move(newFieldNames);
-    _fieldWidths = std::move(newFieldWidths);
-
     return groupHeads;
+    // // Remove all columns except the group fields and the redundant columns (valid, padding)
+    // std::vector<std::vector<int64_t> > newDataCols;
+    // std::vector<std::string> newFieldNames;
+    // std::vector<int> newFieldWidths;
+    //
+    // // Reserve space to prevent reallocation
+    // size_t totalCols = groupFields.size() + 2; // group fields + valid + padding
+    // newDataCols.reserve(totalCols);
+    // newFieldNames.reserve(totalCols);
+    // newFieldWidths.reserve(totalCols);
+    //
+    // // Move the group field data (avoid copy)
+    // for (size_t i = 0; i < groupFields.size(); i++) {
+    //     int fieldIndex = groupFieldIndices[i];
+    //     newDataCols.push_back(std::move(_dataCols[fieldIndex]));
+    //     newFieldNames.push_back(std::move(_fieldNames[fieldIndex]));
+    //     newFieldWidths.push_back(_fieldWidths[fieldIndex]);
+    // }
+    //
+    // // Move the redundant columns (valid and padding)
+    // newDataCols.push_back(std::move(_dataCols[colNum() + VALID_COL_OFFSET]));
+    // newDataCols.push_back(std::move(_dataCols[colNum() + PADDING_COL_OFFSET]));
+    // newFieldNames.push_back(VALID_COL_NAME);
+    // newFieldNames.push_back(PADDING_COL_NAME);
+    // newFieldWidths.push_back(1);
+    // newFieldWidths.push_back(1);
+    //
+    // // Replace the current view's data
+    // _dataCols = std::move(newDataCols);
+    // _fieldNames = std::move(newFieldNames);
+    // _fieldWidths = std::move(newFieldWidths);
+    //
+    // return groupHeads;
 }
 
 void View::countSingleBatch(std::vector<int64_t> &heads, std::string alias, int msgTagBase) {
@@ -542,20 +545,20 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
         const int numBatches = (totalPairs + batchSize - 1) / batchSize;
 
         using Triple = std::tuple<std::vector<int64_t>, // temp_vs (len)
-                                  std::vector<int64_t>, // new_bs_bool (len) for [start+delta .. end-1+delta]
-                                  std::vector<int64_t>>;// new_bs_arith (len) same range
+            std::vector<int64_t>, // new_bs_bool (len) for [start+delta .. end-1+delta]
+            std::vector<int64_t> >; // new_bs_arith (len) same range
 
-        std::vector<std::future<Triple>> futs(numBatches);
+        std::vector<std::future<Triple> > futs(numBatches);
 
         for (int b = 0; b < numBatches; ++b) {
             const int start = b * batchSize;
-            const int end   = std::min(start + batchSize, totalPairs);
-            const int len   = end - start;
+            const int end = std::min(start + batchSize, totalPairs);
+            const int len = end - start;
 
-            const int baseTag  = tagCursorBase + b * taskStride;
-            const int mulTag   = baseTag;
-            const int andTag   = baseTag + mulStride;
-            const int b2aTag   = baseTag + mulStride + andStride;
+            const int baseTag = tagCursorBase + b * taskStride;
+            const int mulTag = baseTag;
+            const int andTag = baseTag + mulStride;
+            const int b2aTag = baseTag + mulStride + andStride;
 
             futs[b] = ThreadPoolSupport::submit([=, &vs, &bs_bool, &bs_arith]() -> Triple {
                 if (len <= 0) return Triple{{}, {}, {}};
@@ -564,7 +567,7 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
                 std::vector<int64_t> mul_left(len), mul_right(len);
                 for (int i = 0; i < len; ++i) {
                     const int idx = start + i;
-                    mul_left[i]  = rank - bs_arith[idx + delta];
+                    mul_left[i] = rank - bs_arith[idx + delta];
                     mul_right[i] = vs[idx];
                 }
                 auto temp_vs = ArithMultiplyBatchOperator(&mul_left, &mul_right, 64, 0, mulTag,
@@ -575,7 +578,7 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
                 std::vector<int64_t> not_left(len), not_right(len);
                 for (int i = 0; i < len; ++i) {
                     const int idx = start + i;
-                    not_left[i]  = bs_bool[idx] ^ rank;
+                    not_left[i] = bs_bool[idx] ^ rank;
                     not_right[i] = bs_bool[idx + delta] ^ rank;
                 }
                 auto and_res = BoolAndBatchOperator(&not_left, &not_right, 1, 0, andTag,
@@ -600,13 +603,13 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
         // 回填：vs[i+delta]、bs_bool[i+delta]、bs_arith[i+delta]
         for (int b = 0; b < numBatches; ++b) {
             const int start = b * batchSize;
-            const int end   = std::min(start + batchSize, totalPairs);
-            const int len   = end - start;
+            const int end = std::min(start + batchSize, totalPairs);
+            const int len = end - start;
             if (len <= 0) continue;
 
             auto triple = futs[b].get();
-            auto &temp_vs     = std::get<0>(triple);
-            auto &new_b_bool  = std::get<1>(triple);
+            auto &temp_vs = std::get<0>(triple);
+            auto &new_b_bool = std::get<1>(triple);
             auto &new_b_arith = std::get<2>(triple);
 
             // vs[i+delta] += temp_vs[i]
@@ -615,7 +618,7 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
             }
             // b / a(b) 更新到 i+delta 位置
             for (int i = 0; i < len; ++i) {
-                bs_bool [start + i + delta] = new_b_bool [i];
+                bs_bool[start + i + delta] = new_b_bool[i];
                 bs_arith[start + i + delta] = new_b_arith[i];
             }
         }
@@ -624,16 +627,16 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
     // 末尾把 vs 从算术转成布尔（并行一波）
     {
         const int numBatches = (static_cast<int>(n) + batchSize - 1) / batchSize;
-        std::vector<std::future<std::vector<int64_t>>> futs(numBatches);
+        std::vector<std::future<std::vector<int64_t> > > futs(numBatches);
         for (int b = 0; b < numBatches; ++b) {
             const int start = b * batchSize;
-            const int end   = std::min(start + batchSize, static_cast<int>(n));
-            const int len   = end - start;
+            const int end = std::min(start + batchSize, static_cast<int>(n));
+            const int len = end - start;
             if (len <= 0) {
                 futs[b] = ThreadPoolSupport::submit([=]() { return std::vector<int64_t>(); });
                 continue;
             }
-            auto slice = std::make_shared<std::vector<int64_t>>(vs.begin() + start, vs.begin() + end);
+            auto slice = std::make_shared<std::vector<int64_t> >(vs.begin() + start, vs.begin() + end);
             const int a2bTag = tagCursorBase + b * a2bStride;
             futs[b] = ThreadPoolSupport::submit([slice, a2bTag]() {
                 return ArithToBoolBatchOperator(slice.get(), 64, 0, a2bTag,
@@ -645,7 +648,7 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
         int pos = 0;
         for (int b = 0; b < numBatches; ++b) {
             auto part = futs[b].get();
-            for (auto v : part) {
+            for (auto v: part) {
                 if (pos < static_cast<int>(n)) vs[pos++] = v;
             }
         }
@@ -672,6 +675,260 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
     clearInvalidEntries(0);
 }
 
+void View::maxSingleBatch(std::vector<int64_t> &heads, const std::string &fieldName, std::string alias,
+                          int msgTagBase) {
+    const size_t n = rowNum();
+    if (n == 0) return;
+
+    // —— 基础检查与获取列信息
+    const int fieldIdx = colIndex(fieldName);
+    if (fieldIdx < 0) {
+        Log::e("Field '{}' not found for max operation", fieldName);
+        return;
+    }
+    const int bitlen = _fieldWidths[fieldIdx];
+
+    std::vector<int64_t> &src = _dataCols[fieldIdx];
+    if (src.size() != n || heads.size() != n) {
+        Log::e("Size mismatch: fieldData={}, heads={}, n={}", src.size(), heads.size(), n);
+        return;
+    }
+
+    // —— 工作副本：值列与组首布尔标记
+    std::vector<int64_t> vs = src;
+    std::vector<int64_t> bs_bool = heads;
+
+    // —— 分段 max：Hillis–Steele 前缀扫描
+    for (int delta = 1; delta < static_cast<int>(n); delta <<= 1) {
+        const int m = static_cast<int>(n) - delta;
+
+        // 1) 快照左右值
+        std::vector<int64_t> left_vals(m), right_vals(m);
+        for (int i = 0; i < m; ++i) {
+            left_vals[i]  = vs[i];
+            right_vals[i] = vs[i + delta];
+        }
+
+        // 2) cand = max(left, right)  —— cmp=(left<right)，cand=cmp?right:left
+        auto cmp = BoolLessBatchOperator(&left_vals, &right_vals, bitlen,
+                                         /*tid*/0, msgTagBase,
+                                         SecureOperator::NO_CLIENT_COMPUTE)
+                       .execute()->_zis;
+
+        auto cand = BoolMutexBatchOperator(&right_vals, &left_vals, &cmp,
+                                           bitlen, /*tid*/0, msgTagBase,
+                                           SecureOperator::NO_CLIENT_COMPUTE)
+                        .execute()->_zis;
+
+        // 3) 门控：gate = NOT(b[i+delta])，new = gate ? cand : right
+        const int64_t NOT_mask = Comm::rank();     // 单侧取反掩码：NOT(x)=x^mask
+        std::vector<int64_t> gate(m);
+        for (int i = 0; i < m; ++i) {
+            gate[i] = bs_bool[i + delta] ^ NOT_mask;
+        }
+
+        auto new_right = BoolMutexBatchOperator(&cand, &right_vals, &gate,
+                                                bitlen, /*tid*/0, msgTagBase,
+                                                SecureOperator::NO_CLIENT_COMPUTE)
+                             .execute()->_zis;
+
+        // 写回 v[i+delta]
+        for (int i = 0; i < m; ++i) {
+            vs[i + delta] = new_right[i];
+        }
+
+        // 4) 传播边界：b[i+delta] = b[i+delta] OR b[i]
+        std::vector<int64_t> not_l(m), not_r(m);
+        for (int i = 0; i < m; ++i) {
+            not_l[i] = bs_bool[i + delta] ^ NOT_mask; // NOT b[i+delta]
+            not_r[i] = bs_bool[i]         ^ NOT_mask; // NOT b[i]
+        }
+        auto and_out = BoolAndBatchOperator(&not_l, &not_r,
+                                            /*bitlen=*/1, /*tid*/0, msgTagBase,
+                                            SecureOperator::NO_CLIENT_COMPUTE)
+                           .execute()->_zis;
+
+        for (int i = 0; i < m; ++i) {
+            bs_bool[i + delta] = and_out[i] ^ NOT_mask; // NOT(AND) = OR
+        }
+    }
+
+    // —— 组尾标记：tail[i] = head[i+1]，最后一行设为常量 1（按分享约定）
+    std::vector<int64_t> group_tails(n);
+    for (size_t i = 0; i + 1 < n; ++i) group_tails[i] = heads[i + 1];
+    group_tails[n - 1] = Comm::rank();
+
+    // —— 把 max 结果列插入（命名、宽度与原列一致）
+    const std::string outName = alias.empty() ? ("max_" + fieldName) : alias;
+
+    _fieldNames.reserve(_fieldNames.size() + 1);
+    _fieldWidths.reserve(_fieldWidths.size() + 1);
+    _dataCols.reserve(_dataCols.size() + 1);
+
+    const int insertPos = colNum() - 2; // 与现有布局保持一致
+    _fieldNames.insert(_fieldNames.begin() + insertPos, outName);
+    _fieldWidths.insert(_fieldWidths.begin() + insertPos, bitlen);
+    _dataCols.insert(_dataCols.begin() + insertPos, vs);
+
+    // 更新有效位列为组尾，便于下游只在尾行读取 max
+    _dataCols[colNum() + VALID_COL_OFFSET] = std::move(group_tails);
+
+    // —— 清理无效行
+    clearInvalidEntries(0);
+}
+
+void View::maxMultiBatches(std::vector<int64_t> &heads,
+                           const std::string &fieldName,
+                           std::string alias,
+                           int msgTagBase) {
+    const size_t n = rowNum();
+    if (n == 0) return;
+
+    const int fieldIdx = colIndex(fieldName);
+    if (fieldIdx < 0) {
+        Log::e("Field '{}' not found for max operation", fieldName);
+        return;
+    }
+    const int bitlen = _fieldWidths[fieldIdx];
+
+    auto &src = _dataCols[fieldIdx];
+    if (src.size() != n || heads.size() != n) {
+        Log::e("Size mismatch: fieldData={}, heads={}, n={}", src.size(), heads.size(), n);
+        return;
+    }
+
+    const int batchSize = Conf::BATCH_SIZE;
+    if (n <= static_cast<size_t>(batchSize)) {
+        // 小数据量直接用单批实现
+        maxSingleBatch(heads, fieldName, alias, msgTagBase);
+        return;
+    }
+
+    // 工作副本：值列与组首布尔标记（XOR 份额）
+    std::vector<int64_t> vs = src;
+    std::vector<int64_t> bs_bool = heads;
+
+    // 各算子 stride
+    const int lessStride  = BoolLessBatchOperator::tagStride();
+    const int mutexStride = BoolMutexBatchOperator::tagStride();
+    const int andStride   = BoolAndBatchOperator::tagStride();
+    // 每个批任务用到：Less(1) + Mutex(1) + Mutex(1) + AND(1)
+    const int taskStride  = lessStride + mutexStride + mutexStride + andStride;
+
+    int tagCursorBase = msgTagBase;
+    const int64_t NOT_mask = Comm::rank();
+
+    // Hillis–Steele 前缀样式：delta = 1, 2, 4, ...
+    for (int delta = 1; delta < static_cast<int>(n); delta <<= 1) {
+        const int totalPairs = static_cast<int>(n) - delta;
+        if (totalPairs <= 0) break;
+
+        const int numBatches = (totalPairs + batchSize - 1) / batchSize;
+
+        using Pair = std::pair<std::vector<int64_t>, std::vector<int64_t>>; // {new_right, new_b}
+
+        std::vector<std::future<Pair>> futs(numBatches);
+
+        for (int b = 0; b < numBatches; ++b) {
+            const int start = b * batchSize;
+            const int end   = std::min(start + batchSize, totalPairs);
+            const int len   = end - start;
+
+            const int baseTag  = tagCursorBase + b * taskStride;
+            const int lessTag  = baseTag;
+            const int mtx1Tag  = baseTag + lessStride;
+            const int mtx2Tag  = mtx1Tag + mutexStride;
+            const int andTag   = mtx2Tag + mutexStride;
+
+            futs[b] = ThreadPoolSupport::submit([=, &vs, &bs_bool]() -> Pair {
+                if (len <= 0) return Pair{{}, {}};
+
+                // 快照左右值 & 组头取反（作为门控 / 德摩根）
+                std::vector<int64_t> left_vals(len), right_vals(len);
+                std::vector<int64_t> not_bL(len), not_bR(len);
+                for (int i = 0; i < len; ++i) {
+                    const int idxL = start + i;
+                    const int idxR = idxL + delta;
+                    left_vals[i]  = vs[idxL];
+                    right_vals[i] = vs[idxR];
+                    not_bL[i] = bs_bool[idxL] ^ NOT_mask; // ~b[i]
+                    not_bR[i] = bs_bool[idxR] ^ NOT_mask; // ~b[i+delta]
+                }
+
+                // 1) cmp = (left < right)
+                auto cmp = BoolLessBatchOperator(&left_vals, &right_vals, bitlen,
+                                                 /*tid*/0, /*tag*/lessTag,
+                                                 SecureOperator::NO_CLIENT_COMPUTE)
+                               .execute()->_zis;
+
+                // 2) cand = cmp ? right : left
+                auto cand = BoolMutexBatchOperator(&right_vals, &left_vals, &cmp,
+                                                   bitlen, /*tid*/0, /*tag*/mtx1Tag,
+                                                   SecureOperator::NO_CLIENT_COMPUTE)
+                                .execute()->_zis;
+
+                // 3) gate = ~b[i+delta]；new_right = gate ? cand : right
+                auto new_right = BoolMutexBatchOperator(&cand, &right_vals, &not_bR,
+                                                        bitlen, /*tid*/0, /*tag*/mtx2Tag,
+                                                        SecureOperator::NO_CLIENT_COMPUTE)
+                                     .execute()->_zis;
+
+                // 4) 边界传播：b[i+delta] = b[i] OR b[i+delta] = ~(~b[i] & ~b[i+delta])
+                auto and_out = BoolAndBatchOperator(&not_bL, &not_bR,
+                                                    /*bitlen=*/1, /*tid*/0, /*tag*/andTag,
+                                                    SecureOperator::NO_CLIENT_COMPUTE)
+                                   .execute()->_zis;
+                std::vector<int64_t> new_b(len);
+                for (int i = 0; i < len; ++i) new_b[i] = and_out[i] ^ NOT_mask;
+
+                return Pair{std::move(new_right), std::move(new_b)};
+            });
+        }
+
+        // 本轮 delta 消耗的 tag 空间
+        tagCursorBase += numBatches * taskStride;
+
+        // 写回右端：v[i+delta] 与 b[i+delta]
+        for (int b = 0; b < numBatches; ++b) {
+            const int start = b * batchSize;
+            const int end   = std::min(start + batchSize, totalPairs);
+            const int len   = end - start;
+            if (len <= 0) continue;
+
+            auto pr = futs[b].get();
+            auto &new_right = pr.first;
+            auto &new_b     = pr.second;
+
+            for (int i = 0; i < len; ++i) {
+                const int idxR = start + i + delta;
+                vs[idxR]      = new_right[i];
+                bs_bool[idxR] = new_b[i];
+            }
+        }
+    }
+
+    // 组尾标记：tail[i] = head[i+1]，最后一行 = 1_share
+    std::vector<int64_t> group_tails(n);
+    for (size_t i = 0; i + 1 < n; ++i) group_tails[i] = heads[i + 1];
+    group_tails[n - 1] = Comm::rank();
+
+    // 插入结果列（位置与单批版一致：在 VALID 之前）
+    const std::string outName = alias.empty() ? ("max_" + fieldName) : alias;
+
+    _fieldNames.reserve(_fieldNames.size() + 1);
+    _fieldWidths.reserve(_fieldWidths.size() + 1);
+    _dataCols.reserve(_dataCols.size() + 1);
+
+    const int insertPos = colNum() - 2;
+    _fieldNames.insert(_fieldNames.begin() + insertPos, outName);
+    _fieldWidths.insert(_fieldWidths.begin() + insertPos, bitlen);
+    _dataCols.insert(_dataCols.begin() + insertPos, std::move(vs));
+
+    // 更新 VALID 为组尾，只保留每组一行（尾行）
+    _dataCols[colNum() + VALID_COL_OFFSET] = std::move(group_tails);
+    clearInvalidEntries(0);
+}
+
 int View::sortTagStride() {
     return ((rowNum() / 2 + Conf::BATCH_SIZE - 1) / Conf::BATCH_SIZE) * (colNum() - 1) *
            BoolMutexBatchOperator::tagStride();
@@ -680,7 +937,7 @@ int View::sortTagStride() {
 void View::filterSingleBatch(std::vector<std::string> &fieldNames,
                              std::vector<ComparatorType> &comparatorTypes,
                              std::vector<int64_t> &constShares) {
-     size_t n = fieldNames.size();
+    size_t n = fieldNames.size();
     size_t data_size = _dataCols[0].size();
     std::vector<std::vector<int64_t> > collected(n);
 
@@ -696,7 +953,7 @@ void View::filterSingleBatch(std::vector<std::string> &fieldNames,
         auto ct = comparatorTypes[i];
 
         std::vector<int64_t> batch_const(data_size, constShares[i]);
-        std::vector<int64_t>& batch_data = _dataCols[colIndex];
+        std::vector<int64_t> &batch_data = _dataCols[colIndex];
 
         std::vector<int64_t> batch_result;
 
@@ -1261,11 +1518,63 @@ std::vector<int64_t> View::groupBy(const std::vector<std::string> &groupFields, 
     }
 }
 
-void View::count(std::vector<int64_t> &heads, std::string alias, int msgTagBase) {
+void View::count(std::vector<std::string> &groupFields, std::vector<int64_t> &heads, std::string alias,
+                 int msgTagBase) {
+    // Remove all columns except the group field and the redundant columns (valid, padding)
+    // 2) 在 move 之前缓存 valid/padding 的下标
+    const int oldColNum = static_cast<int>(colNum());
+    const int validIdx = oldColNum + VALID_COL_OFFSET;
+    const int paddingIdx = oldColNum + PADDING_COL_OFFSET;
+
+    // 3) 解析多列分组下标（保持传入顺序）
+    std::vector<int> groupIdx;
+    groupIdx.reserve(groupFields.size());
+    for (const auto &name: groupFields) {
+        int idx = colIndex(name);
+        groupIdx.push_back(idx);
+    }
+
+    // 4) 组装新列集合：groupFields + valid + padding
+    const size_t keep = groupIdx.size() + 2;
+    std::vector<std::vector<int64_t> > newDataCols;
+    std::vector<std::string> newFieldNames;
+    std::vector<int> newFieldWidths;
+    newDataCols.reserve(keep);
+    newFieldNames.reserve(keep);
+    newFieldWidths.reserve(keep);
+
+    // 4.1 移动多列分组字段
+    for (int gi: groupIdx) {
+        newDataCols.push_back(std::move(_dataCols[gi]));
+        newFieldNames.push_back(std::move(_fieldNames[gi]));
+        newFieldWidths.push_back(_fieldWidths[gi]);
+    }
+
+    // 4.2 移动 valid / padding（用之前缓存的旧索引）
+    newDataCols.push_back(std::move(_dataCols[validIdx]));
+    newDataCols.push_back(std::move(_dataCols[paddingIdx]));
+    newFieldNames.emplace_back(VALID_COL_NAME);
+    newFieldNames.emplace_back(PADDING_COL_NAME);
+    newFieldWidths.push_back(1);
+    newFieldWidths.push_back(1);
+
+    // 5) 用新集合替换视图
+    _dataCols = std::move(newDataCols);
+    _fieldNames = std::move(newFieldNames);
+    _fieldWidths = std::move(newFieldWidths);
+
     if (Conf::BATCH_SIZE <= 0 || Conf::DISABLE_MULTI_THREAD) {
         countSingleBatch(heads, alias, msgTagBase);
     } else {
         countMultiBatches(heads, alias, msgTagBase);
+    }
+}
+
+void View::max(std::vector<int64_t> &heads, const std::string &fieldName, std::string alias, int msgTagBase) {
+    if (Conf::BATCH_SIZE <= 0 || Conf::DISABLE_MULTI_THREAD) {
+        maxSingleBatch(heads, fieldName, alias, msgTagBase);
+    } else {
+        maxMultiBatches(heads, fieldName, alias, msgTagBase);
     }
 }
 

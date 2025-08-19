@@ -148,7 +148,7 @@ View executeGroupByCount(View &r_view, int tid) {
         return result_view;
     }
 
-    r_view.count(group_heads, "cnt", tid);
+    r_view.count(group_fields, group_heads, "cnt", tid);
 
     auto step1_end = System::currentTimeMillis();
     Log::i("Step 1 completed in {}ms", step1_end - step1_start);

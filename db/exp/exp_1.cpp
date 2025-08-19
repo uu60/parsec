@@ -243,7 +243,8 @@ View executeGroupByCount(View &filtered_diagnosis, int tid) {
         return result_view;
     }
 
-    filtered_diagnosis.count(group_heads, "cnt", tid);
+    std::vector<std::string> group_fields = {diag_field};
+    filtered_diagnosis.count(group_fields, group_heads, "cnt", tid);
 
     return filtered_diagnosis;
 }
