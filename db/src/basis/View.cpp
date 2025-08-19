@@ -929,6 +929,97 @@ void View::maxMultiBatches(std::vector<int64_t> &heads,
     clearInvalidEntries(0);
 }
 
+// —— 单批：分段最小值（Hillis–Steele 扫描 + 组边界传播）
+void View::minSingleBatch(std::vector<int64_t> &heads,
+                          const std::string &fieldName,
+                          std::string alias,
+                          int msgTagBase) {
+    const size_t n = rowNum();
+    if (n == 0) return;
+
+    const int fieldIdx = colIndex(fieldName);
+    if (fieldIdx < 0) {
+        Log::e("Field '{}' not found for min operation", fieldName);
+        return;
+    }
+    const int bitlen = _fieldWidths[fieldIdx];
+
+    std::vector<int64_t> &src = _dataCols[fieldIdx];
+    if (src.size() != n || heads.size() != n) {
+        Log::e("Size mismatch: fieldData={}, heads={}, n={}", src.size(), heads.size(), n);
+        return;
+    }
+
+    std::vector<int64_t> vs = src;        // 值工作副本
+    std::vector<int64_t> bs_bool = heads; // 组头(XOR)
+    const int64_t NOT_mask = Comm::rank();
+
+    for (int delta = 1; delta < static_cast<int>(n); delta <<= 1) {
+        const int m = static_cast<int>(n) - delta;
+
+        // 1) 快照左右
+        std::vector<int64_t> left_vals(m), right_vals(m);
+        for (int i = 0; i < m; ++i) {
+            left_vals[i]  = vs[i];
+            right_vals[i] = vs[i + delta];
+        }
+
+        // 2) cmp = (left < right)
+        auto cmp = BoolLessBatchOperator(&left_vals, &right_vals, bitlen,
+                                         /*tid*/0, msgTagBase,
+                                         SecureOperator::NO_CLIENT_COMPUTE)
+                       .execute()->_zis;
+
+        // 3) cand = cmp ? left : right   —— 取较小值
+        auto cand = BoolMutexBatchOperator(&left_vals, &right_vals, &cmp,
+                                           bitlen, /*tid*/0, msgTagBase,
+                                           SecureOperator::NO_CLIENT_COMPUTE)
+                        .execute()->_zis;
+
+        // 4) gate = ~b[i+delta]，new_right = gate ? cand : right
+        std::vector<int64_t> gate(m);
+        for (int i = 0; i < m; ++i) gate[i] = bs_bool[i + delta] ^ NOT_mask;
+
+        auto new_right = BoolMutexBatchOperator(&cand, &right_vals, &gate,
+                                                bitlen, /*tid*/0, msgTagBase,
+                                                SecureOperator::NO_CLIENT_COMPUTE)
+                             .execute()->_zis;
+
+        for (int i = 0; i < m; ++i) vs[i + delta] = new_right[i];
+
+        // 5) 传播边界：b[i+delta] = b[i] OR b[i+delta] = ~(~b[i] & ~b[i+delta])
+        std::vector<int64_t> not_l(m), not_r(m);
+        for (int i = 0; i < m; ++i) {
+            not_l[i] = bs_bool[i]         ^ NOT_mask;
+            not_r[i] = bs_bool[i + delta] ^ NOT_mask;
+        }
+        auto and_out = BoolAndBatchOperator(&not_l, &not_r, 1, 0, msgTagBase,
+                                            SecureOperator::NO_CLIENT_COMPUTE)
+                           .execute()->_zis;
+        for (int i = 0; i < m; ++i) bs_bool[i + delta] = and_out[i] ^ NOT_mask;
+    }
+
+    // 组尾：tail[i] = head[i+1]；最后一行 = 1_share
+    std::vector<int64_t> group_tails(n);
+    for (size_t i = 0; i + 1 < n; ++i) group_tails[i] = heads[i + 1];
+    group_tails[n - 1] = Comm::rank();
+
+    // 插入最小值列（在 VALID 之前）
+    const std::string outName = alias.empty() ? ("min_" + fieldName) : alias;
+
+    _fieldNames.reserve(_fieldNames.size() + 1);
+    _fieldWidths.reserve(_fieldWidths.size() + 1);
+    _dataCols.reserve(_dataCols.size() + 1);
+
+    const int insertPos = colNum() - 2;
+    _fieldNames.insert(_fieldNames.begin() + insertPos, outName);
+    _fieldWidths.insert(_fieldWidths.begin() + insertPos, bitlen);
+    _dataCols.insert(_dataCols.begin() + insertPos, vs);
+
+    _dataCols[colNum() + VALID_COL_OFFSET] = std::move(group_tails);
+    clearInvalidEntries(0);
+}
+
 int View::sortTagStride() {
     return ((rowNum() / 2 + Conf::BATCH_SIZE - 1) / Conf::BATCH_SIZE) * (colNum() - 1) *
            BoolMutexBatchOperator::tagStride();
@@ -1576,6 +1667,9 @@ void View::max(std::vector<int64_t> &heads, const std::string &fieldName, std::s
     } else {
         maxMultiBatches(heads, fieldName, alias, msgTagBase);
     }
+}
+
+void View::min(std::vector<int64_t> &heads, const std::string &fieldName, std::string alias, int msgTagBase) {
 }
 
 void View::distinctSingleBatch(int msgTagBase) {
