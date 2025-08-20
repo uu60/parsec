@@ -29,6 +29,8 @@ public:
 
     static std::vector<int64_t> in(std::vector<int64_t> &col1, std::vector<int64_t> &col2);
 
+    static void revealAndPrint(View &v);
+
 private:
     static std::vector<int64_t> inSingleBatch(std::vector<int64_t> &col1, std::vector<int64_t> &col2);
     

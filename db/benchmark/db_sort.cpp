@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
         shares = Secrets::boolReconstruct(secrets, 2, 64, System::nextTask());
 
         if (Comm::rank() == 2) {
-            Log::i("{}", StringUtils::vecString(shares));
+            Log::i("{}", StringUtils::vecToString(shares));
         }
     }
 

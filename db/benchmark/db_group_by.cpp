@@ -28,8 +28,8 @@ int main(int argc, char *argv[]) {
         key_shares = test_keys;
         value_shares = test_values;
         Log::i("Original data:");
-        Log::i("  Keys:   {}", StringUtils::vecString(test_keys));
-        Log::i("  Values: {}", StringUtils::vecString(test_values));
+        Log::i("  Keys:   {}", StringUtils::vecToString(test_keys));
+        Log::i("  Values: {}", StringUtils::vecToString(test_values));
         Log::i("Expected: 4 groups after sorting and grouping");
     }
 
@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
         
         auto end = System::currentTimeMillis();
         Log::i("Group by operation completed in {}ms", end - start);
-        Log::i("groups: {}", StringUtils::vecString(group_result));
+        Log::i("groups: {}", StringUtils::vecToString(group_result));
     }
 
     System::finalize();
@@ -115,9 +115,9 @@ inline void test_multi_column_group_by() {
         }
 
         Log::i("Test data created:");
-        Log::i("Column 1: {}", StringUtils::vecString(col1_data));
-        Log::i("Column 2: {}", StringUtils::vecString(col2_data));
-        Log::i("Column 3: {}", StringUtils::vecString(col3_data));
+        Log::i("Column 1: {}", StringUtils::vecToString(col1_data));
+        Log::i("Column 2: {}", StringUtils::vecToString(col2_data));
+        Log::i("Column 3: {}", StringUtils::vecToString(col3_data));
     }
 
     // Convert to secret shares
@@ -154,15 +154,15 @@ inline void test_multi_column_group_by() {
         auto end = System::currentTimeMillis();
         Log::i("Multi-column group by execution time: {}ms", end - start);
 
-        Log::i("Single column group boundaries (secret shares): {}", StringUtils::vecString(singleGroupBoundaries));
-        Log::i("Multi-column group boundaries (secret shares): {}", StringUtils::vecString(groupBoundaries));
+        Log::i("Single column group boundaries (secret shares): {}", StringUtils::vecToString(singleGroupBoundaries));
+        Log::i("Multi-column group boundaries (secret shares): {}", StringUtils::vecToString(groupBoundaries));
     }
 
     // Reconstruct results for verification
     auto reconstructedBoundaries = Secrets::boolReconstruct(groupBoundaries, 2, 1, t);
 
     if (Comm::isClient()) {
-        Log::i("Reconstructed group boundaries: {}", StringUtils::vecString(reconstructedBoundaries));
+        Log::i("Reconstructed group boundaries: {}", StringUtils::vecToString(reconstructedBoundaries));
 
         // Verify results
         int groupCount = 0;

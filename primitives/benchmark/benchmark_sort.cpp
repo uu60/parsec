@@ -52,7 +52,7 @@ void sortArith(int num, int width) {
 
     if (Comm::isClient()) {
         int last = INT_MIN;
-        Log::i("Result: {}", StringUtils::vecString(intRes));
+        Log::i("Result: {}", StringUtils::vecToString(intRes));
         for (auto s: res) {
             if (s._data < last) {
                 Log::i("Wrong: {}", s._data);
@@ -95,7 +95,7 @@ void sortBool(int num, int width) {
 
     if (Comm::isClient()) {
         int last = INT_MIN;
-        Log::i("Result: {}", StringUtils::vecString(intRes));
+        Log::i("Result: {}", StringUtils::vecToString(intRes));
         for (auto s: res) {
             if (s._data < last) {
                 Log::i("Wrong: {}", s._data);

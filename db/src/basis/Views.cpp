@@ -519,6 +519,21 @@ std::vector<int64_t> Views::in(std::vector<int64_t> &col1, std::vector<int64_t> 
     }
 }
 
+void Views::revealAndPrint(View &v) {
+    for (int i = 0; i < v.colNum(); i++) {
+        if (Comm::rank() == 1) {
+            Comm::serverSend(v._dataCols[i], 64, 0);
+        } else {
+            std::vector<int64_t> temp;
+            Comm::serverReceive(temp, 64, 0);
+            for (int j = 0; j < temp.size(); j++) {
+                temp[j] ^= v._dataCols[i][j];
+            }
+            Log::i("{}: {}", v._fieldNames[i], StringUtils::vecToString(temp));
+        }
+    }
+}
+
 std::vector<int64_t> Views::inSingleBatch(std::vector<int64_t> &col1, std::vector<int64_t> &col2) {
     std::vector<int64_t> result(col1.size(), 0);
     if (col1.empty() || col2.empty()) return result;

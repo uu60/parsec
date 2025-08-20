@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
         
         Log::i("Original data before sharing:");
         for (int c = 0; c < col; c++) {
-            Log::i("Column {}: {}", c, StringUtils::vecString(testData[c]));
+            Log::i("Column {}: {}", c, StringUtils::vecToString(testData[c]));
         }
     } else {
         // Initialize empty data for other ranks
@@ -125,7 +125,7 @@ int main(int argc, char *argv[]) {
     if (Comm::rank() == 2) {
         Log::i("Distinct results:");
         for (int c = 0; c < col; c++) {
-            Log::i("Column {}: {}", c, StringUtils::vecString(results[c]));
+            Log::i("Column {}: {}", c, StringUtils::vecToString(results[c]));
         }
         
         // Display results in row format for easier verification

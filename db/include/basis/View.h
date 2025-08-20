@@ -70,6 +70,9 @@ public:
 
     void min(std::vector<int64_t> &heads, const std::string &fieldName, std::string alias, int msgTagBase);
 
+    // Combined min and max aggregation function - must have run group by before calling this
+    void minAndMax(std::vector<int64_t> &heads, const std::string &fieldName, std::string minAlias, std::string maxAlias, int msgTagBase);
+
     void distinct(int msgTagBase);
 
     int groupByTagStride();
@@ -119,6 +122,10 @@ private:
     void minSingleBatch(std::vector<int64_t> &heads, const std::string &fieldName, std::string alias, int msgTagBase);
 
     void minMultiBatches(std::vector<int64_t> &heads, const std::string &fieldName, std::string alias, int msgTagBase);
+
+    void minAndMaxSingleBatch(std::vector<int64_t> &heads, const std::string &fieldName, std::string minAlias, std::string maxAlias, int msgTagBase);
+
+    void minAndMaxMultiBatches(std::vector<int64_t> &heads, const std::string &fieldName, std::string minAlias, std::string maxAlias, int msgTagBase);
 };
 
 

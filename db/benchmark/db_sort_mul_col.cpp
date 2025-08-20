@@ -83,8 +83,8 @@ int main(int argc, char *argv[]) {
     col2_result = Secrets::boolReconstruct(col2_secrets, 2, 64, System::nextTask());
 
     if (Comm::rank() == 2) {
-        Log::i("Column 0: {}", StringUtils::vecString(col1_result));
-        Log::i("Column 1: {}", StringUtils::vecString(col2_result));
+        Log::i("Column 0: {}", StringUtils::vecToString(col1_result));
+        Log::i("Column 1: {}", StringUtils::vecToString(col2_result));
     }
     
     if (Comm::rank() == 2) {

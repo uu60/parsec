@@ -75,9 +75,9 @@ int main(int argc, char *argv[]) {
         }
 
         Log::i("Generated test data:");
-        Log::i("col1: {}", StringUtils::vecString(col1_plain));
-        Log::i("col2: {}", StringUtils::vecString(col2_plain));
-        Log::i("expected: {}", StringUtils::vecString(expected_result));
+        Log::i("col1: {}", StringUtils::vecToString(col1_plain));
+        Log::i("col2: {}", StringUtils::vecToString(col2_plain));
+        Log::i("expected: {}", StringUtils::vecToString(expected_result));
     }
 
     // Convert to secret shares
@@ -99,7 +99,7 @@ int main(int argc, char *argv[]) {
     auto result = Secrets::boolReconstruct(result_shares, 2, 1, System::nextTask());
 
     if (Comm::rank() == 2) {
-        Log::i("actual result: {}", StringUtils::vecString(result));
+        Log::i("actual result: {}", StringUtils::vecToString(result));
     }
 
     System::finalize();

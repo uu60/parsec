@@ -13,7 +13,7 @@
 class StringUtils {
 public:
     template<typename T>
-    static std::string vecString(const std::vector<T> &vec) {
+    static std::string vecToString(const std::vector<T> &vec) {
         std::ostringstream oss;
         oss << "[";
         for (size_t i = 0; i < vec.size(); ++i) {

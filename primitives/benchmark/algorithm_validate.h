@@ -501,8 +501,8 @@ inline void test_arith_to_bool_batch_conversion_20() {
     // Convert arith to bool using batch operator
     auto boolResults = op.execute()->reconstruct(2)->_results;
 
-    Log::i("boolResults: {}", StringUtils::vecString(boolResults));
-    Log::i("zis: {}", StringUtils::vecString(op._zis));
+    Log::i("boolResults: {}", StringUtils::vecToString(boolResults));
+    Log::i("zis: {}", StringUtils::vecToString(op._zis));
 }
 
 inline void test_arith_less_batch_21() {
@@ -522,8 +522,8 @@ inline void test_arith_less_batch_21() {
     // Convert arith to bool using batch operator
     auto boolResults = op.execute()->reconstruct(2)->_results;
 
-    Log::i("boolResults: {}", StringUtils::vecString(boolResults));
-    Log::i("zis: {}", StringUtils::vecString(op._zis));
+    Log::i("boolResults: {}", StringUtils::vecToString(boolResults));
+    Log::i("zis: {}", StringUtils::vecToString(op._zis));
 }
 
 inline void test_arith_multiply_batch_22() {
@@ -540,8 +540,8 @@ inline void test_arith_multiply_batch_22() {
             b.push_back(Math::randInt(1, 1000));
         }
 
-        Log::i("Input vectors a: {}", StringUtils::vecString(a));
-        Log::i("Input vectors b: {}", StringUtils::vecString(b));
+        Log::i("Input vectors a: {}", StringUtils::vecToString(a));
+        Log::i("Input vectors b: {}", StringUtils::vecToString(b));
     }
 
     auto t = System::nextTask();
@@ -550,7 +550,7 @@ inline void test_arith_multiply_batch_22() {
     ArithMultiplyBatchOperator batchOp(&a, &b, width, t, 0, 2);
     auto batchResults = batchOp.execute()->reconstruct(2)->_results;
     if (Comm::isClient()) {
-        Log::i("batchResults: {}", StringUtils::vecString(batchResults));
+        Log::i("batchResults: {}", StringUtils::vecToString(batchResults));
     }
 }
 
@@ -569,9 +569,9 @@ inline void test_arith_mutex_batch_23() {
             c.push_back(Math::randInt(0, 1)); // Boolean condition
         }
 
-        Log::i("Input vectors a: {}", StringUtils::vecString(a));
-        Log::i("Input vectors b: {}", StringUtils::vecString(b));
-        Log::i("Input vectors c: {}", StringUtils::vecString(c));
+        Log::i("Input vectors a: {}", StringUtils::vecToString(a));
+        Log::i("Input vectors b: {}", StringUtils::vecToString(b));
+        Log::i("Input vectors c: {}", StringUtils::vecToString(c));
     }
 
     auto t = System::nextTask();
@@ -581,7 +581,7 @@ inline void test_arith_mutex_batch_23() {
     auto batchResults = batchOp.execute()->reconstruct(2)->_results;
 
     if (Comm::isClient()) {
-        Log::i("batchResults: {}", StringUtils::vecString(batchResults));
+        Log::i("batchResults: {}", StringUtils::vecToString(batchResults));
     }
 }
 
@@ -607,8 +607,8 @@ inline void test_bool_equal_batch_24() {
             }
         }
 
-        Log::i("Input vectors a: {}", StringUtils::vecString(a));
-        Log::i("Input vectors b: {}", StringUtils::vecString(b));
+        Log::i("Input vectors a: {}", StringUtils::vecToString(a));
+        Log::i("Input vectors b: {}", StringUtils::vecToString(b));
     }
 
     auto t = System::nextTask();
@@ -618,7 +618,7 @@ inline void test_bool_equal_batch_24() {
     auto batchResults = batchOp.execute()->reconstruct(2)->_results;
 
     if (Comm::isClient()) {
-        Log::i("BoolEqualBatchOperator results: {}", StringUtils::vecString(batchResults));
+        Log::i("BoolEqualBatchOperator results: {}", StringUtils::vecToString(batchResults));
         
         // Verify results
         int correctCount = 0;
@@ -675,8 +675,8 @@ inline void test_arith_equal_batch_25() {
             }
         }
 
-        Log::i("Input vectors a: {}", StringUtils::vecString(a));
-        Log::i("Input vectors b: {}", StringUtils::vecString(b));
+        Log::i("Input vectors a: {}", StringUtils::vecToString(a));
+        Log::i("Input vectors b: {}", StringUtils::vecToString(b));
     }
 
     auto t = System::nextTask();
@@ -686,7 +686,7 @@ inline void test_arith_equal_batch_25() {
     auto batchResults = batchOp.execute()->reconstruct(2)->_results;
 
     if (Comm::isClient()) {
-        Log::i("ArithEqualBatchOperator results: {}", StringUtils::vecString(batchResults));
+        Log::i("ArithEqualBatchOperator results: {}", StringUtils::vecToString(batchResults));
         
         // Verify results
         int correctCount = 0;
@@ -743,8 +743,8 @@ inline void test_equal_operators_comparison_26() {
             }
         }
 
-        Log::i("Input vectors a: {}", StringUtils::vecString(a));
-        Log::i("Input vectors b: {}", StringUtils::vecString(b));
+        Log::i("Input vectors a: {}", StringUtils::vecToString(a));
+        Log::i("Input vectors b: {}", StringUtils::vecToString(b));
     }
 
     auto t = System::nextTask();
@@ -758,8 +758,8 @@ inline void test_equal_operators_comparison_26() {
     auto boolResults = boolOp.execute()->reconstruct(2)->_results;
 
     if (Comm::isClient()) {
-        Log::i("ArithEqual results: {}", StringUtils::vecString(arithResults));
-        Log::i("BoolEqual results:  {}", StringUtils::vecString(boolResults));
+        Log::i("ArithEqual results: {}", StringUtils::vecToString(arithResults));
+        Log::i("BoolEqual results:  {}", StringUtils::vecToString(boolResults));
         
         // Compare results between the two operators
         int matchCount = 0;
