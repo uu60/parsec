@@ -34,7 +34,7 @@ void testMaxFunction(int tid);
 
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
-    auto tid = System::nextTask();
+    auto tid = System::nextTask() << (32 - Conf::TASK_TAG_BITS);
 
     // Read parameters from command line
     int rows = 100;

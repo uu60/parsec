@@ -68,7 +68,7 @@ void displayResults(View &result_view, int tid);
 
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
-    auto tid = System::nextTask();
+    auto tid = System::nextTask() << (32 - Conf::TASK_TAG_BITS);
 
     // Read number of rows from command line
     int diagRows = 1000, medRows = 1000;
@@ -245,7 +245,7 @@ View filterDiagnosisTable(View &diagnosis_view, int64_t hd_value, int tid) {
     std::vector<int64_t> constShares = {hd_value};
 
     View filtered_diagnosis = diagnosis_view;
-    filtered_diagnosis.filterAndConditions(fieldNames, comparatorTypes, constShares);
+    filtered_diagnosis.filterAndConditions(fieldNames, comparatorTypes, constShares, tid);
 
     auto step1_end = System::currentTimeMillis();
     Log::i("Step 1 completed in {}ms", step1_end - step1_start);
@@ -263,7 +263,7 @@ View filterMedicationTable(View &medication_view, int64_t aspirin_value, int tid
 
 
     View filtered_medication = medication_view;
-    filtered_medication.filterAndConditions(fieldNames, comparatorTypes, constShares);
+    filtered_medication.filterAndConditions(fieldNames, comparatorTypes, constShares, tid);
 
     auto step2_end = System::currentTimeMillis();
     Log::i("Step 2 completed in {}ms", step2_end - step2_start);

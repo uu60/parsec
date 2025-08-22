@@ -56,7 +56,7 @@ void displayResults(View &result_view, int tid);
 
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
-    auto tid = System::nextTask();
+    auto tid = System::nextTask() << (32 - Conf::TASK_TAG_BITS);
 
     // Read parameters from command line
     int rows = 1000;
@@ -195,7 +195,7 @@ View filterByYear(View &r_view, int64_t target_year, int tid) {
     std::vector<int64_t> constShares = {Comm::rank() * target_year};
 
     View filtered_view = r_view;
-    filtered_view.filterAndConditions(fieldNames, comparatorTypes, constShares);
+    filtered_view.filterAndConditions(fieldNames, comparatorTypes, constShares, tid);
 
     auto step1_end = System::currentTimeMillis();
     Log::i("Step 1 completed in {}ms", step1_end - step1_start);
@@ -254,8 +254,6 @@ View filterByDifference(View &aggregated_view, int64_t threshold_c, int tid) {
                                                   SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         auto cs2_arith = BoolToArithBatchOperator(&cs2_data, 64, 0, tid + BoolToArithBatchOperator::tagStride(),
                                                   SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-
-        Log::i("cs1: {} cs2: {}", StringUtils::vecToString(cs1_arith), StringUtils::vecToString(cs2_arith));
 
         // Step 2: Compute cs2 - cs1 using addition: cs2 + (-cs1)
         std::vector<int64_t> neg_cs1_arith;

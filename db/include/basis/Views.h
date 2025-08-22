@@ -8,6 +8,7 @@
 
 
 #include <string>
+
 class Views {
 public:
     static View selectAll(Table &t);
@@ -23,39 +24,40 @@ public:
 
     static View hashJoin(View &v0, View &v1, std::string &field0, std::string &field1);
 
-    static std::string getAliasColName(std::string& tableName, std::string& fieldName);
+    static std::string getAliasColName(std::string &tableName, std::string &fieldName);
 
     static int64_t hash(int64_t keyValue);
 
     static std::vector<int64_t> in(std::vector<int64_t> &col1, std::vector<int64_t> &col2);
 
+    static int64_t exists(std::vector<int64_t> &validCol);
+
     static void revealAndPrint(View &v);
 
 private:
     static std::vector<int64_t> inSingleBatch(std::vector<int64_t> &col1, std::vector<int64_t> &col2);
-    
+
     static std::vector<int64_t> inMultiBatches(std::vector<int64_t> &col1, std::vector<int64_t> &col2);
-    
+
     static void addRedundantCols(View &v);
-    
-    static std::vector<std::vector<std::vector<int64_t>>> butterflyPermutation(
-        View& view,
+
+    static std::vector<std::vector<std::vector<int64_t> > > butterflyPermutation(
+        View &view,
         int tagColIndex,
         int msgTagBase
     );
-    
+
     static View performBucketJoins(
-        std::vector<std::vector<std::vector<int64_t>>>& buckets0,
-        std::vector<std::vector<std::vector<int64_t>>>& buckets1,
-        View& v0,
-        View& v1,
-        std::string& field0,
-        std::string& field1
+        std::vector<std::vector<std::vector<int64_t> > > &buckets0,
+        std::vector<std::vector<std::vector<int64_t> > > &buckets1,
+        View &v0,
+        View &v1,
+        std::string &field0,
+        std::string &field1
     );
 
-    static int butterflyPermutationTagStride(View& v);
+    static int butterflyPermutationTagStride(View &v);
 };
-
 
 
 #endif //VIEWS_H

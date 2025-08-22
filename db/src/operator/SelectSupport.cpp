@@ -366,7 +366,7 @@ void SelectSupport::serverSelect(json js) {
             if (tableFilterCols.count(tableName) > 0) {
                 tableView.filterAndConditions(tableFilterCols[tableName], 
                                             tableFilterCmps[tableName], 
-                                            tableFilterVals[tableName]);
+                                            tableFilterVals[tableName], 0);
             }
             
             tableViews[tableName] = tableView;
@@ -476,7 +476,7 @@ void SelectSupport::serverSelect(json js) {
         std::vector<View::ComparatorType> filterCmps = js.at("filterCmps").get<std::vector<
             View::ComparatorType> >();
         std::vector<int64_t> filterVals = js.at("filterVals").get<std::vector<int64_t> >();
-        v.filterAndConditions(filterFields, filterCmps, filterVals);
+        v.filterAndConditions(filterFields, filterCmps, filterVals, 0);
     }
 
     // order

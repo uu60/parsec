@@ -58,7 +58,7 @@ void displayResults(View &result_view, int tid);
  */
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
-    auto tid = System::nextTask();
+    auto tid = System::nextTask() << (32 - Conf::TASK_TAG_BITS);
 
     // Read number of rows from command line
     int rows1 = 1000, rows2 = 1000;

@@ -519,6 +519,46 @@ std::vector<int64_t> Views::in(std::vector<int64_t> &col1, std::vector<int64_t> 
     }
 }
 
+int64_t Views::exists(std::vector<int64_t> &validCol) {
+    const size_t n = validCol.size();
+    if (n == 0) {
+        // 空集的 OR = 0，这里返回“0”的布尔份额（按你的系统，返回 0 即可）
+        return 0;
+    }
+
+    // 工作副本
+    std::vector<int64_t> a = validCol;
+
+    // 单侧“取反”面罩：NOT(x) = x ^ Comm::rank()
+    const int64_t NOT_MASK = Comm::rank();
+
+    // 归约：把 a[i+delta] 更新为 a[i] OR a[i+delta]，循环结束后 a[n-1] 即为全体 OR
+    for (int delta = 1; delta < static_cast<int>(n); delta <<= 1) {
+        const int m = static_cast<int>(n) - delta;
+
+        // OR = NOT( NOT left AND NOT right )
+        std::vector<int64_t> not_l(m), not_r(m);
+        for (int i = 0; i < m; ++i) {
+            not_l[i] = a[i] ^ NOT_MASK; // NOT a[i]
+            not_r[i] = a[i + delta] ^ NOT_MASK; // NOT a[i+delta]
+        }
+
+        // AND(not_l, not_r)
+        auto and_out = BoolAndBatchOperator(&not_l, &not_r,
+                                            /*bitlen=*/1, /*tid=*/0, 0,
+                                            SecureOperator::NO_CLIENT_COMPUTE)
+                .execute()->_zis;
+
+        // 写回 OR 结果到右半
+        for (int i = 0; i < m; ++i) {
+            a[i + delta] = and_out[i] ^ NOT_MASK; // NOT(AND) = OR
+        }
+    }
+
+    // 最后一项即为全体 OR 的布尔份额
+    return a[n - 1];
+}
+
 void Views::revealAndPrint(View &v) {
     for (int i = 0; i < v.colNum(); i++) {
         if (Comm::rank() == 1) {

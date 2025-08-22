@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
         std::vector<std::string> a0 = {"a0", "a1"};
         std::vector a1 = {View::ComparatorType::GREATER, View::ComparatorType::GREATER};
         std::vector<int64_t> a2 = {Comm::rank() == 1 ? 0ll : 10ll, Comm::rank() == 1 ? 0ll : 20ll};
-        v.filterAndConditions(a0, a1, a2);
+        v.filterAndConditions(a0, a1, a2, 0);
         Log::i("Filter time: {}ms", System::currentTimeMillis() - start);
     }
 

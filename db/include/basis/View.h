@@ -46,7 +46,7 @@ public:
 
     int sortTagStride(const std::vector<std::string> &orderFields);
 
-    void filterAndConditions(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes, std::vector<int64_t> &constShares);
+    void filterAndConditions(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes, std::vector<int64_t> &constShares, int msgTagBase);
 
     void clearInvalidEntries(int msgTagBase);
 
@@ -90,10 +90,10 @@ private:
     void bitonicSortMultiBatches(const std::vector<std::string> &orderFields, const std::vector<bool> &ascendingOrders, int msgTagBase);
 
     void filterSingleBatch(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
-               std::vector<int64_t> &constShares);
+               std::vector<int64_t> &constShares, int msgTagBase);
 
     void filterMultiBatches(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
-              std::vector<int64_t> &constShares);
+              std::vector<int64_t> &constShares, int msgTagBase);
 
     void bitonicSort(const std::string &orderField, bool ascendingOrder, int msgTagBase);
 

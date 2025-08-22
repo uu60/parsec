@@ -506,7 +506,7 @@ void View::countSingleBatch(std::vector<int64_t> &heads, std::string alias, int 
     _dataCols.insert(_dataCols.begin() + colNum() - 2, 1, vs);
     _dataCols[colNum() + VALID_COL_OFFSET] = std::move(group_tails);
 
-    clearInvalidEntries(0);
+    clearInvalidEntries(msgTagBase);
 }
 
 void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int msgTagBase) {
@@ -672,7 +672,7 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
     _dataCols.insert(_dataCols.begin() + colNum() - 2, 1, vs);
 
     _dataCols[colNum() + VALID_COL_OFFSET] = std::move(group_tails);
-    clearInvalidEntries(0);
+    clearInvalidEntries(msgTagBase);
 }
 
 void View::maxSingleBatch(std::vector<int64_t> &heads, const std::string &fieldName, std::string alias,
@@ -774,7 +774,7 @@ void View::maxSingleBatch(std::vector<int64_t> &heads, const std::string &fieldN
     _dataCols[colNum() + VALID_COL_OFFSET] = std::move(group_tails);
 
     // —— 清理无效行
-    clearInvalidEntries(0);
+    clearInvalidEntries(msgTagBase);
 }
 
 void View::maxMultiBatches(std::vector<int64_t> &heads,
@@ -926,7 +926,7 @@ void View::maxMultiBatches(std::vector<int64_t> &heads,
 
     // 更新 VALID 为组尾，只保留每组一行（尾行）
     _dataCols[colNum() + VALID_COL_OFFSET] = std::move(group_tails);
-    clearInvalidEntries(0);
+    clearInvalidEntries(msgTagBase);
 }
 
 // —— 单批：分段最小值（Hillis–Steele 扫描 + 组边界传播）
@@ -1017,7 +1017,7 @@ void View::minSingleBatch(std::vector<int64_t> &heads,
     _dataCols.insert(_dataCols.begin() + insertPos, vs);
 
     _dataCols[colNum() + VALID_COL_OFFSET] = std::move(group_tails);
-    clearInvalidEntries(0);
+    clearInvalidEntries(msgTagBase);
 }
 
 // —— 多批：一轮一波并行（每批内：Less → Mutex(选较小) → Mutex(门控) → AND(边界)）
@@ -1160,7 +1160,7 @@ void View::minMultiBatches(std::vector<int64_t> &heads,
     _dataCols.insert(_dataCols.begin() + insertPos, std::move(vs));
 
     _dataCols[colNum() + VALID_COL_OFFSET] = std::move(group_tails);
-    clearInvalidEntries(0);
+    clearInvalidEntries(msgTagBase);
 }
 
 int View::sortTagStride() {
@@ -1170,7 +1170,7 @@ int View::sortTagStride() {
 
 void View::filterSingleBatch(std::vector<std::string> &fieldNames,
                              std::vector<ComparatorType> &comparatorTypes,
-                             std::vector<int64_t> &constShares) {
+                             std::vector<int64_t> &constShares, int msgTagBase) {
     size_t n = fieldNames.size();
     size_t data_size = _dataCols[0].size();
     std::vector<std::vector<int64_t> > collected(n);
@@ -1195,7 +1195,7 @@ void View::filterSingleBatch(std::vector<std::string> &fieldNames,
             case GREATER:
             case LESS_EQ: {
                 batch_result = BoolLessBatchOperator(&batch_const, &batch_data,
-                                                     _fieldWidths[colIndex], 0, 0,
+                                                     _fieldWidths[colIndex], 0, msgTagBase,
                                                      SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
                 if (ct == LESS_EQ) {
                     for (auto &v: batch_result) {
@@ -1207,7 +1207,7 @@ void View::filterSingleBatch(std::vector<std::string> &fieldNames,
             case LESS:
             case GREATER_EQ: {
                 batch_result = BoolLessBatchOperator(&batch_data, &batch_const,
-                                                     _fieldWidths[colIndex], 0, 0,
+                                                     _fieldWidths[colIndex], 0, msgTagBase,
                                                      SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
                 if (ct == GREATER_EQ) {
                     for (auto &v: batch_result) {
@@ -1219,7 +1219,7 @@ void View::filterSingleBatch(std::vector<std::string> &fieldNames,
             case EQUALS:
             case NOT_EQUALS: {
                 batch_result = BoolEqualBatchOperator(&batch_const, &batch_data, _fieldWidths[colIndex],
-                                                      0, 0,
+                                                      0, msgTagBase,
                                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
                 if (ct == NOT_EQUALS) {
                     for (auto &v: batch_result) {
@@ -1242,7 +1242,7 @@ void View::filterSingleBatch(std::vector<std::string> &fieldNames,
     // Combine multiple conditions with AND operation (single batch approach)
     std::vector<int64_t> result = std::move(collected[0]);
     for (int i = 1; i < n; i++) {
-        result = BoolAndBatchOperator(&result, &collected[i], 1, 0, 0,
+        result = BoolAndBatchOperator(&result, &collected[i], 1, 0, msgTagBase,
                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
     }
 
@@ -1250,9 +1250,9 @@ void View::filterSingleBatch(std::vector<std::string> &fieldNames,
 }
 
 void View::filterMultiBatches(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
-                              std::vector<int64_t> &constShares) {
+                              std::vector<int64_t> &constShares, int msgTagBase) {
     if (rowNum() <= Conf::BATCH_SIZE) {
-        filterSingleBatch(fieldNames, comparatorTypes, constShares);
+        filterSingleBatch(fieldNames, comparatorTypes, constShares, msgTagBase);
         return;
     }
     size_t n = fieldNames.size();
@@ -1379,7 +1379,7 @@ void View::filterMultiBatches(std::vector<std::string> &fieldNames, std::vector<
                         return BoolAndBatchOperator(
                             &L, &R, 1,
                             0,
-                            level * msgStride + p, SecureOperator::NO_CLIENT_COMPUTE
+                            msgTagBase + level * msgStride + p, SecureOperator::NO_CLIENT_COMPUTE
                         ).execute()->_zis;
                     }
                 )
@@ -1407,13 +1407,13 @@ void View::filterMultiBatches(std::vector<std::string> &fieldNames, std::vector<
 }
 
 void View::filterAndConditions(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
-                               std::vector<int64_t> &constShares) {
+                               std::vector<int64_t> &constShares, int msgTagBase) {
     if (Conf::BATCH_SIZE <= 0 || Conf::DISABLE_MULTI_THREAD) {
-        filterSingleBatch(fieldNames, comparatorTypes, constShares);
+        filterSingleBatch(fieldNames, comparatorTypes, constShares, msgTagBase);
     } else {
-        filterMultiBatches(fieldNames, comparatorTypes, constShares);
+        filterMultiBatches(fieldNames, comparatorTypes, constShares, msgTagBase);
     }
-    clearInvalidEntries(0);
+    clearInvalidEntries(msgTagBase);
 }
 
 void View::clearInvalidEntries(int msgTagBase) {
@@ -1827,7 +1827,7 @@ void View::minAndMaxSingleBatch(std::vector<int64_t> &heads,
     _dataCols.insert(_dataCols.begin() + insertPos + 1, max_vs);
 
     _dataCols[colNum() + VALID_COL_OFFSET] = std::move(group_tails);
-    clearInvalidEntries(0);
+    clearInvalidEntries(msgTagBase);
 }
 
 // —— 多批：同时计算最小值和最大值（一轮一波并行）
@@ -2000,7 +2000,7 @@ void View::minAndMaxMultiBatches(std::vector<int64_t> &heads,
     _dataCols.insert(_dataCols.begin() + insertPos + 1, std::move(max_vs));
 
     _dataCols[colNum() + VALID_COL_OFFSET] = std::move(group_tails);
-    clearInvalidEntries(0);
+    clearInvalidEntries(msgTagBase);
 }
 
 // Group by functionality for 2PC secret sharing
