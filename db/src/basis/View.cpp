@@ -40,6 +40,64 @@ View::View(std::string &tableName, std::vector<std::string> &fieldNames, std::ve
     tableName, fieldNames, fieldWidths, EMPTY_KEY_FIELD) {
 }
 
+void View::select(std::vector<std::string> &fieldNames) {
+    if (fieldNames.empty()) {
+        return;
+    }
+    
+    // Get indices of selected fields
+    std::vector<int> selectedIndices;
+    selectedIndices.reserve(fieldNames.size());
+
+    Log::i("fields: {} needed: {}", StringUtils::vecToString(_fieldNames), StringUtils::vecToString(fieldNames));
+    for (const std::string &fieldName : fieldNames) {
+        int index = colIndex(fieldName);
+        if (index >= 0) {
+            selectedIndices.push_back(index);
+        }
+    }
+    
+    if (selectedIndices.empty()) {
+        return;
+    }
+    
+    // Calculate indices for the last two columns (valid and padding)
+    int totalCols = static_cast<int>(colNum());
+    int validColIndex = totalCols + VALID_COL_OFFSET;    // colNum() - 2
+    int paddingColIndex = totalCols + PADDING_COL_OFFSET; // colNum() - 1
+    
+    // Create new data structures for the selected columns + last two columns
+    std::vector<std::vector<int64_t>> newDataCols;
+    std::vector<std::string> newFieldNames;
+    std::vector<int> newFieldWidths;
+    
+    // Reserve space for selected columns + valid + padding columns
+    size_t newSize = selectedIndices.size() + 2;
+    newDataCols.reserve(newSize);
+    newFieldNames.reserve(newSize);
+    newFieldWidths.reserve(newSize);
+    
+    // Copy selected columns
+    for (int index : selectedIndices) {
+        newDataCols.push_back(std::move(_dataCols[index]));
+        newFieldNames.push_back(std::move(_fieldNames[index]));
+        newFieldWidths.push_back(_fieldWidths[index]);
+    }
+    
+    // Copy the last two columns (valid and padding)
+    newDataCols.push_back(std::move(_dataCols[validColIndex]));
+    newDataCols.push_back(std::move(_dataCols[paddingColIndex]));
+    newFieldNames.push_back(VALID_COL_NAME);
+    newFieldNames.push_back(PADDING_COL_NAME);
+    newFieldWidths.push_back(1); // valid column width
+    newFieldWidths.push_back(1); // padding column width
+    
+    // Replace the current view's data with the new selected data
+    _dataCols = std::move(newDataCols);
+    _fieldNames = std::move(newFieldNames);
+    _fieldWidths = std::move(newFieldWidths);
+}
+
 void View::sort(const std::string &orderField, bool ascendingOrder, int msgTagBase) {
     size_t n = rowNum();
     if (n == 0) {

@@ -85,11 +85,21 @@ View Views::nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string 
     std::string tableName0 = v0._tableName.empty() ? "$t0" : v0._tableName;
     std::string tableName1 = v1._tableName.empty() ? "$t1" : v1._tableName;
 
+    const std::string prefix = Table::BUCKET_TAG_PREFIX;
+
+    auto decorate = [&](const std::string& tableName, const std::string& raw) -> std::string {
+        if (raw.compare(0, prefix.size(), prefix) == 0) { // 以 BUCKET_TAG_PREFIX 开头
+            return prefix + tableName + "." + raw.substr(prefix.size());
+        } else {
+            return tableName + "." + raw;
+        }
+    };
+
     for (int i = 0; i < effectiveFieldNum0; ++i) {
-        fieldNames[i] = tableName0 + "." + v0._fieldNames[i];
+        fieldNames[i] = decorate(tableName0, v0._fieldNames[i]);
     }
     for (int i = 0; i < effectiveFieldNum1; ++i) {
-        fieldNames[i + effectiveFieldNum0] = tableName1 + "." + v1._fieldNames[i];
+        fieldNames[i + effectiveFieldNum0] = decorate(tableName1, v1._fieldNames[i]);
     }
 
     std::vector<int> fieldWidths(effectiveFieldNum0 + effectiveFieldNum1);

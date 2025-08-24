@@ -37,6 +37,8 @@ public:
     // without auto add redundant columns
     View(std::string &tableName, std::vector<std::string> &fieldNames, std::vector<int> &fieldWidths, bool dummy);
 
+    void select(std::vector<std::string> &fieldNames);
+
     void sort(const std::string &orderField, bool ascendingOrder, int msgTagBase);
 
     // Multi-column sort support
