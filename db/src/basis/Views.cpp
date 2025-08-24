@@ -86,10 +86,10 @@ View Views::nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string 
     std::string tableName1 = v1._tableName.empty() ? "$t1" : v1._tableName;
 
     for (int i = 0; i < effectiveFieldNum0; ++i) {
-        fieldNames[i] = v0._fieldNames[i];
+        fieldNames[i] = tableName0 + "." + v0._fieldNames[i];
     }
     for (int i = 0; i < effectiveFieldNum1; ++i) {
-        fieldNames[i + effectiveFieldNum0] = v1._fieldNames[i];
+        fieldNames[i + effectiveFieldNum0] = tableName1 + "." + v1._fieldNames[i];
     }
 
     std::vector<int> fieldWidths(effectiveFieldNum0 + effectiveFieldNum1);
@@ -463,14 +463,14 @@ View Views::hashJoin(View &v0, View &v1, std::string &field0, std::string &field
     int tagColIndex0 = -1, tagColIndex1 = -1;
 
     for (int i = 0; i < v0._fieldNames.size(); i++) {
-        if (v0._fieldNames[i].find(Table::BUCKET_TAG_PREFIX) == 0) {
+        if (v0._fieldNames[i] == View::BUCKET_TAG_PREFIX + field0) {
             tagColIndex0 = i;
             break;
         }
     }
 
     for (int i = 0; i < v1._fieldNames.size(); i++) {
-        if (v1._fieldNames[i].find(Table::BUCKET_TAG_PREFIX) == 0) {
+        if (v0._fieldNames[i] == View::BUCKET_TAG_PREFIX + field1) {
             tagColIndex1 = i;
             break;
         }
@@ -503,6 +503,67 @@ View Views::hashJoin(View &v0, View &v1, std::string &field0, std::string &field
     return result;
 }
 
+View Views::leftOuterJoin(View &v0, View &v1, std::string &field0, std::string &field1) {
+    // 0) 内连接
+    View inner = hashJoin(v0, v1, field0, field1);
+
+    // 1) 半连接标记：左行是否在右表有匹配
+    const int k0 = v0.colIndex(field0);
+    const int k1 = v1.colIndex(field1);
+    if (k0 < 0 || k1 < 0) return inner;
+
+    const auto &left_keys  = v0._dataCols[k0];
+    const auto &right_keys = v1._dataCols[k1];
+    // has_match[i] ∈ {0,1} (布尔份额)
+    std::vector<int64_t> has_match = in(const_cast<std::vector<int64_t>&>(left_keys),
+                                        const_cast<std::vector<int64_t>&>(right_keys));
+
+    // 2) 目标列结构（与 inner 一致）：v0(有效列) + v1(有效列)
+    const size_t eff0 = v0.colNum() - 2;  // 去掉 VALID/PADDING
+    const size_t eff1 = v1.colNum() - 2;
+
+    std::vector<std::string> names; names.reserve(eff0 + eff1);
+    std::vector<int>         widths; widths.reserve(eff0 + eff1);
+    for (size_t i = 0; i < eff0; ++i) { names.push_back(v0._fieldNames[i]); widths.push_back(v0._fieldWidths[i]); }
+    for (size_t i = 0; i < eff1; ++i) { names.push_back(v1._fieldNames[i]); widths.push_back(v1._fieldWidths[i]); }
+
+    // 3) 构造 left_only（右侧全空）：行有效位 = NOT(has_match)
+    View left_only(names, widths);
+    const size_t n0 = v0.rowNum();
+
+    // 3.1 左侧有效列逐列拷贝
+    for (size_t c = 0; c < eff0; ++c) {
+        left_only._dataCols[c] = v0._dataCols[c];               // 与 v0 行数一致
+    }
+    // 3.2 右侧有效列置 0（空值）；如果你支持 null-bit，可另加一列 right_is_null = NOT(has_match)
+    for (size_t c = 0; c < eff1; ++c) {
+        left_only._dataCols[eff0 + c].assign(n0, 0);            // 布尔/算术 0 的秘密份额皆可
+    }
+
+    // 3.3 设置有效位：NOT(has_match)
+    // 你的布尔“取反”写法之前用的是 bs ^ Comm::rank()
+    std::vector<int64_t> not_has(n0);
+    for (size_t i = 0; i < n0; ++i) not_has[i] = has_match[i] ^ Comm::rank();
+
+    // 写入 VALID / PADDING
+    left_only._dataCols[left_only.colNum() + View::VALID_COL_OFFSET]   = not_has;
+    left_only._dataCols[left_only.colNum() + View::PADDING_COL_OFFSET] = std::vector<int64_t>(n0, 0);
+
+    // 3.4 仅保留无匹配行
+    left_only.clearInvalidEntries(0);
+
+    // 4) 结果 = 内连接 ∪ left_only
+    // 若你有封装好的拼接函数，用它；否则逐列 append
+    View result = inner;  // 复制列结构
+    const size_t total_cols = result.colNum() + 2; // 含 VALID/PADDING
+    for (size_t col = 0; col < total_cols; ++col) {
+        auto &dst = result._dataCols[col];
+        auto &src = left_only._dataCols[col];
+        dst.insert(dst.end(), src.begin(), src.end());
+    }
+    return result;
+}
+
 std::string Views::getAliasColName(std::string &tableName, std::string &fieldName) {
     return tableName + "." + fieldName;
 }
@@ -517,46 +578,6 @@ std::vector<int64_t> Views::in(std::vector<int64_t> &col1, std::vector<int64_t> 
     } else {
         return inMultiBatches(col1, col2);
     }
-}
-
-int64_t Views::exists(std::vector<int64_t> &validCol) {
-    const size_t n = validCol.size();
-    if (n == 0) {
-        // 空集的 OR = 0，这里返回“0”的布尔份额（按你的系统，返回 0 即可）
-        return 0;
-    }
-
-    // 工作副本
-    std::vector<int64_t> a = validCol;
-
-    // 单侧“取反”面罩：NOT(x) = x ^ Comm::rank()
-    const int64_t NOT_MASK = Comm::rank();
-
-    // 归约：把 a[i+delta] 更新为 a[i] OR a[i+delta]，循环结束后 a[n-1] 即为全体 OR
-    for (int delta = 1; delta < static_cast<int>(n); delta <<= 1) {
-        const int m = static_cast<int>(n) - delta;
-
-        // OR = NOT( NOT left AND NOT right )
-        std::vector<int64_t> not_l(m), not_r(m);
-        for (int i = 0; i < m; ++i) {
-            not_l[i] = a[i] ^ NOT_MASK; // NOT a[i]
-            not_r[i] = a[i + delta] ^ NOT_MASK; // NOT a[i+delta]
-        }
-
-        // AND(not_l, not_r)
-        auto and_out = BoolAndBatchOperator(&not_l, &not_r,
-                                            /*bitlen=*/1, /*tid=*/0, 0,
-                                            SecureOperator::NO_CLIENT_COMPUTE)
-                .execute()->_zis;
-
-        // 写回 OR 结果到右半
-        for (int i = 0; i < m; ++i) {
-            a[i + delta] = and_out[i] ^ NOT_MASK; // NOT(AND) = OR
-        }
-    }
-
-    // 最后一项即为全体 OR 的布尔份额
-    return a[n - 1];
 }
 
 void Views::revealAndPrint(View &v) {

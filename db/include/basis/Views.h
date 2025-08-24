@@ -24,13 +24,13 @@ public:
 
     static View hashJoin(View &v0, View &v1, std::string &field0, std::string &field1);
 
+    static View leftOuterJoin(View &v0, View &v1, std::string &field0, std::string &field1);
+
     static std::string getAliasColName(std::string &tableName, std::string &fieldName);
 
     static int64_t hash(int64_t keyValue);
 
     static std::vector<int64_t> in(std::vector<int64_t> &col1, std::vector<int64_t> &col2);
-
-    static int64_t exists(std::vector<int64_t> &validCol);
 
     static void revealAndPrint(View &v);
 
