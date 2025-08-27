@@ -60,37 +60,19 @@ View filterByQuantity(View &lineitem_view, int64_t quantity_threshold, int tid);
 
 int64_t calculateRevenue(View &filtered_view, int tid);
 
-void displayResults(int64_t revenue_share, int tid);
-
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
     auto tid = System::nextTask() << (32 - Conf::TASK_TAG_BITS);
 
     // Read parameters from command line
     int lineitem_rows = 10000;
-    int64_t start_date = 19940101;    // 1994-01-01
-    int64_t end_date = 19950101;      // 1995-01-01 (1 year later)
-    int64_t discount_center = 6;      // 0.06 (represented as 6 for integer arithmetic)
-    int64_t discount_min = 5;         // 0.05 (discount_center - 1)
-    int64_t discount_max = 7;         // 0.07 (discount_center + 1)
-    int64_t quantity_threshold = 24;  // quantity < 24
 
-    if (Conf::_userParams.count("lineitem_rows")) {
+    if (Conf::_userParams.count("rows")) {
         lineitem_rows = std::stoi(Conf::_userParams["lineitem_rows"]);
     }
-    if (Conf::_userParams.count("start_date")) {
-        start_date = std::stoll(Conf::_userParams["start_date"]);
-    }
-    if (Conf::_userParams.count("end_date")) {
-        end_date = std::stoll(Conf::_userParams["end_date"]);
-    }
-    if (Conf::_userParams.count("discount_center")) {
-        discount_center = std::stoll(Conf::_userParams["discount_center"]);
-        discount_min = discount_center - 1;
-        discount_max = discount_center + 1;
-    }
-    if (Conf::_userParams.count("quantity_threshold")) {
-        quantity_threshold = std::stoll(Conf::_userParams["quantity_threshold"]);
+
+    if (Comm::isClient()) {
+        Log::i("Data size: lineitem: {}", lineitem_rows);
     }
 
     // Generate test data
@@ -104,9 +86,46 @@ int main(int argc, char *argv[]) {
     auto l_extendedprice_shares = Secrets::boolShare(l_extendedprice_data, 2, 64, tid);
     auto l_revenue_shares = Secrets::boolShare(l_revenue_data, 2, 64, tid);
 
+    // Generate and distribute constant parameters as secret shares
+    int64_t start_date, end_date, discount_center, discount_min, discount_max, quantity_threshold;
+    if (Comm::isClient()) {
+        int64_t start_date0 = Math::randInt();
+        int64_t start_date1 = Math::randInt();
+        int64_t end_date0 = Math::randInt();
+        int64_t end_date1 = Math::randInt();
+        int64_t discount_center0 = Math::randInt();
+        int64_t discount_center1 = Math::randInt();
+        int64_t discount_min0 = Math::randInt();
+        int64_t discount_min1 = Math::randInt();
+        int64_t discount_max0 = Math::randInt();
+        int64_t discount_max1 = Math::randInt();
+        int64_t quantity_threshold0 = Math::randInt();
+        int64_t quantity_threshold1 = Math::randInt();
+        
+        Comm::send(start_date0, 64, 0, tid);
+        Comm::send(end_date0, 64, 0, tid);
+        Comm::send(discount_center0, 64, 0, tid);
+        Comm::send(discount_min0, 64, 0, tid);
+        Comm::send(discount_max0, 64, 0, tid);
+        Comm::send(quantity_threshold0, 64, 0, tid);
+        
+        Comm::send(start_date1, 64, 1, tid);
+        Comm::send(end_date1, 64, 1, tid);
+        Comm::send(discount_center1, 64, 1, tid);
+        Comm::send(discount_min1, 64, 1, tid);
+        Comm::send(discount_max1, 64, 1, tid);
+        Comm::send(quantity_threshold1, 64, 1, tid);
+    } else {
+        Comm::receive(start_date, 64, 2, tid);
+        Comm::receive(end_date, 64, 2, tid);
+        Comm::receive(discount_center, 64, 2, tid);
+        Comm::receive(discount_min, 64, 2, tid);
+        Comm::receive(discount_max, 64, 2, tid);
+        Comm::receive(quantity_threshold, 64, 2, tid);
+    }
+
     int64_t revenue_share = 0;
     if (Comm::isServer()) {
-        Log::i("Starting TPC-H Query 6 execution...");
         auto query_start = System::currentTimeMillis();
 
         // Create lineitem table
@@ -128,9 +147,6 @@ int main(int argc, char *argv[]) {
         auto query_end = System::currentTimeMillis();
         Log::i("Total query execution time: {}ms", query_end - query_start);
     }
-
-    // Display results
-    displayResults(revenue_share, tid);
 
     System::finalize();
     return 0;
@@ -198,23 +214,6 @@ void generateTestData(int lineitem_rows,
             l_extendedprice_data.push_back(test_prices[idx]);
             l_revenue_data.push_back(test_prices[idx] * test_discounts[idx]);
         }
-
-        Log::i("Generated {} lineitem records with fixed test data", lineitem_rows);
-        Log::i("Test data design:");
-        Log::i("Records 0-4: Should pass all filters");
-        Log::i("  - Shipdate: 1994-02-01 to 1994-06-01 (in range [1994-01-01, 1995-01-01))");
-        Log::i("  - Discount: 5, 6, 7, 5, 6 (in range [5, 7])");
-        Log::i("  - Quantity: 10, 15, 20, 23, 22 (< 24)");
-        Log::i("  - Price: 1000.00, 2000.00, 3000.00, 4000.00, 5000.00");
-        Log::i("  - Pre-calculated revenue: 500000, 1200000, 2100000, 2000000, 3000000");
-        Log::i("Records 5-9: Should fail various filters");
-        Log::i("Expected revenue calculation:");
-        Log::i("  Record 0: 100000 * 5 = 500000");
-        Log::i("  Record 1: 200000 * 6 = 1200000");
-        Log::i("  Record 2: 300000 * 7 = 2100000");
-        Log::i("  Record 3: 400000 * 5 = 2000000");
-        Log::i("  Record 4: 500000 * 6 = 3000000");
-        Log::i("  Total expected revenue: 8800000 (= $88000.00)");
     }
 }
 
@@ -241,68 +240,44 @@ View createLineitemTable(std::vector<int64_t> &l_shipdate_shares,
     }
 
     auto lineitem_view = Views::selectAll(lineitem_table);
-    Log::i("Created lineitem table with {} rows and {} columns", lineitem_table.rowNum(), fields.size());
     return lineitem_view;
 }
 
 View filterByShipdate(View &lineitem_view, int64_t start_date, int64_t end_date, int tid) {
-    Log::i("Step 1: Filtering by shipdate range [{}, {})...", start_date, end_date);
-    auto step1_start = System::currentTimeMillis();
-
     std::vector<std::string> fieldNames = {"l_shipdate", "l_shipdate"};
     std::vector<View::ComparatorType> comparatorTypes = {View::GREATER_EQ, View::LESS};
-    std::vector<int64_t> constShares = {Comm::rank() * start_date, Comm::rank() * end_date};
+    std::vector<int64_t> constShares = {start_date, end_date};
 
     View filtered_view = lineitem_view;
     filtered_view.filterAndConditions(fieldNames, comparatorTypes, constShares, tid);
 
-    auto step1_end = System::currentTimeMillis();
-    Log::i("Step 1 completed in {}ms", step1_end - step1_start);
-    Log::i("Filtered by shipdate: {} rows", filtered_view.rowNum());
     return filtered_view;
 }
 
 View filterByDiscount(View &lineitem_view, int64_t discount_min, int64_t discount_max, int tid) {
-    Log::i("Step 2: Filtering by discount range [{}, {}]...", discount_min, discount_max);
-    auto step2_start = System::currentTimeMillis();
-
     std::vector<std::string> fieldNames = {"l_discount", "l_discount"};
     std::vector<View::ComparatorType> comparatorTypes = {View::GREATER_EQ, View::LESS_EQ};
-    std::vector<int64_t> constShares = {Comm::rank() * discount_min, Comm::rank() * discount_max};
+    std::vector<int64_t> constShares = {discount_min, discount_max};
 
     View filtered_view = lineitem_view;
     filtered_view.filterAndConditions(fieldNames, comparatorTypes, constShares, tid);
 
-    auto step2_end = System::currentTimeMillis();
-    Log::i("Step 2 completed in {}ms", step2_end - step2_start);
-    Log::i("Filtered by discount: {} rows", filtered_view.rowNum());
     return filtered_view;
 }
 
 View filterByQuantity(View &lineitem_view, int64_t quantity_threshold, int tid) {
-    Log::i("Step 3: Filtering by quantity < {}...", quantity_threshold);
-    auto step3_start = System::currentTimeMillis();
-
     std::vector<std::string> fieldNames = {"l_quantity"};
     std::vector<View::ComparatorType> comparatorTypes = {View::LESS};
-    std::vector<int64_t> constShares = {Comm::rank() * quantity_threshold};
+    std::vector<int64_t> constShares = {quantity_threshold};
 
     View filtered_view = lineitem_view;
     filtered_view.filterAndConditions(fieldNames, comparatorTypes, constShares, tid);
 
-    auto step3_end = System::currentTimeMillis();
-    Log::i("Step 3 completed in {}ms", step3_end - step3_start);
-    Log::i("Filtered by quantity: {} rows", filtered_view.rowNum());
     return filtered_view;
 }
 
 int64_t calculateRevenue(View &filtered_view, int tid) {
-    Log::i("Step 4: Calculating revenue sum using pre-calculated l_revenue column...");
-    auto step4_start = System::currentTimeMillis();
-
     if (filtered_view.rowNum() == 0) {
-        auto step4_end = System::currentTimeMillis();
-        Log::i("Step 4 completed in {}ms (empty input)", step4_end - step4_start);
         return 0;
     }
 
@@ -350,37 +325,6 @@ int64_t calculateRevenue(View &filtered_view, int tid) {
             revenue_sum += revenue;
         }
     }
-
-    auto step4_end = System::currentTimeMillis();
-    Log::i("Step 4 completed in {}ms", step4_end - step4_start);
-    Log::i("Calculated revenue sum from {} qualifying records using pre-calculated values", revenue_arith_shares.size());
     
     return revenue_sum;
-}
-
-void displayResults(int64_t revenue_share, int tid) {
-    Log::i("Reconstructing revenue result for verification...");
-    
-    std::vector<int64_t> revenue_vec = {revenue_share};
-    auto revenue_plain = Secrets::arithReconstruct(revenue_vec, 2, 64, tid);
-
-    if (Comm::rank() == 2) {
-        Log::i("TPC-H Query 6 Results:");
-        Log::i("======================");
-        
-        if (!revenue_plain.empty()) {
-            double revenue_dollars = static_cast<double>(revenue_plain[0]) / 100.0; // Convert cents to dollars
-            Log::i("Total Revenue: ${:.2f}", revenue_dollars);
-            Log::i("Revenue (raw): {}", revenue_plain[0]);
-        } else {
-            Log::i("Total Revenue: $0.00");
-        }
-
-        Log::i("\nQuery Summary:");
-        Log::i("This query calculates the total revenue from lineitem records where:");
-        Log::i("1. Shipdate is within the specified date range");
-        Log::i("2. Discount is within the specified range (±0.01 from center)");
-        Log::i("3. Quantity is below the specified threshold");
-        Log::i("Revenue = sum(l_extendedprice * l_discount) for qualifying records");
-    }
 }

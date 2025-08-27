@@ -18,12 +18,9 @@
 #include "../include/basis/Views.h"
 #include "../include/basis/Table.h"
 #include "../include/operator/SelectSupport.h"
-#include "conf/DbConf.h"
 #include "utils/Log.h"
-#include "utils/StringUtils.h"
 #include "utils/Math.h"
 #include "compute/batch/bool/BoolLessBatchOperator.h"
-#include "compute/batch/bool/BoolEqualBatchOperator.h"
 #include "compute/batch/arith/ArithToBoolBatchOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 
@@ -31,7 +28,6 @@
 #include <vector>
 #include <random>
 #include <algorithm>
-#include <set>
 
 // Forward declarations
 void generateTestData(int diagRows, int medRows,
@@ -64,19 +60,21 @@ View filterByTimeCondition(View &joined_view, int tid);
 
 View executeDistinctCount(View &final_view, int tid);
 
-void displayResults(View &result_view, int tid);
-
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
     auto tid = System::nextTask() << (32 - Conf::TASK_TAG_BITS);
 
     // Read number of rows from command line
     int diagRows = 1000, medRows = 1000;
-    if (Conf::_userParams.count("diagRows")) {
+    if (Conf::_userParams.count("rows1")) {
         diagRows = std::stoi(Conf::_userParams["diagRows"]);
     }
-    if (Conf::_userParams.count("medRows")) {
+    if (Conf::_userParams.count("rows2")) {
         medRows = std::stoi(Conf::_userParams["medRows"]);
+    }
+
+    if (Comm::isClient()) {
+        Log::i("Data size: diagnosis: {} medication: {}", diagRows, medRows);
     }
 
     // Generate test data
@@ -97,9 +95,24 @@ int main(int argc, char *argv[]) {
     auto medication_time_shares = Secrets::boolShare(medication_time_data, 2, 64, tid);
     auto medication_tag_shares = Secrets::boolShare(medication_tag_data, 2, 64, tid);
 
+    // Execute query steps with optimization: filter before join
+    int64_t hd_value, aspirin_value; // Example value for 'aspirin'
+    if (Comm::isClient()) {
+        int64_t hd_value0 = Math::randInt();
+        int64_t hd_value1 = Math::randInt();
+        int64_t aspirin_value0 = Math::randInt();
+        int64_t aspirin_value1 = Math::randInt();
+        Comm::send(hd_value0, 64, 0, tid);
+        Comm::send(aspirin_value0, 64, 0, tid);
+        Comm::send(hd_value1, 64, 1, tid);
+        Comm::send(aspirin_value1, 64, 1, tid);
+    } else {
+        Comm::receive(hd_value, 64, 2, tid);
+        Comm::receive(aspirin_value, 64, 2, tid);
+    }
+
     View result_view;
     if (Comm::isServer()) {
-        Log::i("Starting query execution...");
         auto query_start = System::currentTimeMillis();
 
         // Create tables
@@ -107,10 +120,6 @@ int main(int argc, char *argv[]) {
                                                    diagnosis_time_shares, diagnosis_tag_shares);
         auto medication_view = createMedicationTable(medication_pid_shares, medication_med_shares,
                                                       medication_time_shares, medication_tag_shares);
-
-        // Execute query steps with optimization: filter before join
-        int64_t hd_value = Comm::rank() * 100;      // Example value for 'hd'
-        int64_t aspirin_value = Comm::rank() * 200; // Example value for 'aspirin'
 
         auto filtered_diagnosis = filterDiagnosisTable(diagnosis_view, hd_value, tid);
         auto filtered_medication = filterMedicationTable(medication_view, aspirin_value, tid);
@@ -122,9 +131,6 @@ int main(int argc, char *argv[]) {
         auto query_end = System::currentTimeMillis();
         Log::i("Total query execution time: {}ms", query_end - query_start);
     }
-
-    // Display results
-    displayResults(result_view, tid);
 
     System::finalize();
     return 0;
@@ -180,9 +186,6 @@ void generateTestData(int diagRows, int medRows,
             medication_tag_data.push_back(Views::hash(pid));
         }
 
-        Log::i("Generated {} diagnosis records and {} medication records", diagRows, medRows);
-        Log::i("Random data - Full range random int64_t values for PIDs, diagnosis codes, medicine codes, and times");
-        Log::i("Filter values - Alice: diag=0, med=0; Bob: diag=100, med=200");
     }
 }
 
@@ -207,7 +210,6 @@ View createDiagnosisTable(std::vector<int64_t> &diagnosis_pid_shares,
     }
 
     auto diagnosis_view = Views::selectAll(diagnosis_table);
-    Log::i("Created diagnosis table with {} rows", diagnosis_table.rowNum());
     return diagnosis_view;
 }
 
@@ -232,14 +234,10 @@ View createMedicationTable(std::vector<int64_t> &medication_pid_shares,
     }
 
     auto medication_view = Views::selectAll(medication_table);
-    Log::i("Created medication table with {} rows", medication_table.rowNum());
     return medication_view;
 }
 
 View filterDiagnosisTable(View &diagnosis_view, int64_t hd_value, int tid) {
-    Log::i("Step 1: Filtering diagnosis table for diag = {}...", hd_value);
-    auto step1_start = System::currentTimeMillis();
-
     std::vector<std::string> fieldNames = {"diag"};
     std::vector<View::ComparatorType> comparatorTypes = {View::EQUALS};
     std::vector<int64_t> constShares = {hd_value};
@@ -247,53 +245,32 @@ View filterDiagnosisTable(View &diagnosis_view, int64_t hd_value, int tid) {
     View filtered_diagnosis = diagnosis_view;
     filtered_diagnosis.filterAndConditions(fieldNames, comparatorTypes, constShares, tid);
 
-    auto step1_end = System::currentTimeMillis();
-    Log::i("Step 1 completed in {}ms", step1_end - step1_start);
-    Log::i("Filtered diagnosis table has {} rows", filtered_diagnosis.rowNum());
     return filtered_diagnosis;
 }
 
 View filterMedicationTable(View &medication_view, int64_t aspirin_value, int tid) {
-    Log::i("Step 2: Filtering medication table for med = {}...", aspirin_value);
-    auto step2_start = System::currentTimeMillis();
-
     std::vector<std::string> fieldNames = {"med"};
     std::vector<View::ComparatorType> comparatorTypes = {View::EQUALS};
     std::vector<int64_t> constShares = {aspirin_value};
 
-
     View filtered_medication = medication_view;
     filtered_medication.filterAndConditions(fieldNames, comparatorTypes, constShares, tid);
 
-    auto step2_end = System::currentTimeMillis();
-    Log::i("Step 2 completed in {}ms", step2_end - step2_start);
-    Log::i("Filtered medication table has {} rows", filtered_medication.rowNum());
     return filtered_medication;
 }
 
 View performJoin(View &filtered_diagnosis, View &filtered_medication, int tid) {
-    Log::i("Step 3: Performing JOIN on pid...");
-    auto step3_start = System::currentTimeMillis();
-
     std::string join_field_d = "pid";
     std::string join_field_m = "pid";
 
     // Use hash join since we have bucket tags
     auto joined_view = Views::hashJoin(filtered_diagnosis, filtered_medication, join_field_d, join_field_m);
 
-    auto step3_end = System::currentTimeMillis();
-    Log::i("Step 3 completed in {}ms", step3_end - step3_start);
-    Log::i("Joined table has {} rows", joined_view.rowNum());
     return joined_view;
 }
 
 View filterByTimeCondition(View &joined_view, int tid) {
-    Log::i("Step 4: Filtering by time condition (d.time <= m.time)...");
-    auto step4_start = System::currentTimeMillis();
-
     if (joined_view.rowNum() == 0) {
-        auto step4_end = System::currentTimeMillis();
-        Log::i("Step 4 completed in {}ms (empty input)", step4_end - step4_start);
         return joined_view;
     }
 
@@ -370,16 +347,10 @@ View filterByTimeCondition(View &joined_view, int tid) {
         joined_view.clearInvalidEntries(tid);
     }
 
-    auto step4_end = System::currentTimeMillis();
-    Log::i("Step 4 completed in {}ms", step4_end - step4_start);
-    Log::i("Time-filtered table has {} rows", joined_view.rowNum());
     return joined_view;
 }
 
 View executeDistinctCount(View &final_view, int tid) {
-    Log::i("Step 5: Computing COUNT(DISTINCT pid)...");
-    auto step5_start = System::currentTimeMillis();
-
     if (final_view.rowNum() == 0) {
         // Create empty result
         std::vector<std::string> result_fields = {"distinct_pid_count"};
@@ -391,8 +362,6 @@ View executeDistinctCount(View &final_view, int tid) {
         result_view._dataCols[result_view.colNum() + View::VALID_COL_OFFSET].push_back(Comm::rank());
         result_view._dataCols[result_view.colNum() + View::PADDING_COL_OFFSET].push_back(0);
         
-        auto step5_end = System::currentTimeMillis();
-        Log::i("Step 5 completed in {}ms (empty input)", step5_end - step5_start);
         return result_view;
     }
 
@@ -417,32 +386,10 @@ View executeDistinctCount(View &final_view, int tid) {
     std::vector<std::string> result_fields = {"distinct_pid_count"};
     std::vector<int> result_widths = {64};
     View result_view(result_fields, result_widths);
-    
-    // // Convert count to secret shares
-    // std::vector<int64_t> count_data = {distinct_count};
-    // auto count_shares = ArithToBoolBatchOperator(&count_data, 64, 0, tid,
-    //                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-    
+
     result_view._dataCols[0].push_back(Comm::rank() * distinct_count);
     result_view._dataCols[result_view.colNum() + View::VALID_COL_OFFSET].push_back(Comm::rank());
     result_view._dataCols[result_view.colNum() + View::PADDING_COL_OFFSET].push_back(0);
 
-    auto step5_end = System::currentTimeMillis();
-    Log::i("Step 5 completed in {}ms", step5_end - step5_start);
     return result_view;
-}
-
-void displayResults(View &result_view, int tid) {
-    Log::i("Reconstructing results for verification...");
-    std::vector<int64_t> count_col;
-    if (Comm::isServer() && !result_view._dataCols.empty()) {
-        count_col = result_view._dataCols[0];
-    }
-
-    auto count_plain = Secrets::boolReconstruct(count_col, 2, 64, tid);
-
-    if (Comm::rank() == 2) {
-        Log::i("Query Results:");
-        Log::i("COUNT(DISTINCT pid): {}", count_plain.empty() ? 0 : count_plain[0]);
-    }
 }

@@ -33,10 +33,12 @@ mkdir build && cd build || exit 1
 if [[ "$USE_ASAN" == true ]]; then
   echo "Building with AddressSanitizer enabled (O1)…"
   cmake .. -G Ninja \
-    -DENABLE_ASAN=ON \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-    -DCMAKE_C_FLAGS_RELWITHDEBINFO="-O1 -g -fno-omit-frame-pointer" \
-    -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="-O1 -g -fno-omit-frame-pointer"
+    -DCMAKE_C_FLAGS_RELWITHDEBINFO="-O1 -g -fno-omit-frame-pointer -fsanitize=address" \
+    -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="-O1 -g -fno-omit-frame-pointer -fsanitize=address" \
+    -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address" \
+    -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address" \
+    -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address"
 else
   echo "Building without AddressSanitizer (O2)…"
   cmake .. -G Ninja \

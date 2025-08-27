@@ -41,8 +41,6 @@ std::vector<int64_t> executeHavingClause(View &counted, int tid);
 
 View filterByHaving(View &grouped_view, std::vector<int64_t> &having_results, int tid);
 
-void displayResults(View &result_view, int tid);
-
 /**
  * SELECT ID
  * FROM R
@@ -59,6 +57,10 @@ int main(int argc, char *argv[]) {
         rows = std::stoi(Conf::_userParams["rows"]);
     }
 
+    if (Comm::isClient()) {
+        Log::i("Data size: R: {}", rows);
+    }
+
     // Generate test data
     std::vector<int64_t> id_data, pwd_data;
     generateTestData(rows, id_data, pwd_data);
@@ -72,7 +74,6 @@ int main(int argc, char *argv[]) {
         // Create table R (not counted in query execution time)
         auto r_view = createRTable(id_shares, pwd_shares);
 
-        Log::i("Starting core query execution...");
         auto query_start = System::currentTimeMillis();
 
         // Execute query steps (only these are counted)
@@ -83,9 +84,6 @@ int main(int argc, char *argv[]) {
         auto query_end = System::currentTimeMillis();
         Log::i("Core query execution time: {}ms", query_end - query_start);
     }
-
-    // Display results
-    displayResults(result_view, tid);
 
     System::finalize();
     return 0;
@@ -104,8 +102,6 @@ void generateTestData(int rows,
             id_data.push_back(Math::randInt());
             pwd_data.push_back(Math::randInt());
         }
-
-        Log::i("Generated {} random test records", rows);
     }
 }
 
@@ -126,41 +122,27 @@ View createRTable(std::vector<int64_t> &id_shares,
     }
 
     auto r_view = Views::selectAll(r_table);
-    Log::i("Created R table with {} rows", r_table.rowNum());
     return r_view;
 }
 
 View executeGroupByCount(View &r_view, int tid) {
-    Log::i("Step 1: Computing COUNT(*) GROUP BY for each group using segmented scan algorithm...");
-    auto step1_start = System::currentTimeMillis();
-
     std::vector<std::string> group_fields = {"ID", "PWD"};
     auto group_heads = r_view.groupBy(group_fields, tid);
-    Log::i("Step 1 group by completed in {}ms", System::currentTimeMillis() - step1_start);
 
     size_t n = r_view.rowNum();
     if (n == 0) {
         std::vector<std::string> result_fields = {"ID", "PWD", "cnt"};
         std::vector<int> result_widths = {64, 64, 64};
         View result_view(result_fields, result_widths);
-        auto step1_end = System::currentTimeMillis();
-        Log::i("Step 1 completed in {}ms", step1_end - step1_start);
         return result_view;
     }
 
     r_view.count(group_fields, group_heads, "cnt", tid);
 
-    auto step1_end = System::currentTimeMillis();
-    Log::i("Step 1 completed in {}ms", step1_end - step1_start);
-    Log::i("Grouped result has {} rows", r_view.rowNum());
-
     return r_view;
 }
 
 std::vector<int64_t> executeHavingClause(View &counted, int tid) {
-    Log::i("Step 2: Executing HAVING COUNT(*) > 1...");
-    auto step2_start = System::currentTimeMillis();
-
     // Get the count column
     auto count_col = counted._dataCols[counted.colIndex("cnt")];
     
@@ -171,17 +153,10 @@ std::vector<int64_t> executeHavingClause(View &counted, int tid) {
     auto having_results = BoolLessBatchOperator(&ones, &count_col, 64, tid, 0,
                                                  SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
-
-    auto step2_end = System::currentTimeMillis();
-    Log::i("Step 2 completed in {}ms", step2_end - step2_start);
-
     return having_results;
 }
 
 View filterByHaving(View &grouped_view, std::vector<int64_t> &having_results, int tid) {
-    Log::i("Step 3: Filtering results by HAVING clause...");
-    auto step3_start = System::currentTimeMillis();
-
     // Create result view with only ID column (as specified in SELECT clause)
     std::vector<std::string> result_fields = {"ID"};
     std::vector<int> result_widths = {64};
@@ -196,31 +171,5 @@ View filterByHaving(View &grouped_view, std::vector<int64_t> &having_results, in
 
     result_view.clearInvalidEntries(tid);
 
-    auto step3_end = System::currentTimeMillis();
-    Log::i("Step 3 completed in {}ms", step3_end - step3_start);
-    Log::i("Final result has {} rows", result_view.rowNum());
-
     return result_view;
-}
-
-void displayResults(View &result_view, int tid) {
-    Log::i("Reconstructing results for verification...");
-    std::vector<int64_t> id_col;
-    if (Comm::isServer()) {
-        id_col = result_view._dataCols[0];
-    }
-
-    auto id_plain = Secrets::boolReconstruct(id_col, 2, 64, tid);
-
-    if (Comm::rank() == 2) {
-        Log::i("Query Results (IDs with duplicate ID,PWD combinations):");
-        Log::i("ID");
-        Log::i("--");
-
-        for (int i = 0; i < id_plain.size(); i++) {
-            Log::i("{}", id_plain[i]);
-        }
-        
-        Log::i("Total {} IDs found with COUNT(*) > 1", id_plain.size());
-    }
 }
