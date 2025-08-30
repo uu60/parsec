@@ -21,6 +21,7 @@
 #include <string>
 
 #include "compute/batch/arith/ArithToBoolBatchOperator.h"
+#include "conf/DbConf.h"
 #include "utils/StringUtils.h"
 
 View::View(std::vector<std::string> &fieldNames,
@@ -44,46 +45,46 @@ void View::select(std::vector<std::string> &fieldNames) {
     if (fieldNames.empty()) {
         return;
     }
-    
+
     // Get indices of selected fields
     std::vector<int> selectedIndices;
     selectedIndices.reserve(fieldNames.size());
 
     Log::i("fields: {} needed: {}", StringUtils::vecToString(_fieldNames), StringUtils::vecToString(fieldNames));
-    for (const std::string &fieldName : fieldNames) {
+    for (const std::string &fieldName: fieldNames) {
         int index = colIndex(fieldName);
         if (index >= 0) {
             selectedIndices.push_back(index);
         }
     }
-    
+
     if (selectedIndices.empty()) {
         return;
     }
-    
+
     // Calculate indices for the last two columns (valid and padding)
     int totalCols = static_cast<int>(colNum());
-    int validColIndex = totalCols + VALID_COL_OFFSET;    // colNum() - 2
+    int validColIndex = totalCols + VALID_COL_OFFSET; // colNum() - 2
     int paddingColIndex = totalCols + PADDING_COL_OFFSET; // colNum() - 1
-    
+
     // Create new data structures for the selected columns + last two columns
-    std::vector<std::vector<int64_t>> newDataCols;
+    std::vector<std::vector<int64_t> > newDataCols;
     std::vector<std::string> newFieldNames;
     std::vector<int> newFieldWidths;
-    
+
     // Reserve space for selected columns + valid + padding columns
     size_t newSize = selectedIndices.size() + 2;
     newDataCols.reserve(newSize);
     newFieldNames.reserve(newSize);
     newFieldWidths.reserve(newSize);
-    
+
     // Copy selected columns
-    for (int index : selectedIndices) {
+    for (int index: selectedIndices) {
         newDataCols.push_back(std::move(_dataCols[index]));
         newFieldNames.push_back(std::move(_fieldNames[index]));
         newFieldWidths.push_back(_fieldWidths[index]);
     }
-    
+
     // Copy the last two columns (valid and padding)
     newDataCols.push_back(std::move(_dataCols[validColIndex]));
     newDataCols.push_back(std::move(_dataCols[paddingColIndex]));
@@ -91,7 +92,7 @@ void View::select(std::vector<std::string> &fieldNames) {
     newFieldNames.push_back(PADDING_COL_NAME);
     newFieldWidths.push_back(1); // valid column width
     newFieldWidths.push_back(1); // padding column width
-    
+
     // Replace the current view's data with the new selected data
     _dataCols = std::move(newDataCols);
     _fieldNames = std::move(newFieldNames);
@@ -763,7 +764,7 @@ void View::maxSingleBatch(std::vector<int64_t> &heads, const std::string &fieldN
         // 1) 快照左右值
         std::vector<int64_t> left_vals(m), right_vals(m);
         for (int i = 0; i < m; ++i) {
-            left_vals[i]  = vs[i];
+            left_vals[i] = vs[i];
             right_vals[i] = vs[i + delta];
         }
 
@@ -771,15 +772,15 @@ void View::maxSingleBatch(std::vector<int64_t> &heads, const std::string &fieldN
         auto cmp = BoolLessBatchOperator(&left_vals, &right_vals, bitlen,
                                          /*tid*/0, msgTagBase,
                                          SecureOperator::NO_CLIENT_COMPUTE)
-                       .execute()->_zis;
+                .execute()->_zis;
 
         auto cand = BoolMutexBatchOperator(&right_vals, &left_vals, &cmp,
                                            bitlen, /*tid*/0, msgTagBase,
                                            SecureOperator::NO_CLIENT_COMPUTE)
-                        .execute()->_zis;
+                .execute()->_zis;
 
         // 3) 门控：gate = NOT(b[i+delta])，new = gate ? cand : right
-        const int64_t NOT_mask = Comm::rank();     // 单侧取反掩码：NOT(x)=x^mask
+        const int64_t NOT_mask = Comm::rank(); // 单侧取反掩码：NOT(x)=x^mask
         std::vector<int64_t> gate(m);
         for (int i = 0; i < m; ++i) {
             gate[i] = bs_bool[i + delta] ^ NOT_mask;
@@ -788,7 +789,7 @@ void View::maxSingleBatch(std::vector<int64_t> &heads, const std::string &fieldN
         auto new_right = BoolMutexBatchOperator(&cand, &right_vals, &gate,
                                                 bitlen, /*tid*/0, msgTagBase,
                                                 SecureOperator::NO_CLIENT_COMPUTE)
-                             .execute()->_zis;
+                .execute()->_zis;
 
         // 写回 v[i+delta]
         for (int i = 0; i < m; ++i) {
@@ -799,12 +800,12 @@ void View::maxSingleBatch(std::vector<int64_t> &heads, const std::string &fieldN
         std::vector<int64_t> not_l(m), not_r(m);
         for (int i = 0; i < m; ++i) {
             not_l[i] = bs_bool[i + delta] ^ NOT_mask; // NOT b[i+delta]
-            not_r[i] = bs_bool[i]         ^ NOT_mask; // NOT b[i]
+            not_r[i] = bs_bool[i] ^ NOT_mask; // NOT b[i]
         }
         auto and_out = BoolAndBatchOperator(&not_l, &not_r,
                                             /*bitlen=*/1, /*tid*/0, msgTagBase,
                                             SecureOperator::NO_CLIENT_COMPUTE)
-                           .execute()->_zis;
+                .execute()->_zis;
 
         for (int i = 0; i < m; ++i) {
             bs_bool[i + delta] = and_out[i] ^ NOT_mask; // NOT(AND) = OR
@@ -867,11 +868,11 @@ void View::maxMultiBatches(std::vector<int64_t> &heads,
     std::vector<int64_t> bs_bool = heads;
 
     // 各算子 stride
-    const int lessStride  = BoolLessBatchOperator::tagStride();
+    const int lessStride = BoolLessBatchOperator::tagStride();
     const int mutexStride = BoolMutexBatchOperator::tagStride();
-    const int andStride   = BoolAndBatchOperator::tagStride();
+    const int andStride = BoolAndBatchOperator::tagStride();
     // 每个批任务用到：Less(1) + Mutex(1) + Mutex(1) + AND(1)
-    const int taskStride  = lessStride + mutexStride + mutexStride + andStride;
+    const int taskStride = lessStride + mutexStride + mutexStride + andStride;
 
     int tagCursorBase = msgTagBase;
     const int64_t NOT_mask = Comm::rank();
@@ -883,20 +884,20 @@ void View::maxMultiBatches(std::vector<int64_t> &heads,
 
         const int numBatches = (totalPairs + batchSize - 1) / batchSize;
 
-        using Pair = std::pair<std::vector<int64_t>, std::vector<int64_t>>; // {new_right, new_b}
+        using Pair = std::pair<std::vector<int64_t>, std::vector<int64_t> >; // {new_right, new_b}
 
-        std::vector<std::future<Pair>> futs(numBatches);
+        std::vector<std::future<Pair> > futs(numBatches);
 
         for (int b = 0; b < numBatches; ++b) {
             const int start = b * batchSize;
-            const int end   = std::min(start + batchSize, totalPairs);
-            const int len   = end - start;
+            const int end = std::min(start + batchSize, totalPairs);
+            const int len = end - start;
 
-            const int baseTag  = tagCursorBase + b * taskStride;
-            const int lessTag  = baseTag;
-            const int mtx1Tag  = baseTag + lessStride;
-            const int mtx2Tag  = mtx1Tag + mutexStride;
-            const int andTag   = mtx2Tag + mutexStride;
+            const int baseTag = tagCursorBase + b * taskStride;
+            const int lessTag = baseTag;
+            const int mtx1Tag = baseTag + lessStride;
+            const int mtx2Tag = mtx1Tag + mutexStride;
+            const int andTag = mtx2Tag + mutexStride;
 
             futs[b] = ThreadPoolSupport::submit([=, &vs, &bs_bool]() -> Pair {
                 if (len <= 0) return Pair{{}, {}};
@@ -907,7 +908,7 @@ void View::maxMultiBatches(std::vector<int64_t> &heads,
                 for (int i = 0; i < len; ++i) {
                     const int idxL = start + i;
                     const int idxR = idxL + delta;
-                    left_vals[i]  = vs[idxL];
+                    left_vals[i] = vs[idxL];
                     right_vals[i] = vs[idxR];
                     not_bL[i] = bs_bool[idxL] ^ NOT_mask; // ~b[i]
                     not_bR[i] = bs_bool[idxR] ^ NOT_mask; // ~b[i+delta]
@@ -917,25 +918,25 @@ void View::maxMultiBatches(std::vector<int64_t> &heads,
                 auto cmp = BoolLessBatchOperator(&left_vals, &right_vals, bitlen,
                                                  /*tid*/0, /*tag*/lessTag,
                                                  SecureOperator::NO_CLIENT_COMPUTE)
-                               .execute()->_zis;
+                        .execute()->_zis;
 
                 // 2) cand = cmp ? right : left
                 auto cand = BoolMutexBatchOperator(&right_vals, &left_vals, &cmp,
                                                    bitlen, /*tid*/0, /*tag*/mtx1Tag,
                                                    SecureOperator::NO_CLIENT_COMPUTE)
-                                .execute()->_zis;
+                        .execute()->_zis;
 
                 // 3) gate = ~b[i+delta]；new_right = gate ? cand : right
                 auto new_right = BoolMutexBatchOperator(&cand, &right_vals, &not_bR,
                                                         bitlen, /*tid*/0, /*tag*/mtx2Tag,
                                                         SecureOperator::NO_CLIENT_COMPUTE)
-                                     .execute()->_zis;
+                        .execute()->_zis;
 
                 // 4) 边界传播：b[i+delta] = b[i] OR b[i+delta] = ~(~b[i] & ~b[i+delta])
                 auto and_out = BoolAndBatchOperator(&not_bL, &not_bR,
                                                     /*bitlen=*/1, /*tid*/0, /*tag*/andTag,
                                                     SecureOperator::NO_CLIENT_COMPUTE)
-                                   .execute()->_zis;
+                        .execute()->_zis;
                 std::vector<int64_t> new_b(len);
                 for (int i = 0; i < len; ++i) new_b[i] = and_out[i] ^ NOT_mask;
 
@@ -949,17 +950,17 @@ void View::maxMultiBatches(std::vector<int64_t> &heads,
         // 写回右端：v[i+delta] 与 b[i+delta]
         for (int b = 0; b < numBatches; ++b) {
             const int start = b * batchSize;
-            const int end   = std::min(start + batchSize, totalPairs);
-            const int len   = end - start;
+            const int end = std::min(start + batchSize, totalPairs);
+            const int len = end - start;
             if (len <= 0) continue;
 
             auto pr = futs[b].get();
             auto &new_right = pr.first;
-            auto &new_b     = pr.second;
+            auto &new_b = pr.second;
 
             for (int i = 0; i < len; ++i) {
                 const int idxR = start + i + delta;
-                vs[idxR]      = new_right[i];
+                vs[idxR] = new_right[i];
                 bs_bool[idxR] = new_b[i];
             }
         }
@@ -1008,7 +1009,7 @@ void View::minSingleBatch(std::vector<int64_t> &heads,
         return;
     }
 
-    std::vector<int64_t> vs = src;        // 值工作副本
+    std::vector<int64_t> vs = src; // 值工作副本
     std::vector<int64_t> bs_bool = heads; // 组头(XOR)
     const int64_t NOT_mask = Comm::rank();
 
@@ -1018,7 +1019,7 @@ void View::minSingleBatch(std::vector<int64_t> &heads,
         // 1) 快照左右
         std::vector<int64_t> left_vals(m), right_vals(m);
         for (int i = 0; i < m; ++i) {
-            left_vals[i]  = vs[i];
+            left_vals[i] = vs[i];
             right_vals[i] = vs[i + delta];
         }
 
@@ -1026,13 +1027,13 @@ void View::minSingleBatch(std::vector<int64_t> &heads,
         auto cmp = BoolLessBatchOperator(&left_vals, &right_vals, bitlen,
                                          /*tid*/0, msgTagBase,
                                          SecureOperator::NO_CLIENT_COMPUTE)
-                       .execute()->_zis;
+                .execute()->_zis;
 
         // 3) cand = cmp ? left : right   —— 取较小值
         auto cand = BoolMutexBatchOperator(&left_vals, &right_vals, &cmp,
                                            bitlen, /*tid*/0, msgTagBase,
                                            SecureOperator::NO_CLIENT_COMPUTE)
-                        .execute()->_zis;
+                .execute()->_zis;
 
         // 4) gate = ~b[i+delta]，new_right = gate ? cand : right
         std::vector<int64_t> gate(m);
@@ -1041,19 +1042,19 @@ void View::minSingleBatch(std::vector<int64_t> &heads,
         auto new_right = BoolMutexBatchOperator(&cand, &right_vals, &gate,
                                                 bitlen, /*tid*/0, msgTagBase,
                                                 SecureOperator::NO_CLIENT_COMPUTE)
-                             .execute()->_zis;
+                .execute()->_zis;
 
         for (int i = 0; i < m; ++i) vs[i + delta] = new_right[i];
 
         // 5) 传播边界：b[i+delta] = b[i] OR b[i+delta] = ~(~b[i] & ~b[i+delta])
         std::vector<int64_t> not_l(m), not_r(m);
         for (int i = 0; i < m; ++i) {
-            not_l[i] = bs_bool[i]         ^ NOT_mask;
+            not_l[i] = bs_bool[i] ^ NOT_mask;
             not_r[i] = bs_bool[i + delta] ^ NOT_mask;
         }
         auto and_out = BoolAndBatchOperator(&not_l, &not_r, 1, 0, msgTagBase,
                                             SecureOperator::NO_CLIENT_COMPUTE)
-                           .execute()->_zis;
+                .execute()->_zis;
         for (int i = 0; i < m; ++i) bs_bool[i + delta] = and_out[i] ^ NOT_mask;
     }
 
@@ -1105,15 +1106,15 @@ void View::minMultiBatches(std::vector<int64_t> &heads,
         return;
     }
 
-    std::vector<int64_t> vs = src;        // 值工作副本
+    std::vector<int64_t> vs = src; // 值工作副本
     std::vector<int64_t> bs_bool = heads; // 组头(XOR)
     const int64_t NOT_mask = Comm::rank();
 
     // tag stride 规划
-    const int lessStride  = BoolLessBatchOperator::tagStride();
+    const int lessStride = BoolLessBatchOperator::tagStride();
     const int mutexStride = BoolMutexBatchOperator::tagStride();
-    const int andStride   = BoolAndBatchOperator::tagStride();
-    const int taskStride  = lessStride + mutexStride + mutexStride + andStride;
+    const int andStride = BoolAndBatchOperator::tagStride();
+    const int taskStride = lessStride + mutexStride + mutexStride + andStride;
 
     int tagCursorBase = msgTagBase;
 
@@ -1123,19 +1124,19 @@ void View::minMultiBatches(std::vector<int64_t> &heads,
 
         const int numBatches = (totalPairs + batchSize - 1) / batchSize;
 
-        using Pair = std::pair<std::vector<int64_t>, std::vector<int64_t>>; // {new_right, new_b}
-        std::vector<std::future<Pair>> futs(numBatches);
+        using Pair = std::pair<std::vector<int64_t>, std::vector<int64_t> >; // {new_right, new_b}
+        std::vector<std::future<Pair> > futs(numBatches);
 
         for (int b = 0; b < numBatches; ++b) {
             const int start = b * batchSize;
-            const int end   = std::min(start + batchSize, totalPairs);
-            const int len   = end - start;
+            const int end = std::min(start + batchSize, totalPairs);
+            const int len = end - start;
 
             const int baseTag = tagCursorBase + b * taskStride;
             const int lessTag = baseTag;
             const int mtx1Tag = baseTag + lessStride;
             const int mtx2Tag = mtx1Tag + mutexStride;
-            const int andTag  = mtx2Tag + mutexStride;
+            const int andTag = mtx2Tag + mutexStride;
 
             futs[b] = ThreadPoolSupport::submit([=, &vs, &bs_bool]() -> Pair {
                 if (len <= 0) return Pair{{}, {}};
@@ -1145,7 +1146,7 @@ void View::minMultiBatches(std::vector<int64_t> &heads,
                 for (int i = 0; i < len; ++i) {
                     const int idxL = start + i;
                     const int idxR = idxL + delta;
-                    left_vals[i]  = vs[idxL];
+                    left_vals[i] = vs[idxL];
                     right_vals[i] = vs[idxR];
                     not_bL[i] = bs_bool[idxL] ^ NOT_mask; // ~b[i]
                     not_bR[i] = bs_bool[idxR] ^ NOT_mask; // ~b[i+delta]
@@ -1155,24 +1156,24 @@ void View::minMultiBatches(std::vector<int64_t> &heads,
                 auto cmp = BoolLessBatchOperator(&left_vals, &right_vals, bitlen,
                                                  0, lessTag,
                                                  SecureOperator::NO_CLIENT_COMPUTE)
-                               .execute()->_zis;
+                        .execute()->_zis;
 
                 // 2) cand = cmp ? left : right   —— 取较小值
                 auto cand = BoolMutexBatchOperator(&left_vals, &right_vals, &cmp,
                                                    bitlen, 0, mtx1Tag,
                                                    SecureOperator::NO_CLIENT_COMPUTE)
-                                .execute()->_zis;
+                        .execute()->_zis;
 
                 // 3) new_right = (~bR) ? cand : right
                 auto new_right = BoolMutexBatchOperator(&cand, &right_vals, &not_bR,
                                                         bitlen, 0, mtx2Tag,
                                                         SecureOperator::NO_CLIENT_COMPUTE)
-                                     .execute()->_zis;
+                        .execute()->_zis;
 
                 // 4) new_b = bL OR bR = ~(~bL & ~bR)
                 auto and_out = BoolAndBatchOperator(&not_bL, &not_bR, 1, 0, andTag,
                                                     SecureOperator::NO_CLIENT_COMPUTE)
-                                   .execute()->_zis;
+                        .execute()->_zis;
                 std::vector<int64_t> new_b(len);
                 for (int i = 0; i < len; ++i) new_b[i] = and_out[i] ^ NOT_mask;
 
@@ -1185,16 +1186,16 @@ void View::minMultiBatches(std::vector<int64_t> &heads,
         // 写回右端
         for (int b = 0; b < numBatches; ++b) {
             const int start = b * batchSize;
-            const int end   = std::min(start + batchSize, totalPairs);
-            const int len   = end - start;
+            const int end = std::min(start + batchSize, totalPairs);
+            const int len = end - start;
             if (len <= 0) continue;
 
             auto pr = futs[b].get();
             auto &new_right = pr.first;
-            auto &new_b     = pr.second;
+            auto &new_b = pr.second;
             for (int i = 0; i < len; ++i) {
                 const int idxR = start + i + delta;
-                vs[idxR]      = new_right[i];
+                vs[idxR] = new_right[i];
                 bs_bool[idxR] = new_b[i];
             }
         }
@@ -1304,7 +1305,13 @@ void View::filterSingleBatch(std::vector<std::string> &fieldNames,
                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
     }
 
-    _dataCols[validColIndex] = std::move(result);
+    if (DbConf::DISABLE_COMPACTION) {
+        _dataCols[validColIndex] = BoolAndBatchOperator(&result, &collected[0], 1, 0, msgTagBase,
+                                                        SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+    } else {
+        _dataCols[validColIndex] = std::move(result);
+        clearInvalidEntries(msgTagBase);
+    }
 }
 
 void View::filterMultiBatches(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
@@ -1462,6 +1469,7 @@ void View::filterMultiBatches(std::vector<std::string> &fieldNames, std::vector<
             _dataCols[validColIndex] = std::move(andCols.front());
         }
     }
+    clearInvalidEntries(msgTagBase);
 }
 
 void View::filterAndConditions(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
@@ -1471,7 +1479,6 @@ void View::filterAndConditions(std::vector<std::string> &fieldNames, std::vector
     } else {
         filterMultiBatches(fieldNames, comparatorTypes, constShares, msgTagBase);
     }
-    clearInvalidEntries(msgTagBase);
 }
 
 void View::clearInvalidEntries(int msgTagBase) {
@@ -1771,10 +1778,10 @@ void View::bitonicSortMultiBatches(const std::string &orderField, bool ascending
 
 // —— 单批：同时计算最小值和最大值（Hillis–Steele 扫描 + 组边界传播）
 void View::minAndMaxSingleBatch(std::vector<int64_t> &heads,
-                                 const std::string &fieldName,
-                                 std::string minAlias,
-                                 std::string maxAlias,
-                                 int msgTagBase) {
+                                const std::string &fieldName,
+                                std::string minAlias,
+                                std::string maxAlias,
+                                int msgTagBase) {
     const size_t n = rowNum();
     if (n == 0) return;
 
@@ -1792,9 +1799,9 @@ void View::minAndMaxSingleBatch(std::vector<int64_t> &heads,
     }
 
     // 工作副本：两个值列（min和max）与组首布尔标记
-    std::vector<int64_t> min_vs = src;      // 最小值工作副本
-    std::vector<int64_t> max_vs = src;      // 最大值工作副本
-    std::vector<int64_t> bs_bool = heads;   // 组头(XOR)
+    std::vector<int64_t> min_vs = src; // 最小值工作副本
+    std::vector<int64_t> max_vs = src; // 最大值工作副本
+    std::vector<int64_t> bs_bool = heads; // 组头(XOR)
     const int64_t NOT_mask = Comm::rank();
 
     for (int delta = 1; delta < static_cast<int>(n); delta <<= 1) {
@@ -1804,9 +1811,9 @@ void View::minAndMaxSingleBatch(std::vector<int64_t> &heads,
         std::vector<int64_t> min_left_vals(m), min_right_vals(m);
         std::vector<int64_t> max_left_vals(m), max_right_vals(m);
         for (int i = 0; i < m; ++i) {
-            min_left_vals[i]  = min_vs[i];
+            min_left_vals[i] = min_vs[i];
             min_right_vals[i] = min_vs[i + delta];
-            max_left_vals[i]  = max_vs[i];
+            max_left_vals[i] = max_vs[i];
             max_right_vals[i] = max_vs[i + delta];
         }
 
@@ -1814,21 +1821,21 @@ void View::minAndMaxSingleBatch(std::vector<int64_t> &heads,
         auto min_cmp = BoolLessBatchOperator(&min_left_vals, &min_right_vals, bitlen,
                                              /*tid*/0, msgTagBase,
                                              SecureOperator::NO_CLIENT_COMPUTE)
-                           .execute()->_zis;
+                .execute()->_zis;
         auto max_cmp = BoolLessBatchOperator(&max_left_vals, &max_right_vals, bitlen,
                                              /*tid*/0, msgTagBase,
                                              SecureOperator::NO_CLIENT_COMPUTE)
-                           .execute()->_zis;
+                .execute()->_zis;
 
         // 3) 选择操作：min取较小值，max取较大值
         auto min_cand = BoolMutexBatchOperator(&min_left_vals, &min_right_vals, &min_cmp,
                                                bitlen, /*tid*/0, msgTagBase,
                                                SecureOperator::NO_CLIENT_COMPUTE)
-                            .execute()->_zis;
+                .execute()->_zis;
         auto max_cand = BoolMutexBatchOperator(&max_right_vals, &max_left_vals, &max_cmp,
                                                bitlen, /*tid*/0, msgTagBase,
                                                SecureOperator::NO_CLIENT_COMPUTE)
-                            .execute()->_zis;
+                .execute()->_zis;
 
         // 4) 门控：gate = ~b[i+delta]，new_right = gate ? cand : right
         std::vector<int64_t> gate(m);
@@ -1837,11 +1844,11 @@ void View::minAndMaxSingleBatch(std::vector<int64_t> &heads,
         auto min_new_right = BoolMutexBatchOperator(&min_cand, &min_right_vals, &gate,
                                                     bitlen, /*tid*/0, msgTagBase,
                                                     SecureOperator::NO_CLIENT_COMPUTE)
-                                 .execute()->_zis;
+                .execute()->_zis;
         auto max_new_right = BoolMutexBatchOperator(&max_cand, &max_right_vals, &gate,
                                                     bitlen, /*tid*/0, msgTagBase,
                                                     SecureOperator::NO_CLIENT_COMPUTE)
-                                 .execute()->_zis;
+                .execute()->_zis;
 
         for (int i = 0; i < m; ++i) {
             min_vs[i + delta] = min_new_right[i];
@@ -1851,12 +1858,12 @@ void View::minAndMaxSingleBatch(std::vector<int64_t> &heads,
         // 5) 传播边界：b[i+delta] = b[i] OR b[i+delta] = ~(~b[i] & ~b[i+delta])
         std::vector<int64_t> not_l(m), not_r(m);
         for (int i = 0; i < m; ++i) {
-            not_l[i] = bs_bool[i]         ^ NOT_mask;
+            not_l[i] = bs_bool[i] ^ NOT_mask;
             not_r[i] = bs_bool[i + delta] ^ NOT_mask;
         }
         auto and_out = BoolAndBatchOperator(&not_l, &not_r, 1, 0, msgTagBase,
                                             SecureOperator::NO_CLIENT_COMPUTE)
-                           .execute()->_zis;
+                .execute()->_zis;
         for (int i = 0; i < m; ++i) bs_bool[i + delta] = and_out[i] ^ NOT_mask;
     }
 
@@ -1890,10 +1897,10 @@ void View::minAndMaxSingleBatch(std::vector<int64_t> &heads,
 
 // —— 多批：同时计算最小值和最大值（一轮一波并行）
 void View::minAndMaxMultiBatches(std::vector<int64_t> &heads,
-                                  const std::string &fieldName,
-                                  std::string minAlias,
-                                  std::string maxAlias,
-                                  int msgTagBase) {
+                                 const std::string &fieldName,
+                                 std::string minAlias,
+                                 std::string maxAlias,
+                                 int msgTagBase) {
     const size_t n = rowNum();
     if (n == 0) return;
 
@@ -1916,17 +1923,17 @@ void View::minAndMaxMultiBatches(std::vector<int64_t> &heads,
         return;
     }
 
-    std::vector<int64_t> min_vs = src;      // 最小值工作副本
-    std::vector<int64_t> max_vs = src;      // 最大值工作副本
-    std::vector<int64_t> bs_bool = heads;   // 组头(XOR)
+    std::vector<int64_t> min_vs = src; // 最小值工作副本
+    std::vector<int64_t> max_vs = src; // 最大值工作副本
+    std::vector<int64_t> bs_bool = heads; // 组头(XOR)
     const int64_t NOT_mask = Comm::rank();
 
     // tag stride 规划（需要更多的tag因为有两套操作）
-    const int lessStride  = BoolLessBatchOperator::tagStride();
+    const int lessStride = BoolLessBatchOperator::tagStride();
     const int mutexStride = BoolMutexBatchOperator::tagStride();
-    const int andStride   = BoolAndBatchOperator::tagStride();
+    const int andStride = BoolAndBatchOperator::tagStride();
     // 每个批任务用到：Less(2) + Mutex(4) + AND(1)
-    const int taskStride  = 2 * lessStride + 4 * mutexStride + andStride;
+    const int taskStride = 2 * lessStride + 4 * mutexStride + andStride;
 
     int tagCursorBase = msgTagBase;
 
@@ -1936,22 +1943,23 @@ void View::minAndMaxMultiBatches(std::vector<int64_t> &heads,
 
         const int numBatches = (totalPairs + batchSize - 1) / batchSize;
 
-        using Triple = std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>>; // {min_new_right, max_new_right, new_b}
-        std::vector<std::future<Triple>> futs(numBatches);
+        using Triple = std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t> >;
+        // {min_new_right, max_new_right, new_b}
+        std::vector<std::future<Triple> > futs(numBatches);
 
         for (int b = 0; b < numBatches; ++b) {
             const int start = b * batchSize;
-            const int end   = std::min(start + batchSize, totalPairs);
-            const int len   = end - start;
+            const int end = std::min(start + batchSize, totalPairs);
+            const int len = end - start;
 
-            const int baseTag    = tagCursorBase + b * taskStride;
+            const int baseTag = tagCursorBase + b * taskStride;
             const int minLessTag = baseTag;
             const int maxLessTag = baseTag + lessStride;
             const int minMtx1Tag = maxLessTag + lessStride;
             const int maxMtx1Tag = minMtx1Tag + mutexStride;
             const int minMtx2Tag = maxMtx1Tag + mutexStride;
             const int maxMtx2Tag = minMtx2Tag + mutexStride;
-            const int andTag     = maxMtx2Tag + mutexStride;
+            const int andTag = maxMtx2Tag + mutexStride;
 
             futs[b] = ThreadPoolSupport::submit([=, &min_vs, &max_vs, &bs_bool]() -> Triple {
                 if (len <= 0) return Triple{{}, {}, {}};
@@ -1962,9 +1970,9 @@ void View::minAndMaxMultiBatches(std::vector<int64_t> &heads,
                 for (int i = 0; i < len; ++i) {
                     const int idxL = start + i;
                     const int idxR = idxL + delta;
-                    min_left_vals[i]  = min_vs[idxL];
+                    min_left_vals[i] = min_vs[idxL];
                     min_right_vals[i] = min_vs[idxR];
-                    max_left_vals[i]  = max_vs[idxL];
+                    max_left_vals[i] = max_vs[idxL];
                     max_right_vals[i] = max_vs[idxR];
                     not_bL[i] = bs_bool[idxL] ^ NOT_mask; // ~b[i]
                     not_bR[i] = bs_bool[idxR] ^ NOT_mask; // ~b[i+delta]
@@ -1974,36 +1982,36 @@ void View::minAndMaxMultiBatches(std::vector<int64_t> &heads,
                 auto min_cmp = BoolLessBatchOperator(&min_left_vals, &min_right_vals, bitlen,
                                                      0, minLessTag,
                                                      SecureOperator::NO_CLIENT_COMPUTE)
-                                   .execute()->_zis;
+                        .execute()->_zis;
                 auto max_cmp = BoolLessBatchOperator(&max_left_vals, &max_right_vals, bitlen,
                                                      0, maxLessTag,
                                                      SecureOperator::NO_CLIENT_COMPUTE)
-                                   .execute()->_zis;
+                        .execute()->_zis;
 
                 // 2) 选择操作：min取较小值，max取较大值
                 auto min_cand = BoolMutexBatchOperator(&min_left_vals, &min_right_vals, &min_cmp,
                                                        bitlen, 0, minMtx1Tag,
                                                        SecureOperator::NO_CLIENT_COMPUTE)
-                                    .execute()->_zis;
+                        .execute()->_zis;
                 auto max_cand = BoolMutexBatchOperator(&max_right_vals, &max_left_vals, &max_cmp,
                                                        bitlen, 0, maxMtx1Tag,
                                                        SecureOperator::NO_CLIENT_COMPUTE)
-                                    .execute()->_zis;
+                        .execute()->_zis;
 
                 // 3) 门控操作
                 auto min_new_right = BoolMutexBatchOperator(&min_cand, &min_right_vals, &not_bR,
                                                             bitlen, 0, minMtx2Tag,
                                                             SecureOperator::NO_CLIENT_COMPUTE)
-                                         .execute()->_zis;
+                        .execute()->_zis;
                 auto max_new_right = BoolMutexBatchOperator(&max_cand, &max_right_vals, &not_bR,
                                                             bitlen, 0, maxMtx2Tag,
                                                             SecureOperator::NO_CLIENT_COMPUTE)
-                                         .execute()->_zis;
+                        .execute()->_zis;
 
                 // 4) 边界传播：new_b = bL OR bR = ~(~bL & ~bR)
                 auto and_out = BoolAndBatchOperator(&not_bL, &not_bR, 1, 0, andTag,
                                                     SecureOperator::NO_CLIENT_COMPUTE)
-                                   .execute()->_zis;
+                        .execute()->_zis;
                 std::vector<int64_t> new_b(len);
                 for (int i = 0; i < len; ++i) new_b[i] = and_out[i] ^ NOT_mask;
 
@@ -2016,19 +2024,19 @@ void View::minAndMaxMultiBatches(std::vector<int64_t> &heads,
         // 写回右端
         for (int b = 0; b < numBatches; ++b) {
             const int start = b * batchSize;
-            const int end   = std::min(start + batchSize, totalPairs);
-            const int len   = end - start;
+            const int end = std::min(start + batchSize, totalPairs);
+            const int len = end - start;
             if (len <= 0) continue;
 
             auto triple = futs[b].get();
             auto &min_new_right = std::get<0>(triple);
             auto &max_new_right = std::get<1>(triple);
-            auto &new_b         = std::get<2>(triple);
+            auto &new_b = std::get<2>(triple);
             for (int i = 0; i < len; ++i) {
                 const int idxR = start + i + delta;
-                min_vs[idxR]   = min_new_right[i];
-                max_vs[idxR]   = max_new_right[i];
-                bs_bool[idxR]  = new_b[i];
+                min_vs[idxR] = min_new_right[i];
+                max_vs[idxR] = max_new_right[i];
+                bs_bool[idxR] = new_b[i];
             }
         }
     }
@@ -2172,7 +2180,7 @@ void View::min(std::vector<int64_t> &heads, const std::string &fieldName, std::s
 }
 
 void View::minAndMax(std::vector<int64_t> &heads, const std::string &fieldName, std::string minAlias,
-    std::string maxAlias, int msgTagBase) {
+                     std::string maxAlias, int msgTagBase) {
     if (Conf::BATCH_SIZE <= 0 || Conf::DISABLE_MULTI_THREAD) {
         minAndMaxSingleBatch(heads, fieldName, minAlias, maxAlias, msgTagBase);
     } else {
@@ -2181,43 +2189,67 @@ void View::minAndMax(std::vector<int64_t> &heads, const std::string &fieldName, 
 }
 
 void View::distinctSingleBatch(int msgTagBase) {
-    size_t rn = rowNum();
-    size_t cn = colNum();
-    int validColIndex = cn + VALID_COL_OFFSET;
+    const size_t rn = rowNum();
+    const size_t cn = colNum();
+    const int validColIndex = cn + VALID_COL_OFFSET;
     std::vector<int64_t> &validCol = _dataCols[validColIndex];
 
-    // Compare each row with the previous row across all columns
-    std::vector<int64_t> eqs;
+    if (rn == 0) return;
 
-    for (int col = 0; col < cn - 2; col++) {
+    // 逐列比较：row_i 与 row_{i-1} 是否完全相等（跳过 bucket tag 列）
+    std::vector<int64_t> eqs;  // 长度 rn-1，eqs[i-1] 表示第 i 行与第 i-1 行是否相等
+    bool hasDataCol = false;
+
+    for (int col = 0; col < static_cast<int>(cn) - 2; ++col) {
         if (StringUtils::hasPrefix(_fieldNames[col], BUCKET_TAG_PREFIX)) {
-            continue;
+            continue; // 跳过 tag 列
         }
+
+        hasDataCol = true;
 
         std::vector<int64_t> prevData, currData;
         prevData.reserve(rn - 1);
         currData.reserve(rn - 1);
-
-        for (int i = 1; i < rn; i++) {
+        for (size_t i = 1; i < rn; ++i) {
             currData.push_back(_dataCols[col][i]);
             prevData.push_back(_dataCols[col][i - 1]);
         }
 
-        auto eqs_i = BoolEqualBatchOperator(&currData, &prevData, _fieldWidths[col],
-                                            0, msgTagBase,
-                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto eqs_i = BoolEqualBatchOperator(
+                &currData, &prevData, _fieldWidths[col],
+                /*tid*/0, msgTagBase,
+                SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
-        if (col == 0 || eqs.empty()) {
+        if (!hasDataCol || eqs.empty()) {
             eqs = std::move(eqs_i);
         } else {
-            eqs = BoolAndBatchOperator(&eqs, &eqs_i, 1, 0, msgTagBase,
-                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+            eqs = BoolAndBatchOperator(
+                    &eqs, &eqs_i, /*bitlen=*/1,
+                    /*tid*/0, msgTagBase,
+                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         }
     }
 
-    // Set valid column: if row equals previous row, mark as duplicate (invalid)
-    for (int i = 1; i < rn; i++) {
-        validCol[i] = eqs[i - 1] ^ Comm::rank(); // XOR with rank to flip: equal=0 (invalid), different=1 (valid)
+    // new_valid：首行永远有效；其余行为 "与上一行不同" 才有效
+    std::vector<int64_t> new_valid(rn, Comm::rank());  // 先全部置 1_share
+    if (hasDataCol) {
+        for (size_t i = 1; i < rn; ++i) {
+            // eqs[i-1] == 1 表示相等；取反得到“不相等”
+            new_valid[i] = eqs[i - 1] ^ Comm::rank();
+        }
+    }
+
+    if (DbConf::DISABLE_COMPACTION) {
+        // 不压缩：叠加到当前 valid 上
+        auto merged = BoolAndBatchOperator(
+                &validCol, &new_valid, /*bitlen=*/1,
+                /*tid*/0, msgTagBase,
+                SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        validCol.swap(merged);
+    } else {
+        // 压缩：直接覆盖 valid
+        validCol.swap(new_valid);
+        clearInvalidEntries(msgTagBase);
     }
 }
 
@@ -2317,6 +2349,8 @@ void View::distinctMultiBatches(int msgTagBase) {
     for (int i = 1; i < rn; i++) {
         validCol[i] = eqs[i - 1] ^ Comm::rank(); // XOR with rank to flip: equal=0 (invalid), different=1 (valid)
     }
+
+    clearInvalidEntries(msgTagBase);
 }
 
 void View::distinct(int msgTagBase) {
@@ -2350,7 +2384,7 @@ void View::distinct(int msgTagBase) {
     // First row is always unique (not a duplicate)
     validCol[0] = Comm::rank(); // Alice gets 1, Bob gets 0 (XOR = 1 = keep)
 
-    if (rn == 1) {
+    if (rn == 1 && !DbConf::DISABLE_COMPACTION) {
         clearInvalidEntries(msgTagBase);
         return;
     }
@@ -2361,8 +2395,6 @@ void View::distinct(int msgTagBase) {
     } else {
         distinctMultiBatches(msgTagBase);
     }
-
-    clearInvalidEntries(msgTagBase);
 }
 
 int View::groupByTagStride() {

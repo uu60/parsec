@@ -468,6 +468,10 @@ int Views::butterflyPermutationTagStride(View &v) {
 
 // Main shuffle bucket join function
 View Views::hashJoin(View &v0, View &v1, std::string &field0, std::string &field1) {
+    if (DbConf::DISABLE_HASH_JOIN) {
+        return nestedLoopJoin(v0, v1, field0, field1);
+    }
+
     int numBuckets = DbConf::SHUFFLE_BUCKET_NUM;
 
     int tagColIndex0 = -1, tagColIndex1 = -1;
