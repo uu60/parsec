@@ -38,6 +38,7 @@
  */
 
 #include "../include/basis/Table.h"
+#include "conf/DbConf.h"
 #include "parallel/ThreadPoolSupport.h"
 
 // Forward declarations
@@ -70,6 +71,7 @@ View selectDistinctPid(View &filtered_view, int tid);
 
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
+    DbConf::init();
     auto tid = System::nextTask() << (32 - Conf::TASK_TAG_BITS);
 
     // Read parameters from command line

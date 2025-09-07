@@ -32,6 +32,8 @@
 #include <vector>
 #include <map>
 
+#include "conf/DbConf.h"
+
 // Forward declarations
 void generateTestData(int customer_rows, int orders_rows,
                       std::vector<int64_t> &c_custkey_data,
@@ -54,6 +56,7 @@ View performLeftOuterJoin(View &customer_view, View &filtered_orders_view, int t
 
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
+    DbConf::init();
     auto tid = System::nextTask() << (32 - Conf::TASK_TAG_BITS);
 
     // Read parameters from command line

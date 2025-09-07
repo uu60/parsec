@@ -211,7 +211,9 @@ View Views::nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string 
         }
     }
 
-    joined.clearInvalidEntries(0);
+    if (!DbConf::BASELINE_MODE) {
+        joined.clearInvalidEntries(0);
+    }
 
     return joined;
 }
@@ -468,7 +470,7 @@ int Views::butterflyPermutationTagStride(View &v) {
 
 // Main shuffle bucket join function
 View Views::hashJoin(View &v0, View &v1, std::string &field0, std::string &field1) {
-    if (DbConf::DISABLE_HASH_JOIN) {
+    if (DbConf::BASELINE_MODE) {
         return nestedLoopJoin(v0, v1, field0, field1);
     }
 
@@ -563,8 +565,10 @@ View Views::leftOuterJoin(View &v0, View &v1, std::string &field0, std::string &
     left_only._dataCols[left_only.colNum() + View::VALID_COL_OFFSET]   = not_has;
     left_only._dataCols[left_only.colNum() + View::PADDING_COL_OFFSET] = std::vector<int64_t>(n0, 0);
 
-    // 3.4 仅保留无匹配行
-    left_only.clearInvalidEntries(0);
+    if (!DbConf::BASELINE_MODE) {
+        // 3.4 仅保留无匹配行
+        left_only.clearInvalidEntries(0);
+    }
 
     // 4) 结果 = 内连接 ∪ left_only
     // 若你有封装好的拼接函数，用它；否则逐列 append

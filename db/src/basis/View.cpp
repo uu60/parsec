@@ -511,7 +511,7 @@ void View::countSingleBatch(std::vector<int64_t> &heads, std::string alias, int 
     std::vector<int64_t> bs_bool = heads;
 
     // 是否不压缩
-    const bool NO_COMPACTION = DbConf::DISABLE_COMPACTION;
+    const bool NO_COMPACTION = DbConf::BASELINE_MODE;
 
     // 计数工作列（算术域）
     std::vector<int64_t> vs;
@@ -781,7 +781,7 @@ void View::maxSingleBatch(std::vector<int64_t> &heads, const std::string &fieldN
         return;
     }
     const int bitlen = _fieldWidths[fieldIdx];
-    const bool NO_COMPACTION = DbConf::DISABLE_COMPACTION;
+    const bool NO_COMPACTION = DbConf::BASELINE_MODE;
 
     std::vector<int64_t> &src = _dataCols[fieldIdx];
     if (src.size() != n || heads.size() != n) {
@@ -1072,7 +1072,7 @@ void View::minSingleBatch(std::vector<int64_t> &heads,
         return;
     }
     const int bitlen = _fieldWidths[fieldIdx];
-    const bool NO_COMPACTION = DbConf::DISABLE_COMPACTION;
+    const bool NO_COMPACTION = DbConf::BASELINE_MODE;
 
     std::vector<int64_t> &src = _dataCols[fieldIdx];
     if (src.size() != n || heads.size() != n) {
@@ -1421,7 +1421,7 @@ void View::filterSingleBatch(std::vector<std::string> &fieldNames,
                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
     }
 
-    if (DbConf::DISABLE_COMPACTION) {
+    if (DbConf::BASELINE_MODE) {
         _dataCols[validColIndex] = BoolAndBatchOperator(&result, &_dataCols[validColIndex], 1, 0, msgTagBase,
                                                         SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
     } else {
@@ -1920,7 +1920,7 @@ void View::minAndMaxSingleBatch(std::vector<int64_t> &heads,
     std::vector<int64_t> bs_bool = heads;
 
     const int64_t NOT_mask = Comm::rank();
-    const bool NO_COMPACTION = DbConf::DISABLE_COMPACTION;
+    const bool NO_COMPACTION = DbConf::BASELINE_MODE;
 
     // 仅在“不压缩”模式下需要参与聚合的有效位
     std::vector<int64_t> valid_col;
@@ -2412,7 +2412,7 @@ void View::distinctSingleBatch(int msgTagBase) {
         }
     }
 
-    if (DbConf::DISABLE_COMPACTION) {
+    if (DbConf::BASELINE_MODE) {
         // 不压缩：叠加到当前 valid 上
         auto merged = BoolAndBatchOperator(
                 &validCol, &new_valid, /*bitlen=*/1,
@@ -2557,7 +2557,7 @@ void View::distinct(int msgTagBase) {
     // First row is always unique (not a duplicate)
     validCol[0] = Comm::rank(); // Alice gets 1, Bob gets 0 (XOR = 1 = keep)
 
-    if (rn == 1 && !DbConf::DISABLE_COMPACTION) {
+    if (rn == 1 && !DbConf::BASELINE_MODE) {
         clearInvalidEntries(msgTagBase);
         return;
     }

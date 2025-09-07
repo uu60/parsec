@@ -24,6 +24,7 @@
 #include "compute/batch/bool/BoolXorBatchOperator.h"
 #include "compute/batch/bool/BoolAndBatchOperator.h"
 #include "compute/batch/arith/ArithToBoolBatchOperator.h"
+#include "conf/DbConf.h"
 
 // Forward declarations
 void generateTestData(int rows1, int rows2,
@@ -56,6 +57,7 @@ View executeSortAndLimit(View result_view, int tid);
  */
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
+    DbConf::init();
     auto tid = System::nextTask() << (32 - Conf::TASK_TAG_BITS);
 
     // Read number of rows from command line

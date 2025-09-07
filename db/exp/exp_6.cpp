@@ -35,6 +35,8 @@
 #include <algorithm>
 #include <map>
 
+#include "conf/DbConf.h"
+
 // Forward declarations
 void generateTestData(int orders_rows, int lineitem_rows,
                       std::vector<int64_t> &o_orderkey_data,
@@ -66,6 +68,7 @@ View executeSortByPriority(View &result_view, int tid);
 
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
+    DbConf::init();
     auto tid = System::nextTask() << (32 - Conf::TASK_TAG_BITS);
 
     // Read parameters from command line
