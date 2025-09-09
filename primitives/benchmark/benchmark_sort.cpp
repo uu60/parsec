@@ -93,16 +93,16 @@ void sortBool(int num, int width) {
         intRes.push_back(res[i]._data);
     }
 
-    if (Comm::isClient()) {
-        int last = INT_MIN;
-        Log::i("Result: {}", StringUtils::vecToString(intRes));
-        for (auto s: res) {
-            if (s._data < last) {
-                Log::i("Wrong: {}", s._data);
-            }
-            last = s._data;
-        }
-    }
+    // if (Comm::isClient()) {
+    //     int last = INT_MIN;
+    //     Log::i("Result: {}", StringUtils::vecToString(intRes));
+    //     for (auto s: res) {
+    //         if (s._data < last) {
+    //             Log::i("Wrong: {}", s._data);
+    //         }
+    //         last = s._data;
+    //     }
+    // }
 }
 
 int main(int argc, char *argv[]) {
