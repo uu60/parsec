@@ -1,5 +1,6 @@
 //
 // Created by 杜建璋 on 25-8-1.
+// Modified for validation with fixed data
 //
 
 #include "secret/Secrets.h"
@@ -27,11 +28,11 @@
 #include "conf/DbConf.h"
 
 // Forward declarations
-void generateTestData(int rows1, int rows2,
-                      std::vector<int64_t> &diagnosis_pid_data,
-                      std::vector<int64_t> &diagnosis_diag_data,
-                      std::vector<int64_t> &diagnosis_extra_data,
-                      std::vector<int64_t> &cdiff_cohort_pid_data);
+void generateFixedTestData(int rows1, int rows2,
+                          std::vector<int64_t> &diagnosis_pid_data,
+                          std::vector<int64_t> &diagnosis_diag_data,
+                          std::vector<int64_t> &diagnosis_extra_data,
+                          std::vector<int64_t> &cdiff_cohort_pid_data);
 
 View createDiagnosisTable(std::vector<int64_t> &diagnosis_pid_shares,
                           std::vector<int64_t> &diagnosis_diag_shares,
@@ -53,6 +54,10 @@ static View sliceRows(View &v, size_t start, size_t len);
 static View concatSameSchema(View &a, View &b);
 static View projectDiagCnt(View &v, std::string diag_field, std::string cnt_field);
 
+// Validation helper functions
+void printExpectedResults();
+void validateResults(View &result_view);
+
 /**
  * SELECT diag, COUNT(*) cnt
  * FROM diagnosis
@@ -66,8 +71,8 @@ int main(int argc, char *argv[]) {
     DbConf::init();
     auto tid = System::nextTask() << (32 - Conf::TASK_TAG_BITS);
 
-    // Read number of rows from command line
-    int rows1 = 1000, rows2 = 1000;
+    // Use fixed small data size for validation
+    int rows1 = 10, rows2 = 5;
     if (Conf::_userParams.count("rows1")) {
         rows1 = std::stoi(Conf::_userParams["rows1"]);
     }
@@ -76,14 +81,15 @@ int main(int argc, char *argv[]) {
     }
 
     if (Comm::isClient()) {
-        Log::i("Data size: diagnosis: {} cdiff_cohort: {}", rows1, rows2);
+        Log::i("Validation mode - Data size: diagnosis: {} cdiff_cohort: {}", rows1, rows2);
+        printExpectedResults();
     }
 
-    // Generate test data
+    // Generate fixed test data
     std::vector<int64_t> diagnosis_pid_data, diagnosis_diag_data, diagnosis_extra_data;
     std::vector<int64_t> cdiff_cohort_pid_data;
-    generateTestData(rows1, rows2, diagnosis_pid_data, diagnosis_diag_data,
-                     diagnosis_extra_data, cdiff_cohort_pid_data);
+    generateFixedTestData(rows1, rows2, diagnosis_pid_data, diagnosis_diag_data,
+                         diagnosis_extra_data, cdiff_cohort_pid_data);
 
     // Convert to secret shares for 2PC
     auto diagnosis_pid_shares  = Secrets::boolShare(diagnosis_pid_data,  2, 64, tid);
@@ -113,6 +119,9 @@ int main(int argc, char *argv[]) {
 
         auto query_end = System::currentTimeMillis();
         Log::i("Total query execution time: {}ms", query_end - query_start);
+        
+        // Validate results
+        validateResults(result_view);
     }
 
     System::finalize();
@@ -121,26 +130,134 @@ int main(int argc, char *argv[]) {
 
 // Function implementations
 
-void generateTestData(int rows1, int rows2,
-                      std::vector<int64_t> &diagnosis_pid_data,
-                      std::vector<int64_t> &diagnosis_diag_data,
-                      std::vector<int64_t> &diagnosis_extra_data,
-                      std::vector<int64_t> &cdiff_cohort_pid_data) {
+void generateFixedTestData(int rows1, int rows2,
+                          std::vector<int64_t> &diagnosis_pid_data,
+                          std::vector<int64_t> &diagnosis_diag_data,
+                          std::vector<int64_t> &diagnosis_extra_data,
+                          std::vector<int64_t> &cdiff_cohort_pid_data) {
     if (Comm::rank() == 2) {
+        // Fixed diagnosis data (pid, diag, extra)
+        // We'll create overlapping PIDs with cohort for testing
+        std::vector<std::pair<int64_t, int64_t>> fixed_diagnosis = {
+            {100, 1001}, // pid=100, diag=1001
+            {101, 1002}, // pid=101, diag=1002
+            {102, 1001}, // pid=102, diag=1001 (duplicate diag)
+            {103, 1003}, // pid=103, diag=1003
+            {104, 1001}, // pid=104, diag=1001 (duplicate diag)
+            {105, 1004}, // pid=105, diag=1004
+            {106, 1002}, // pid=106, diag=1002 (duplicate diag)
+            {107, 1005}, // pid=107, diag=1005
+            {108, 1001}, // pid=108, diag=1001 (duplicate diag)
+            {109, 1006}  // pid=109, diag=1006
+        };
+        
+        // Fixed cohort data (only some PIDs from diagnosis)
+        std::vector<int64_t> fixed_cohort = {100, 102, 104, 106, 108}; // 5 PIDs
+        
         diagnosis_pid_data.reserve(rows1);
         diagnosis_diag_data.reserve(rows1);
         diagnosis_extra_data.reserve(rows1);
 
         for (int i = 0; i < rows1; i++) {
-            diagnosis_pid_data.push_back(Math::randInt());
-            diagnosis_diag_data.push_back(Math::randInt());
-            diagnosis_extra_data.push_back(Math::randInt()); // Just some extra data
+            if (i < (int)fixed_diagnosis.size()) {
+                diagnosis_pid_data.push_back(fixed_diagnosis[i].first);
+                diagnosis_diag_data.push_back(fixed_diagnosis[i].second);
+            } else {
+                // For additional rows, use predictable pattern
+                diagnosis_pid_data.push_back(200 + i);
+                diagnosis_diag_data.push_back(2000 + (i % 3));
+            }
+            diagnosis_extra_data.push_back(9000 + i); // Just some extra data
         }
 
         cdiff_cohort_pid_data.reserve(rows2);
         for (int i = 0; i < rows2; i++) {
-            cdiff_cohort_pid_data.push_back(Math::randInt());
+            if (i < (int)fixed_cohort.size()) {
+                cdiff_cohort_pid_data.push_back(fixed_cohort[i]);
+            } else {
+                // For additional rows, use predictable pattern
+                cdiff_cohort_pid_data.push_back(300 + i);
+            }
         }
+        
+        // Print the fixed data for verification
+        Log::i("Fixed diagnosis data:");
+        for (size_t i = 0; i < diagnosis_pid_data.size(); i++) {
+            Log::i("  Row {}: pid={}, diag={}, extra={}", i, 
+                   diagnosis_pid_data[i], diagnosis_diag_data[i], diagnosis_extra_data[i]);
+        }
+        
+        Log::i("Fixed cohort data:");
+        for (size_t i = 0; i < cdiff_cohort_pid_data.size(); i++) {
+            Log::i("  Row {}: pid={}", i, cdiff_cohort_pid_data[i]);
+        }
+    }
+}
+
+void printExpectedResults() {
+    Log::i("Expected query results:");
+    Log::i("Query: SELECT diag, COUNT(*) cnt FROM diagnosis WHERE pid IN cdiff_cohort GROUP BY diag ORDER BY cnt DESC LIMIT 10");
+    Log::i("");
+    Log::i("Expected matching rows (pid IN cohort):");
+    Log::i("  pid=100, diag=1001 ✓");
+    Log::i("  pid=102, diag=1001 ✓");
+    Log::i("  pid=104, diag=1001 ✓");
+    Log::i("  pid=106, diag=1002 ✓");
+    Log::i("  pid=108, diag=1001 ✓");
+    Log::i("");
+    Log::i("Expected GROUP BY results:");
+    Log::i("  diag=1001: count=4 (pids: 100,102,104,108)");
+    Log::i("  diag=1002: count=1 (pids: 106)");
+    Log::i("");
+    Log::i("Expected final result (ORDER BY cnt DESC LIMIT 10):");
+    Log::i("  1. diag=1001, cnt=4");
+    Log::i("  2. diag=1002, cnt=1");
+}
+
+void validateResults(View &result_view) {
+    Log::i("Validating query results...");
+    
+    if (result_view.rowNum() == 0) {
+        Log::e("ERROR: No results returned!");
+        return;
+    }
+    
+    Log::i("Actual results ({} rows):", result_view.rowNum());
+    
+    // Expected results based on our fixed data
+    std::vector<std::pair<int64_t, int64_t>> expected = {
+        {1001, 4}, // diag=1001 should have count=4
+        {1002, 1}  // diag=1002 should have count=1
+    };
+    
+    bool validation_passed = true;
+    
+    // Check if we have the expected number of result rows
+    if (result_view.rowNum() != expected.size()) {
+        Log::e("ERROR: Expected {} result rows, got {}", expected.size(), result_view.rowNum());
+        validation_passed = false;
+    }
+    
+    // Print actual results and compare with expected
+    for (size_t i = 0; i < result_view.rowNum() && i < expected.size(); i++) {
+        int64_t actual_diag = result_view._dataCols[0][i];
+        int64_t actual_cnt = result_view._dataCols[1][i];
+        int64_t expected_diag = expected[i].first;
+        int64_t expected_cnt = expected[i].second;
+        
+        Log::i("  Row {}: diag={}, cnt={}", i, actual_diag, actual_cnt);
+        
+        if (actual_diag != expected_diag || actual_cnt != expected_cnt) {
+            Log::e("ERROR: Row {} mismatch! Expected (diag={}, cnt={}), got (diag={}, cnt={})", 
+                   i, expected_diag, expected_cnt, actual_diag, actual_cnt);
+            validation_passed = false;
+        }
+    }
+    
+    if (validation_passed) {
+        Log::i("✓ VALIDATION PASSED: All results match expected values!");
+    } else {
+        Log::e("✗ VALIDATION FAILED: Results do not match expected values!");
     }
 }
 
@@ -184,11 +301,11 @@ View createCohortTable(std::vector<int64_t> &cdiff_cohort_pid_shares) {
 std::vector<int64_t> executeWhereInClause(View &diagnosis_view, View &cdiff_cohort_view) {
     auto diagnosis_pid_col = diagnosis_view._dataCols[0];
     auto cdiff_cohort_pid_col = cdiff_cohort_view._dataCols[0];
-    
+
+    // 仍沿用 Views::in；若内部实现为 O(n*m)，建议后续替换为哈希/PSI 版
     auto in_results = Views::in(diagnosis_pid_col, cdiff_cohort_pid_col,
                                 diagnosis_view._dataCols[diagnosis_view.colNum() + View::VALID_COL_OFFSET],
                                 cdiff_cohort_view._dataCols[cdiff_cohort_view.colNum() + View::VALID_COL_OFFSET]);
-    
     return in_results;
 }
 
@@ -231,7 +348,7 @@ View executeTopKByCount(View grouped_diag_cnt, int k, int tid) {
         // 兜底：没有 cnt 列就直接返回（不应发生）
         return grouped_diag_cnt;
     }
-    
+
     size_t n = grouped_diag_cnt.rowNum();
     if (n <= (size_t)k) {
         // 短路：行数不超过 k，直接一次排序返回
