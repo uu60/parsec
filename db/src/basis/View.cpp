@@ -149,7 +149,6 @@ std::vector<int64_t> View::groupBySingleBatch(const std::string &groupField, int
     }
 
     const bool precise = (!DbConf::BASELINE_MODE) && (!DbConf::DISABLE_PRECISE_COMPACTION);
-    const bool approx = (!DbConf::BASELINE_MODE) && (DbConf::DISABLE_PRECISE_COMPACTION);
 
     std::vector<int64_t> heads(n, 0);
 
@@ -300,7 +299,7 @@ std::vector<int64_t> View::groupBySingleBatch(const std::vector<std::string> &gr
     }
 
     // 计算相邻行在“所有分组列上”的相等性：eq_all[i-1] = (key[i] == key[i-1])
-    std::vector<int64_t> eq_all;             // 长度 n-1
+    std::vector<int64_t> eq_all; // 长度 n-1
     if (n > 1) {
         // 先用第一列初始化
         {
@@ -336,7 +335,7 @@ std::vector<int64_t> View::groupBySingleBatch(const std::vector<std::string> &gr
 
     if (precise) {
         // —— 精确压缩：没有无效行
-        groupHeads[0] = Comm::rank();  // 1_share
+        groupHeads[0] = Comm::rank(); // 1_share
         for (size_t i = 1; i < n; ++i) {
             // head[i] = NOT(eq_all[i-1])
             groupHeads[i] = (i - 1 < eq_all.size()) ? (eq_all[i - 1] ^ NOT_mask) : Comm::rank();
@@ -386,26 +385,27 @@ std::vector<int64_t> View::groupByMultiBatches(const std::vector<std::string> &g
 
     if (n > 1) {
         const int batchSize = Conf::BATCH_SIZE;
-        const int pairCnt   = static_cast<int>(n - 1);
-        const int batchNum  = (pairCnt + batchSize - 1) / batchSize;
+        const int pairCnt = static_cast<int>(n - 1);
+        const int batchNum = (pairCnt + batchSize - 1) / batchSize;
         const int tagOffset = std::max(BoolEqualBatchOperator::tagStride(), BoolAndBatchOperator::tagStride());
 
         // 每一列并行：对相邻行做相等比较，得到 eqs_col（长度 n-1）
-        std::vector<std::future<std::vector<int64_t>>> colFuts(groupFields.size());
+        std::vector<std::future<std::vector<int64_t> > > colFuts(groupFields.size());
         for (int colIdx = 0; colIdx < static_cast<int>(groupFields.size()); ++colIdx) {
             colFuts[colIdx] = ThreadPoolSupport::submit([&, colIdx] {
                 const int fidx = gIdx[colIdx];
-                std::vector<int64_t> colEq; colEq.reserve(n - 1);
+                std::vector<int64_t> colEq;
+                colEq.reserve(n - 1);
 
                 // 该列按 batch 并行
-                std::vector<std::future<std::vector<int64_t>>> batchFuts(batchNum);
+                std::vector<std::future<std::vector<int64_t> > > batchFuts(batchNum);
                 const int startTag = tagOffset * batchNum * colIdx;
 
                 for (int b = 0; b < batchNum; ++b) {
                     batchFuts[b] = ThreadPoolSupport::submit([&, b, fidx, startTag]() {
-                        const int start = b * batchSize + 1;           // 与前一行比较，所以从 1 开始
-                        const int end   = std::min(start + batchSize, static_cast<int>(n));
-                        const int curN  = end - start;
+                        const int start = b * batchSize + 1; // 与前一行比较，所以从 1 开始
+                        const int end = std::min(start + batchSize, static_cast<int>(n));
+                        const int curN = end - start;
                         if (curN <= 0) return std::vector<int64_t>();
 
                         std::vector<int64_t> curr(curN), prev(curN);
@@ -423,7 +423,7 @@ std::vector<int64_t> View::groupByMultiBatches(const std::vector<std::string> &g
                 }
 
                 // 拼回该列的 eqs_col
-                for (auto &bf : batchFuts) {
+                for (auto &bf: batchFuts) {
                     auto part = bf.get();
                     colEq.insert(colEq.end(), part.begin(), part.end());
                 }
@@ -432,7 +432,7 @@ std::vector<int64_t> View::groupByMultiBatches(const std::vector<std::string> &g
         }
 
         // 汇总每列的 eqs，用 AND 叠合成 eq_all
-        std::vector<std::vector<int64_t>> allCols(groupFields.size());
+        std::vector<std::vector<int64_t> > allCols(groupFields.size());
         for (int colIdx = 0; colIdx < static_cast<int>(groupFields.size()); ++colIdx) {
             allCols[colIdx] = colFuts[colIdx].get();
         }
@@ -453,7 +453,7 @@ std::vector<int64_t> View::groupByMultiBatches(const std::vector<std::string> &g
 
     if (!DbConf::DISABLE_PRECISE_COMPACTION) {
         // —— 精确压缩：所有行均有效
-        groupHeads[0] = Comm::rank();  // 第一行必为组首
+        groupHeads[0] = Comm::rank(); // 第一行必为组首
         for (size_t i = 1; i < n; ++i) {
             groupHeads[i] = (i - 1 < eq_all.size()) ? (eq_all[i - 1] ^ NOT_mask) : Comm::rank();
         }
@@ -498,75 +498,108 @@ void View::countSingleBatch(std::vector<int64_t> &heads, std::string alias, int 
     // 组头（布尔分享）
     std::vector<int64_t> bs_bool = heads;
 
-    // 是否不压缩
-    const bool NO_COMPACTION = DbConf::BASELINE_MODE;
+    // 模式
+    const bool BASELINE = DbConf::BASELINE_MODE;
+    const bool APPROX_COMPACT = DbConf::DISABLE_PRECISE_COMPACTION; // 非精确压缩
 
     // 计数工作列（算术域）
     std::vector<int64_t> vs;
+    const int validIdx = colNum() + VALID_COL_OFFSET;
 
-    if (NO_COMPACTION) {
-        // 不压缩：只统计当前 valid=1 的行
-        int validIdx = colNum() + VALID_COL_OFFSET;
+    // 在不压缩/近似压缩下，组头仅对有效行生效，避免无效区干扰
+    if (BASELINE || APPROX_COMPACT) {
+        bs_bool = BoolAndBatchOperator(&bs_bool, &_dataCols[validIdx], 1, 0, msgTagBase,
+                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+    }
+
+    if (BASELINE || APPROX_COMPACT) {
+        // 不压缩/近似压缩：只对当前 valid=1 的行计数
         auto valid_bool = _dataCols[validIdx];
         vs = BoolToArithBatchOperator(&valid_bool, 64, 0, msgTagBase,
                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
     } else {
-        // 压缩：原逻辑，所有行计为1（1-share用 Comm::rank()）
+        // 精确压缩：所有行都有效；计数初值全 1_share
         vs.assign(n, Comm::rank());
     }
 
-    // b 的算术份额（用于 (1 - a(b)) 门控）
+    // a(b) for gate
     std::vector<int64_t> bs_arith =
             BoolToArithBatchOperator(&bs_bool, 64, 0, msgTagBase,
                                      SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
-    // (v,b) ⊕ (v',b') = ( v' + (1 - a(b')) * v ,  b OR b' )
-    // 这里 v' 是右半段 vs[i+delta]，v 是左半段 vs[i]
+    // 前缀扫描：(v,b) ⊕ (v',b') = ( v' + (1 - a(b'))*v ,  b OR b' )
     for (int delta = 1; delta < (int) n; delta <<= 1) {
         const int m = (int) n - delta;
 
-        // 计算右侧 (1 - a(b[i+delta])) * 左侧 v[i]
+        // (1 - a(b[i+delta])) * v[i]
         std::vector<int64_t> mul_left(m), mul_right(m);
         for (int i = 0; i < m; ++i) {
-            mul_left[i] = Comm::rank() - bs_arith[i + delta]; // 1 - a(b')
-            mul_right[i] = vs[i]; // v
+            mul_left[i] = Comm::rank() - bs_arith[i + delta];
+            mul_right[i] = vs[i];
         }
         auto add_term = ArithMultiplyBatchOperator(&mul_left, &mul_right, 64, 0, msgTagBase,
-                                                   SecureOperator::NO_CLIENT_COMPUTE)
-                .execute()->_zis;
-
-        // 累加到右侧
+                                                   SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         for (int i = 0; i < m; ++i) {
             vs[i + delta] += add_term[i];
         }
 
-        // 传播 OR：b[i+delta] = b[i] OR b[i+delta] = ~(~b[i] & ~b[i+delta])
+        // b[i+delta] = b[i] OR b[i+delta] = ~(~b[i] & ~b[i+delta])
         std::vector<int64_t> not_l(m), not_r(m);
         for (int i = 0; i < m; ++i) {
             not_l[i] = bs_bool[i] ^ Comm::rank();
             not_r[i] = bs_bool[i + delta] ^ Comm::rank();
         }
         auto and_out = BoolAndBatchOperator(&not_l, &not_r, 1, 0, msgTagBase,
-                                            SecureOperator::NO_CLIENT_COMPUTE)
-                .execute()->_zis;
+                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         for (int i = 0; i < m; ++i) {
             bs_bool[i + delta] = and_out[i] ^ Comm::rank();
         }
 
-        // 继续用最新的 b 计算 a(b)
         bs_arith = BoolToArithBatchOperator(&bs_bool, 64, 0, msgTagBase,
                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
     }
 
-    // 算术 -> 布尔（输出计数）
+    // 算术 -> 布尔
     auto vs_bool = ArithToBoolBatchOperator(&vs, 64, 0, msgTagBase,
                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
-    // 组尾：tail[i] = head[i+1]；最后一行 = 1_share
+    // ---------- 组尾修正：处理“最后一组后面是无效区”的场景 ----------
+
+    // 基础组尾：tail[i] = heads[i+1]，末元素先按原逻辑置 1_share（压缩时有效；不压缩时会与 valid 相与）
     std::vector<int64_t> group_tails(n);
     for (size_t i = 0; i + 1 < n; ++i) group_tails[i] = heads[i + 1];
-    group_tails[n - 1] = Comm::rank();
 
+    // ---------- 仅在 BASELINE 或 近似压缩 时，修正“最后一组后面是无效区”的场景 ----------
+    if (BASELINE || APPROX_COMPACT) {
+        const int64_t mask = Comm::rank();
+        const int validIdx = colNum() + VALID_COL_OFFSET;
+        auto &valid = _dataCols[validIdx];
+
+        // last_valid_tail = valid[i] AND NOT valid[i+1]
+        std::vector<int64_t> next_valid(n);
+        for (size_t i = 0; i + 1 < n; ++i) next_valid[i] = valid[i + 1];
+        next_valid[n - 1] = 0; // 0_share
+
+        std::vector<int64_t> not_next(n);
+        for (size_t i = 0; i < n; ++i) not_next[i] = next_valid[i] ^ mask;
+
+        auto last_valid_tail = BoolAndBatchOperator(&valid, &not_next, 1, 0, msgTagBase,
+                                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+
+        // group_tails = group_tails OR last_valid_tail   （用德摩根）
+        std::vector<int64_t> not_gt(n), not_lvt(n);
+        for (size_t i = 0; i < n; ++i) {
+            not_gt[i] = group_tails[i] ^ mask;
+            not_lvt[i] = last_valid_tail[i] ^ mask;
+        }
+        auto and_not = BoolAndBatchOperator(&not_gt, &not_lvt, 1, 0, msgTagBase,
+                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        for (size_t i = 0; i < n; ++i) group_tails[i] = and_not[i] ^ mask;
+    } else {
+        group_tails[n - 1] = Comm::rank(); // 精确压缩下这就足够了
+    }
+
+    // ---------- 写回列并根据模式更新 valid/压缩 ----------
     // 插入计数字段（在 VALID 之前）
     _fieldNames.reserve(_fieldNames.size() + 1);
     _fieldWidths.reserve(_fieldWidths.size() + 1);
@@ -576,16 +609,19 @@ void View::countSingleBatch(std::vector<int64_t> &heads, std::string alias, int 
     _fieldWidths.insert(_fieldWidths.begin() + insertPos, 64);
     _dataCols.insert(_dataCols.begin() + insertPos, std::move(vs_bool));
 
-    // 更新 VALID
-    int validIdx = colNum() + VALID_COL_OFFSET;
-    if (NO_COMPACTION) {
+    if (BASELINE) {
         // 不压缩：valid := valid ∧ group_tails
         auto new_valid = BoolAndBatchOperator(&_dataCols[validIdx], &group_tails, 1, 0, msgTagBase,
                                               SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         _dataCols[validIdx] = std::move(new_valid);
-        // 不物理删除：保留整表，依赖 valid 逐步收敛
+    } else if (APPROX_COMPACT) {
+        // 非精确压缩：valid := valid ∧ group_tails，然后近似截断
+        auto new_valid = BoolAndBatchOperator(&_dataCols[validIdx], &group_tails, 1, 0, msgTagBase,
+                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        _dataCols[validIdx] = std::move(new_valid);
+        clearInvalidEntries(msgTagBase); // 会走非精确截断
     } else {
-        // 压缩：只保留组尾作为输出行
+        // 精确压缩：直接把 VALID 设为组尾并精确截断
         _dataCols[validIdx] = std::move(group_tails);
         clearInvalidEntries(msgTagBase);
     }
@@ -600,18 +636,35 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
         return;
     }
 
+    const bool APPROX_COMPACT = DbConf::DISABLE_PRECISE_COMPACTION; // 非精确压缩
     const int64_t rank = Comm::rank();
+    const int validIdx = colNum() + VALID_COL_OFFSET;
 
-    // 初值：计数份额 vs = 1_share，边界位 b = heads（XOR 份额）
-    std::vector<int64_t> vs(n, rank);
+    // ---------- 预处理：根据模式准备 bs_bool 与 vs ----------
+    // 边界位：默认用传入的 heads；若非精确压缩，则仅让有效行的组头生效
     std::vector<int64_t> bs_bool = heads;
+    if (APPROX_COMPACT) {
+        bs_bool = BoolAndBatchOperator(&bs_bool, &_dataCols[validIdx], 1, 0, msgTagBase,
+                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+    }
+
+    // 计数工作列（算术域）
+    std::vector<int64_t> vs;
+    if (APPROX_COMPACT) {
+        auto valid_bool = _dataCols[validIdx];
+        vs = BoolToArithBatchOperator(&valid_bool, 64, 0, msgTagBase,
+                                      SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+    } else {
+        // 精确压缩：所有行计为 1_share
+        vs.assign(n, rank);
+    }
 
     // a(b) 供第一轮 delta 使用
     auto init_ab = BoolToArithBatchOperator(&bs_bool, 64, 0, msgTagBase,
                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
     std::vector<int64_t> bs_arith = std::move(init_ab);
 
-    // 各算子 stride
+    // 各算子 stride（保持你原先的分配方式）
     const int mulStride = ArithMultiplyBatchOperator::tagStride(64);
     const int andStride = BoolAndBatchOperator::tagStride();
     const int b2aStride = BoolToArithBatchOperator::tagStride();
@@ -620,27 +673,30 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
 
     int tagCursorBase = msgTagBase;
 
+    // ---------- 并行前缀扫描 ----------
     for (int delta = 1; delta < static_cast<int>(n); delta <<= 1) {
         const int totalPairs = static_cast<int>(n) - delta;
         if (totalPairs <= 0) break;
 
         const int numBatches = (totalPairs + batchSize - 1) / batchSize;
 
-        using Triple = std::tuple<std::vector<int64_t>, // temp_vs (len)
+        using Triple = std::tuple<
+            std::vector<int64_t>, // temp_vs (len)
             std::vector<int64_t>, // new_bs_bool (len) for [start+delta .. end-1+delta]
-            std::vector<int64_t> >; // new_bs_arith (len) same range
+            std::vector<int64_t>  // new_bs_arith (len) same range
+        >;
 
-        std::vector<std::future<Triple> > futs(numBatches);
+        std::vector<std::future<Triple>> futs(numBatches);
 
         for (int b = 0; b < numBatches; ++b) {
             const int start = b * batchSize;
-            const int end = std::min(start + batchSize, totalPairs);
-            const int len = end - start;
+            const int end   = std::min(start + batchSize, totalPairs);
+            const int len   = end - start;
 
             const int baseTag = tagCursorBase + b * taskStride;
-            const int mulTag = baseTag;
-            const int andTag = baseTag + mulStride;
-            const int b2aTag = baseTag + mulStride + andStride;
+            const int mulTag  = baseTag;
+            const int andTag  = baseTag + mulStride;
+            const int b2aTag  = baseTag + mulStride + andStride;
 
             futs[b] = ThreadPoolSupport::submit([=, &vs, &bs_bool, &bs_arith]() -> Triple {
                 if (len <= 0) return Triple{{}, {}, {}};
@@ -649,18 +705,17 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
                 std::vector<int64_t> mul_left(len), mul_right(len);
                 for (int i = 0; i < len; ++i) {
                     const int idx = start + i;
-                    mul_left[i] = rank - bs_arith[idx + delta];
+                    mul_left[i]  = rank - bs_arith[idx + delta];
                     mul_right[i] = vs[idx];
                 }
                 auto temp_vs = ArithMultiplyBatchOperator(&mul_left, &mul_right, 64, 0, mulTag,
                                                           SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
-                // 2) OR：b[i+delta] = b[i] OR b[i+delta]
-                // 使用 (~b[i]) AND (~b[i+delta]) 再取反
+                // 2) OR：b[i+delta] = b[i] OR b[i+delta] = ~(~b[i] & ~b[i+delta])
                 std::vector<int64_t> not_left(len), not_right(len);
                 for (int i = 0; i < len; ++i) {
                     const int idx = start + i;
-                    not_left[i] = bs_bool[idx] ^ rank;
+                    not_left[i]  = bs_bool[idx] ^ rank;
                     not_right[i] = bs_bool[idx + delta] ^ rank;
                 }
                 auto and_res = BoolAndBatchOperator(&not_left, &not_right, 1, 0, andTag,
@@ -668,10 +723,10 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
 
                 std::vector<int64_t> new_bs_bool(len);
                 for (int i = 0; i < len; ++i) {
-                    new_bs_bool[i] = and_res[i] ^ rank; // 取反
+                    new_bs_bool[i] = and_res[i] ^ rank; // 取反得到 OR
                 }
 
-                // 3) 只把更新过的区间 [start+delta .. end-1+delta] 做 b->a，供下一轮 delta 使用
+                // 3) b->a，仅更新 [start+delta .. end-1+delta] 区间
                 auto new_bs_arith = BoolToArithBatchOperator(&new_bs_bool, 64, 0, b2aTag,
                                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
@@ -685,43 +740,40 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
         // 回填：vs[i+delta]、bs_bool[i+delta]、bs_arith[i+delta]
         for (int b = 0; b < numBatches; ++b) {
             const int start = b * batchSize;
-            const int end = std::min(start + batchSize, totalPairs);
-            const int len = end - start;
+            const int end   = std::min(start + batchSize, totalPairs);
+            const int len   = end - start;
             if (len <= 0) continue;
 
-            auto triple = futs[b].get();
-            auto &temp_vs = std::get<0>(triple);
-            auto &new_b_bool = std::get<1>(triple);
+            auto triple       = futs[b].get();
+            auto &temp_vs     = std::get<0>(triple);
+            auto &new_b_bool  = std::get<1>(triple);
             auto &new_b_arith = std::get<2>(triple);
 
-            // vs[i+delta] += temp_vs[i]
             for (int i = 0; i < len; ++i) {
                 vs[start + i + delta] += temp_vs[i];
-            }
-            // b / a(b) 更新到 i+delta 位置
-            for (int i = 0; i < len; ++i) {
-                bs_bool[start + i + delta] = new_b_bool[i];
+                bs_bool[start + i + delta]  = new_b_bool[i];
                 bs_arith[start + i + delta] = new_b_arith[i];
             }
         }
     }
 
-    // 末尾把 vs 从算术转成布尔（并行一波）
+    // ---------- vs: 算术 -> 布尔（并行） ----------
     {
         const int numBatches = (static_cast<int>(n) + batchSize - 1) / batchSize;
-        std::vector<std::future<std::vector<int64_t> > > futs(numBatches);
+        std::vector<std::future<std::vector<int64_t>>> futs(numBatches);
         for (int b = 0; b < numBatches; ++b) {
             const int start = b * batchSize;
-            const int end = std::min(start + batchSize, static_cast<int>(n));
-            const int len = end - start;
+            const int end   = std::min(start + batchSize, static_cast<int>(n));
+            const int len   = end - start;
+
             if (len <= 0) {
                 futs[b] = ThreadPoolSupport::submit([=]() { return std::vector<int64_t>(); });
                 continue;
             }
-            auto slice = std::make_shared<std::vector<int64_t> >(vs.begin() + start, vs.begin() + end);
-            const int a2bTag = tagCursorBase + b * a2bStride;
-            futs[b] = ThreadPoolSupport::submit([slice, a2bTag]() {
-                return ArithToBoolBatchOperator(slice.get(), 64, 0, a2bTag,
+            auto slice   = std::make_shared<std::vector<int64_t>>(vs.begin() + start, vs.begin() + end);
+            const int tg = tagCursorBase + b * a2bStride;
+            futs[b] = ThreadPoolSupport::submit([slice, tg]() {
+                return ArithToBoolBatchOperator(slice.get(), 64, 0, tg,
                                                 SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
             });
         }
@@ -730,31 +782,59 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
         int pos = 0;
         for (int b = 0; b < numBatches; ++b) {
             auto part = futs[b].get();
-            for (auto v: part) {
+            for (auto v : part) {
                 if (pos < static_cast<int>(n)) vs[pos++] = v;
             }
         }
     }
 
-    // 跟单批版一致：构造 group_tails / 插入列 / 更新 VALID / 清理
-    std::vector<int64_t> group_tails(heads.size());
-    if (!heads.empty()) {
-        for (int i = 0; i < static_cast<int>(heads.size()) - 1; ++i) {
-            group_tails[i] = heads[i + 1];
-        }
-        group_tails.back() = rank;
+    // ---------- 构造组尾 ----------
+    std::vector<int64_t> group_tails(n);
+    for (size_t i = 0; i + 1 < n; ++i) group_tails[i] = heads[i + 1];
+
+    // 非精确压缩：修正“最后一组尾巴落到无效区”的情况
+    if (APPROX_COMPACT) {
+        auto &valid = _dataCols[validIdx];
+        std::vector<int64_t> next_valid(n);
+        for (size_t i = 0; i + 1 < n; ++i) next_valid[i] = valid[i + 1];
+        next_valid[n - 1] = 0; // 0_share
+
+        // last_valid_tail = valid ∧ ¬next_valid
+        std::vector<int64_t> not_next(n);
+        for (size_t i = 0; i < n; ++i) not_next[i] = next_valid[i] ^ rank;
+
+        auto last_valid_tail = BoolAndBatchOperator(&valid, &not_next, 1, 0, msgTagBase,
+                                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+
+        // group_tails = group_tails OR last_valid_tail  （德摩根）
+        std::vector<int64_t> not_gt(n), not_lvt(n);
+        for (size_t i = 0; i < n; ++i) { not_gt[i] = group_tails[i] ^ rank; not_lvt[i] = last_valid_tail[i] ^ rank; }
+        auto and_not = BoolAndBatchOperator(&not_gt, &not_lvt, 1, 0, msgTagBase,
+                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        for (size_t i = 0; i < n; ++i) group_tails[i] = and_not[i] ^ rank;
+    } else {
+        group_tails[n - 1] = rank;
     }
 
+    // ---------- 插入计数字段 ----------
     _fieldNames.reserve(_fieldNames.size() + 1);
     _fieldWidths.reserve(_fieldWidths.size() + 1);
     _dataCols.reserve(_dataCols.size() + 1);
 
     _fieldNames.insert(_fieldNames.begin() + colNum() - 2, 1, alias.empty() ? COUNT_COL_NAME : alias);
     _fieldWidths.insert(_fieldWidths.begin() + colNum() - 2, 1, 64);
-    _dataCols.insert(_dataCols.begin() + colNum() - 2, 1, vs);
+    _dataCols.insert(_dataCols.begin() + colNum() - 2, 1, vs); // vs 现为布尔分享
 
-    _dataCols[colNum() + VALID_COL_OFFSET] = std::move(group_tails);
-    clearInvalidEntries(msgTagBase);
+    // ---------- 根据模式更新 VALID 并压缩 ----------
+    if (APPROX_COMPACT) {
+        auto new_valid = BoolAndBatchOperator(&_dataCols[validIdx], &group_tails, 1, 0, msgTagBase,
+                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        _dataCols[validIdx] = std::move(new_valid);
+        clearInvalidEntries(msgTagBase); // 近似截断
+    } else {
+        _dataCols[validIdx] = std::move(group_tails);
+        clearInvalidEntries(msgTagBase); // 精确截断
+    }
 }
 
 void View::maxSingleBatch(std::vector<int64_t> &heads, const std::string &fieldName, std::string alias,
@@ -2335,9 +2415,9 @@ std::vector<int64_t> View::groupBy(const std::vector<std::string> &groupFields, 
         std::vector<bool> ascending;
         sortFields.push_back(VALID_COL_NAME);
         ascending.push_back(false);
-        for (const auto &gf : groupFields) {
+        for (const auto &gf: groupFields) {
             sortFields.push_back(gf);
-            ascending.push_back(true);                  // 组键升序
+            ascending.push_back(true); // 组键升序
         }
         sort(sortFields, ascending, msgTagBase);
     }
