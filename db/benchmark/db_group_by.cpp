@@ -15,8 +15,13 @@
 #include <vector>
 #include <map>
 
+#include "conf/DbConf.h"
+
+void test_multi_column_group_by();
+
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
+    DbConf::init();
 
     // Test data: group_keys = [0, 1, 1, 2, 2, 2, 3], values = [10, 20, 30, 40, 50, 60, 70]
     // Expected groups: 4 groups with IDs [1, 2, 2, 3, 3, 3, 4]
@@ -66,6 +71,9 @@ int main(int argc, char *argv[]) {
         Log::i("Group by operation completed in {}ms", end - start);
         Log::i("groups: {}", StringUtils::vecToString(group_result));
     }
+
+
+    test_multi_column_group_by();
 
     System::finalize();
     return 0;

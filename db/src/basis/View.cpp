@@ -122,385 +122,373 @@ void View::sort(const std::string &orderField, bool ascendingOrder, int msgTagBa
 }
 
 std::vector<int64_t> View::groupBySingleBatch(const std::string &groupField, int msgTagBase) {
-    size_t n = rowNum();
-    int groupFieldIndex = colIndex(groupField);
-    auto &groupCol = _dataCols[groupFieldIndex];
+    const size_t n = rowNum();
+    if (n == 0) return {};
 
-    // Step 2: Identify group boundaries by comparing adjacent rows
-    // Create a boundary indicator vector: 1 if current row starts a new group, 0 otherwise
-    std::vector<int64_t> groupHeads(n);
-    groupHeads[0] = Comm::rank(); // First row always starts a new group (Alice=1, Bob=0, XOR=1)
-
-    if (n > 1) {
-        std::vector<int64_t> currData, prevData;
-        currData.reserve(n - 1);
-        prevData.reserve(n - 1);
-
-        for (size_t i = 1; i < n; i++) {
-            currData.push_back(groupCol[i]);
-            prevData.push_back(groupCol[i - 1]);
-        }
-
-        // Compare current row with previous row
-        auto eqs = BoolEqualBatchOperator(&currData, &prevData, _fieldWidths[groupFieldIndex],
-                                          0, msgTagBase,
-                                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-
-        // If equal to previous, not a boundary (0), if different, is a boundary (1)
-        for (size_t i = 1; i < n; i++) {
-            groupHeads[i] = eqs[i - 1] ^ Comm::rank(); // XOR with rank to flip: equal=0, different=1
-        }
+    const int k = colIndex(groupField);
+    if (k < 0) {
+        Log::e("groupBySingleBatch: field '{}' not found", groupField);
+        return std::vector<int64_t>(n, 0);
     }
 
-    // // Remove all columns except the group field and the redundant columns (valid, padding)
-    // std::vector<std::vector<int64_t> > newDataCols;
-    // std::vector<std::string> newFieldNames;
-    // std::vector<int> newFieldWidths;
-    //
-    // // Reserve space to prevent reallocation
-    // newDataCols.reserve(3); // group field + valid + padding
-    // newFieldNames.reserve(3);
-    // newFieldWidths.reserve(3);
-    //
-    // // Move the group field data (avoid copy)
-    // newDataCols.push_back(std::move(_dataCols[groupFieldIndex]));
-    // newFieldNames.push_back(std::move(_fieldNames[groupFieldIndex]));
-    // newFieldWidths.push_back(_fieldWidths[groupFieldIndex]);
-    //
-    // // Move the redundant columns (valid and padding)
-    // newDataCols.push_back(std::move(_dataCols[colNum() + VALID_COL_OFFSET]));
-    // newDataCols.push_back(std::move(_dataCols[colNum() + PADDING_COL_OFFSET]));
-    // newFieldNames.push_back(VALID_COL_NAME);
-    // newFieldNames.push_back(PADDING_COL_NAME);
-    // newFieldWidths.push_back(1);
-    // newFieldWidths.push_back(1);
-    //
-    // // Replace the current view's data
-    // _dataCols = std::move(newDataCols);
-    // _fieldNames = std::move(newFieldNames);
-    // _fieldWidths = std::move(newFieldWidths);
+    auto &keys = _dataCols[k];
+    const int bw = _fieldWidths[k];
 
-    return groupHeads;
+    // 计算相邻是否相等：eqs[i-1] = (key[i] == key[i-1]), 长度 n-1
+    std::vector<int64_t> eqs; // Bool shares
+    if (n > 1) {
+        std::vector<int64_t> curr, prev;
+        curr.reserve(n - 1);
+        prev.reserve(n - 1);
+        for (size_t i = 1; i < n; ++i) {
+            curr.push_back(keys[i]);
+            prev.push_back(keys[i - 1]);
+        }
+        eqs = BoolEqualBatchOperator(&curr, &prev, bw, /*tid=*/0, msgTagBase,
+                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+    }
+
+    const bool precise = (!DbConf::BASELINE_MODE) && (!DbConf::DISABLE_PRECISE_COMPACTION);
+    const bool approx = (!DbConf::BASELINE_MODE) && (DbConf::DISABLE_PRECISE_COMPACTION);
+
+    std::vector<int64_t> heads(n, 0);
+
+    if (precise) {
+        // 精确压缩：通常已不存在无效行
+        heads[0] = Comm::rank(); // 1_share
+        if (n > 1) {
+            // NOT(eqs)
+            for (size_t i = 1; i < n; ++i) {
+                heads[i] = eqs[i - 1] ^ Comm::rank();
+            }
+        }
+        return heads;
+    }
+
+    // BASELINE 或 非精确压缩：用 valid 做门控
+    const int validIdx = colNum() + VALID_COL_OFFSET;
+    auto &validCol = _dataCols[validIdx];
+
+    // head[0] = valid[0]
+    heads[0] = (n > 0 ? validCol[0] : 0);
+
+    if (n > 1) {
+        // not_eq = NOT(eqs)
+        std::vector<int64_t> neq(n - 1);
+        for (size_t i = 0; i < n - 1; ++i) neq[i] = eqs[i] ^ Comm::rank();
+
+        // valid_tail = valid[1..n-1]
+        std::vector<int64_t> valid_tail(n - 1);
+        for (size_t i = 1; i < n; ++i) valid_tail[i - 1] = validCol[i];
+
+        // heads_tail = valid_tail AND not_eq
+        auto heads_tail = BoolAndBatchOperator(&valid_tail, &neq, /*bitlen=*/1,
+                                               /*tid=*/0, msgTagBase,
+                                               SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+
+        for (size_t i = 1; i < n; ++i) heads[i] = heads_tail[i - 1];
+    }
+
+    return heads;
 }
 
 std::vector<int64_t> View::groupByMultiBatches(const std::string &groupField, int msgTagBase) {
-    size_t n = rowNum();
+    const size_t n = rowNum();
+    if (n == 0) return {};
 
-    if (n <= Conf::BATCH_SIZE) {
+    if (n <= static_cast<size_t>(Conf::BATCH_SIZE)) {
         return groupBySingleBatch(groupField, msgTagBase);
     }
 
-    int groupFieldIndex = colIndex(groupField);
-    auto &groupCol = _dataCols[groupFieldIndex];
+    const int k = colIndex(groupField);
+    if (k < 0) {
+        Log::e("groupByMultiBatches: field '{}' not found", groupField);
+        return std::vector<int64_t>(n, 0);
+    }
+    auto &keys = _dataCols[k];
+    const int bw = _fieldWidths[k];
 
-    // Step 2: Identify group boundaries by comparing adjacent rows
-    std::vector<int64_t> groupHeads(n);
-    groupHeads[0] = Comm::rank(); // First row always starts a new group
-
+    // —— 计算相邻是否相等：eqs[i-1] = (key[i] == key[i-1])，长度 n-1（分批）
+    std::vector<int64_t> eqs;
+    eqs.reserve(n > 0 ? n - 1 : 0);
     if (n > 1) {
-        int batchSize = Conf::BATCH_SIZE;
-        int batchNum = ((n - 1) + batchSize - 1) / batchSize; // Number of batches for row comparisons
-        int tagOffset = BoolEqualBatchOperator::tagStride();
+        const int batchSize = Conf::BATCH_SIZE;
+        const int cmpPairs = static_cast<int>(n - 1);
+        const int batchNum = (cmpPairs + batchSize - 1) / batchSize;
+        const int tagOffset = BoolEqualBatchOperator::tagStride();
 
-        // Process comparisons in batches
-        std::vector<std::future<std::vector<int64_t> > > batchFutures(batchNum);
-
+        std::vector<std::future<std::vector<int64_t> > > batchFuts(batchNum);
         for (int b = 0; b < batchNum; ++b) {
-            batchFutures[b] = ThreadPoolSupport::submit([&, b]() {
-                int start = b * batchSize + 1; // +1 because we start from row 1
-                int end = std::min(start + batchSize, static_cast<int>(n));
-                int currentBatchSize = end - start;
+            batchFuts[b] = ThreadPoolSupport::submit([&, b]() {
+                const int start = b * batchSize + 1; // 从第1行开始比较 (i 与 i-1)
+                const int end = std::min(start + batchSize, static_cast<int>(n));
+                const int curN = end - start;
+                if (curN <= 0) return std::vector<int64_t>();
 
-                if (currentBatchSize <= 0) {
-                    return std::vector<int64_t>();
+                std::vector<int64_t> curr, prev;
+                curr.reserve(curN);
+                prev.reserve(curN);
+                for (int i = start; i < end; ++i) {
+                    curr.push_back(keys[i]);
+                    prev.push_back(keys[i - 1]);
                 }
-
-                std::vector<int64_t> currData, prevData;
-                currData.reserve(currentBatchSize);
-                prevData.reserve(currentBatchSize);
-
-                for (int i = start; i < end; i++) {
-                    currData.push_back(groupCol[i]);
-                    prevData.push_back(groupCol[i - 1]);
-                }
-
-                int batchStartTag = msgTagBase + b * tagOffset;
-                return BoolEqualBatchOperator(&currData, &prevData, _fieldWidths[groupFieldIndex],
-                                              0, batchStartTag,
+                const int batchTag = msgTagBase + b * tagOffset;
+                return BoolEqualBatchOperator(&curr, &prev, bw, /*tid=*/0, batchTag,
                                               SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
             });
         }
-
-        // Collect results from all batches
-        std::vector<int64_t> eqs;
-        eqs.reserve(n - 1);
-        for (auto &f: batchFutures) {
-            auto batchResult = f.get();
-            eqs.insert(eqs.end(), batchResult.begin(), batchResult.end());
-        }
-
-        // If equal to previous, not a boundary (0), if different, is a boundary (1)
-        for (size_t i = 1; i < n; i++) {
-            groupHeads[i] = eqs[i - 1] ^ Comm::rank(); // XOR with rank to flip: equal=0, different=1
+        for (auto &f: batchFuts) {
+            auto part = f.get();
+            eqs.insert(eqs.end(), part.begin(), part.end());
         }
     }
 
-    // // Remove all columns except the group field and the redundant columns (valid, padding)
-    // std::vector<std::vector<int64_t> > newDataCols;
-    // std::vector<std::string> newFieldNames;
-    // std::vector<int> newFieldWidths;
-    //
-    // // Reserve space to prevent reallocation
-    // newDataCols.reserve(3); // group field + valid + padding
-    // newFieldNames.reserve(3);
-    // newFieldWidths.reserve(3);
-    //
-    // // Move the group field data (avoid copy)
-    // newDataCols.push_back(std::move(_dataCols[groupFieldIndex]));
-    // newFieldNames.push_back(std::move(_fieldNames[groupFieldIndex]));
-    // newFieldWidths.push_back(_fieldWidths[groupFieldIndex]);
-    //
-    // // Move the redundant columns (valid and padding)
-    // newDataCols.push_back(std::move(_dataCols[colNum() + VALID_COL_OFFSET]));
-    // newDataCols.push_back(std::move(_dataCols[colNum() + PADDING_COL_OFFSET]));
-    // newFieldNames.push_back(VALID_COL_NAME);
-    // newFieldNames.push_back(PADDING_COL_NAME);
-    // newFieldWidths.push_back(1);
-    // newFieldWidths.push_back(1);
-    //
-    // // Replace the current view's data
-    // _dataCols = std::move(newDataCols);
-    // _fieldNames = std::move(newFieldNames);
-    // _fieldWidths = std::move(newFieldWidths);
+    const bool precise = !DbConf::DISABLE_PRECISE_COMPACTION; // 不考虑 BASELINE
+    std::vector<int64_t> heads(n, 0);
 
-    return groupHeads;
+    if (precise) {
+        // —— 精确压缩：通常无无效行
+        heads[0] = Comm::rank(); // 1_share
+        if (n > 1) {
+            for (size_t i = 1; i < n; ++i) {
+                heads[i] = eqs[i - 1] ^ Comm::rank(); // NOT(eqs)
+            }
+        }
+        return heads;
+    }
+
+    // —— 非精确压缩：用 valid 门控
+    const int validIdx = colNum() + VALID_COL_OFFSET;
+    auto &validCol = _dataCols[validIdx];
+
+    // head[0] = valid[0]
+    heads[0] = validCol[0];
+
+    if (n > 1) {
+        // not_eq = NOT(eqs)
+        std::vector<int64_t> neq(n - 1);
+        for (size_t i = 0; i < n - 1; ++i) neq[i] = eqs[i] ^ Comm::rank();
+
+        // valid_tail = valid[1..n-1]
+        std::vector<int64_t> valid_tail(n - 1);
+        for (size_t i = 1; i < n; ++i) valid_tail[i - 1] = validCol[i];
+
+        // heads_tail = valid_tail AND not_eq
+        auto heads_tail = BoolAndBatchOperator(&valid_tail, &neq, /*bitlen=*/1,
+                                               /*tid=*/0, msgTagBase,
+                                               SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+
+        for (size_t i = 1; i < n; ++i) heads[i] = heads_tail[i - 1];
+    }
+
+    return heads;
 }
 
 std::vector<int64_t> View::groupBySingleBatch(const std::vector<std::string> &groupFields, int msgTagBase) {
-    size_t n = rowNum();
+    const size_t n = rowNum();
+    std::vector<int64_t> groupHeads(n, 0);
+    if (n == 0 || groupFields.empty()) return groupHeads;
 
-    // Get column indices for all group fields
-    std::vector<int> groupFieldIndices(groupFields.size());
-    for (size_t i = 0; i < groupFields.size(); i++) {
-        groupFieldIndices[i] = colIndex(groupFields[i]);
+    // 找到各分组列索引
+    std::vector<int> idx(groupFields.size());
+    for (size_t k = 0; k < groupFields.size(); ++k) {
+        idx[k] = colIndex(groupFields[k]);
+        if (idx[k] < 0) {
+            // 任一列不存在则返回全 0（安全起见）
+            return groupHeads;
+        }
     }
 
-    // Step 3: Identify group boundaries by comparing adjacent rows across all columns
-    std::vector<int64_t> groupHeads(n);
-    groupHeads[0] = Comm::rank(); // First row always starts a new group (Alice=1, Bob=0, XOR=1)
-
+    // 计算相邻行在“所有分组列上”的相等性：eq_all[i-1] = (key[i] == key[i-1])
+    std::vector<int64_t> eq_all;             // 长度 n-1
     if (n > 1) {
-        // Compare each row with the previous row across all group columns
-        std::vector<int64_t> currData, prevData;
-        currData.reserve((n - 1) * groupFields.size());
-        prevData.reserve((n - 1) * groupFields.size());
-
-        // Collect data for all columns and all adjacent row pairs
-        for (size_t col = 0; col < groupFields.size(); col++) {
-            int fieldIndex = groupFieldIndices[col];
-            for (size_t i = 1; i < n; i++) {
-                currData.push_back(_dataCols[fieldIndex][i]);
-                prevData.push_back(_dataCols[fieldIndex][i - 1]);
+        // 先用第一列初始化
+        {
+            std::vector<int64_t> cur(n - 1), prv(n - 1);
+            for (size_t i = 1; i < n; ++i) {
+                cur[i - 1] = _dataCols[idx[0]][i];
+                prv[i - 1] = _dataCols[idx[0]][i - 1];
             }
+            eq_all = BoolEqualBatchOperator(&cur, &prv, _fieldWidths[idx[0]],
+                                            /*tid=*/0, msgTagBase,
+                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         }
-
-        // Compare current row with previous row for first column
-        std::vector<int64_t> firstColCurr(currData.begin(), currData.begin() + (n - 1));
-        std::vector<int64_t> firstColPrev(prevData.begin(), prevData.begin() + (n - 1));
-
-        auto eqs = BoolEqualBatchOperator(&firstColCurr, &firstColPrev,
-                                          _fieldWidths[groupFieldIndices[0]],
-                                          0, msgTagBase,
+        // 其余列与 eq_all 做 AND 归并
+        for (size_t k = 1; k < idx.size(); ++k) {
+            std::vector<int64_t> cur(n - 1), prv(n - 1);
+            for (size_t i = 1; i < n; ++i) {
+                cur[i - 1] = _dataCols[idx[k]][i];
+                prv[i - 1] = _dataCols[idx[k]][i - 1];
+            }
+            auto eq_k = BoolEqualBatchOperator(&cur, &prv, _fieldWidths[idx[k]],
+                                               /*tid=*/0, msgTagBase,
+                                               SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+            eq_all = BoolAndBatchOperator(&eq_all, &eq_k, /*bitlen=*/1,
+                                          /*tid=*/0, msgTagBase,
                                           SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-
-        // For remaining columns, compute equality and combine with AND
-        for (size_t col = 1; col < groupFields.size(); col++) {
-            size_t startIdx = col * (n - 1);
-            std::vector<int64_t> colCurr(currData.begin() + startIdx, currData.begin() + startIdx + (n - 1));
-            std::vector<int64_t> colPrev(prevData.begin() + startIdx, prevData.begin() + startIdx + (n - 1));
-
-            auto colEqs = BoolEqualBatchOperator(&colCurr, &colPrev,
-                                                 _fieldWidths[groupFieldIndices[col]],
-                                                 0, msgTagBase,
-                                                 SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-
-            // Combine with previous equality results using AND
-            eqs = BoolAndBatchOperator(&eqs, &colEqs, 1, 0, msgTagBase,
-                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         }
+    }
 
-        // If all columns are equal to previous row, not a boundary (0)
-        // If any column is different, is a boundary (1)
-        for (size_t i = 1; i < n; i++) {
-            groupHeads[i] = eqs[i - 1] ^ Comm::rank(); // XOR with rank to flip: equal=0, different=1
+    const bool precise = !DbConf::DISABLE_PRECISE_COMPACTION;
+    const int validColIndex = colNum() + VALID_COL_OFFSET;
+    const auto &validCol = _dataCols[validColIndex];
+    const int64_t NOT_mask = Comm::rank();
+
+    if (precise) {
+        // —— 精确压缩：没有无效行
+        groupHeads[0] = Comm::rank();  // 1_share
+        for (size_t i = 1; i < n; ++i) {
+            // head[i] = NOT(eq_all[i-1])
+            groupHeads[i] = (i - 1 < eq_all.size()) ? (eq_all[i - 1] ^ NOT_mask) : Comm::rank();
+        }
+    } else {
+        // —— BASELINE / 非精确压缩：可能存在无效行（但已按 VALID 降序排过）
+        // head[0] = valid[0]
+        groupHeads[0] = validCol[0];
+        if (n > 1) {
+            // head[i] = valid[i] AND NOT(eq_all[i-1])
+            std::vector<int64_t> neq(n - 1);
+            for (size_t i = 1; i < n; ++i) {
+                neq[i - 1] = eq_all[i - 1] ^ NOT_mask;
+            }
+            // 将 valid[i] 下采样为长度 n-1 的向量，与 not_eq 做按位 AND，最后写回到 groupHeads[i]
+            std::vector<int64_t> valid_tail(n - 1);
+            for (size_t i = 1; i < n; ++i) valid_tail[i - 1] = validCol[i];
+
+            auto and_res = BoolAndBatchOperator(&valid_tail, &neq, /*bitlen=*/1,
+                                                /*tid=*/0, msgTagBase,
+                                                SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+            for (size_t i = 1; i < n; ++i) groupHeads[i] = and_res[i - 1];
         }
     }
 
     return groupHeads;
-
-    // // Remove all columns except the group fields and the redundant columns (valid, padding)
-    // std::vector<std::vector<int64_t> > newDataCols;
-    // std::vector<std::string> newFieldNames;
-    // std::vector<int> newFieldWidths;
-    //
-    // // Reserve space to prevent reallocation
-    // size_t totalCols = groupFields.size() + 2; // group fields + valid + padding
-    // newDataCols.reserve(totalCols);
-    // newFieldNames.reserve(totalCols);
-    // newFieldWidths.reserve(totalCols);
-    //
-    // // Move the group field data (avoid copy)
-    // for (size_t i = 0; i < groupFields.size(); i++) {
-    //     int fieldIndex = groupFieldIndices[i];
-    //     newDataCols.push_back(std::move(_dataCols[fieldIndex]));
-    //     newFieldNames.push_back(std::move(_fieldNames[fieldIndex]));
-    //     newFieldWidths.push_back(_fieldWidths[fieldIndex]);
-    // }
-    //
-    // // Move the redundant columns (valid and padding)
-    // newDataCols.push_back(std::move(_dataCols[colNum() + VALID_COL_OFFSET]));
-    // newDataCols.push_back(std::move(_dataCols[colNum() + PADDING_COL_OFFSET]));
-    // newFieldNames.push_back(VALID_COL_NAME);
-    // newFieldNames.push_back(PADDING_COL_NAME);
-    // newFieldWidths.push_back(1);
-    // newFieldWidths.push_back(1);
-    //
-    // // Replace the current view's data
-    // _dataCols = std::move(newDataCols);
-    // _fieldNames = std::move(newFieldNames);
-    // _fieldWidths = std::move(newFieldWidths);
-    //
-    // return groupHeads;
 }
 
 std::vector<int64_t> View::groupByMultiBatches(const std::vector<std::string> &groupFields, int msgTagBase) {
-    size_t n = rowNum();
-    if (n <= Conf::BATCH_SIZE) {
+    const size_t n = rowNum();
+    if (n == 0) return {};
+    if (n <= static_cast<size_t>(Conf::BATCH_SIZE)) {
         return groupBySingleBatch(groupFields, msgTagBase);
     }
 
-    // Get column indices for all group fields
-    std::vector<int> groupFieldIndices(groupFields.size());
-    for (size_t i = 0; i < groupFields.size(); i++) {
-        groupFieldIndices[i] = colIndex(groupFields[i]);
+    // 取各分组列下标
+    std::vector<int> gIdx(groupFields.size());
+    for (size_t k = 0; k < groupFields.size(); ++k) {
+        gIdx[k] = colIndex(groupFields[k]);
     }
 
-    // Step 3: Identify group boundaries by comparing adjacent rows across all columns
-    std::vector<int64_t> groupHeads(n);
-    groupHeads[0] = Comm::rank(); // First row always starts a new group
+    // 结果：groupHeads，长度 n
+    std::vector<int64_t> groupHeads(n, 0);
+    // eq_all: 长度 n-1，eq_all[j] 表示 (row j+1) 与 (row j) 在所有分组列上是否相等
+    std::vector<int64_t> eq_all;
+    eq_all.reserve(n > 0 ? n - 1 : 0);
 
     if (n > 1) {
-        int batchSize = Conf::BATCH_SIZE;
-        int batchNum = ((n - 1) + batchSize - 1) / batchSize; // Number of batches for row comparisons
-        int tagOffset = std::max(BoolEqualBatchOperator::tagStride(), BoolAndBatchOperator::tagStride());
+        const int batchSize = Conf::BATCH_SIZE;
+        const int pairCnt   = static_cast<int>(n - 1);
+        const int batchNum  = (pairCnt + batchSize - 1) / batchSize;
+        const int tagOffset = std::max(BoolEqualBatchOperator::tagStride(), BoolAndBatchOperator::tagStride());
 
-        // Process each column in parallel
-        std::vector<std::future<std::vector<int64_t> > > columnFutures(groupFields.size());
+        // 每一列并行：对相邻行做相等比较，得到 eqs_col（长度 n-1）
+        std::vector<std::future<std::vector<int64_t>>> colFuts(groupFields.size());
+        for (int colIdx = 0; colIdx < static_cast<int>(groupFields.size()); ++colIdx) {
+            colFuts[colIdx] = ThreadPoolSupport::submit([&, colIdx] {
+                const int fidx = gIdx[colIdx];
+                std::vector<int64_t> colEq; colEq.reserve(n - 1);
 
-        for (int colIdx = 0; colIdx < groupFields.size(); colIdx++) {
-            columnFutures[colIdx] = ThreadPoolSupport::submit([&, colIdx] {
-                int fieldIndex = groupFieldIndices[colIdx];
-                std::vector<int64_t> columnResult;
-                columnResult.reserve(n - 1);
-
-                // Process this column in batches
-                std::vector<std::future<std::vector<int64_t> > > batchFutures(batchNum);
-                int startTag = tagOffset * batchNum * colIdx;
+                // 该列按 batch 并行
+                std::vector<std::future<std::vector<int64_t>>> batchFuts(batchNum);
+                const int startTag = tagOffset * batchNum * colIdx;
 
                 for (int b = 0; b < batchNum; ++b) {
-                    batchFutures[b] = ThreadPoolSupport::submit([&, b, fieldIndex, startTag]() {
-                        int start = b * batchSize + 1; // +1 because we start from row 1
-                        int end = std::min(start + batchSize, static_cast<int>(n));
-                        int currentBatchSize = end - start;
+                    batchFuts[b] = ThreadPoolSupport::submit([&, b, fidx, startTag]() {
+                        const int start = b * batchSize + 1;           // 与前一行比较，所以从 1 开始
+                        const int end   = std::min(start + batchSize, static_cast<int>(n));
+                        const int curN  = end - start;
+                        if (curN <= 0) return std::vector<int64_t>();
 
-                        if (currentBatchSize <= 0) {
-                            return std::vector<int64_t>();
+                        std::vector<int64_t> curr(curN), prev(curN);
+                        for (int i = 0; i < curN; ++i) {
+                            curr[i] = _dataCols[fidx][start + i];
+                            prev[i] = _dataCols[fidx][start + i - 1];
                         }
-
-                        std::vector<int64_t> currData, prevData;
-                        currData.reserve(currentBatchSize);
-                        prevData.reserve(currentBatchSize);
-
-                        for (int i = start; i < end; i++) {
-                            currData.push_back(_dataCols[fieldIndex][i]);
-                            prevData.push_back(_dataCols[fieldIndex][i - 1]);
-                        }
-
-                        int batchStartTag = startTag + b * tagOffset;
-                        return BoolEqualBatchOperator(&currData, &prevData, _fieldWidths[fieldIndex],
-                                                      0, batchStartTag,
-                                                      SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                        const int batchTag = startTag + b * tagOffset;
+                        return BoolEqualBatchOperator(
+                            &curr, &prev, _fieldWidths[fidx],
+                            /*tid*/0, batchTag,
+                            SecureOperator::NO_CLIENT_COMPUTE
+                        ).execute()->_zis;
                     });
                 }
 
-                // Collect results from all batches for this column
-                for (auto &f: batchFutures) {
-                    auto batchResult = f.get();
-                    columnResult.insert(columnResult.end(), batchResult.begin(), batchResult.end());
+                // 拼回该列的 eqs_col
+                for (auto &bf : batchFuts) {
+                    auto part = bf.get();
+                    colEq.insert(colEq.end(), part.begin(), part.end());
                 }
-
-                return columnResult;
+                return colEq;
             });
         }
 
-        // Collect results from all columns
-        std::vector<std::vector<int64_t> > columnResults(groupFields.size());
-        for (int colIdx = 0; colIdx < groupFields.size(); colIdx++) {
-            columnResults[colIdx] = columnFutures[colIdx].get();
+        // 汇总每列的 eqs，用 AND 叠合成 eq_all
+        std::vector<std::vector<int64_t>> allCols(groupFields.size());
+        for (int colIdx = 0; colIdx < static_cast<int>(groupFields.size()); ++colIdx) {
+            allCols[colIdx] = colFuts[colIdx].get();
         }
 
-        // Combine results using AND operation
-        std::vector<int64_t> eqs;
-        if (!columnResults.empty()) {
-            eqs = std::move(columnResults[0]);
-
-            for (int colIdx = 1; colIdx < columnResults.size(); colIdx++) {
-                eqs = BoolAndBatchOperator(&eqs, &columnResults[colIdx], 1, 0, msgTagBase,
-                                           SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        if (!allCols.empty()) {
+            eq_all = std::move(allCols[0]);
+            for (int colIdx = 1; colIdx < static_cast<int>(allCols.size()); ++colIdx) {
+                eq_all = BoolAndBatchOperator(
+                    &eq_all, &allCols[colIdx], /*bitlen=*/1,
+                    /*tid*/0, msgTagBase,
+                    SecureOperator::NO_CLIENT_COMPUTE
+                ).execute()->_zis;
             }
         }
+    }
 
-        // If all columns are equal to previous row, not a boundary (0)
-        // If any column is different, is a boundary (1)
-        for (size_t i = 1; i < n; i++) {
-            groupHeads[i] = eqs[i - 1] ^ Comm::rank(); // XOR with rank to flip: equal=0, different=1
+    const int64_t NOT_mask = Comm::rank();
+
+    if (!DbConf::DISABLE_PRECISE_COMPACTION) {
+        // —— 精确压缩：所有行均有效
+        groupHeads[0] = Comm::rank();  // 第一行必为组首
+        for (size_t i = 1; i < n; ++i) {
+            groupHeads[i] = (i - 1 < eq_all.size()) ? (eq_all[i - 1] ^ NOT_mask) : Comm::rank();
+        }
+    } else {
+        // —— 非精确压缩：用 valid 做门控
+        const int validColIndex = colNum() + VALID_COL_OFFSET;
+        auto &validCol = _dataCols[validColIndex];
+
+        // head[0] = valid[0]
+        groupHeads[0] = (n > 0 ? validCol[0] : 0);
+
+        if (n > 1) {
+            // not_eq = NOT(eq_all)
+            std::vector<int64_t> neq(eq_all.size());
+            for (size_t j = 0; j < eq_all.size(); ++j) neq[j] = eq_all[j] ^ NOT_mask;
+
+            // valid_tail[j] = valid[j+1]
+            std::vector<int64_t> valid_tail(eq_all.size());
+            for (size_t j = 0; j < eq_all.size(); ++j) valid_tail[j] = validCol[j + 1];
+
+            // tail_heads = valid_tail AND not_eq
+            auto tail_heads = BoolAndBatchOperator(
+                &valid_tail, &neq, /*bitlen=*/1,
+                /*tid*/0, msgTagBase,
+                SecureOperator::NO_CLIENT_COMPUTE
+            ).execute()->_zis;
+
+            // 写回 head[1..]
+            for (size_t i = 1; i < n; ++i) {
+                groupHeads[i] = tail_heads[i - 1];
+            }
         }
     }
 
     return groupHeads;
-    // // Remove all columns except the group fields and the redundant columns (valid, padding)
-    // std::vector<std::vector<int64_t> > newDataCols;
-    // std::vector<std::string> newFieldNames;
-    // std::vector<int> newFieldWidths;
-    //
-    // // Reserve space to prevent reallocation
-    // size_t totalCols = groupFields.size() + 2; // group fields + valid + padding
-    // newDataCols.reserve(totalCols);
-    // newFieldNames.reserve(totalCols);
-    // newFieldWidths.reserve(totalCols);
-    //
-    // // Move the group field data (avoid copy)
-    // for (size_t i = 0; i < groupFields.size(); i++) {
-    //     int fieldIndex = groupFieldIndices[i];
-    //     newDataCols.push_back(std::move(_dataCols[fieldIndex]));
-    //     newFieldNames.push_back(std::move(_fieldNames[fieldIndex]));
-    //     newFieldWidths.push_back(_fieldWidths[fieldIndex]);
-    // }
-    //
-    // // Move the redundant columns (valid and padding)
-    // newDataCols.push_back(std::move(_dataCols[colNum() + VALID_COL_OFFSET]));
-    // newDataCols.push_back(std::move(_dataCols[colNum() + PADDING_COL_OFFSET]));
-    // newFieldNames.push_back(VALID_COL_NAME);
-    // newFieldNames.push_back(PADDING_COL_NAME);
-    // newFieldWidths.push_back(1);
-    // newFieldWidths.push_back(1);
-    //
-    // // Replace the current view's data
-    // _dataCols = std::move(newDataCols);
-    // _fieldNames = std::move(newFieldNames);
-    // _fieldWidths = std::move(newFieldWidths);
-    //
-    // return groupHeads;
 }
 
 void View::countSingleBatch(std::vector<int64_t> &heads, std::string alias, int msgTagBase) {
@@ -2306,8 +2294,18 @@ std::vector<int64_t> View::groupBy(const std::string &groupField, int msgTagBase
         return std::vector<int64_t>();
     }
 
-    // First, sort by the group field to ensure records with same keys are adjacent
-    sort(groupField, true, msgTagBase);
+    if (!DbConf::BASELINE_MODE && !DbConf::DISABLE_PRECISE_COMPACTION) {
+        // First, sort by the group field to ensure records with same keys are adjacent
+        sort(groupField, true, msgTagBase);
+    } else {
+        std::vector<std::string> sortFields;
+        std::vector<bool> ascending;
+        sortFields.push_back(VALID_COL_NAME);
+        ascending.push_back(false);
+        sortFields.push_back(groupField);
+        ascending.push_back(true);
+        sort(sortFields, ascending, msgTagBase);
+    }
 
     // Choose between single batch and multi-batch processing
     if (Conf::BATCH_SIZE <= 0 || Conf::DISABLE_MULTI_THREAD) {
@@ -2329,9 +2327,21 @@ std::vector<int64_t> View::groupBy(const std::vector<std::string> &groupFields, 
         return groupBy(groupFields[0], msgTagBase);
     }
 
+    if (!DbConf::BASELINE_MODE && !DbConf::DISABLE_PRECISE_COMPACTION) {
+        std::vector<bool> ascendingOrders(groupFields.size(), true);
+        sort(groupFields, ascendingOrders, msgTagBase);
+    } else {
+        std::vector<std::string> sortFields;
+        std::vector<bool> ascending;
+        sortFields.push_back(VALID_COL_NAME);
+        ascending.push_back(false);
+        for (const auto &gf : groupFields) {
+            sortFields.push_back(gf);
+            ascending.push_back(true);                  // 组键升序
+        }
+        sort(sortFields, ascending, msgTagBase);
+    }
     // Step 1: Sort by all group fields to ensure records with same keys are adjacent
-    std::vector<bool> ascendingOrders(groupFields.size(), true);
-    sort(groupFields, ascendingOrders, msgTagBase);
 
     // Choose between single batch and multi-batch processing
     if (Conf::BATCH_SIZE <= 0 || Conf::DISABLE_MULTI_THREAD) {
@@ -2481,14 +2491,14 @@ void View::distinctSingleBatch(int msgTagBase) {
         validCol.swap(merged);
     } else if (!DbConf::DISABLE_PRECISE_COMPACTION) {
         validCol.swap(new_valid);
-        clearInvalidEntries(msgTagBase);   // 精确截断
+        clearInvalidEntries(msgTagBase); // 精确截断
     } else {
         auto merged = BoolAndBatchOperator(
             &validCol, &new_valid, /*bitlen=*/1,
             /*tid*/0, msgTagBase,
             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         validCol.swap(merged);
-        clearInvalidEntries(msgTagBase);   // 近似截断（你的 clearInvalidEntries 已实现）
+        clearInvalidEntries(msgTagBase); // 近似截断（你的 clearInvalidEntries 已实现）
     }
 }
 
@@ -2515,14 +2525,14 @@ void View::distinctMultiBatches(int msgTagBase) {
 
         if (!DbConf::DISABLE_PRECISE_COMPACTION) {
             _dataCols[validColIndex].swap(new_valid);
-            clearInvalidEntries(msgTagBase);        // 精确截断
+            clearInvalidEntries(msgTagBase); // 精确截断
         } else {
             auto merged = BoolAndBatchOperator(
                 &validCol, &new_valid, /*bitlen=*/1,
                 /*tid*/0, msgTagBase,
                 SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
             _dataCols[validColIndex].swap(merged);
-            clearInvalidEntries(msgTagBase);        // 近似截断
+            clearInvalidEntries(msgTagBase); // 近似截断
         }
         return;
     }
@@ -2533,7 +2543,7 @@ void View::distinctMultiBatches(int msgTagBase) {
     const int batchNum = (cmpPairs + batchSize - 1) / batchSize;
     const int tagOffset = std::max(BoolEqualBatchOperator::tagStride(), BoolAndBatchOperator::tagStride());
 
-    std::vector<std::future<std::vector<int64_t>>> columnFutures(cmpCols.size());
+    std::vector<std::future<std::vector<int64_t> > > columnFutures(cmpCols.size());
 
     for (int colIdx = 0; colIdx < static_cast<int>(cmpCols.size()); ++colIdx) {
         columnFutures[colIdx] = ThreadPoolSupport::submit([&, colIdx] {
@@ -2541,14 +2551,14 @@ void View::distinctMultiBatches(int msgTagBase) {
             std::vector<int64_t> columnResult;
             columnResult.reserve(rn > 0 ? rn - 1 : 0);
 
-            std::vector<std::future<std::vector<int64_t>>> batchFutures(batchNum);
+            std::vector<std::future<std::vector<int64_t> > > batchFutures(batchNum);
             const int startTag = tagOffset * batchNum * colIdx;
 
             for (int b = 0; b < batchNum; ++b) {
                 batchFutures[b] = ThreadPoolSupport::submit([&, b, col, startTag]() {
                     const int start = b * batchSize + 1; // i 从 1 开始，对比 i 与 i-1
-                    const int end   = std::min(start + batchSize, static_cast<int>(rn));
-                    const int curN  = end - start;
+                    const int end = std::min(start + batchSize, static_cast<int>(rn));
+                    const int curN = end - start;
                     if (curN <= 0) return std::vector<int64_t>();
 
                     std::vector<int64_t> currData, prevData;
@@ -2567,7 +2577,7 @@ void View::distinctMultiBatches(int msgTagBase) {
                 });
             }
 
-            for (auto &f : batchFutures) {
+            for (auto &f: batchFutures) {
                 auto part = f.get();
                 columnResult.insert(columnResult.end(), part.begin(), part.end());
             }
@@ -2576,12 +2586,12 @@ void View::distinctMultiBatches(int msgTagBase) {
     }
 
     // 收集每列的 eqs，并用 AND 聚合：eqs = ∧_col eqs_col
-    std::vector<std::vector<int64_t>> columnResults(cmpCols.size());
+    std::vector<std::vector<int64_t> > columnResults(cmpCols.size());
     for (int colIdx = 0; colIdx < static_cast<int>(cmpCols.size()); ++colIdx) {
         columnResults[colIdx] = columnFutures[colIdx].get();
     }
 
-    std::vector<int64_t> eqs;               // 长度 rn-1
+    std::vector<int64_t> eqs; // 长度 rn-1
     if (!columnResults.empty()) {
         eqs = std::move(columnResults[0]);
         for (int colIdx = 1; colIdx < static_cast<int>(columnResults.size()); ++colIdx) {
@@ -2626,8 +2636,11 @@ void View::distinct(int msgTagBase) {
     // Use all columns for multi-column sorting to ensure identical rows are adjacent
     std::vector<std::string> allFields;
     std::vector<bool> ascendingOrders;
-    allFields.push_back(VALID_COL_NAME);
-    ascendingOrders.push_back(false);
+
+    if (!DbConf::BASELINE_MODE && !DbConf::DISABLE_PRECISE_COMPACTION) {
+        allFields.push_back(VALID_COL_NAME);
+        ascendingOrders.push_back(false);
+    }
 
     // Include all data columns (excluding valid and padding columns)
     for (int i = 0; i < cn - 2; i++) {
