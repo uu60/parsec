@@ -12,6 +12,7 @@ class DbConf {
 public:
     inline static bool ENABLE_HASH_JOIN = true;
     inline static int SHUFFLE_BUCKET_NUM = 32;
+    inline static bool DISABLE_PRECISE_COMPACTION = true;
     inline static bool BASELINE_MODE = false;
 
     static void init() {
@@ -23,6 +24,9 @@ public:
         }
         if (Conf::_userParams.count("baseline_mode")) {
             BASELINE_MODE = Conf::_userParams["baseline_mode"] == "true";
+        }
+        if (Conf::_userParams.count("disable_precise_compaction")) {
+            DISABLE_PRECISE_COMPACTION = Conf::_userParams["disable_precise_compaction"] == "true";
         }
 
         if (BASELINE_MODE) {
