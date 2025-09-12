@@ -152,10 +152,10 @@ void generateRandomData(int num_records,
         time_plus_56_data.reserve(num_records);
 
         for (int i = 0; i < num_records; i++) {
-            int64_t pid = 1 + (Math::randInt() % num_pids);
-            int64_t t = Math::randInt() % 10000; // [0,10000)
-            bool is_cd = (Math::randInt() % 3 == 0); // ~1/3 cdiff
-            int64_t d = is_cd ? CDIFF_CODE : (2000 + (Math::randInt() % 1000));
+            int64_t pid = Math::randInt();
+            int64_t t = Math::randInt(); // [0,10000)
+            bool is_cd = Math::randInt(); // ~1/3 cdiff
+            int64_t d = Math::randInt();
 
             pid_data.push_back(pid);
             time_data.push_back(t);

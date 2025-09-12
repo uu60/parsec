@@ -1957,7 +1957,7 @@ void View::clearInvalidEntries(int msgTagBase) {
             bits[i] = Math::getBit(sumBoolShare, i);
         }
         int msb = -1;
-        for (int b = 63; b >= 0; --b) {
+        for (int b = 63; b > 0; --b) {
             int64_t bit_i = bits[b];
             int64_t bit_o = 0;
 
@@ -1979,7 +1979,7 @@ void View::clearInvalidEntries(int msgTagBase) {
 
         // 3) 计算保留行数：keep = 2^msb（若 msb<0，则 keep=0）
         size_t n = rowNum();
-        size_t keep = std::min(n, msb >= 0 ? static_cast<size_t>(1) << (msb + 1) : 0);
+        size_t keep = std::min(n, msb >= 0 ? static_cast<size_t>(1) << (msb + 1) : 2);
 
         // 4) 截断：仅保留前 keep 行（排序后前缀全是有效或近似足够）
         for (auto &col: _dataCols) {
