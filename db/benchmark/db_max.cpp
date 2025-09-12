@@ -144,25 +144,16 @@ void testMaxFunction(int tid) {
 
         Log::i("Step 3: Computing MAX(VALUE) for each group...");
         auto max_start = System::currentTimeMillis();
-        test_view.minAndMax(heads, "VALUE", "MIN_VALUE", "MAX_VALUE", tid);
+        // test_view.minAndMax(heads, "VALUE", "MIN_VALUE", "MAX_VALUE", tid);
+        test_view.max(heads, "VALUE", "MAX_VALUE", tid);
         Log::i("max_value: {}", StringUtils::vecToString(test_view._dataCols[test_view.colIndex("MAX_VALUE")]));
-        Log::i("min_value: {}", StringUtils::vecToString(test_view._dataCols[test_view.colIndex("MIN_VALUE")]));
+        // Log::i("min_value: {}", StringUtils::vecToString(test_view._dataCols[test_view.colIndex("MIN_VALUE")]));
         Log::i("id: {}", StringUtils::vecToString(test_view._dataCols[test_view.colIndex("ID")]));
 
         auto max_end = System::currentTimeMillis();
         Log::i("MAX aggregation completed in {}ms", max_end - max_start);
 
-        Log::i("Step 4: Displaying results...");
-        // The results should show one row per group with the maximum value
-        Log::i("Final view has {} rows and {} columns", test_view.rowNum(), test_view.colNum());
-        
-        // Print field names
-        std::string field_names = "Fields: ";
-        for (int i = 0; i < test_view.colNum(); i++) {
-            field_names += test_view._fieldNames[i];
-            if (i < test_view.colNum() - 1) field_names += ", ";
-        }
-        Log::i(field_names);
+        Views::revealAndPrint(test_view);
 
         // For debugging, we can reveal some results (in a real scenario, this would be done securely)
         if (test_view.rowNum() > 0) {
