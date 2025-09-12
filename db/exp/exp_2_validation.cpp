@@ -1,18 +1,6 @@
 //
-// exp_2 (random data) — optimized flow (same as validate), runtime-only printing
-//
-// Pipeline:
-//   1) sort(diagnosis by pid, time)
-//   2) filter(diag == cdiff)         // cdiff constant is secret-shared
-//   3) reorder by (pid asc, $valid desc, time asc)
-//   4) adjacent compare (i with i+1): same pid, both valid,
-//      and 15 <= (t[i+1] - t[i]) <= 56 (implemented via < / == and OR = XOR/AND; no NOT)
-//   5) project pid -> robust distinct (sort-by-keys + groupBy heads)
-//
-// Notes:
-// - Avoids NOT on Boolean shares
-// - Uses bitonicSortSingleBatch for secure ordering
-// - Only prints execution time, as requested
+// Q2 correctness test (fixed data + expected output)
+// Created by 杜建璋 on 25-8-14.
 //
 
 #include "secret/Secrets.h"
@@ -27,7 +15,8 @@
 #include <vector>
 #include <algorithm>
 #include <future>
-#include <tuple>
+#include <map>
+#include <set>
 
 #include "utils/Math.h"
 #include "compute/batch/bool/BoolAndBatchOperator.h"
@@ -38,16 +27,73 @@
 #include "conf/DbConf.h"
 #include "parallel/ThreadPoolSupport.h"
 
+/**
+ * Target SQL:
+ * WITH rcd AS (
+ *     SELECT pid, time, row_no
+ *     FROM diagnosis WHERE diag=cdiff
+ * )
+ * SELECT DISTINCT pid
+ * FROM rcd r1 JOIN rcd r2
+ *   ON r1.pid = r2.pid
+ * WHERE r2.time - r1.time >= 15
+ *   AND r2.time - r1.time <= 56
+ *   AND r2.row_no = r1.row_no + 1
+ *
+ * Optimized physical plan (no join):
+ *   sort(pid,time) -> filter diag=cdiff -> compaction (rcd)
+ *   -> adjacent compare within rcd (i with i+1) for window & same pid
+ *   -> project(pid) -> distinct
+ *
+ * This file replaces random data with a FIXED dataset and prints the expected pids.
+ */
+
+// -------------------- Fixed test data --------------------
+static constexpr int64_t CDIFF_CODE = 1001;
+
+// Each element is one diagnosis row (pid, time, diag)
+static const std::vector<std::tuple<int64_t,int64_t,int64_t>> FIXED_ROWS = {
+    // pid 1: cdiff at t=10,30,90; (30-10)=20 in [15,56] => HIT
+    {1, 10, CDIFF_CODE},
+    {1, 20, 2002},
+    {1, 30, CDIFF_CODE},
+    {1, 90, CDIFF_CODE},
+
+    // pid 2: cdiff at t=0,14,70; (14-0)=14 (fail), (70-14)=56 (HIT)
+    {2, 0,  CDIFF_CODE},
+    {2, 14, CDIFF_CODE},
+    {2, 70, CDIFF_CODE},
+
+    // pid 3: only one cdiff -> no hit
+    {3, 50, 3003},
+    {3, 80, CDIFF_CODE},
+
+    // pid 4: cdiff at t=100,120,160; (120-100)=20 (HIT)
+    {4, 100, CDIFF_CODE},
+    {4, 120, CDIFF_CODE},
+    {4, 160, CDIFF_CODE},
+
+    // pid 5: cdiff at t=5,80; (80-5)=75 (fail)
+    {5, 5,  CDIFF_CODE},
+    {5, 80, CDIFF_CODE},
+
+    // pid 6: cdiff at t=100,115; (115-100)=15 (HIT, boundary)
+    {6, 100, CDIFF_CODE},
+    {6, 115, CDIFF_CODE},
+};
+
+// EXPECTED DISTINCT PIDs (as per SQL semantics): {1, 2, 4, 6}
+static const std::set<int64_t> EXPECTED_PIDS = {1, 2, 4, 6};
+
 // -------------------- Forward declarations --------------------
-void generateRandomData(int num_records,
-                        std::vector<int64_t> &pid_data,
-                        std::vector<int64_t> &pid_hash_data,
-                        std::vector<int64_t> &time_data,
-                        std::vector<int64_t> &time_plus_15_data,
-                        std::vector<int64_t> &time_plus_56_data,
-                        std::vector<int64_t> &row_no_data,
-                        std::vector<int64_t> &row_no_plus_1_data,
-                        std::vector<int64_t> &diag_data);
+void generateFixedTestData(std::vector<int64_t> &pid_data,
+                           std::vector<int64_t> &pid_hash_data,
+                           std::vector<int64_t> &time_data,
+                           std::vector<int64_t> &time_plus_15_data,
+                           std::vector<int64_t> &time_plus_56_data,
+                           std::vector<int64_t> &row_no_data,
+                           std::vector<int64_t> &row_no_plus_1_data,
+                           std::vector<int64_t> &diag_data);
 
 View createDiagnosisTable(std::vector<int64_t> &pid_shares,
                           std::vector<int64_t> &pid_hash_shares,
@@ -58,52 +104,46 @@ View createDiagnosisTable(std::vector<int64_t> &pid_shares,
                           std::vector<int64_t> &row_no_plus_1_shares,
                           std::vector<int64_t> &diag_shares);
 
-// MPC plan
+// Optimized pipeline funcs
 View buildRcdNoJoin(View diagnosis_view, int64_t cdiff_code, int tid);
-
 View markAdjacentPairsWithinPid(View rcd_view, int tid);
-
 View selectDistinctPid(View &filtered_view, int tid);
 
-static int64_t CDIFF_CODE = Math::randInt();
+// Helper to print expected PIDs (client side)
+void printExpected();
+
 // -------------------- Main --------------------
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
     DbConf::init();
     auto tid = System::nextTask() << (32 - Conf::TASK_TAG_BITS);
 
-    int num_records = 1000;
-    if (Conf::_userParams.count("rows")) {
-        num_records = std::stoi(Conf::_userParams["rows"]);
+    if (Comm::isClient()) {
+        Log::i("[TEST] Using FIXED dataset with {} rows", (int)FIXED_ROWS.size());
+        printExpected();
     }
 
-    // Build random dataset
+    // Build fixed dataset
     std::vector<int64_t> pid_data, pid_hash_data, time_data, time_plus_15_data, time_plus_56_data;
     std::vector<int64_t> row_no_data, row_no_plus_1_data, diag_data;
-
-    generateRandomData(num_records, pid_data, pid_hash_data, time_data, time_plus_15_data,
-                       time_plus_56_data, row_no_data, row_no_plus_1_data, diag_data);
+    generateFixedTestData(pid_data, pid_hash_data, time_data, time_plus_15_data,
+                          time_plus_56_data, row_no_data, row_no_plus_1_data, diag_data);
 
     // Convert to secret shares for 2PC
-    auto pid_shares = Secrets::boolShare(pid_data, 2, 64, tid);
-    auto pid_hash_shares = Secrets::boolShare(pid_hash_data, 2, 64, tid);
-    auto time_shares = Secrets::boolShare(time_data, 2, 64, tid);
-    auto time_plus_15_shares = Secrets::boolShare(time_plus_15_data, 2, 64, tid);
-    auto time_plus_56_shares = Secrets::boolShare(time_plus_56_data, 2, 64, tid);
-    auto row_no_shares = Secrets::boolShare(row_no_data, 2, 64, tid);
-    auto row_no_plus_1_shares = Secrets::boolShare(row_no_plus_1_data, 2, 64, tid);
-    auto diag_shares = Secrets::boolShare(diag_data, 2, 64, tid);
+    // Note: We share the fixed plaintext rows so both servers get their boolean shares.
+    auto tid_share = tid;
+    auto pid_shares           = Secrets::boolShare(pid_data,            2, 64, tid_share);
+    auto pid_hash_shares      = Secrets::boolShare(pid_hash_data,       2, 64, tid_share);
+    auto time_shares          = Secrets::boolShare(time_data,           2, 64, tid_share);
+    auto time_plus_15_shares  = Secrets::boolShare(time_plus_15_data,   2, 64, tid_share);
+    auto time_plus_56_shares  = Secrets::boolShare(time_plus_56_data,   2, 64, tid_share);
+    auto row_no_shares        = Secrets::boolShare(row_no_data,         2, 64, tid_share);
+    auto row_no_plus_1_shares = Secrets::boolShare(row_no_plus_1_data,  2, 64, tid_share);
+    auto diag_shares          = Secrets::boolShare(diag_data,           2, 64, tid_share);
 
-    // Secret-shared C.diff constant for MPC filter
-    int64_t cdiff_code;
-    if (Comm::isClient()) {
-        int64_t s0 = Math::randInt();
-        int64_t s1 = s0 ^ CDIFF_CODE; // Boolean share: s0 XOR s1 == CDIFF_CODE
-        Comm::send(s0, 64, 0, tid);
-        Comm::send(s1, 64, 1, tid);
-    } else {
-        Comm::receive(cdiff_code, 64, 2, tid);
-    }
+    // We use a PUBLIC constant for cdiff code in this correctness test.
+    // If your filter requires secret shares for constants, adapt to send per-party shares here.
+    const int64_t cdiff_code = CDIFF_CODE * Comm::rank();
 
     if (Comm::isServer()) {
         auto query_start = System::currentTimeMillis();
@@ -122,8 +162,18 @@ int main(int argc, char *argv[]) {
         // Step 5: select distinct pid
         auto result_view = selectDistinctPid(paired_view, tid);
 
+        Views::revealAndPrint(result_view);
+
         auto query_end = System::currentTimeMillis();
-        Log::i("Total query execution time: {}ms", query_end - query_start);
+        Log::i("[TEST] Exec time={}ms | rows_in={} rows_rcd={} rows_hits={}",
+               (query_end - query_start),
+               diagnosis_view.rowNum(), rcd_view.rowNum(), result_view.rowNum());
+
+        // Optional: if you have an "open" primitive to reveal a column, use it here.
+        // For example (pseudo):
+        // auto pids = Views::openColumn(result_view, "pid");
+        // Log::i("[TEST] Actual PIDs: {}", fmt::join(pids, ","));
+        // Then manually compare with EXPECTED_PIDS.
     }
 
     System::finalize();
@@ -132,45 +182,40 @@ int main(int argc, char *argv[]) {
 
 // -------------------- Function implementations --------------------
 
-void generateRandomData(int num_records,
-                        std::vector<int64_t> &pid_data,
-                        std::vector<int64_t> &pid_hash_data,
-                        std::vector<int64_t> &time_data,
-                        std::vector<int64_t> &time_plus_15_data,
-                        std::vector<int64_t> &time_plus_56_data,
-                        std::vector<int64_t> &row_no_data,
-                        std::vector<int64_t> &row_no_plus_1_data,
-                        std::vector<int64_t> &diag_data) {
+void generateFixedTestData(std::vector<int64_t> &pid_data,
+                           std::vector<int64_t> &pid_hash_data,
+                           std::vector<int64_t> &time_data,
+                           std::vector<int64_t> &time_plus_15_data,
+                           std::vector<int64_t> &time_plus_56_data,
+                           std::vector<int64_t> &row_no_data,
+                           std::vector<int64_t> &row_no_plus_1_data,
+                           std::vector<int64_t> &diag_data) {
+    // Only client materializes plaintext rows
     if (Comm::rank() == 2) {
-        int num_pids = std::max(4, num_records / 16);
-        pid_data.reserve(num_records);
-        time_data.reserve(num_records);
-        diag_data.reserve(num_records);
-        row_no_data.reserve(num_records);
-        row_no_plus_1_data.reserve(num_records);
-        time_plus_15_data.reserve(num_records);
-        time_plus_56_data.reserve(num_records);
+        const int N = (int)FIXED_ROWS.size();
+        pid_data.reserve(N);
+        time_data.reserve(N);
+        diag_data.reserve(N);
+        row_no_data.reserve(N);
+        row_no_plus_1_data.reserve(N);
+        time_plus_15_data.reserve(N);
+        time_plus_56_data.reserve(N);
 
-        for (int i = 0; i < num_records; i++) {
-            int64_t pid = 1 + (Math::randInt() % num_pids);
-            int64_t t = Math::randInt() % 10000; // [0,10000)
-            bool is_cd = (Math::randInt() % 3 == 0); // ~1/3 cdiff
-            int64_t d = is_cd ? CDIFF_CODE : (2000 + (Math::randInt() % 1000));
-
+        for (int i = 0; i < N; ++i) {
+            auto [pid, t, d] = FIXED_ROWS[i];
             pid_data.push_back(pid);
             time_data.push_back(t);
             diag_data.push_back(d);
-
-            row_no_data.push_back(i + 1);
-            row_no_plus_1_data.push_back(i + 2);
+            row_no_data.push_back(i + 1);       // not used by the optimized plan
+            row_no_plus_1_data.push_back(i + 2); // not used by the optimized plan
 
             time_plus_15_data.push_back(t + 15);
             time_plus_56_data.push_back(t + 56);
         }
 
         // Hash tags for pid (plaintext hashing on client)
-        pid_hash_data.reserve(num_records);
-        for (int64_t key: pid_data) {
+        pid_hash_data.reserve(N);
+        for (int64_t key : pid_data) {
             pid_hash_data.push_back(Views::hash(key));
         }
     }
@@ -191,6 +236,7 @@ View createDiagnosisTable(std::vector<int64_t> &pid_shares,
     };
     std::vector<int> widths = {64, 64, 64, 64, 64, 64, 64};
 
+    // Create table with pid as primary key to automatically add hash tag column
     Table diagnosis_table(table_name, fields, widths, "pid");
 
     const size_t n = pid_shares.size();
@@ -208,11 +254,17 @@ View createDiagnosisTable(std::vector<int64_t> &pid_shares,
         diagnosis_table.insert(row);
     }
 
-    return Views::selectAll(diagnosis_table);
+    auto diagnosis_view = Views::selectAll(diagnosis_table);
+    return diagnosis_view;
 }
 
-// Step 2–3: sort + filter + reorder ($valid desc within pid)
+// ---- Step 2–3: build rcd without join ----
 View buildRcdNoJoin(View diagnosis_view, int64_t cdiff_code, int tid) {
+    // Sort by pid, time (ascending)
+    // std::vector<std::string> order = {"pid", "time"};
+    // std::vector<bool> asc = {true, true};
+    // diagnosis_view.sort(order, asc, tid);
+
     // Filter diag == cdiff (here we pass a PUBLIC constant for test convenience)
     std::vector<std::string> fieldNames = {"diag"};
     std::vector<View::ComparatorType> comparatorTypes = {View::EQUALS};
@@ -367,6 +419,20 @@ View selectDistinctPid(View &filtered_view, int tid) {
     }
     std::vector<std::string> field_names = {"pid"};
     filtered_view.select(field_names);
+    Views::revealAndPrint(filtered_view);
     filtered_view.distinct(tid);
     return filtered_view;
+}
+
+// ---- Print expected output on client ----
+void printExpected() {
+    std::string s = "{";
+    bool first = true;
+    for (auto p : EXPECTED_PIDS) {
+        if (!first) s += ", ";
+        s += std::to_string(p);
+        first = false;
+    }
+    s += "}";
+    Log::i("[TEST] EXPECTED DISTINCT PIDs = {}", s);
 }

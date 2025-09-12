@@ -50,7 +50,6 @@ void View::select(std::vector<std::string> &fieldNames) {
     std::vector<int> selectedIndices;
     selectedIndices.reserve(fieldNames.size());
 
-    Log::i("fields: {} needed: {}", StringUtils::vecToString(_fieldNames), StringUtils::vecToString(fieldNames));
     for (const std::string &fieldName: fieldNames) {
         int index = colIndex(fieldName);
         if (index >= 0) {
@@ -1654,7 +1653,7 @@ int View::sortTagStride() {
 
 void View::filterSingleBatch(std::vector<std::string> &fieldNames,
                              std::vector<ComparatorType> &comparatorTypes,
-                             std::vector<int64_t> &constShares, int msgTagBase) {
+                             std::vector<int64_t> &constShares, bool clear, int msgTagBase) {
     size_t n = fieldNames.size();
     size_t data_size = _dataCols[0].size();
     std::vector<std::vector<int64_t> > collected(n);
@@ -1735,22 +1734,26 @@ void View::filterSingleBatch(std::vector<std::string> &fieldNames,
                                                         SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
     } else if (!DbConf::DISABLE_PRECISE_COMPACTION) {
         _dataCols[validColIndex] = std::move(result);
-        clearInvalidEntries(msgTagBase);
+        if (clear) {
+            clearInvalidEntries(msgTagBase);
+        }
     } else {
         // approximate compaction
         _dataCols[validColIndex] = BoolAndBatchOperator(&result, &_dataCols[validColIndex], 1, 0, msgTagBase,
                                                         SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-        clearInvalidEntries(msgTagBase);
+        if (clear) {
+            clearInvalidEntries(msgTagBase);
+        }
     }
 }
 
 void View::filterMultiBatches(std::vector<std::string> &fieldNames,
                               std::vector<ComparatorType> &comparatorTypes,
-                              std::vector<int64_t> &constShares,
+                              std::vector<int64_t> &constShares, bool clear,
                               int msgTagBase) {
     if (rowNum() <= Conf::BATCH_SIZE) {
         // 走单批实现（里面已处理精确/非精确压缩分支）
-        filterSingleBatch(fieldNames, comparatorTypes, constShares, msgTagBase);
+        filterSingleBatch(fieldNames, comparatorTypes, constShares, clear, msgTagBase);
         return;
     }
 
@@ -1892,23 +1895,27 @@ void View::filterMultiBatches(std::vector<std::string> &fieldNames,
     if (!DbConf::DISABLE_PRECISE_COMPACTION) {
         // 精确压缩：直接覆盖 VALID，用 clearInvalidEntries() 精确裁剪
         _dataCols[validColIndex] = std::move(result);
-        clearInvalidEntries(msgTagBase);
+        if (clear) {
+            clearInvalidEntries(msgTagBase);
+        }
     } else {
         // 非精确压缩：与已有 VALID 取 AND，再用你的“近似截断”
         _dataCols[validColIndex] =
                 BoolAndBatchOperator(&_dataCols[validColIndex], &result,
                                      1, 0, msgTagBase,
                                      SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-        clearInvalidEntries(msgTagBase);
+        if (clear) {
+            clearInvalidEntries(msgTagBase);
+        }
     }
 }
 
 void View::filterAndConditions(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
                                std::vector<int64_t> &constShares, int msgTagBase) {
     if (Conf::BATCH_SIZE <= 0 || Conf::DISABLE_MULTI_THREAD) {
-        filterSingleBatch(fieldNames, comparatorTypes, constShares, msgTagBase);
+        filterSingleBatch(fieldNames, comparatorTypes, constShares, true, msgTagBase);
     } else {
-        filterMultiBatches(fieldNames, comparatorTypes, constShares, msgTagBase);
+        filterMultiBatches(fieldNames, comparatorTypes, constShares, true, msgTagBase);
     }
 }
 
@@ -2750,203 +2757,6 @@ void View::minAndMax(std::vector<int64_t> &heads, const std::string &fieldName, 
     }
 }
 
-void View::distinctSingleBatch(int msgTagBase) {
-    const size_t rn = rowNum();
-    const size_t cn = colNum();
-    const int validColIndex = cn + VALID_COL_OFFSET;
-    std::vector<int64_t> &validCol = _dataCols[validColIndex];
-
-    if (rn == 0) return;
-
-    // 逐列比较：row_i 与 row_{i-1} 是否完全相等（跳过 bucket tag 列）
-    std::vector<int64_t> eqs; // 长度 rn-1，eqs[i-1] 表示第 i 行与第 i-1 行是否相等
-    bool hasDataCol = false;
-
-    for (int col = 0; col < static_cast<int>(cn) - 2; ++col) {
-        if (StringUtils::hasPrefix(_fieldNames[col], BUCKET_TAG_PREFIX)) {
-            continue; // 跳过 tag 列
-        }
-
-        hasDataCol = true;
-
-        std::vector<int64_t> prevData, currData;
-        prevData.reserve(rn - 1);
-        currData.reserve(rn - 1);
-        for (size_t i = 1; i < rn; ++i) {
-            currData.push_back(_dataCols[col][i]);
-            prevData.push_back(_dataCols[col][i - 1]);
-        }
-
-        auto eqs_i = BoolEqualBatchOperator(
-            &currData, &prevData, _fieldWidths[col],
-            /*tid*/0, msgTagBase,
-            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-
-        if (!hasDataCol || eqs.empty()) {
-            eqs = std::move(eqs_i);
-        } else {
-            eqs = BoolAndBatchOperator(
-                &eqs, &eqs_i, /*bitlen=*/1,
-                /*tid*/0, msgTagBase,
-                SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-        }
-    }
-
-    // new_valid：首行永远有效；其余行为 "与上一行不同" 才有效
-    std::vector<int64_t> new_valid(rn, Comm::rank()); // 先全部置 1_share
-    if (hasDataCol) {
-        for (size_t i = 1; i < rn; ++i) {
-            // eqs[i-1] == 1 表示相等；取反得到“不相等”
-            new_valid[i] = eqs[i - 1] ^ Comm::rank();
-        }
-    }
-
-    // 分支与 filterSingleBatch 对齐：
-    // - BASELINE_MODE：不压缩，只与当前 VALID 叠加
-    // - 精确压缩：覆盖 VALID，然后精确截断
-    // - 非精确压缩：与当前 VALID 叠加，然后近似截断
-    if (DbConf::BASELINE_MODE) {
-        auto merged = BoolAndBatchOperator(
-            &validCol, &new_valid, /*bitlen=*/1,
-            /*tid*/0, msgTagBase,
-            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-        validCol.swap(merged);
-    } else if (!DbConf::DISABLE_PRECISE_COMPACTION) {
-        validCol.swap(new_valid);
-        clearInvalidEntries(msgTagBase); // 精确截断
-    } else {
-        auto merged = BoolAndBatchOperator(
-            &validCol, &new_valid, /*bitlen=*/1,
-            /*tid*/0, msgTagBase,
-            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-        validCol.swap(merged);
-        clearInvalidEntries(msgTagBase); // 近似截断（你的 clearInvalidEntries 已实现）
-    }
-}
-
-void View::distinctMultiBatches(int msgTagBase) {
-    const size_t rn = rowNum();
-    const size_t cn = colNum();
-    const int validColIndex = cn + VALID_COL_OFFSET;
-    std::vector<int64_t> &validCol = _dataCols[validColIndex];
-
-    if (rn == 0) return;
-
-    // 选出可比较的数据列（排除 bucket tag 列）
-    std::vector<int> cmpCols;
-    cmpCols.reserve(cn);
-    for (int col = 0; col < static_cast<int>(cn) - 2; ++col) {
-        if (!StringUtils::hasPrefix(_fieldNames[col], BUCKET_TAG_PREFIX)) {
-            cmpCols.push_back(col);
-        }
-    }
-
-    // 如果没有可比较列：new_valid 全 1（每行都视为“与上一行不同”，即全部保留）
-    if (cmpCols.empty()) {
-        std::vector<int64_t> new_valid(rn, Comm::rank());
-
-        if (!DbConf::DISABLE_PRECISE_COMPACTION) {
-            _dataCols[validColIndex].swap(new_valid);
-            clearInvalidEntries(msgTagBase); // 精确截断
-        } else {
-            auto merged = BoolAndBatchOperator(
-                &validCol, &new_valid, /*bitlen=*/1,
-                /*tid*/0, msgTagBase,
-                SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-            _dataCols[validColIndex].swap(merged);
-            clearInvalidEntries(msgTagBase); // 近似截断
-        }
-        return;
-    }
-
-    // —— 并行：对每一列计算 eqs_col（长度 rn-1），表示 row_i == row_{i-1}
-    const int batchSize = Conf::BATCH_SIZE;
-    const int cmpPairs = (rn >= 1) ? static_cast<int>(rn - 1) : 0;
-    const int batchNum = (cmpPairs + batchSize - 1) / batchSize;
-    const int tagOffset = std::max(BoolEqualBatchOperator::tagStride(), BoolAndBatchOperator::tagStride());
-
-    std::vector<std::future<std::vector<int64_t> > > columnFutures(cmpCols.size());
-
-    for (int colIdx = 0; colIdx < static_cast<int>(cmpCols.size()); ++colIdx) {
-        columnFutures[colIdx] = ThreadPoolSupport::submit([&, colIdx] {
-            const int col = cmpCols[colIdx];
-            std::vector<int64_t> columnResult;
-            columnResult.reserve(rn > 0 ? rn - 1 : 0);
-
-            std::vector<std::future<std::vector<int64_t> > > batchFutures(batchNum);
-            const int startTag = tagOffset * batchNum * colIdx;
-
-            for (int b = 0; b < batchNum; ++b) {
-                batchFutures[b] = ThreadPoolSupport::submit([&, b, col, startTag]() {
-                    const int start = b * batchSize + 1; // i 从 1 开始，对比 i 与 i-1
-                    const int end = std::min(start + batchSize, static_cast<int>(rn));
-                    const int curN = end - start;
-                    if (curN <= 0) return std::vector<int64_t>();
-
-                    std::vector<int64_t> currData, prevData;
-                    currData.reserve(curN);
-                    prevData.reserve(curN);
-                    for (int i = start; i < end; ++i) {
-                        currData.push_back(_dataCols[col][i]);
-                        prevData.push_back(_dataCols[col][i - 1]);
-                    }
-
-                    const int batchStartTag = startTag + b * tagOffset;
-                    return BoolEqualBatchOperator(
-                        &currData, &prevData, _fieldWidths[col],
-                        /*tid*/0, batchStartTag,
-                        SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-                });
-            }
-
-            for (auto &f: batchFutures) {
-                auto part = f.get();
-                columnResult.insert(columnResult.end(), part.begin(), part.end());
-            }
-            return columnResult;
-        });
-    }
-
-    // 收集每列的 eqs，并用 AND 聚合：eqs = ∧_col eqs_col
-    std::vector<std::vector<int64_t> > columnResults(cmpCols.size());
-    for (int colIdx = 0; colIdx < static_cast<int>(cmpCols.size()); ++colIdx) {
-        columnResults[colIdx] = columnFutures[colIdx].get();
-    }
-
-    std::vector<int64_t> eqs; // 长度 rn-1
-    if (!columnResults.empty()) {
-        eqs = std::move(columnResults[0]);
-        for (int colIdx = 1; colIdx < static_cast<int>(columnResults.size()); ++colIdx) {
-            eqs = BoolAndBatchOperator(
-                &eqs, &columnResults[colIdx], /*bitlen=*/1,
-                /*tid*/0, msgTagBase,
-                SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-        }
-    }
-
-    // 生成 new_valid：首行恒为 1；其余行取“与上一行不同”= NOT(eqs[i-1])
-    std::vector<int64_t> new_valid(rn, Comm::rank());
-    for (size_t i = 1; i < rn; ++i) {
-        // eqs[i-1] == 1 表示相等 -> 置 0；取反用 XOR rank
-        new_valid[i] = (i - 1 < eqs.size()) ? (eqs[i - 1] ^ Comm::rank()) : Comm::rank();
-    }
-
-    // —— 两种压缩模式
-    if (!DbConf::DISABLE_PRECISE_COMPACTION) {
-        // 精确压缩：覆盖有效位，然后精确截断
-        _dataCols[validColIndex].swap(new_valid);
-        clearInvalidEntries(msgTagBase);
-    } else {
-        // 非精确压缩：与现有 valid AND，再做近似截断
-        auto merged = BoolAndBatchOperator(
-            &validCol, &new_valid, /*bitlen=*/1,
-            /*tid*/0, msgTagBase,
-            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-        _dataCols[validColIndex].swap(merged);
-        clearInvalidEntries(msgTagBase);
-    }
-}
-
 void View::distinct(int msgTagBase) {
     size_t rn = rowNum();
     if (rn == 0) {
@@ -2954,33 +2764,17 @@ void View::distinct(int msgTagBase) {
     }
     size_t cn = colNum();
 
-    // Step 1: Sort all columns to group identical rows together
-    // Use all columns for multi-column sorting to ensure identical rows are adjacent
-    std::vector<std::string> allFields;
-    std::vector<bool> ascendingOrders;
-
-    if (!DbConf::BASELINE_MODE && !DbConf::DISABLE_PRECISE_COMPACTION) {
-        allFields.push_back(VALID_COL_NAME);
-        ascendingOrders.push_back(false);
-    }
-
-    // Include all data columns (excluding valid and padding columns)
+    std::vector<std::string> fields;
     for (int i = 0; i < cn - 2; i++) {
         if (StringUtils::hasPrefix(_fieldNames[i], BUCKET_TAG_PREFIX)) {
             continue;
         }
-        allFields.push_back(_fieldNames[i]);
-        ascendingOrders.push_back(true); // Sort in ascending order
+        fields.push_back(_fieldNames[i]);
     }
 
-    sort(allFields, ascendingOrders, msgTagBase);
-
-    // Choose between single batch and multi-batch processing
-    if (Conf::BATCH_SIZE <= 0 || Conf::DISABLE_MULTI_THREAD) {
-        distinctSingleBatch(msgTagBase);
-    } else {
-        distinctMultiBatches(msgTagBase);
-    }
+    auto heads = groupBy(fields, msgTagBase);
+    _dataCols[cn + VALID_COL_OFFSET] = std::move(heads);
+    clearInvalidEntries(msgTagBase);
 }
 
 int View::groupByTagStride() {
@@ -3087,6 +2881,15 @@ int View::sortTagStride(const std::vector<std::string> &orderFields) {
     int multi_col_factor = static_cast<int>(orderFields.size() * 2); // Conservative estimate
 
     return base_stride * multi_col_factor;
+}
+
+void View::filterAndConditions(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
+    std::vector<int64_t> &constShares, bool clear, int msgTagBase) {
+    if (Conf::BATCH_SIZE <= 0 || Conf::DISABLE_MULTI_THREAD) {
+        filterSingleBatch(fieldNames, comparatorTypes, constShares, clear, msgTagBase);
+    } else {
+        filterMultiBatches(fieldNames, comparatorTypes, constShares, clear, msgTagBase);
+    }
 }
 
 void View::bitonicSortSingleBatch(const std::vector<std::string> &orderFields, const std::vector<bool> &ascendingOrders,

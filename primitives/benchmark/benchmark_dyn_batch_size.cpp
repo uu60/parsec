@@ -192,12 +192,6 @@ bool test(std::vector<std::string> &testPmts, std::string pmt, int width, int ba
             for (auto &f : futures) {
                 f.wait();
             }
-            auto r0 = Comm::serverSendAsync(sumShare, 32, 0);
-            auto r1 = Comm::serverReceiveAsync(sumShare1, 32, 0);
-            Comm::wait(r0);
-            Comm::wait(r1);
-
-            int64_t validNum = sumShare + sumShare1;
         } else if (pmt == testPmts[6]) {
             // "sort"
             std::vector<BoolSecret> boolSecrets;
