@@ -145,10 +145,10 @@ void testMaxFunction(int tid) {
         Log::i("Step 3: Computing MAX(VALUE) for each group...");
         auto max_start = System::currentTimeMillis();
         // test_view.minAndMax(heads, "VALUE", "MIN_VALUE", "MAX_VALUE", tid);
-        test_view.max(heads, "VALUE", "MAX_VALUE", tid);
-        Log::i("max_value: {}", StringUtils::vecToString(test_view._dataCols[test_view.colIndex("MAX_VALUE")]));
+        test_view.minAndMax(heads, "VALUE", "MIN_VALUE", "MAX_VALUE", tid);
+        // Log::i("max_value: {}", StringUtils::vecToString(test_view._dataCols[test_view.colIndex("MAX_VALUE")]));
         // Log::i("min_value: {}", StringUtils::vecToString(test_view._dataCols[test_view.colIndex("MIN_VALUE")]));
-        Log::i("id: {}", StringUtils::vecToString(test_view._dataCols[test_view.colIndex("ID")]));
+        // Log::i("id: {}", StringUtils::vecToString(test_view._dataCols[test_view.colIndex("ID")]));
 
         auto max_end = System::currentTimeMillis();
         Log::i("MAX aggregation completed in {}ms", max_end - max_start);

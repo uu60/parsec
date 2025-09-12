@@ -1025,7 +1025,7 @@ void View::maxMultiBatches(std::vector<int64_t> &heads,
     // —— 配置
     const bool APPROX_COMPACT = DbConf::DISABLE_PRECISE_COMPACTION; // 非精确压缩
     const int64_t rank = Comm::rank();
-    int validIdx = colNum() + VALID_COL_OFFSET;
+    const int validIdx = colNum() + VALID_COL_OFFSET;
 
     // —— 预处理：根据模式准备 bs_bool 与 vs
     // 边界位：默认用传入的 heads；若非精确压缩，则仅让有效行的组头生效
@@ -1205,7 +1205,6 @@ void View::maxMultiBatches(std::vector<int64_t> &heads,
     _fieldWidths.insert(_fieldWidths.begin() + insertPos, bitlen);
     _dataCols.insert(_dataCols.begin() + insertPos, std::move(vs));
 
-    validIdx = colNum() + VALID_COL_OFFSET;
     // —— 根据模式更新 VALID 并压缩
     if (APPROX_COMPACT) {
         auto new_valid = BoolAndBatchOperator(&_dataCols[validIdx], &group_tails, 1, 0, msgTagBase,
@@ -1226,112 +1225,127 @@ void View::minSingleBatch(std::vector<int64_t> &heads,
     const size_t n = rowNum();
     if (n == 0) return;
 
+    // —— 列信息
     const int fieldIdx = colIndex(fieldName);
     if (fieldIdx < 0) {
         Log::e("Field '{}' not found for min operation", fieldName);
         return;
     }
     const int bitlen = _fieldWidths[fieldIdx];
-    const bool NO_COMPACTION = DbConf::BASELINE_MODE;
 
+    // —— 配置
+    const bool BASELINE       = DbConf::BASELINE_MODE;
+    const bool APPROX_COMPACT = DbConf::DISABLE_PRECISE_COMPACTION; // 非精确压缩
+    const bool PRECISE_COMPACT = !BASELINE && !APPROX_COMPACT;
+
+    // —— 源数据
     std::vector<int64_t> &src = _dataCols[fieldIdx];
     if (src.size() != n || heads.size() != n) {
         Log::e("Size mismatch: fieldData={}, heads={}, n={}", src.size(), heads.size(), n);
         return;
     }
 
-    std::vector<int64_t> vs = src; // 值工作副本
-    std::vector<int64_t> bs_bool = heads; // 组头 (XOR)
-    const int64_t NOT_mask = Comm::rank();
+    // —— 工作副本
+    std::vector<int64_t> vs = src;         // 值工作列（布尔份额按 bitlen 对待）
+    std::vector<int64_t> bs_bool = heads;  // 组头 (XOR 布尔分享)
+    const int64_t XOR_MASK = Comm::rank();
 
-    // 不压缩模式下需要读取当前 valid（布尔分享）
-    const int validIdx = colNum() + VALID_COL_OFFSET;
-    std::vector<int64_t> valid_bool;
-    if (NO_COMPACTION) {
-        valid_bool = _dataCols[validIdx];
-        // 注意：对于最小值，不能把无效行的值掩蔽为 0（会错误地成为最小值）。
-        // 我们改为“只在右侧有效时才允许写回”，并用 left_valid 调整比较条件。
+    // —— 在不压缩 / 近似压缩下用 valid 掩蔽输入，避免无效行影响比较与传播
+    int validIdx = colNum() + VALID_COL_OFFSET;
+    if (BASELINE || APPROX_COMPACT) {
+        auto &valid = _dataCols[validIdx];
+
+        // heads := heads ∧ valid
+        bs_bool = BoolAndBatchOperator(&bs_bool, &valid, 1, 0, msgTagBase,
+                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+
+        // vs := valid ? vs : MAX_VALUE (对于min，无效行应该设为最大值，这样不会影响最小值计算)
+        std::vector<int64_t> max_vals(n, (1LL << (bitlen - 1)) - 1); // 设为该位宽下的最大值
+        vs = BoolMutexBatchOperator(&vs, &max_vals, &valid, bitlen, 0, msgTagBase,
+                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
     }
 
+    // —— 分段 min：Hillis–Steele 前缀扫描
     for (int delta = 1; delta < static_cast<int>(n); delta <<= 1) {
         const int m = static_cast<int>(n) - delta;
 
-        // 1) 快照左右
+        // 快照窗口
         std::vector<int64_t> left_vals(m), right_vals(m);
         for (int i = 0; i < m; ++i) {
-            left_vals[i] = vs[i];
+            left_vals[i]  = vs[i];
             right_vals[i] = vs[i + delta];
         }
 
-        // 2) cmp_raw = (left < right)
-        auto cmp_raw = BoolLessBatchOperator(&left_vals, &right_vals, bitlen,
-                                             /*tid*/0, msgTagBase,
-                                             SecureOperator::NO_CLIENT_COMPUTE)
-                .execute()->_zis;
-
-        // 3) 根据压缩模式构造有效性门控
-        //    - cmp_eff = (left_valid ∧ (left<right))；左无效⇒不选左（cand=右）
-        //    - gate    = (~b[i+delta]) ∧ right_valid；右无效⇒不写回
-        std::vector<int64_t> cmp_eff = cmp_raw;
-        std::vector<int64_t> gate(m);
-
-        if (NO_COMPACTION) {
-            std::vector<int64_t> left_valid(m), right_valid(m);
+        // 不压缩 / 近似压缩：每轮窗口再按窗口内 valid 掩蔽一次
+        if (BASELINE || APPROX_COMPACT) {
+            auto &valid = _dataCols[validIdx];
+            std::vector<int64_t> max_vals(m, (1LL << (bitlen - 1)) - 1), left_valid(m), right_valid(m);
             for (int i = 0; i < m; ++i) {
-                left_valid[i] = valid_bool[i];
-                right_valid[i] = valid_bool[i + delta];
+                left_valid[i]  = valid[i];
+                right_valid[i] = valid[i + delta];
             }
+            left_vals = BoolMutexBatchOperator(&left_vals,  &max_vals, &left_valid,  bitlen, 0, msgTagBase,
+                                               SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+            right_vals= BoolMutexBatchOperator(&right_vals, &max_vals, &right_valid, bitlen, 0, msgTagBase,
+                                               SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        }
 
-            // cmp_eff = left_valid AND cmp_raw
-            cmp_eff = BoolAndBatchOperator(&left_valid, &cmp_raw, 1, 0, msgTagBase,
+        // cand = min(left,right) : cmp=(left<right); cand=cmp?left:right
+        auto cmp = BoolLessBatchOperator(&left_vals, &right_vals, bitlen, 0, msgTagBase,
+                                         SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto cand = BoolMutexBatchOperator(&left_vals, &right_vals, &cmp, bitlen, 0, msgTagBase,
                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
-            // gate_base = ~b[i+delta]
-            std::vector<int64_t> gate_base(m);
-            for (int i = 0; i < m; ++i) gate_base[i] = bs_bool[i + delta] ^ NOT_mask;
+        // gate = ¬b[i+delta]；new_right = gate ? cand : right
+        std::vector<int64_t> gate(m);
+        for (int i = 0; i < m; ++i) gate[i] = (bs_bool[i + delta] ^ XOR_MASK);
+        auto new_right = BoolMutexBatchOperator(&cand, &right_vals, &gate, bitlen, 0, msgTagBase,
+                                                SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
-            // gate = gate_base AND right_valid
-            gate = BoolAndBatchOperator(&gate_base, &right_valid, 1, 0, msgTagBase,
-                                        SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-        } else {
-            // 原逻辑：只用组边界作为门控
-            for (int i = 0; i < m; ++i) gate[i] = bs_bool[i + delta] ^ NOT_mask;
-        }
-
-        // 4) cand = min(left, right) = (cmp_eff ? left : right)
-        auto cand = BoolMutexBatchOperator(&left_vals, &right_vals, &cmp_eff,
-                                           bitlen, /*tid*/0, msgTagBase,
-                                           SecureOperator::NO_CLIENT_COMPUTE)
-                .execute()->_zis;
-
-        // 5) new_right = gate ? cand : right
-        auto new_right = BoolMutexBatchOperator(&cand, &right_vals, &gate,
-                                                bitlen, /*tid*/0, msgTagBase,
-                                                SecureOperator::NO_CLIENT_COMPUTE)
-                .execute()->_zis;
-
+        // 写回
         for (int i = 0; i < m; ++i) vs[i + delta] = new_right[i];
 
-        // 6) 传播边界：b[i+delta] = b[i] OR b[i+delta] = ~(~b[i] & ~b[i+delta])
+        // 传播边界：b[i+delta] = b[i] OR b[i+delta] = ¬(¬b[i] ∧ ¬b[i+delta])
         std::vector<int64_t> not_l(m), not_r(m);
         for (int i = 0; i < m; ++i) {
-            not_l[i] = bs_bool[i] ^ NOT_mask;
-            not_r[i] = bs_bool[i + delta] ^ NOT_mask;
+            not_l[i] = bs_bool[i] ^ XOR_MASK;
+            not_r[i] = bs_bool[i + delta] ^ XOR_MASK;
         }
         auto and_out = BoolAndBatchOperator(&not_l, &not_r, 1, 0, msgTagBase,
-                                            SecureOperator::NO_CLIENT_COMPUTE)
-                .execute()->_zis;
-        for (int i = 0; i < m; ++i) bs_bool[i + delta] = and_out[i] ^ NOT_mask;
+                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        for (int i = 0; i < m; ++i) bs_bool[i + delta] = (and_out[i] ^ XOR_MASK);
     }
 
-    // 组尾：tail[i] = head[i+1]；最后一行 = 1_share
+    // —— 组尾：tail[i] = head[i+1]
     std::vector<int64_t> group_tails(n);
     for (size_t i = 0; i + 1 < n; ++i) group_tails[i] = heads[i + 1];
-    group_tails[n - 1] = Comm::rank();
 
-    // 插入最小值列（在 VALID 之前）
+    if (PRECISE_COMPACT) {
+        // 精确压缩：最后一行必是尾
+        group_tails[n - 1] = Comm::rank();
+    } else {
+        // 基线/非精确压缩：修正"最后一组后面是无效区"
+        auto &valid = _dataCols[validIdx];
+        std::vector<int64_t> next_valid(n);
+        for (size_t i = 0; i + 1 < n; ++i) next_valid[i] = valid[i + 1];
+        next_valid[n - 1] = 0; // 0_share
+
+        // last_valid_tail = valid ∧ ¬next_valid
+        std::vector<int64_t> not_next(n);
+        for (size_t i = 0; i < n; ++i) not_next[i] = next_valid[i] ^ XOR_MASK;
+        auto last_valid_tail = BoolAndBatchOperator(&valid, &not_next, 1, 0, msgTagBase,
+                                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+
+        // group_tails |= last_valid_tail  （用德摩根实现）
+        std::vector<int64_t> not_gt(n), not_lvt(n);
+        for (size_t i = 0; i < n; ++i) { not_gt[i] = group_tails[i] ^ XOR_MASK; not_lvt[i] = last_valid_tail[i] ^ XOR_MASK; }
+        auto and_not = BoolAndBatchOperator(&not_gt, &not_lvt, 1, 0, msgTagBase,
+                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        for (size_t i = 0; i < n; ++i) group_tails[i] = (and_not[i] ^ XOR_MASK);
+    }
+
+    // —— 插入 min 列（在 VALID/PADDING 前）
     const std::string outName = alias.empty() ? ("min_" + fieldName) : alias;
-
     _fieldNames.reserve(_fieldNames.size() + 1);
     _fieldWidths.reserve(_fieldWidths.size() + 1);
     _dataCols.reserve(_dataCols.size() + 1);
@@ -1341,15 +1355,22 @@ void View::minSingleBatch(std::vector<int64_t> &heads,
     _fieldWidths.insert(_fieldWidths.begin() + insertPos, bitlen);
     _dataCols.insert(_dataCols.begin() + insertPos, vs);
 
-    // 更新有效位
-    if (NO_COMPACTION) {
-        // 不压缩：只在“原本有效 ∧ 组尾”的行上输出聚合结果
+    validIdx = colNum() + VALID_COL_OFFSET;
+    // —— 更新 VALID 并（视模式）截断
+    if (BASELINE) {
+        // 不压缩：valid := valid ∧ group_tails
         auto new_valid = BoolAndBatchOperator(&_dataCols[validIdx], &group_tails, 1, 0, msgTagBase,
                                               SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         _dataCols[validIdx] = std::move(new_valid);
-        // 不物理删除无效行
+        // 不物理删除；依赖后续算子继续用 valid 过滤
+    } else if (APPROX_COMPACT) {
+        // 非精确压缩：valid := valid ∧ group_tails；随后近似截断
+        auto new_valid = BoolAndBatchOperator(&_dataCols[validIdx], &group_tails, 1, 0, msgTagBase,
+                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        _dataCols[validIdx] = std::move(new_valid);
+        clearInvalidEntries(msgTagBase);  // 内部走"近似"截断
     } else {
-        // 压缩：只保留组尾行
+        // 精确压缩：直接把 VALID 设为组尾并精确截断（只保留每组一行）
         _dataCols[validIdx] = std::move(group_tails);
         clearInvalidEntries(msgTagBase);
     }
@@ -1382,18 +1403,38 @@ void View::minMultiBatches(std::vector<int64_t> &heads,
         return;
     }
 
-    std::vector<int64_t> vs = src; // 值工作副本
-    std::vector<int64_t> bs_bool = heads; // 组头(XOR)
-    const int64_t NOT_mask = Comm::rank();
+    // —— 配置
+    const bool APPROX_COMPACT = DbConf::DISABLE_PRECISE_COMPACTION; // 非精确压缩
+    const int64_t rank = Comm::rank();
+    int validIdx = colNum() + VALID_COL_OFFSET;
 
-    // tag stride 规划
+    // —— 预处理：根据模式准备 bs_bool 与 vs
+    // 边界位：默认用传入的 heads；若非精确压缩，则仅让有效行的组头生效
+    std::vector<int64_t> bs_bool = heads;
+    std::vector<int64_t> vs = src;
+
+    if (APPROX_COMPACT) {
+        // 非精确压缩：组头仅对有效行生效，避免无效区干扰
+        bs_bool = BoolAndBatchOperator(&bs_bool, &_dataCols[validIdx], 1, 0, msgTagBase,
+                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+
+        // vs := valid ? vs : MAX_VALUE（避免无效行的值影响比较）
+        std::vector<int64_t> max_vals(n, (1LL << (bitlen - 1)) - 1);
+        vs = BoolMutexBatchOperator(&vs, &max_vals, &_dataCols[validIdx], bitlen, 0, msgTagBase,
+                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+    }
+
+    // 各算子 stride
     const int lessStride = BoolLessBatchOperator::tagStride();
     const int mutexStride = BoolMutexBatchOperator::tagStride();
     const int andStride = BoolAndBatchOperator::tagStride();
+    // 每个批任务用到：Less(1) + Mutex(1) + Mutex(1) + AND(1)
     const int taskStride = lessStride + mutexStride + mutexStride + andStride;
 
     int tagCursorBase = msgTagBase;
+    const int64_t NOT_mask = rank;
 
+    // Hillis–Steele 前缀样式：delta = 1, 2, 4, ...
     for (int delta = 1; delta < static_cast<int>(n); delta <<= 1) {
         const int totalPairs = static_cast<int>(n) - delta;
         if (totalPairs <= 0) break;
@@ -1401,6 +1442,7 @@ void View::minMultiBatches(std::vector<int64_t> &heads,
         const int numBatches = (totalPairs + batchSize - 1) / batchSize;
 
         using Pair = std::pair<std::vector<int64_t>, std::vector<int64_t> >; // {new_right, new_b}
+
         std::vector<std::future<Pair> > futs(numBatches);
 
         for (int b = 0; b < numBatches; ++b) {
@@ -1417,37 +1459,59 @@ void View::minMultiBatches(std::vector<int64_t> &heads,
             futs[b] = ThreadPoolSupport::submit([=, &vs, &bs_bool]() -> Pair {
                 if (len <= 0) return Pair{{}, {}};
 
+                // 快照左右值
                 std::vector<int64_t> left_vals(len), right_vals(len);
-                std::vector<int64_t> not_bL(len), not_bR(len);
                 for (int i = 0; i < len; ++i) {
                     const int idxL = start + i;
                     const int idxR = idxL + delta;
                     left_vals[i] = vs[idxL];
                     right_vals[i] = vs[idxR];
-                    not_bL[i] = bs_bool[idxL] ^ NOT_mask; // ~b[i]
-                    not_bR[i] = bs_bool[idxR] ^ NOT_mask; // ~b[i+delta]
+                }
+
+                // 非精确压缩：每轮窗口再按窗口内 valid 掩蔽一次
+                if (APPROX_COMPACT) {
+                    auto &valid = _dataCols[validIdx];
+                    std::vector<int64_t> max_vals(len, (1LL << (bitlen - 1)) - 1), left_valid(len), right_valid(len);
+                    for (int i = 0; i < len; ++i) {
+                        left_valid[i] = valid[start + i];
+                        right_valid[i] = valid[start + i + delta];
+                    }
+                    left_vals = BoolMutexBatchOperator(&left_vals, &max_vals, &left_valid, bitlen, 0, lessTag,
+                                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                    right_vals = BoolMutexBatchOperator(&right_vals, &max_vals, &right_valid, bitlen, 0, lessTag,
+                                                        SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
                 }
 
                 // 1) cmp = (left < right)
                 auto cmp = BoolLessBatchOperator(&left_vals, &right_vals, bitlen,
-                                                 0, lessTag,
+                                                 /*tid*/0, /*tag*/lessTag,
                                                  SecureOperator::NO_CLIENT_COMPUTE)
                         .execute()->_zis;
 
-                // 2) cand = cmp ? left : right   —— 取较小值
+                // 2) cand = min(left,right) : cand = cmp ? left : right
                 auto cand = BoolMutexBatchOperator(&left_vals, &right_vals, &cmp,
-                                                   bitlen, 0, mtx1Tag,
+                                                   bitlen, /*tid*/0, /*tag*/mtx1Tag,
                                                    SecureOperator::NO_CLIENT_COMPUTE)
                         .execute()->_zis;
 
-                // 3) new_right = (~bR) ? cand : right
+                // 3) gate = ~b[i+delta]；new_right = gate ? cand : right
+                std::vector<int64_t> not_bR(len);
+                for (int i = 0; i < len; ++i) {
+                    not_bR[i] = bs_bool[start + i + delta] ^ NOT_mask;
+                }
                 auto new_right = BoolMutexBatchOperator(&cand, &right_vals, &not_bR,
-                                                        bitlen, 0, mtx2Tag,
+                                                        bitlen, /*tid*/0, /*tag*/mtx2Tag,
                                                         SecureOperator::NO_CLIENT_COMPUTE)
                         .execute()->_zis;
 
-                // 4) new_b = bL OR bR = ~(~bL & ~bR)
-                auto and_out = BoolAndBatchOperator(&not_bL, &not_bR, 1, 0, andTag,
+                // 4) 边界传播：b[i+delta] = b[i] OR b[i+delta] = ~(~b[i] & ~b[i+delta])
+                std::vector<int64_t> not_bL(len);
+                for (int i = 0; i < len; ++i) {
+                    not_bL[i] = bs_bool[start + i] ^ NOT_mask;
+                    not_bR[i] = bs_bool[start + i + delta] ^ NOT_mask;
+                }
+                auto and_out = BoolAndBatchOperator(&not_bL, &not_bR,
+                                                    /*bitlen=*/1, /*tid*/0, /*tag*/andTag,
                                                     SecureOperator::NO_CLIENT_COMPUTE)
                         .execute()->_zis;
                 std::vector<int64_t> new_b(len);
@@ -1457,9 +1521,10 @@ void View::minMultiBatches(std::vector<int64_t> &heads,
             });
         }
 
+        // 本轮 delta 消耗的 tag 空间
         tagCursorBase += numBatches * taskStride;
 
-        // 写回右端
+        // 写回右端：v[i+delta] 与 b[i+delta]
         for (int b = 0; b < numBatches; ++b) {
             const int start = b * batchSize;
             const int end = std::min(start + batchSize, totalPairs);
@@ -1469,6 +1534,7 @@ void View::minMultiBatches(std::vector<int64_t> &heads,
             auto pr = futs[b].get();
             auto &new_right = pr.first;
             auto &new_b = pr.second;
+
             for (int i = 0; i < len; ++i) {
                 const int idxR = start + i + delta;
                 vs[idxR] = new_right[i];
@@ -1477,12 +1543,38 @@ void View::minMultiBatches(std::vector<int64_t> &heads,
         }
     }
 
-    // 组尾：tail[i] = head[i+1]；最后一行 = 1_share
+    // —— 构造组尾
     std::vector<int64_t> group_tails(n);
     for (size_t i = 0; i + 1 < n; ++i) group_tails[i] = heads[i + 1];
-    group_tails[n - 1] = Comm::rank();
 
-    // 插入结果列（在 VALID 之前）
+    // 非精确压缩：修正"最后一组尾巴落到无效区"的情况
+    if (APPROX_COMPACT) {
+        auto &valid = _dataCols[validIdx];
+        std::vector<int64_t> next_valid(n);
+        for (size_t i = 0; i + 1 < n; ++i) next_valid[i] = valid[i + 1];
+        next_valid[n - 1] = 0; // 0_share
+
+        // last_valid_tail = valid ∧ ¬next_valid
+        std::vector<int64_t> not_next(n);
+        for (size_t i = 0; i < n; ++i) not_next[i] = next_valid[i] ^ rank;
+
+        auto last_valid_tail = BoolAndBatchOperator(&valid, &not_next, 1, 0, msgTagBase,
+                                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+
+        // group_tails = group_tails OR last_valid_tail  （德摩根）
+        std::vector<int64_t> not_gt(n), not_lvt(n);
+        for (size_t i = 0; i < n; ++i) { 
+            not_gt[i] = group_tails[i] ^ rank; 
+            not_lvt[i] = last_valid_tail[i] ^ rank; 
+        }
+        auto and_not = BoolAndBatchOperator(&not_gt, &not_lvt, 1, 0, msgTagBase,
+                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        for (size_t i = 0; i < n; ++i) group_tails[i] = and_not[i] ^ rank;
+    } else {
+        group_tails[n - 1] = rank;
+    }
+
+    // 插入结果列（位置与单批版一致：在 VALID 之前）
     const std::string outName = alias.empty() ? ("min_" + fieldName) : alias;
 
     _fieldNames.reserve(_fieldNames.size() + 1);
@@ -1494,8 +1586,17 @@ void View::minMultiBatches(std::vector<int64_t> &heads,
     _fieldWidths.insert(_fieldWidths.begin() + insertPos, bitlen);
     _dataCols.insert(_dataCols.begin() + insertPos, std::move(vs));
 
-    _dataCols[colNum() + VALID_COL_OFFSET] = std::move(group_tails);
-    clearInvalidEntries(msgTagBase);
+    validIdx = colNum() + VALID_COL_OFFSET;
+    // —— 根据模式更新 VALID 并压缩
+    if (APPROX_COMPACT) {
+        auto new_valid = BoolAndBatchOperator(&_dataCols[validIdx], &group_tails, 1, 0, msgTagBase,
+                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        _dataCols[validIdx] = std::move(new_valid);
+        clearInvalidEntries(msgTagBase); // 近似截断
+    } else {
+        _dataCols[validIdx] = std::move(group_tails);
+        clearInvalidEntries(msgTagBase); // 精确截断
+    }
 }
 
 int View::sortTagStride() {
