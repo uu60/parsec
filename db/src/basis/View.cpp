@@ -1942,6 +1942,7 @@ void View::clearInvalidEntries(int msgTagBase) {
 
         int64_t validNum = sumShare + sumShare1;
 
+
         for (auto &v: _dataCols) {
             v.resize(validNum);
         }
