@@ -96,6 +96,11 @@ int main(int argc, char *argv[]) {
         View view0 = Views::selectAll(table0);
         View view1 = Views::selectAll(table1);
 
+        Log::i("0");
+        Views::revealAndPrint(view0);
+        Log::i("1");
+        Views::revealAndPrint(view1);
+
         std::string joinField0 = "id";
         std::string joinField1 = "id";
 
@@ -109,6 +114,7 @@ int main(int argc, char *argv[]) {
             joinResult = Views::nestedLoopJoin(view0, view1, joinField0, joinField1);
         }
 
+        Views::revealAndPrint(joinResult);
         auto elapsed = System::currentTimeMillis() - start;
         Log::i("Join completed in {}ms", elapsed);
         Log::i("Result has {} records", joinResult._dataCols.empty() ? 0 : joinResult._dataCols[0].size());

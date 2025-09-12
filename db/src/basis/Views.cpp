@@ -415,8 +415,16 @@ View Views::performBucketJoins(
         right._dataCols = buckets1[b];
         right._dataCols.emplace_back(right.rowNum(), 0);
 
-        left.clearInvalidEntries(0);
-        right.clearInvalidEntries(0);
+        if (Conf::DISABLE_MULTI_THREAD) {
+            left.clearInvalidEntries(0);
+            right.clearInvalidEntries(0);
+        } else {
+            auto f = ThreadPoolSupport::submit([&left] {
+                left.clearInvalidEntries(0);
+            });
+            right.clearInvalidEntries(left.clearInvalidEntriesTagStride());
+            f.wait();
+        }
 
         View joined = nestedLoopJoin(left, right, field0, field1);
 
@@ -480,14 +488,14 @@ View Views::hashJoin(View &v0, View &v1, std::string &field0, std::string &field
     int tagColIndex0 = -1, tagColIndex1 = -1;
 
     for (int i = 0; i < v0._fieldNames.size(); i++) {
-        if (v0._fieldNames[i] == View::BUCKET_TAG_PREFIX + field0) {
+        if (v0._fieldNames[i].find(Table::BUCKET_TAG_PREFIX) == 0) {
             tagColIndex0 = i;
             break;
         }
     }
 
     for (int i = 0; i < v1._fieldNames.size(); i++) {
-        if (v0._fieldNames[i] == View::BUCKET_TAG_PREFIX + field1) {
+        if (v1._fieldNames[i].find(Table::BUCKET_TAG_PREFIX) == 0) {
             tagColIndex1 = i;
             break;
         }
