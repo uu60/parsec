@@ -22,9 +22,9 @@ int main(int argc, char *argv[]) {
 
     // Fixed test data for count operation with filter
     // Test scenario: Count records where age > 25 and salary > 50000
-    std::vector<int64_t> test_ids = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-    std::vector<int64_t> test_ages = {20, 30, 25, 35, 22, 40, 28, 45, 23, 50};
-    std::vector<int64_t> test_salaries = {30000, 60000, 45000, 70000, 35000, 80000, 55000, 90000, 40000, 100000};
+    std::vector<int64_t> test_ids = {1, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    std::vector<int64_t> test_ages = {20, 30, 35, 25, 35, 22, 40, 28, 45, 23, 50};
+    std::vector<int64_t> test_salaries = {30000, 60000, 70000, 45000, 70000, 35000, 80000, 55000, 90000, 40000, 100000};
     
     // Expected result: Records that satisfy age > 25 AND salary > 50000
     // Record 2: age=30, salary=60000 ✓

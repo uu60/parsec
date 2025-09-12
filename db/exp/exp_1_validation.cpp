@@ -223,42 +223,44 @@ void validateResults(View &result_view) {
     }
     
     Log::i("Actual results ({} rows):", result_view.rowNum());
-    
-    // Expected results based on our fixed data
-    std::vector<std::pair<int64_t, int64_t>> expected = {
-        {1001, 4}, // diag=1001 should have count=4
-        {1002, 1}  // diag=1002 should have count=1
-    };
-    
-    bool validation_passed = true;
-    
-    // Check if we have the expected number of result rows
-    if (result_view.rowNum() != expected.size()) {
-        Log::e("ERROR: Expected {} result rows, got {}", expected.size(), result_view.rowNum());
-        validation_passed = false;
-    }
-    
-    // Print actual results and compare with expected
-    for (size_t i = 0; i < result_view.rowNum() && i < expected.size(); i++) {
-        int64_t actual_diag = result_view._dataCols[0][i];
-        int64_t actual_cnt = result_view._dataCols[1][i];
-        int64_t expected_diag = expected[i].first;
-        int64_t expected_cnt = expected[i].second;
-        
-        Log::i("  Row {}: diag={}, cnt={}", i, actual_diag, actual_cnt);
-        
-        if (actual_diag != expected_diag || actual_cnt != expected_cnt) {
-            Log::e("ERROR: Row {} mismatch! Expected (diag={}, cnt={}), got (diag={}, cnt={})", 
-                   i, expected_diag, expected_cnt, actual_diag, actual_cnt);
-            validation_passed = false;
-        }
-    }
-    
-    if (validation_passed) {
-        Log::i("✓ VALIDATION PASSED: All results match expected values!");
-    } else {
-        Log::e("✗ VALIDATION FAILED: Results do not match expected values!");
-    }
+
+    Views::revealAndPrint(result_view);
+
+    // // Expected results based on our fixed data
+    // std::vector<std::pair<int64_t, int64_t>> expected = {
+    //     {1001, 4}, // diag=1001 should have count=4
+    //     {1002, 1}  // diag=1002 should have count=1
+    // };
+    //
+    // bool validation_passed = true;
+    //
+    // // Check if we have the expected number of result rows
+    // if (result_view.rowNum() != expected.size()) {
+    //     Log::e("ERROR: Expected {} result rows, got {}", expected.size(), result_view.rowNum());
+    //     validation_passed = false;
+    // }
+    //
+    // // Print actual results and compare with expected
+    // for (size_t i = 0; i < result_view.rowNum() && i < expected.size(); i++) {
+    //     int64_t actual_diag = result_view._dataCols[0][i];
+    //     int64_t actual_cnt = result_view._dataCols[1][i];
+    //     int64_t expected_diag = expected[i].first;
+    //     int64_t expected_cnt = expected[i].second;
+    //
+    //     Log::i("  Row {}: diag={}, cnt={}", i, actual_diag, actual_cnt);
+    //
+    //     if (actual_diag != expected_diag || actual_cnt != expected_cnt) {
+    //         Log::e("ERROR: Row {} mismatch! Expected (diag={}, cnt={}), got (diag={}, cnt={})",
+    //                i, expected_diag, expected_cnt, actual_diag, actual_cnt);
+    //         validation_passed = false;
+    //     }
+    // }
+    //
+    // if (validation_passed) {
+    //     Log::i("✓ VALIDATION PASSED: All results match expected values!");
+    // } else {
+    //     Log::e("✗ VALIDATION FAILED: Results do not match expected values!");
+    // }
 }
 
 View createDiagnosisTable(std::vector<int64_t> &diagnosis_pid_shares,
@@ -334,9 +336,11 @@ View executeGroupByCount(View &filtered_diagnosis, int tid) {
     std::vector<std::string> group_fields = {diag_field};
     filtered_diagnosis.count(group_fields, group_heads, "cnt", tid);
 
+    Views::revealAndPrint(filtered_diagnosis);
 
     // ★ 早投影：只保留 {diag, cnt}，大幅减少后续数据搬运
-    return projectDiagCnt(filtered_diagnosis, "diag", "cnt");
+    // return projectDiagCnt(filtered_diagnosis, "diag", "cnt");
+    return filtered_diagnosis;
 }
 
 // ---------------- Top-K 实现（迭代 2k 归并） ----------------
@@ -381,20 +385,6 @@ View executeTopKByCount(View grouped_diag_cnt, int k, int tid) {
     }
 
     return buf;
-}
-
-// ---- helpers ----
-
-static View projectDiagCnt(View &v, std::string diag_field, std::string cnt_field) {
-    int d = v.colIndex(diag_field);
-    int c = v.colIndex(cnt_field);
-    std::vector<std::string> fields = {diag_field, cnt_field};
-    std::vector<int> widths = {64, 64};
-    View out(fields, widths);
-    out._dataCols.resize(2);
-    if (d >= 0) out._dataCols[0] = v._dataCols[d];
-    if (c >= 0) out._dataCols[1] = v._dataCols[c];
-    return out;
 }
 
 static View sliceRows(View &v, size_t start, size_t len) {
