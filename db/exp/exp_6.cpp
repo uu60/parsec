@@ -167,12 +167,12 @@ void generateTestData(int orders_rows, int lineitem_rows,
         l_commitdate_data.reserve(lineitem_rows);
         l_receiptdate_data.reserve(lineitem_rows);
 
-        
+
         for (int i = 0; i < orders_rows; i++) {
             int64_t orderkey = Math::randInt();
             int64_t priority = Math::randInt();
             int64_t orderdate = Math::randInt(); // Dates in range 1994-01-01 to 1994-04-30
-            
+
             o_orderkey_data.push_back(orderkey);
             o_orderpriority_data.push_back(priority);
             o_orderdate_data.push_back(orderdate);
@@ -183,12 +183,11 @@ void generateTestData(int orders_rows, int lineitem_rows,
             int64_t orderkey = Math::randInt(); // Reference to orders
             int64_t commitdate = Math::randInt();
             int64_t receiptdate = Math::randInt(); // Some commit < receipt, some not
-            
+
             l_orderkey_data.push_back(orderkey);
             l_commitdate_data.push_back(commitdate);
             l_receiptdate_data.push_back(receiptdate);
         }
-
     }
 }
 
@@ -259,7 +258,7 @@ View filterLineitemByCommitDate(View &lineitem_view, int tid) {
     // Perform field-to-field comparison: l_commitdate < l_receiptdate
     // Since data is stored as bool shares, use BoolLessBatchOperator directly
     std::vector<int64_t> comparison_result;
-    
+
     if (Conf::BATCH_SIZE <= 0 || Conf::DISABLE_MULTI_THREAD) {
         // Single batch processing
         comparison_result = BoolLessBatchOperator(&commitdate_col, &receiptdate_col, 64, tid, 0,
@@ -270,7 +269,7 @@ View filterLineitemByCommitDate(View &lineitem_view, int tid) {
         int batchSize = Conf::BATCH_SIZE;
         int batchNum = (data_size + batchSize - 1) / batchSize;
 
-        std::vector<std::future<std::vector<int64_t>>> batch_futures(batchNum);
+        std::vector<std::future<std::vector<int64_t> > > batch_futures(batchNum);
 
         for (int b = 0; b < batchNum; ++b) {
             batch_futures[b] = ThreadPoolSupport::submit([&, b]() -> std::vector<int64_t> {
@@ -288,7 +287,7 @@ View filterLineitemByCommitDate(View &lineitem_view, int tid) {
         }
 
         comparison_result.reserve(data_size);
-        for (auto &f : batch_futures) {
+        for (auto &f: batch_futures) {
             auto batch_res = f.get();
             comparison_result.insert(comparison_result.end(), batch_res.begin(), batch_res.end());
         }
@@ -306,7 +305,9 @@ std::vector<int64_t> executeExistsClause(View &filtered_orders, View &filtered_l
     auto orders_orderkey_col = filtered_orders._dataCols[0]; // o_orderkey
     auto lineitem_orderkey_col = filtered_lineitem._dataCols[0]; // l_orderkey
 
-    auto exists_results = Views::in(orders_orderkey_col, lineitem_orderkey_col);
+    auto exists_results = Views::in(orders_orderkey_col, lineitem_orderkey_col,
+                                    filtered_orders._dataCols[filtered_orders.colNum() + View::VALID_COL_OFFSET],
+                                    filtered_lineitem._dataCols[filtered_lineitem.colNum() + View::VALID_COL_OFFSET]);
 
     return exists_results;
 }

@@ -90,7 +90,9 @@ int main(int argc, char *argv[]) {
         auto start = System::currentTimeMillis();
 
         // Test IN function
-        result_shares = Views::in(col1_shares, col2_shares);
+        auto lv = std::vector<int64_t>(col1_shares.size(), Comm::rank());
+        auto rv = std::vector<int64_t>(col2_shares.size(), Comm::rank());
+        result_shares = Views::in(col1_shares, col2_shares, lv, rv);
 
         auto end = System::currentTimeMillis();
         Log::i("IN function execution time: {}ms", end - start);

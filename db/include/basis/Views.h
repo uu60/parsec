@@ -30,14 +30,23 @@ public:
 
     static int64_t hash(int64_t keyValue);
 
-    static std::vector<int64_t> in(std::vector<int64_t> &col1, std::vector<int64_t> &col2);
+    static std::vector<int64_t> in(std::vector<int64_t> &col1,
+                                   std::vector<int64_t> &col2,
+                                   std::vector<int64_t> &left_valid,
+                                   std::vector<int64_t> &right_valid);
 
     static void revealAndPrint(View &v);
 
 private:
-    static std::vector<int64_t> inSingleBatch(std::vector<int64_t> &col1, std::vector<int64_t> &col2);
+    static std::vector<int64_t> inSingleBatch(std::vector<int64_t> &col1,
+                                              std::vector<int64_t> &col2,
+                                              std::vector<int64_t> &left_valid,
+                                              std::vector<int64_t> &right_valid);
 
-    static std::vector<int64_t> inMultiBatches(std::vector<int64_t> &col1, std::vector<int64_t> &col2);
+    static std::vector<int64_t> inMultiBatches(std::vector<int64_t> &col1,
+                                               std::vector<int64_t> &col2,
+                                               std::vector<int64_t> &left_valid,
+                                               std::vector<int64_t> &right_valid);
 
     static void addRedundantCols(View &v);
 

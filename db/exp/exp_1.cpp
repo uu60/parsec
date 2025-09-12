@@ -174,7 +174,9 @@ std::vector<int64_t> executeWhereInClause(View &diagnosis_view, View &cdiff_coho
     auto diagnosis_pid_col = diagnosis_view._dataCols[0];
     auto cdiff_cohort_pid_col = cdiff_cohort_view._dataCols[0];
 
-    auto in_results = Views::in(diagnosis_pid_col, cdiff_cohort_pid_col);
+    auto in_results = Views::in(diagnosis_pid_col, cdiff_cohort_pid_col,
+                                diagnosis_view._dataCols[diagnosis_view.colNum() + View::VALID_COL_OFFSET],
+                                cdiff_cohort_view._dataCols[cdiff_cohort_view.colNum() + View::VALID_COL_OFFSET]);
 
     return in_results;
 }
