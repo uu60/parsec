@@ -521,75 +521,86 @@ View Views::hashJoin(View &v0, View &v1, std::string &field0, std::string &field
 }
 
 View Views::leftOuterJoin(View &v0, View &v1, std::string &field0, std::string &field1) {
-    // 0) 内连接
+    // 0) 内连接（保持原逻辑与 tag 分配）
     View inner = hashJoin(v0, v1, field0, field1);
 
-    // 1) 半连接标记：左行是否在右表有匹配
+    // 1) 取键列与有效列
     const int k0 = v0.colIndex(field0);
     const int k1 = v1.colIndex(field1);
     if (k0 < 0 || k1 < 0) return inner;
 
-    const auto &left_keys = v0._dataCols[k0];
+    const auto &left_keys  = v0._dataCols[k0];
     const auto &right_keys = v1._dataCols[k1];
-    // has_match[i] ∈ {0,1} (布尔份额)
-    std::vector<int64_t> has_match = in(const_cast<std::vector<int64_t> &>(left_keys),
-                                        const_cast<std::vector<int64_t> &>(right_keys),
-                                        v0._dataCols[v0.colNum() + View::VALID_COL_OFFSET],
-                                        v1._dataCols[v1.colNum() + View::VALID_COL_OFFSET]);
 
-    // 2) 目标列结构（与 inner 一致）：v0(有效列) + v1(有效列)
-    const size_t eff0 = v0.colNum() - 2; // 去掉 VALID/PADDING
+    const int v0_valid_idx = v0.colNum() + View::VALID_COL_OFFSET;
+    const int v1_valid_idx = v1.colNum() + View::VALID_COL_OFFSET;
+    const auto &left_valid  = v0._dataCols[v0_valid_idx];
+    const auto &right_valid = v1._dataCols[v1_valid_idx];
+
+    // 2) 半连接：has_match[i] ∈ {0,1}（布尔分享）
+    // 已在 in() 内根据 PRECISE/非精确路径处理了右掩蔽与左掩蔽
+    std::vector<int64_t> has_match =
+        in(const_cast<std::vector<int64_t>&>(left_keys),
+           const_cast<std::vector<int64_t>&>(right_keys),
+           const_cast<std::vector<int64_t>&>(v0._dataCols[v0_valid_idx]),
+           const_cast<std::vector<int64_t>&>(v1._dataCols[v1_valid_idx]));
+
+    // 3) 目标列结构（与 inner 一致）：v0(有效列) + v1(有效列)
+    const size_t eff0 = v0.colNum() - 2;  // 去掉 VALID/PADDING
     const size_t eff1 = v1.colNum() - 2;
 
-    std::vector<std::string> names;
-    names.reserve(eff0 + eff1);
-    std::vector<int> widths;
-    widths.reserve(eff0 + eff1);
-    for (size_t i = 0; i < eff0; ++i) {
-        names.push_back(v0._fieldNames[i]);
-        widths.push_back(v0._fieldWidths[i]);
-    }
-    for (size_t i = 0; i < eff1; ++i) {
-        names.push_back(v1._fieldNames[i]);
-        widths.push_back(v1._fieldWidths[i]);
-    }
+    std::vector<std::string> names; names.reserve(eff0 + eff1);
+    std::vector<int>         widths; widths.reserve(eff0 + eff1);
+    for (size_t i = 0; i < eff0; ++i) { names.push_back(v0._fieldNames[i]); widths.push_back(v0._fieldWidths[i]); }
+    for (size_t i = 0; i < eff1; ++i) { names.push_back(v1._fieldNames[i]); widths.push_back(v1._fieldWidths[i]); }
 
-    // 3) 构造 left_only（右侧全空）：行有效位 = NOT(has_match)
+    // 4) 构造 left_only：右侧全空；有效位 = left_valid ∧ ¬has_match
     View left_only(names, widths);
     const size_t n0 = v0.rowNum();
 
-    // 3.1 左侧有效列逐列拷贝
+    // 4.1 左侧有效列拷贝
     for (size_t c = 0; c < eff0; ++c) {
-        left_only._dataCols[c] = v0._dataCols[c]; // 与 v0 行数一致
+        left_only._dataCols[c] = v0._dataCols[c];  // 与 v0 行数一致
     }
-    // 3.2 右侧有效列置 0（空值）；如果你支持 null-bit，可另加一列 right_is_null = NOT(has_match)
+    // 4.2 右侧有效列置 0（空值）
     for (size_t c = 0; c < eff1; ++c) {
-        left_only._dataCols[eff0 + c].assign(n0, 0); // 布尔/算术 0 的秘密份额皆可
+        left_only._dataCols[eff0 + c].assign(n0, 0);
     }
 
-    // 3.3 设置有效位：NOT(has_match)
-    // 你的布尔“取反”写法之前用的是 bs ^ Comm::rank()
+    // 4.3 计算有效位：not_has = left_valid ∧ ¬has_match
     std::vector<int64_t> not_has(n0);
-    for (size_t i = 0; i < n0; ++i) not_has[i] = has_match[i] ^ Comm::rank();
+    const int64_t mask = Comm::rank();
+    for (size_t i = 0; i < n0; ++i) {
+        not_has[i] = has_match[i] ^ mask;  // 先做 NOT(has_match)
+    }
+    // 与 left_valid 相与
+    not_has = BoolAndBatchOperator(&not_has,
+                                   const_cast<std::vector<int64_t>*>(&left_valid),
+                                   /*bitlen=*/1, /*tid=*/0, /*msgTagBase=*/0,
+                                   SecureOperator::NO_CLIENT_COMPUTE)
+                    .execute()->_zis;
 
     // 写入 VALID / PADDING
-    left_only._dataCols[left_only.colNum() + View::VALID_COL_OFFSET] = not_has;
+    left_only._dataCols[left_only.colNum() + View::VALID_COL_OFFSET]   = std::move(not_has);
     left_only._dataCols[left_only.colNum() + View::PADDING_COL_OFFSET] = std::vector<int64_t>(n0, 0);
 
+    // 5) 压缩策略：BASELINE 不压缩；精确/非精确压缩交给 clearInvalidEntries
     if (!DbConf::BASELINE_MODE) {
-        // 3.4 仅保留无匹配行
-        left_only.clearInvalidEntries(0);
+        left_only.clearInvalidEntries(/*msgTagBase=*/0);  // 内部按 DISABLE_PRECISE_COMPACTION 选择精确/近似
     }
 
-    // 4) 结果 = 内连接 ∪ left_only
-    // 若你有封装好的拼接函数，用它；否则逐列 append
-    View result = inner; // 复制列结构
+    // 6) 结果 = 内连接 ∪ left_only（逐列 append；保持原有列顺序与 tag 习惯）
+    View result = inner;  // 拷贝结构
     const size_t total_cols = result.colNum() + 2; // 含 VALID/PADDING
     for (size_t col = 0; col < total_cols; ++col) {
         auto &dst = result._dataCols[col];
         auto &src = left_only._dataCols[col];
         dst.insert(dst.end(), src.begin(), src.end());
     }
+
+    // 可选：若你的外层调用希望在本函数就做物理压缩，可在非 BASELINE 下：
+    // if (!DbConf::BASELINE_MODE) result.clearInvalidEntries(0);
+
     return result;
 }
 
