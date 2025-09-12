@@ -1717,10 +1717,6 @@ void View::filterSingleBatch(std::vector<std::string> &fieldNames,
     }
 
     int validColIndex = colNum() + VALID_COL_OFFSET;
-    if (n == 1) {
-        _dataCols[validColIndex] = collected[0];
-        return;
-    }
 
     // Combine multiple conditions with AND operation (single batch approach)
     std::vector<int64_t> result = std::move(collected[0]);

@@ -70,10 +70,10 @@ int main(int argc, char *argv[]) {
     // Read number of rows from command line
     int diagRows = 1000, medRows = 1000;
     if (Conf::_userParams.count("rows1")) {
-        diagRows = std::stoi(Conf::_userParams["diagRows"]);
+        diagRows = std::stoi(Conf::_userParams["rows1"]);
     }
     if (Conf::_userParams.count("rows2")) {
-        medRows = std::stoi(Conf::_userParams["medRows"]);
+        medRows = std::stoi(Conf::_userParams["rows2"]);
     }
 
     if (Comm::isClient()) {
@@ -280,7 +280,7 @@ View filterByTimeCondition(View &joined_view, int tid) {
     // Find the time columns in the joined view
     // After join: diagnosis.pid, diagnosis.diag, diagnosis.time, medication.pid, medication.med, medication.time
     int diag_time_col = -1, med_time_col = -1;
-    
+
     for (int i = 0; i < joined_view._fieldNames.size(); i++) {
         if (joined_view._fieldNames[i] == "time" || joined_view._fieldNames[i] == "diagnosis.time") {
             diag_time_col = i;
@@ -288,7 +288,7 @@ View filterByTimeCondition(View &joined_view, int tid) {
             med_time_col = i;
         }
     }
-    
+
     // If we can't find the exact field names, try by position
     if (diag_time_col == -1 || med_time_col == -1) {
         // Assume diagnosis fields come first, then medication fields
@@ -297,17 +297,17 @@ View filterByTimeCondition(View &joined_view, int tid) {
         med_time_col = 5;
     }
 
-    if (diag_time_col >= 0 && med_time_col >= 0 && 
-        diag_time_col < joined_view._dataCols.size() && 
+    if (diag_time_col >= 0 && med_time_col >= 0 &&
+        diag_time_col < joined_view._dataCols.size() &&
         med_time_col < joined_view._dataCols.size()) {
-        
+
         auto &diag_time_data = joined_view._dataCols[diag_time_col];
         auto &med_time_data = joined_view._dataCols[med_time_col];
-        
+
         // d.time <= m.time is equivalent to d.time < m.time OR d.time == m.time
         // We can use BoolLessBatchOperator for d.time <= m.time directly
         std::vector<int64_t> time_condition;
-        
+
         if (Conf::BATCH_SIZE <= 0 || Conf::DISABLE_MULTI_THREAD) {
             time_condition = BoolLessBatchOperator(&diag_time_data, &med_time_data, 64, 0, tid,
                                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
@@ -319,32 +319,32 @@ View filterByTimeCondition(View &joined_view, int tid) {
             size_t data_size = diag_time_data.size();
             int batchSize = Conf::BATCH_SIZE;
             int batchNum = (data_size + batchSize - 1) / batchSize;
-            
+
             std::vector<std::future<std::vector<int64_t>>> batch_futures(batchNum);
-            
+
             for (int b = 0; b < batchNum; ++b) {
                 batch_futures[b] = ThreadPoolSupport::submit([&, b]() {
                     int start = b * batchSize;
                     int end = std::min(start + batchSize, static_cast<int>(data_size));
-                    
+
                     std::vector<int64_t> batch_diag_time(diag_time_data.begin() + start, diag_time_data.begin() + end);
                     std::vector<int64_t> batch_med_time(med_time_data.begin() + start, med_time_data.begin() + end);
-                    
-                    auto batch_result = BoolLessBatchOperator(&batch_med_time, &batch_diag_time, 64, 0, 
+
+                    auto batch_result = BoolLessBatchOperator(&batch_med_time, &batch_diag_time, 64, 0,
                                                               tid + b * BoolLessBatchOperator::tagStride(),
                                                               SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-                    
+
                     return batch_result;
                 });
             }
-            
+
             time_condition.reserve(data_size);
             for (auto &f : batch_futures) {
                 auto batch_res = f.get();
                 time_condition.insert(time_condition.end(), batch_res.begin(), batch_res.end());
             }
         }
-        
+
         // Apply the time condition filter
         joined_view._dataCols[joined_view.colNum() + View::VALID_COL_OFFSET] = time_condition;
         joined_view.clearInvalidEntries(tid);
@@ -359,32 +359,32 @@ View executeDistinctCount(View &final_view, int tid) {
         std::vector<std::string> result_fields = {"distinct_pid_count"};
         std::vector<int> result_widths = {64};
         View result_view(result_fields, result_widths);
-        
+
         // Add a single row with count = 0
         result_view._dataCols[0].push_back(0);
         result_view._dataCols[result_view.colNum() + View::VALID_COL_OFFSET].push_back(Comm::rank());
         result_view._dataCols[result_view.colNum() + View::PADDING_COL_OFFSET].push_back(0);
-        
+
         return result_view;
     }
 
     // Extract pid column (should be the first column from diagnosis side)
     int pid_col_index = 0; // First column should be diagnosis.pid
-    
+
     // Create a view with only the pid column for distinct operation
     std::vector<std::string> pid_fields = {"pid"};
     std::vector<int> pid_widths = {64};
     View pid_view(pid_fields, pid_widths);
-    
+
     pid_view._dataCols[0] = final_view._dataCols[pid_col_index];
     pid_view._dataCols[pid_view.colNum() + View::VALID_COL_OFFSET] = std::vector<int64_t>(pid_view._dataCols[0].size(), Comm::rank()); // valid
     pid_view._dataCols[pid_view.colNum() + View::PADDING_COL_OFFSET] = std::vector<int64_t>(pid_view._dataCols[0].size(), 0); // padding
     // Apply DISTINCT operation
     pid_view.distinct(tid);
-    
+
     // Count the distinct pids
     int64_t distinct_count = pid_view.rowNum();
-    
+
     // Create result view
     std::vector<std::string> result_fields = {"distinct_pid_count"};
     std::vector<int> result_widths = {64};
