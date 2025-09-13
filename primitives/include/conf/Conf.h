@@ -78,7 +78,7 @@ public:
     // Communication object index (0 = OpenMpi)
     inline static CommT COMM_TYPE = MPI;
     // Invalid if intra parallelism or batching is false
-    inline static int BATCH_SIZE = 100000;
+    inline static int BATCH_SIZE = 10000;
     // Transfer compression
     inline static bool ENABLE_TRANSFER_COMPRESSION = false;
     // Random OT in redundant data transfer

@@ -8,6 +8,7 @@
 
 
 #include <string>
+
 class View : public Table {
 public:
     static const int VALID_COL_OFFSET = -2;
@@ -48,9 +49,11 @@ public:
 
     int sortTagStride(const std::vector<std::string> &orderFields);
 
-    void filterAndConditions(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes, std::vector<int64_t> &constShares, bool clear, int msgTagBase);
+    void filterAndConditions(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
+                             std::vector<int64_t> &constShares, bool clear, int msgTagBase);
 
-    void filterAndConditions(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes, std::vector<int64_t> &constShares, int msgTagBase);
+    void filterAndConditions(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
+                             std::vector<int64_t> &constShares, int msgTagBase);
 
     void clearInvalidEntries(int msgTagBase);
 
@@ -63,7 +66,7 @@ public:
     std::vector<int64_t> groupBy(const std::string &groupField, int msgTagBase);
 
     std::vector<int64_t> groupBy(const std::string &groupField, bool doSort, int msgTagBase);
-    
+
     // Multi-column group by functionality for 2PC secret sharing
     // Returns: group boundary indicators for each row (1 if starts new group, 0 otherwise)
     std::vector<int64_t> groupBy(const std::vector<std::string> &groupFields, int msgTagBase);
@@ -77,12 +80,21 @@ public:
     void min(std::vector<int64_t> &heads, const std::string &fieldName, std::string alias, int msgTagBase);
 
     // Combined min and max aggregation function - must have run group by before calling this
-    void minAndMax(std::vector<int64_t> &heads, const std::string &fieldName, std::string minAlias, std::string maxAlias, int msgTagBase);
+    // 便捷封装：根据是否多批/多线程自动选择
+    void minAndMax(std::vector<int64_t> &heads, const std::string &fieldName, std::string minAlias,
+                   std::string maxAlias, int msgTagBase);
+
+    void minAndMax(std::vector<int64_t> &heads,
+                   const std::string &minFieldName,
+                   const std::string &maxFieldName,
+                   std::string minAlias,
+                   std::string maxAlias,
+                   int msgTagBase);
 
     void distinct(int msgTagBase);
 
     int groupByTagStride();
-    
+
     int distinctTagStride();
 
 private:
@@ -91,19 +103,22 @@ private:
     void bitonicSortMultiBatches(const std::string &orderField, bool ascendingOrder, int msgTagBase);
 
     // Multi-column sort private methods
-    void bitonicSortSingleBatch(const std::vector<std::string> &orderFields, const std::vector<bool> &ascendingOrders, int msgTagBase);
+    void bitonicSortSingleBatch(const std::vector<std::string> &orderFields, const std::vector<bool> &ascendingOrders,
+                                int msgTagBase);
 
-    void bitonicSortMultiBatches(const std::vector<std::string> &orderFields, const std::vector<bool> &ascendingOrders, int msgTagBase);
+    void bitonicSortMultiBatches(const std::vector<std::string> &orderFields, const std::vector<bool> &ascendingOrders,
+                                 int msgTagBase);
 
     void filterSingleBatch(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
-               std::vector<int64_t> &constShares, bool clear, int msgTagBase);
+                           std::vector<int64_t> &constShares, bool clear, int msgTagBase);
 
     void filterMultiBatches(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
-              std::vector<int64_t> &constShares, bool clear, int msgTagBase);
+                            std::vector<int64_t> &constShares, bool clear, int msgTagBase);
 
     void bitonicSort(const std::string &orderField, bool ascendingOrder, int msgTagBase);
 
-    void bitonicSort(const std::vector<std::string> &orderFields, const std::vector<bool> &ascendingOrders, int msgTagBase);
+    void bitonicSort(const std::vector<std::string> &orderFields, const std::vector<bool> &ascendingOrders,
+                     int msgTagBase);
 
     std::vector<int64_t> groupBySingleBatch(const std::string &groupField, int msgTagBase);
 
@@ -125,9 +140,19 @@ private:
 
     void minMultiBatches(std::vector<int64_t> &heads, const std::string &fieldName, std::string alias, int msgTagBase);
 
-    void minAndMaxSingleBatch(std::vector<int64_t> &heads, const std::string &fieldName, std::string minAlias, std::string maxAlias, int msgTagBase);
+    void minAndMaxSingleBatch(std::vector<int64_t> &heads,
+                              const std::string &minFieldName,
+                              const std::string &maxFieldName,
+                              std::string minAlias,
+                              std::string maxAlias,
+                              int msgTagBase);
 
-    void minAndMaxMultiBatches(std::vector<int64_t> &heads, const std::string &fieldName, std::string minAlias, std::string maxAlias, int msgTagBase);
+    void minAndMaxMultiBatches(std::vector<int64_t> &heads,
+                               const std::string &minFieldName,
+                               const std::string &maxFieldName,
+                               std::string minAlias,
+                               std::string maxAlias,
+                               int msgTagBase);
 };
 
 

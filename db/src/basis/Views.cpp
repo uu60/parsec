@@ -711,19 +711,98 @@ std::vector<int64_t> Views::in(std::vector<int64_t> &col1,
     }
 }
 
+static std::string makeBorder(const std::vector<size_t> &w) {
+    std::ostringstream oss;
+    oss << '+';
+    for (auto width : w) {
+        oss << std::string(width + 2, '-') << '+';
+    }
+    return oss.str();
+}
+
+// 将左对齐的单元格写入（两侧各留1格空白）
+static void writeCell(std::ostringstream &oss, const std::string &s, size_t width) {
+    oss << ' ' << s;
+    if (s.size() < width) oss << std::string(width - s.size(), ' ');
+    oss << ' ';
+}
+
 void Views::revealAndPrint(View &v) {
-    for (int i = 0; i < v.colNum(); i++) {
-        if (Comm::rank() == 1) {
+    const int C = v.colNum();
+    if (C == 0) {
+        Log::i("(0 columns)");
+        return;
+    }
+
+    // 仅在一侧做最终打印（假设 rank 1 发送、其余一侧接收并打印）
+    const bool isSender = (Comm::rank() == 1);
+
+    // 收集明文列
+    std::vector<std::vector<int64_t>> plainCols(C);
+    size_t nRows = 0;
+
+    for (int i = 0; i < C; i++) {
+        if (isSender) {
+            // 发送本地份额
             Comm::serverSend(v._dataCols[i], 64, 0);
         } else {
-            std::vector<int64_t> temp;
-            Comm::serverReceive(temp, 64, 0);
-            for (int j = 0; j < temp.size(); j++) {
-                temp[j] ^= v._dataCols[i][j];
+            // 接收对方份额并 XOR 得到明文
+            std::vector<int64_t> other;
+            Comm::serverReceive(other, 64, 0);
+            const auto &mine = v._dataCols[i];
+            std::vector<int64_t> merged;
+            merged.resize(mine.size());
+            // 假设两侧长度一致
+            for (size_t j = 0; j < mine.size(); j++) {
+                merged[j] = mine[j] ^ other[j];
             }
-            Log::i("{}: {}", v._fieldNames[i], StringUtils::vecToString(temp));
+            plainCols[i] = std::move(merged);
+            if (i == 0) nRows = plainCols[i].size();
         }
     }
+
+    if (isSender) {
+        // 发送端不打印
+        return;
+    }
+
+    // 计算每一列的显示宽度（列名与数据的最大宽度）
+    std::vector<size_t> colWidth(C);
+    for (int i = 0; i < C; i++) {
+        size_t w = v._fieldNames[i].size();
+        const auto &col = plainCols[i];
+        for (size_t r = 0; r < col.size(); r++) {
+            // 这里按 int64_t 转字符串输出
+            const std::string s = std::to_string(col[r]);
+            w = std::max(w, s.size());
+        }
+        colWidth[i] = w;
+    }
+
+    // 组装表格文本
+    std::ostringstream out;
+    const std::string top = makeBorder(colWidth);
+    out << top << '\n' << '|';
+    for (int i = 0; i < C; i++) {
+        writeCell(out, v._fieldNames[i], colWidth[i]);
+        out << '|';
+    }
+    out << '\n' << top << '\n';
+
+    for (size_t r = 0; r < nRows; r++) {
+        out << '|';
+        for (int c = 0; c < C; c++) {
+            const std::string cell = std::to_string(plainCols[c][r]);
+            writeCell(out, cell, colWidth[c]);
+            out << '|';
+        }
+        out << '\n';
+    }
+    out << top << '\n';
+    out << "(" << nRows << (nRows == 1 ? " row)" : " rows)") << '\n';
+
+    // 一次性打印整张表
+    Log::i("\n{}", out.str());
 }
 
 // 三种模式的统一版：

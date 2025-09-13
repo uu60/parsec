@@ -1,15 +1,10 @@
+// Random-data version for:
+// SELECT S.ID
+// FROM (SELECT ID, MIN(CS) AS cs1, MAX(CS) AS cs2 FROM R WHERE year=target_year GROUP BY ID) S
+// WHERE S.cs2 - S.cs1 > c
 //
-// Created by 杜建璋 on 25-8-18.
-//
-
-/*
- * SELECT S.ID
- * FROM (
- *     SELECT ID, MIN(CS) as cs1, MAX(CS) as cs2
- *     FROM R WHERE R.year=2019 GROUP BY ID
- *     ) as S
- * WHERE S.cs2 - S.cs1 > c
- */
+// 优化点：在明文阶段预计算 CS_PLUS = CS + c 并入表；查询阶段不做安全加法/类型转换；
+// 分组后用 MIN(CS_PLUS) 与 MAX(CS) 比较：MIN(CS_PLUS) < MAX(CS) ⟺ MAX(CS) - MIN(CS) > c
 
 #include "secret/Secrets.h"
 #include "utils/System.h"
@@ -22,302 +17,203 @@
 #include "utils/Log.h"
 #include "utils/StringUtils.h"
 #include "utils/Math.h"
+
 #include "compute/batch/bool/BoolLessBatchOperator.h"
-#include "compute/batch/bool/BoolEqualBatchOperator.h"
-#include "compute/batch/arith/ArithLessBatchOperator.h"
-#include "compute/batch/arith/ArithAddBatchOperator.h"
-#include "compute/batch/arith/ArithToBoolBatchOperator.h"
-#include "compute/batch/bool/BoolToArithBatchOperator.h"
+#include "compute/batch/bool/BoolAndBatchOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
-#include <random>
-#include <algorithm>
-#include <map>
+#include <cstdint>
 
-// Forward declarations
-void generateTestData(int rows,
-                      std::vector<int64_t> &id_data,
-                      std::vector<int64_t> &cs_data,
-                      std::vector<int64_t> &year_data);
+// -------------------- 声明 --------------------
+void generateRandomData(
+    int rows,
+    std::vector<int64_t> &id_data,
+    std::vector<int64_t> &cs_data,
+    std::vector<int64_t> &year_data,
+    std::vector<int64_t> &cs_plus_data,
+    int64_t &chosen_year, // 输出：用于过滤的 target_year（从 year_data 里随机挑一条）
+    int64_t &chosen_c // 输出：用于预计算 CS_PLUS 的阈值 c
+);
 
-View createRTable(std::vector<int64_t> &id_shares,
-                  std::vector<int64_t> &cs_shares,
-                  std::vector<int64_t> &year_shares);
+View createR(std::vector<int64_t> &id_b,
+             std::vector<int64_t> &cs_b,
+             std::vector<int64_t> &year_b,
+             std::vector<int64_t> &cs_plus_b);
 
-View filterByYear(View &r_view, int64_t target_year, int tid);
+// year == target_year 过滤，**并立刻压缩**
+View filterByYear(View v, int64_t year_share, int tid);
 
-View groupByAndAggregate(View &filtered_view, int tid);
+// 分组：同时 MIN(CS_PLUS) 与 MAX(CS)（依赖你新接口：minAndMax(heads, leftField, rightField, ... )）
+View groupMinCsPlusMaxCs(View v, int tid);
 
-View filterByDifference(View &aggregated_view, int64_t threshold_c, int tid);
+// 根据 MIN(CS_PLUS) < MAX(CS) 过滤，并仅输出 ID
+View finalizeByLess(View v, int tid);
 
-void displayResults(View &result_view, int tid);
-
+// -------------------- 主流程 --------------------
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
     DbConf::init();
-    auto tid = System::nextTask() << (32 - Conf::TASK_TAG_BITS);
+    auto tid = (System::nextTask() << (32 - Conf::TASK_TAG_BITS));
 
-    // Read parameters from command line
     int rows = 1000;
-
     if (Conf::_userParams.count("rows")) {
         rows = std::stoi(Conf::_userParams["rows"]);
     }
-
     if (Comm::isClient()) {
         Log::i("Data size: R: {}", rows);
     }
 
-    // Generate test data
-    std::vector<int64_t> id_data, cs_data, year_data;
-    generateTestData(rows, id_data, cs_data, year_data);
+    // 1) 客户端生成随机明文数据，并在明文就把 CS_PLUS 预计算好
+    std::vector<int64_t> id_plain, cs_plain, year_plain, cs_plus_plain;
+    int64_t target_year_plain = 0;
+    int64_t c_plain = 0;
+    generateRandomData(rows, id_plain, cs_plain, year_plain, cs_plus_plain,
+                       target_year_plain, c_plain);
 
-    // Convert to secret shares for 2PC
-    auto id_shares = Secrets::boolShare(id_data, 2, 64, tid);
-    auto cs_shares = Secrets::boolShare(cs_data, 2, 64, tid);
-    auto year_shares = Secrets::boolShare(year_data, 2, 64, tid);
+    // 2) 分享数据
+    auto id_b = Secrets::boolShare(id_plain, 2, 64, tid);
+    auto cs_b = Secrets::boolShare(cs_plain, 2, 64, tid);
+    auto year_b = Secrets::boolShare(year_plain, 2, 64, tid);
+    auto cs_plus_b = Secrets::boolShare(cs_plus_plain, 2, 64, tid);
 
-    int64_t target_year, threshold_c;
+    // 3) 客户端把 target_year 以 XOR 份额发给两台服务端
+    int64_t year_share = 0;
     if (Comm::isClient()) {
-        int64_t target_year0 = Math::randInt();
-        int64_t target_year1 = target_year0 ^ 2019;
-        int64_t threshold_c0 = Math::randInt();
-        int64_t threshold_c1 = Math::randInt();
-        Comm::send(target_year0, 64, 0, tid);
-        Comm::send(threshold_c0, 64, 0, tid);
-        Comm::send(target_year1, 64, 1, tid);
-        Comm::send(threshold_c1, 64, 1, tid);
+        int64_t y0 = Math::randInt();
+        int64_t y1 = y0 ^ target_year_plain;
+        Comm::send(y0, 64, 0, tid);
+        Comm::send(y1, 64, 1, tid);
     } else {
-        Comm::receive(target_year, 64, 2, tid);
-        Comm::receive(threshold_c, 64, 2, tid);
+        Comm::receive(year_share, 64, 2, tid);
     }
 
-    View result_view;
+    // 4) 服务端执行查询物理计划
     if (Comm::isServer()) {
-        auto query_start = System::currentTimeMillis();
+        auto v = createR(id_b, cs_b, year_b, cs_plus_b);
 
-        // Create table R
-        auto r_view = createRTable(id_shares, cs_shares, year_shares);
+        auto t0 = System::currentTimeMillis();
+        auto vf = filterByYear(v, year_share, tid + 100); // 过滤后立刻压缩
+        auto va = groupMinCsPlusMaxCs(vf, tid + 200); // GROUP BY + 双聚合
+        auto out = finalizeByLess(va, tid + 300); // MIN(CS_PLUS) < MAX(CS)
 
-        // Step 1: Filter by year = 2019
-        auto filtered_view = filterByYear(r_view, target_year, tid);
-
-        // Step 2: GROUP BY ID and compute MIN(CS), MAX(CS)
-        auto aggregated_view = groupByAndAggregate(filtered_view, tid);
-
-        // Step 3: Filter by cs2 - cs1 > c
-        result_view = filterByDifference(aggregated_view, threshold_c, tid);
-
-        auto query_end = System::currentTimeMillis();
-        Log::i("Total query execution time: {}ms", query_end - query_start);
+        auto t1 = System::currentTimeMillis();
+        Log::i("Query time: {}ms", (t1 - t0));
     }
 
     System::finalize();
     return 0;
 }
 
-// Function implementations
+// -------------------- 实现 --------------------
 
-void generateTestData(int rows,
-                      std::vector<int64_t> &id_data,
-                      std::vector<int64_t> &cs_data,
-                      std::vector<int64_t> &year_data) {
-    if (Comm::rank() == 2) {
-        id_data.reserve(rows);
-        cs_data.reserve(rows);
-        year_data.reserve(rows);
+// 随机数据生成：
+// - ID/CS/year 全随机；
+// - 随机选择阈值 c（客户端保留），直接生成 CS_PLUS = CS + c (mod 2^64)；
+// - 从已生成的 year 中随机挑一个作为 target_year，保证过滤后通常非空。
+void generateRandomData(
+    int rows,
+    std::vector<int64_t> &id,
+    std::vector<int64_t> &cs,
+    std::vector<int64_t> &year,
+    std::vector<int64_t> &cs_plus,
+    int64_t &chosen_year,
+    int64_t &chosen_c
+) {
+    if (Comm::rank() != 2) return;
 
-        for (int i = 0; i < rows; i++) {
-            int64_t id = Math::randInt(); // Groups 1-10
-            int64_t year = Math::randInt(); // Random year
-            int64_t cs = Math::randInt(); // Random CS value 0-999
+    id.reserve(rows);
+    cs.reserve(rows);
+    year.reserve(rows);
+    cs_plus.reserve(rows);
 
-            id_data.push_back(id);
-            year_data.push_back(year);
-            cs_data.push_back(cs);
-        }
+    // 生成一个随机阈值 c（例如 1..100 之间）
+    chosen_c = Math::randInt();
+
+    // 生成随机数据
+    for (int i = 0; i < rows; ++i) {
+        // 让 ID 有重号（便于分组），使用较小基数
+        int64_t rid = Math::randInt();
+        int64_t rcs = Math::randInt(); // 任意 64 位
+        int64_t ryr = Math::randInt(); // 2000..2029 之间
+
+        id.push_back(rid);
+        cs.push_back(rcs);
+        year.push_back(ryr);
+
+        uint64_t sum = rcs + chosen_c;
+        cs_plus.push_back(sum); // 2^64 环加
     }
+
+    chosen_year = 2019;
 }
 
-View createRTable(std::vector<int64_t> &id_shares,
-                  std::vector<int64_t> &cs_shares,
-                  std::vector<int64_t> &year_shares) {
-    std::string table_name = "R";
-    std::vector<std::string> fields = {"ID", "CS", "year"};
-    std::vector<int> widths = {64, 64, 64};
-
-    Table r_table(table_name, fields, widths, "");
-
-    for (size_t i = 0; i < id_shares.size(); i++) {
-        std::vector<int64_t> row = {
-            id_shares[i],
-            cs_shares[i],
-            year_shares[i]
-        };
-        r_table.insert(row);
+View createR(std::vector<int64_t> &id_b,
+             std::vector<int64_t> &cs_b,
+             std::vector<int64_t> &year_b,
+             std::vector<int64_t> &cs_plus_b) {
+    std::string tname = "R";
+    std::vector<std::string> fields = {"ID", "CS", "year", "CS_PLUS"};
+    std::vector<int> widths = {64, 64, 64, 64};
+    Table t(tname, fields, widths, "");
+    size_t n = id_b.size();
+    for (size_t i = 0; i < n; ++i) {
+        t.insert({id_b[i], cs_b[i], year_b[i], cs_plus_b[i]});
     }
-
-    auto r_view = Views::selectAll(r_table);
-    return r_view;
+    return Views::selectAll(t);
 }
 
-View filterByYear(View &r_view, int64_t target_year, int tid) {
-    std::vector<std::string> fieldNames = {"year"};
-    std::vector<View::ComparatorType> comparatorTypes = {View::EQUALS};
-    std::vector<int64_t> constShares = {target_year};
-
-    View filtered_view = r_view;
-    filtered_view.filterAndConditions(fieldNames, comparatorTypes, constShares, tid);
-
-    return filtered_view;
+// ★ 关键：过滤后立刻压缩（清掉无效行，避免后续聚合污染）
+View filterByYear(View v, int64_t year_share, int tid) {
+    std::vector<std::string> fields = {"year"};
+    std::vector<View::ComparatorType> ops = {View::EQUALS};
+    std::vector<int64_t> consts = {year_share};
+    v.filterAndConditions(fields, ops, consts, tid);
+    return v;
 }
 
-View groupByAndAggregate(View &filtered_view, int tid) {
-    if (filtered_view.rowNum() == 0) {
-        // Create empty result
-        std::vector<std::string> result_fields = {"ID", "cs1", "cs2"};
-        std::vector<int> result_widths = {64, 64, 64};
-        View result_view(result_fields, result_widths);
-        return result_view;
-    }
-
-    // Perform GROUP BY on ID field
-    auto heads = filtered_view.groupBy("ID", tid);
-
-    // Use the new minAndMax function to compute both min and max in one operation
-    filtered_view.minAndMax(heads, "CS", "cs1", "cs2", tid);
-
-    return filtered_view;
+View groupMinCsPlusMaxCs(View v, int tid) {
+    if (v.rowNum() == 0) return v;
+    auto heads = v.groupBy("ID", tid);
+    // 使用你新接口：左列做 min(CS_PLUS)，右列做 max(CS)
+    v.minAndMax(heads, "CS_PLUS", "CS", "cs1_plus", "cs2", tid);
+    return v;
 }
 
-View filterByDifference(View &aggregated_view, int64_t threshold_c, int tid) {
-    if (aggregated_view.rowNum() == 0) {
-        return aggregated_view;
+View finalizeByLess(View v, int tid) {
+    if (v.rowNum() == 0) return v;
+
+    const int a = v.colIndex("cs1_plus");
+    const int b = v.colIndex("cs2");
+    if (a < 0 || b < 0) {
+        Log::e("Aggregated columns missing");
+        return v;
     }
 
-    auto &cs1_data = aggregated_view._dataCols[aggregated_view.colIndex("cs1")]; // cs1 (min)
-    auto &cs2_data = aggregated_view._dataCols[aggregated_view.colIndex("cs2")]; // cs2 (max)
+    auto &min_plus = v._dataCols[a];
+    auto &max_cs = v._dataCols[b];
 
-    std::vector<int64_t> comparison_result_bool;
+    // MIN(CS_PLUS) < MAX(CS)
+    auto lessBits = BoolLessBatchOperator(&min_plus, &max_cs, 64, 0, tid,
+                                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
-    if (Conf::BATCH_SIZE <= 0 || Conf::DISABLE_MULTI_THREAD) {
-        // Single batch processing
-        
-        // Step 1: Convert bool shares to arith shares
-        auto cs1_arith = BoolToArithBatchOperator(&cs1_data, 64, 0, tid,
-                                                  SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-        auto cs2_arith = BoolToArithBatchOperator(&cs2_data, 64, 0, tid + BoolToArithBatchOperator::tagStride(),
-                                                  SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+    // 与已有 valid 取 AND，保证只保留 group 尾行且此前有效
+    int vidx = v.colNum() + View::VALID_COL_OFFSET;
+    auto validAnd = BoolAndBatchOperator(&lessBits, &v._dataCols[vidx], 1, 0,
+                                         tid + BoolLessBatchOperator::tagStride(),
+                                         SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+    v._dataCols[vidx] = std::move(validAnd);
 
-        // Step 2: Compute cs2 - cs1 using addition: cs2 + (-cs1)
-        std::vector<int64_t> neg_cs1_arith;
-        neg_cs1_arith.reserve(cs1_arith.size());
-        for (const auto &val : cs1_arith) {
-            neg_cs1_arith.push_back(-val);
-        }
-
-        auto differences = ArithAddBatchOperator(&cs2_arith, &neg_cs1_arith, 64, 0, 
-                                                 tid + 2 * BoolToArithBatchOperator::tagStride(),
-                                                 SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-
-        // Step 3: Compare with threshold: diff > threshold_c (threshold < diff)
-        std::vector<int64_t> threshold_arith(differences.size(), threshold_c);
-        auto comparison_result_arith = ArithLessBatchOperator(&threshold_arith, &differences, 64, 0, 
-                                                              tid + 2 * BoolToArithBatchOperator::tagStride() + ArithAddBatchOperator::tagStride(),
-                                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-
-        // Step 4: Convert comparison result back to bool shares
-        comparison_result_bool = ArithToBoolBatchOperator(&comparison_result_arith, 64, 0, 
-                                                          tid + 2 * BoolToArithBatchOperator::tagStride() + ArithAddBatchOperator::tagStride() + ArithLessBatchOperator::tagStride(64),
-                                                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-    } else {
-        // Multi-batch processing
-        
-        size_t data_size = cs1_data.size();
-        int batchSize = Conf::BATCH_SIZE;
-        int batchNum = (data_size + batchSize - 1) / batchSize;
-
-        std::vector<std::future<std::vector<int64_t>>> batch_futures(batchNum);
-
-        for (int b = 0; b < batchNum; ++b) {
-            batch_futures[b] = ThreadPoolSupport::submit([&, b]() -> std::vector<int64_t> {
-                int start = b * batchSize;
-                int end = std::min(start + batchSize, static_cast<int>(data_size));
-
-                std::vector<int64_t> batch_cs1(cs1_data.begin() + start, cs1_data.begin() + end);
-                std::vector<int64_t> batch_cs2(cs2_data.begin() + start, cs2_data.begin() + end);
-
-                int batch_tid = tid + b * (2 * BoolToArithBatchOperator::tagStride() + ArithAddBatchOperator::tagStride() + ArithLessBatchOperator::tagStride(64) + ArithToBoolBatchOperator::tagStride(64));
-
-                // Step 1: Convert bool shares to arith shares
-                auto cs1_arith = BoolToArithBatchOperator(&batch_cs1, 64, 0, batch_tid,
-                                                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-                auto cs2_arith = BoolToArithBatchOperator(&batch_cs2, 64, 0, batch_tid + BoolToArithBatchOperator::tagStride(),
-                                                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-
-                // Step 2: Compute cs2 - cs1 using addition: cs2 + (-cs1)
-                std::vector<int64_t> neg_cs1_arith;
-                neg_cs1_arith.reserve(cs1_arith.size());
-                for (const auto &val : cs1_arith) {
-                    neg_cs1_arith.push_back(-val);
-                }
-
-                auto differences = ArithAddBatchOperator(&cs2_arith, &neg_cs1_arith, 64, 0, 
-                                                         batch_tid + 2 * BoolToArithBatchOperator::tagStride(),
-                                                         SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-
-                // Step 3: Compare with threshold: diff > threshold_c (threshold < diff)
-                std::vector<int64_t> threshold_arith(differences.size(), threshold_c);
-                auto comparison_result_arith = ArithLessBatchOperator(&threshold_arith, &differences, 64, 0, 
-                                                                      batch_tid + 2 * BoolToArithBatchOperator::tagStride() + ArithAddBatchOperator::tagStride(),
-                                                                      SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-
-                // Step 4: Convert comparison result back to bool shares
-                return ArithToBoolBatchOperator(&comparison_result_arith, 64, 0, 
-                                                batch_tid + 2 * BoolToArithBatchOperator::tagStride() + ArithAddBatchOperator::tagStride() + ArithLessBatchOperator::tagStride(64),
-                                                SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-            });
-        }
-
-        comparison_result_bool.reserve(data_size);
-        for (auto &f : batch_futures) {
-            auto batch_res = f.get();
-            comparison_result_bool.insert(comparison_result_bool.end(), batch_res.begin(), batch_res.end());
-        }
+    // 仅输出 ID 列
+    std::vector<std::string> fields = {"ID"};
+    std::vector<int> widths = {64};
+    View out(fields, widths);
+    if (v.rowNum() > 0) {
+        out._dataCols[0] = v._dataCols[v.colIndex("ID")];
+        out._dataCols[out.colNum() + View::VALID_COL_OFFSET] = v._dataCols[vidx];
+        out._dataCols[out.colNum() + View::PADDING_COL_OFFSET] = std::vector<int64_t>(out._dataCols[0].size(), 0);
     }
-
-    // Apply the filter condition
-    aggregated_view._dataCols[aggregated_view.colNum() + View::VALID_COL_OFFSET] = comparison_result_bool;
-    
-    aggregated_view.clearInvalidEntries(0);
-
-    // Create final result view with only ID column
-    std::vector<std::string> result_fields = {"ID"};
-    std::vector<int> result_widths = {64};
-    View result_view(result_fields, result_widths);
-
-    if (aggregated_view.rowNum() > 0) {
-        result_view._dataCols[0] = aggregated_view._dataCols[0]; // ID column
-        result_view._dataCols[result_view.colNum() + View::VALID_COL_OFFSET] =
-                std::vector<int64_t>(result_view._dataCols[0].size(), Comm::rank());
-        result_view._dataCols[result_view.colNum() + View::PADDING_COL_OFFSET] =
-                std::vector<int64_t>(result_view._dataCols[0].size(), 0);
-    }
-
-    return result_view;
-}
-
-void displayResults(View &result_view, int tid) {
-    std::vector<int64_t> id_col;
-    if (Comm::isServer() && !result_view._dataCols.empty()) {
-        id_col = result_view._dataCols[0];
-    }
-
-    auto id_plain = Secrets::boolReconstruct(id_col, 2, 64, tid);
-
-    if (Comm::rank() == 2) {
-        Log::i("Number of IDs satisfying condition: {}", id_plain.size());
-    }
+    return out;
 }
