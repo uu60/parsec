@@ -78,7 +78,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (Comm::isClient()) {
-        Log::i("Data size: ", num_records);
+        Log::i("Data size: {}", num_records);
     }
 
     // Build random dataset
@@ -110,12 +110,11 @@ int main(int argc, char *argv[]) {
     }
 
     if (Comm::isServer()) {
-        auto query_start = System::currentTimeMillis();
-
         // Step 1: Create diagnosis table with hash tag & redundant fields
         auto diagnosis_view = createDiagnosisTable(pid_shares, pid_hash_shares, time_shares,
                                                    time_plus_15_shares, time_plus_56_shares,
                                                    row_no_shares, row_no_plus_1_shares, diag_shares);
+        auto query_start = System::currentTimeMillis();
 
         // Step 2–3: rcd = sort(pid,time) + filter(diag=cdiff) + compaction
         auto rcd_view = buildRcdNoJoin(diagnosis_view, cdiff_code, tid);

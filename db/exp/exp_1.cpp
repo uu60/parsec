@@ -95,11 +95,11 @@ int main(int argc, char *argv[]) {
 
     View result_view;
     if (Comm::isServer()) {
-        auto query_start = System::currentTimeMillis();
-
         // Create tables
         auto diagnosis_view     = createDiagnosisTable(diagnosis_pid_shares, diagnosis_diag_shares, diagnosis_extra_shares);
         auto cdiff_cohort_view  = createCohortTable(cdiff_cohort_pid_shares);
+
+        auto query_start = System::currentTimeMillis();
 
         // Execute query steps
         auto in_results         = executeWhereInClause(diagnosis_view, cdiff_cohort_view);

@@ -136,16 +136,15 @@ int main(int argc, char *argv[]) {
     }
 
     if (Comm::isServer()) {
-        auto t0 = System::currentTimeMillis();
+        // 建表
+        auto diagnosis_view = createDiagnosisTable(d_pid_s, d_diag_s, d_time_s, d_tag_s);
+        auto medication_view = createMedicationTable(m_pid_s, m_med_s, m_time_s, m_tag_s);
 
-            // 建表
-            auto diagnosis_view = createDiagnosisTable(d_pid_s, d_diag_s, d_time_s, d_tag_s);
-            auto medication_view = createMedicationTable(m_pid_s, m_med_s, m_time_s, m_tag_s);
-
-            std::string col_diag = "diag";
-            std::string col_med = "med";
+        std::string col_diag = "diag";
+        std::string col_med = "med";
 
         View d_min, m_max;
+        auto t0 = System::currentTimeMillis();
         if (DbConf::BASELINE_MODE) {
             // 谓词下推
             auto dv = filterEquals(diagnosis_view, col_diag, hd_share, tid);
@@ -243,7 +242,6 @@ void generateTestData(int diagRows, int medRows,
             // Compute bucket tag using hash of the pid (join key)
             medication_tag_data.push_back(Views::hash(pid));
         }
-
     }
 }
 
