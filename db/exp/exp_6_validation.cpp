@@ -40,8 +40,71 @@
 #include "conf/DbConf.h"
 #include "utils/StringUtils.h"
 
-static int64_t PLAIN_START_DATE = Math::randInt(); // [199401, 199404)
-static int64_t PLAIN_END_DATE   = PLAIN_START_DATE + 3;
+void generateFixedData(std::vector<int64_t>& o_orderkey,
+                       std::vector<int64_t>& o_orderpriority,
+                       std::vector<int64_t>& o_orderdate,
+                       std::vector<int64_t>& l_orderkey,
+                       std::vector<int64_t>& l_commitdate,
+                       std::vector<int64_t>& l_receiptdate) {
+    if (Comm::rank() != 2) return;
+
+    struct O { int64_t ok, pr, dt; };
+    struct L { int64_t ok, c,  r;  };
+
+    std::vector<O> ODS = {
+        {1,1,199401},{2,2,199402},{3,1,199403},{4,3,199404},
+        {5,2,199312},{6,1,199401},{7,3,199402},{8,3,199402}
+    };
+    std::vector<L> LDS = {
+        {1,1,2},{1,5,3},{2,7,7},{3,10,11},{4,1,2},{5,1,2},{6,3,1},{7,100,101},{8,50,60}
+    };
+
+    o_orderkey.reserve(ODS.size());
+    o_orderpriority.reserve(ODS.size());
+    o_orderdate.reserve(ODS.size());
+    for (auto &t: ODS) {
+        o_orderkey.push_back(t.ok);
+        o_orderpriority.push_back(t.pr);
+        o_orderdate.push_back(t.dt);
+    }
+
+    l_orderkey.reserve(LDS.size());
+    l_commitdate.reserve(LDS.size());
+    l_receiptdate.reserve(LDS.size());
+    for (auto &t: LDS) {
+        l_orderkey.push_back(t.ok);
+        l_commitdate.push_back(t.c);
+        l_receiptdate.push_back(t.r);
+    }
+}
+
+static constexpr int64_t PLAIN_START_DATE = 199401; // [199401, 199404)
+static constexpr int64_t PLAIN_END_DATE   = 199404;
+// 客户端明文计算期望（按优先级升序）
+std::vector<std::pair<int64_t,int64_t>>
+computeExpected(const std::vector<int64_t>& o_ok,
+                const std::vector<int64_t>& o_pr,
+                const std::vector<int64_t>& o_dt,
+                const std::vector<int64_t>& l_ok,
+                const std::vector<int64_t>& l_cd,
+                const std::vector<int64_t>& l_rd) {
+    std::set<int64_t> ok_with_true;
+    for (size_t i=0;i<l_ok.size();++i) {
+        if (l_cd[i] < l_rd[i]) ok_with_true.insert(l_ok[i]);
+    }
+    std::map<int64_t,int64_t> agg; // pr -> count
+    for (size_t i=0;i<o_ok.size();++i) {
+        if (o_dt[i] >= PLAIN_START_DATE && o_dt[i] < PLAIN_END_DATE) {
+            if (ok_with_true.count(o_ok[i])) {
+                agg[o_pr[i]]++;
+            }
+        }
+    }
+    std::vector<std::pair<int64_t,int64_t>> out(agg.begin(), agg.end());
+    std::sort(out.begin(), out.end()); // by priority asc
+    return out; // 期望：(1,2), (3,2)
+}
+
 
 // Forward declarations
 void generateTestData(int orders_rows, int lineitem_rows,
@@ -78,25 +141,35 @@ int main(int argc, char *argv[]) {
     auto tid = System::nextTask() << (32 - Conf::TASK_TAG_BITS);
 
     // Read parameters from command line
-    int orders_rows = 1000;
-    int lineitem_rows = 1000;
+    // int orders_rows = 1000;
+    // int lineitem_rows = 1000;
+    //
+    // if (Conf::_userParams.count("rows1")) {
+    //     orders_rows = std::stoi(Conf::_userParams["rows1"]);
+    // }
+    // if (Conf::_userParams.count("rows2")) {
+    //     lineitem_rows = std::stoi(Conf::_userParams["rows2"]);
+    // }
 
-    if (Conf::_userParams.count("rows1")) {
-        orders_rows = std::stoi(Conf::_userParams["rows1"]);
-    }
-    if (Conf::_userParams.count("rows2")) {
-        lineitem_rows = std::stoi(Conf::_userParams["rows2"]);
-    }
-
-    if (Comm::isClient()) {
-        Log::i("Data size: orders: {} lineitem: {}", orders_rows, lineitem_rows);
-    }
+    // if (Comm::isClient()) {
+    //     Log::i("Data size: orders: {} lineitem: {}", orders_rows, lineitem_rows);
+    // }
 
     // Generate test data
     std::vector<int64_t> o_orderkey_data, o_orderpriority_data, o_orderdate_data;
     std::vector<int64_t> l_orderkey_data, l_commitdate_data, l_receiptdate_data;
-    generateTestData(orders_rows, lineitem_rows, o_orderkey_data, o_orderpriority_data, o_orderdate_data,
+    generateFixedData(o_orderkey_data, o_orderpriority_data, o_orderdate_data,
                      l_orderkey_data, l_commitdate_data, l_receiptdate_data);
+
+    std::vector<std::pair<int64_t,int64_t>> expected;
+    if (Comm::rank() == 2) {
+        expected = computeExpected(o_orderkey_data, o_orderpriority_data, o_orderdate_data,
+                     l_orderkey_data, l_commitdate_data, l_receiptdate_data);
+        // 打印期望
+        std::vector<std::string> parts;
+        for (auto &p: expected) parts.push_back("(" + std::to_string(p.first) + "," + std::to_string(p.second) + ")");
+        Log::i("Expected (priority,count) sorted: {}", StringUtils::vecToString(parts));
+    }
 
     // Convert to secret shares for 2PC
     auto o_orderkey_shares = Secrets::boolShare(o_orderkey_data, 2, 64, tid);
@@ -111,6 +184,8 @@ int main(int argc, char *argv[]) {
         int64_t rand_int0 = Math::randInt();
         int64_t start_date0 = PLAIN_START_DATE ^ rand_int0;
         int64_t start_date1 = rand_int0;
+
+
         int64_t rand_int1 = Math::randInt();
         int64_t end_date0 = PLAIN_END_DATE ^ rand_int1;
         int64_t end_date1 = rand_int1;
@@ -153,8 +228,9 @@ int main(int argc, char *argv[]) {
         // Step 5: GROUP BY o_orderpriority and COUNT(*)
         result_view = executeGroupByCount(final_orders, tid);
 
-        // Step 6: ORDER BY o_orderpriority (NO NEED, Already sorted in last process)
+        // Step 6: ORDER BY o_orderpriority
         // result_view = executeSortByPriority(result_view, tid);
+        Views::revealAndPrint(result_view);
 
         auto query_end = System::currentTimeMillis();
         Log::i("Total query execution time: {}ms", query_end - query_start);

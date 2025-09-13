@@ -1,9 +1,9 @@
-#!/bin/zsh
+#!/bin/sh
 
 # Parse command line arguments
 USE_ASAN=false
-while [[ $# -gt 0 ]]; do
-  case $1 in
+while [ "$#" -gt 0 ]; do
+  case "$1" in
     --asan)
       USE_ASAN=true
       shift
@@ -23,14 +23,14 @@ while [[ $# -gt 0 ]]; do
 done
 
 # cd to script dir (portable; avoids 'readlink -f' on macOS)
-SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd -P)"
+SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd -P) || exit 1
 cd "$SCRIPT_DIR" || exit 1
 
 sudo rm -rf build
 mkdir build && cd build || exit 1
 
 # Configure CMake with or without ASAN
-if [[ "$USE_ASAN" == true ]]; then
+if [ "$USE_ASAN" = true ]; then
   echo "Building with AddressSanitizer enabled (O1)…"
   cmake .. -G Ninja \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
