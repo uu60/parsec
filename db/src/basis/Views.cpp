@@ -95,8 +95,9 @@ View Views::nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string 
     };
 
     for (size_t i = 0; i < effectiveFieldNum0; ++i) fieldNames[i] = decorate(tableName0, v0._fieldNames[i]);
-    for (size_t i = 0; i < effectiveFieldNum1; ++i) fieldNames[i + effectiveFieldNum0] = decorate(
-                                                        tableName1, v1._fieldNames[i]);
+    for (size_t i = 0; i < effectiveFieldNum1; ++i)
+        fieldNames[i + effectiveFieldNum0] = decorate(
+            tableName1, v1._fieldNames[i]);
 
     std::vector<int> fieldWidths(effectiveFieldNum0 + effectiveFieldNum1);
     for (size_t i = 0; i < effectiveFieldNum0; ++i) fieldWidths[i] = v0._fieldWidths[i];
@@ -457,7 +458,8 @@ View Views::performBucketJoins(
     View &v0,
     View &v1,
     std::string &field0,
-    std::string &field1
+    std::string &field1,
+    bool compress
 ) {
     const size_t numBuckets = buckets0.size();
     bool firstResult = true;
@@ -481,7 +483,7 @@ View Views::performBucketJoins(
         right._dataCols = buckets1[b];
         right._dataCols.emplace_back(right.rowNum(), 0);
 
-        if (!DbConf::DISABLE_PRECISE_COMPACTION) {
+        if (!DbConf::DISABLE_PRECISE_COMPACTION && compress) {
             if (Conf::DISABLE_MULTI_THREAD) {
                 left.clearInvalidEntries(0);
                 right.clearInvalidEntries(0);
@@ -494,7 +496,7 @@ View Views::performBucketJoins(
             }
         }
 
-        View joined = nestedLoopJoin(left, right, field0, field1);
+        View joined = nestedLoopJoin(left, right, field0, field1, compress);
 
         if (joined._dataCols.empty() || joined._dataCols[0].empty()) {
             continue;
@@ -536,7 +538,7 @@ View Views::performBucketJoins(
         result = View(fieldNames, fieldWidths);
     }
 
-    if (DbConf::DISABLE_PRECISE_COMPACTION) {
+    if (DbConf::DISABLE_PRECISE_COMPACTION && compress) {
         result.clearInvalidEntries(0);
     }
 
@@ -551,6 +553,10 @@ int Views::butterflyPermutationTagStride(View &v) {
 
 // Main shuffle bucket join function
 View Views::hashJoin(View &v0, View &v1, std::string &field0, std::string &field1) {
+    return hashJoin(v0, v1, field0, field1, true);
+}
+
+View Views::hashJoin(View &v0, View &v1, std::string &field0, std::string &field1, bool compress) {
     if (DbConf::BASELINE_MODE) {
         return nestedLoopJoin(v0, v1, field0, field1);
     }
@@ -574,7 +580,7 @@ View Views::hashJoin(View &v0, View &v1, std::string &field0, std::string &field
     }
 
     if (tagColIndex0 == -1 || tagColIndex1 == -1) {
-        return nestedLoopJoin(v0, v1, field0, field1);
+        return nestedLoopJoin(v0, v1, field0, field1, compress);
     }
 
     std::vector<std::vector<std::vector<int64_t> > > buckets0, buckets1;
@@ -595,19 +601,29 @@ View Views::hashJoin(View &v0, View &v1, std::string &field0, std::string &field
         }
     }
 
-    auto result = performBucketJoins(buckets0, buckets1, v0, v1, field0, field1);
+    auto result = performBucketJoins(buckets0, buckets1, v0, v1, field0, field1, compress);
 
     return result;
 }
 
 View Views::leftOuterJoin(View &v0, View &v1, std::string &field0, std::string &field1) {
-    // 0) 内连接（保持原逻辑与 tag 分配）
-    View inner = hashJoin(v0, v1, field0, field1);
+    return leftOuterJoin(v0, v1, field0, field1, true, true);
+}
+
+View Views::leftOuterJoin(View &v0, View &v1, std::string &field0, std::string &field1, bool doHashJoin,
+                          bool compress) {
+    // 0) 先做内连接（保持原逻辑与列顺序）
+    View joined;
+    if (doHashJoin) {
+        joined = hashJoin(v0, v1, field0, field1, compress);
+    } else {
+        joined = nestedLoopJoin(v0, v1, field0, field1, compress);
+    }
 
     // 1) 取键列与有效列
     const int k0 = v0.colIndex(field0);
     const int k1 = v1.colIndex(field1);
-    if (k0 < 0 || k1 < 0) return inner;
+    if (k0 < 0 || k1 < 0) return joined;
 
     const auto &left_keys = v0._dataCols[k0];
     const auto &right_keys = v1._dataCols[k1];
@@ -618,14 +634,13 @@ View Views::leftOuterJoin(View &v0, View &v1, std::string &field0, std::string &
     const auto &right_valid = v1._dataCols[v1_valid_idx];
 
     // 2) 半连接：has_match[i] ∈ {0,1}（布尔分享）
-    // 已在 in() 内根据 PRECISE/非精确路径处理了右掩蔽与左掩蔽
     std::vector<int64_t> has_match =
             in(const_cast<std::vector<int64_t> &>(left_keys),
                const_cast<std::vector<int64_t> &>(right_keys),
                const_cast<std::vector<int64_t> &>(v0._dataCols[v0_valid_idx]),
                const_cast<std::vector<int64_t> &>(v1._dataCols[v1_valid_idx]));
 
-    // 3) 目标列结构（与 inner 一致）：v0(有效列) + v1(有效列)
+    // 3) left_only 视图（列布局与 inner 一致：左有效列 + 右有效列）
     const size_t eff0 = v0.colNum() - 2; // 去掉 VALID/PADDING
     const size_t eff1 = v1.colNum() - 2;
 
@@ -633,6 +648,7 @@ View Views::leftOuterJoin(View &v0, View &v1, std::string &field0, std::string &
     names.reserve(eff0 + eff1);
     std::vector<int> widths;
     widths.reserve(eff0 + eff1);
+
     for (size_t i = 0; i < eff0; ++i) {
         names.push_back(v0._fieldNames[i]);
         widths.push_back(v0._fieldWidths[i]);
@@ -642,54 +658,65 @@ View Views::leftOuterJoin(View &v0, View &v1, std::string &field0, std::string &
         widths.push_back(v1._fieldWidths[i]);
     }
 
-    // 4) 构造 left_only：右侧全空；有效位 = left_valid ∧ ¬has_match
     View left_only(names, widths);
     const size_t n0 = v0.rowNum();
 
-    // 4.1 左侧有效列拷贝
+    // 3.1 左侧有效列拷贝
     for (size_t c = 0; c < eff0; ++c) {
-        left_only._dataCols[c] = v0._dataCols[c]; // 与 v0 行数一致
+        left_only._dataCols[c] = v0._dataCols[c];
     }
-    // 4.2 右侧有效列置 0（空值）
+    // 3.2 右侧有效列置 0（表示 NULL）
     for (size_t c = 0; c < eff1; ++c) {
         left_only._dataCols[eff0 + c].assign(n0, 0);
     }
 
-    // 4.3 计算有效位：not_has = left_valid ∧ ¬has_match
+    // 3.3 计算 left_only 的有效位：not_has = left_valid ∧ ¬has_match
     std::vector<int64_t> not_has(n0);
-    const int64_t mask = Comm::rank();
-    for (size_t i = 0; i < n0; ++i) {
-        not_has[i] = has_match[i] ^ mask; // 先做 NOT(has_match)
-    }
-    // 与 left_valid 相与
+    const int64_t MASK_ONE = Comm::rank(); // 1_share
+    for (size_t i = 0; i < n0; ++i) not_has[i] = has_match[i] ^ MASK_ONE; // ~has_match
     not_has = BoolAndBatchOperator(&not_has,
                                    const_cast<std::vector<int64_t> *>(&left_valid),
                                    /*bitlen=*/1, /*tid=*/0, /*msgTagBase=*/0,
-                                   SecureOperator::NO_CLIENT_COMPUTE)
-            .execute()->_zis;
+                                   SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+
+    // 3.4 在 left_only 中插入 $match=0_share（在 VALID 之前）
+    {
+        const int insertPos = left_only.colNum() - 2;
+        left_only._fieldNames.insert(left_only._fieldNames.begin() + insertPos, View::OUTER_MATCH_PREFIX + v1._tableName);
+        left_only._fieldWidths.insert(left_only._fieldWidths.begin() + insertPos, 1);
+        left_only._dataCols.insert(left_only._dataCols.begin() + insertPos, std::vector<int64_t>(n0, 0));
+    }
 
     // 写入 VALID / PADDING
     left_only._dataCols[left_only.colNum() + View::VALID_COL_OFFSET] = std::move(not_has);
-    left_only._dataCols[left_only.colNum() + View::PADDING_COL_OFFSET] = std::vector<int64_t>(n0, 0);
+    left_only._dataCols[left_only.colNum() + View::PADDING_COL_OFFSET] = std::vector<int64_t>(left_only.rowNum(), 0);
 
-    // 5) 压缩策略：BASELINE 不压缩；精确/非精确压缩交给 clearInvalidEntries
-    if (!DbConf::BASELINE_MODE) {
-        left_only.clearInvalidEntries(/*msgTagBase=*/0); // 内部按 DISABLE_PRECISE_COMPACTION 选择精确/近似
+    // 4) 在 joined（内连接结果）里同样插入一列 $match=1_share（更严谨：直接复用其 VALID）
+    {
+        const int insertPos = joined.colNum() - 2;
+        const int j_valid = joined.colNum() + View::VALID_COL_OFFSET;
+        // 用 VALID 作为 $match，保证只有真实有效的内连接行是 1
+        std::vector<int64_t> match_joined = joined._dataCols[j_valid];
+
+        joined._fieldNames.insert(joined._fieldNames.begin() + insertPos, View::OUTER_MATCH_PREFIX + v1._tableName);
+        joined._fieldWidths.insert(joined._fieldWidths.begin() + insertPos, 1);
+        joined._dataCols.insert(joined._dataCols.begin() + insertPos, std::move(match_joined));
     }
 
-    // 6) 结果 = 内连接 ∪ left_only（逐列 append；保持原有列顺序与 tag 习惯）
-    View result = inner; // 拷贝结构
-    const size_t total_cols = result.colNum() + 2; // 含 VALID/PADDING
+    // 5) 非 BASELINE 可压缩（可选）
+    if (!DbConf::BASELINE_MODE && compress) {
+        left_only.clearInvalidEntries(/*msgTagBase=*/0);
+    }
+
+    // 6) 拼接：结果 = joined ∪ left_only（逐列 append；列数需一致）
+    const size_t total_cols = joined.colNum(); // 已包含新插入的 $match 以及 VALID/PADDING
     for (size_t col = 0; col < total_cols; ++col) {
-        auto &dst = result._dataCols[col];
+        auto &dst = joined._dataCols[col];
         auto &src = left_only._dataCols[col];
         dst.insert(dst.end(), src.begin(), src.end());
     }
 
-    // 可选：若你的外层调用希望在本函数就做物理压缩，可在非 BASELINE 下：
-    // if (!DbConf::BASELINE_MODE) result.clearInvalidEntries(0);
-
-    return result;
+    return joined;
 }
 
 std::string Views::getAliasColName(std::string &tableName, std::string &fieldName) {
@@ -714,7 +741,7 @@ std::vector<int64_t> Views::in(std::vector<int64_t> &col1,
 static std::string makeBorder(const std::vector<size_t> &w) {
     std::ostringstream oss;
     oss << '+';
-    for (auto width : w) {
+    for (auto width: w) {
         oss << std::string(width + 2, '-') << '+';
     }
     return oss.str();
@@ -738,7 +765,7 @@ void Views::revealAndPrint(View &v) {
     const bool isSender = (Comm::rank() == 1);
 
     // 收集明文列
-    std::vector<std::vector<int64_t>> plainCols(C);
+    std::vector<std::vector<int64_t> > plainCols(C);
     size_t nRows = 0;
 
     for (int i = 0; i < C; i++) {

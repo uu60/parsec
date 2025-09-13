@@ -60,7 +60,7 @@ public:
     // Disable arith algorithms
     inline static bool DISABLE_ARITH = true;
     // Bmt gen batch size
-    inline static int BMT_GEN_BATCH_SIZE = 100000;
+    inline static int BMT_GEN_BATCH_SIZE = 10000;
 
     // ---------------Settings for threads---------------
     // Task tag bits

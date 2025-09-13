@@ -62,35 +62,94 @@ struct OrderRow {
     int64_t flag;
 };
 
-void generateTestData(int customer_rows, int orders_rows,
-                      std::vector<int64_t> &c_custkey_data,
-                      std::vector<int64_t> &o_custkey_data,
-                      std::vector<int64_t> &o_orderkey_data,
-                      std::vector<int64_t> &o_comment_flag_data) {
-    if (Comm::rank() == 2) {
-        // Generate random customer data
-        c_custkey_data.reserve(customer_rows);
+// 生成固定 block，并按需重复/裁剪至请求规模；保证每个 block 的键域独立
+static void generateFixedDataRepeated(
+    int customer_rows, int orders_rows,
+    std::vector<int64_t> &c_keys,
+    std::vector<int64_t> &o_cust,
+    std::vector<int64_t> &o_okey,
+    std::vector<int64_t> &o_flag) {
+    if (Comm::rank() != 2) return;
 
-        for (int i = 0; i < customer_rows; i++) {
-            int64_t custkey = Math::randInt();
-            c_custkey_data.push_back(custkey);
+    // --- base customers (7) ---
+    int BASE_C = 7;
+    std::vector<int64_t> baseCust = {1, 2, 3, 4, 5, 6, 7};
+
+    // --- base orders (12)，引用上面的 1..7 ---
+    // flag=0: 保留；flag=1: 排除（等价于 o_comment not like ...）
+    std::vector<OrderRow> baseOrders = {
+        {1, 101, 0}, {1, 102, 0},
+        {2, 201, 0},
+        {3, 301, 1}, {3, 302, 1},
+        {5, 501, 0}, {5, 502, 1}, {5, 503, 0},
+        {6, 601, 0}, {6, 602, 0}, {6, 603, 0},
+        {7, 701, 1}
+    };
+
+    // 计算需要多少个 block
+    int blocks_c = (customer_rows + BASE_C - 1) / BASE_C;
+    int blocks_o = (orders_rows + (int) baseOrders.size() - 1) / (int) baseOrders.size();
+    int blocks = std::max(blocks_c, blocks_o);
+
+    c_keys.reserve(blocks * BASE_C);
+    int64_t orderkey_seed = 1;
+
+    for (int b = 0; b < blocks; ++b) {
+        int64_t coff = (int64_t) b * BASE_C; // 每个 block 的客户键偏移
+        // customers
+        for (int i = 0; i < BASE_C; ++i) {
+            int64_t ck = baseCust[i] + coff;
+            c_keys.push_back(ck);
         }
-
-        // Generate random orders data
-        o_custkey_data.reserve(orders_rows);
-        o_orderkey_data.reserve(orders_rows);
-        o_comment_flag_data.reserve(orders_rows);
-
-        for (int i = 0; i < orders_rows; i++) {
-            int64_t custkey = Math::randInt();
-            int64_t orderkey = Math::randInt();
-            int64_t comment_flag = Math::randInt(); // 0 or 1
-
-            o_custkey_data.push_back(custkey);
-            o_orderkey_data.push_back(orderkey);
-            o_comment_flag_data.push_back(comment_flag);
+        // orders
+        for (auto r: baseOrders) {
+            int64_t ck = r.cust + coff;
+            int64_t ok = orderkey_seed++; // 仅保证唯一
+            o_cust.push_back(ck);
+            o_okey.push_back(ok);
+            o_flag.push_back(r.flag);
         }
     }
+
+    // 裁剪到目标行数
+    if ((int) c_keys.size() > customer_rows) {
+        c_keys.resize(customer_rows);
+    }
+    if ((int) o_cust.size() > orders_rows) {
+        o_cust.resize(orders_rows);
+        o_okey.resize(orders_rows);
+        o_flag.resize(orders_rows);
+    }
+}
+
+// 明文推导期望结果（基于上面生成的同一份明文）
+static std::vector<std::pair<int64_t, int64_t> > computeExpected(
+    std::vector<int64_t> &c_keys,
+    std::vector<int64_t> &o_cust,
+    std::vector<int64_t> &o_flag) {
+    // 每个客户的计数（只统计 flag==0 的订单）
+    std::map<int64_t, int64_t> perCustomer;
+    for (auto ck: c_keys) perCustomer[ck] = 0;
+    for (size_t i = 0; i < o_cust.size(); ++i) {
+        int64_t ck = o_cust[i];
+        auto it = perCustomer.find(ck);
+        if (it != perCustomer.end() && o_flag[i] == 0) it->second += 1;
+    }
+
+    // 直方图：c_count -> custdist
+    std::map<int64_t, int64_t> hist;
+    for (auto &kv: perCustomer) hist[kv.second]++;
+
+    // 转为 vector 并排序：custdist desc, c_count desc
+    std::vector<std::pair<int64_t, int64_t> > out;
+    out.reserve(hist.size());
+    for (auto &kv: hist) out.emplace_back(kv.first, kv.second);
+    std::sort(out.begin(), out.end(),
+              [](auto &a, auto &b) {
+                  if (a.second != b.second) return a.second > b.second; // custdist desc
+                  return a.first > b.first; // c_count desc
+              });
+    return out;
 }
 
 // ---------- 表创建函数 ----------
@@ -127,6 +186,8 @@ View createCntCTE(View &orders_view, int64_t word, int tid) {
     View filtered_orders = orders_view;
     filtered_orders.filterAndConditions(fields, cmps, consts, false, tid);
 
+    Log::i("CTE cnt - Filtered orders: {} rows", filtered_orders.rowNum());
+
     // Group by o_custkey and count
     std::vector<std::string> group_fields = {"o_custkey"};
     filtered_orders.select(group_fields);
@@ -140,6 +201,7 @@ View createCntCTE(View &orders_view, int64_t word, int tid) {
         filtered_orders._fieldNames[1] = "c_count";
     }
 
+    Log::i("CTE cnt result: {} rows", filtered_orders.rowNum());
     return filtered_orders;
 }
 
@@ -238,23 +300,26 @@ View unionHistAndZeros(View &hist_view, View &zeros_view, int tid) {
     std::vector<int> widths = {64, 64};
     View result_view(fields, widths);
 
-    // Initialize result view data columns
-    result_view._dataCols.resize(hist_view._dataCols.size());
+    if (Comm::isServer()) {
+        // Initialize result view data columns
+        result_view._dataCols.resize(hist_view._dataCols.size());
 
-    // Copy hist data
-    for (size_t i = 0; i < hist_view._dataCols.size(); ++i) {
-        result_view._dataCols[i] = hist_view._dataCols[i];
-    }
+        // Copy hist data
+        for (size_t i = 0; i < hist_view._dataCols.size(); ++i) {
+            result_view._dataCols[i] = hist_view._dataCols[i];
+        }
 
-    // Append zeros data if it exists
-    if (zeros_view.rowNum() > 0) {
-        for (size_t i = 0; i < zeros_view._dataCols.size() && i < result_view._dataCols.size(); ++i) {
-            result_view._dataCols[i].insert(result_view._dataCols[i].end(),
-                                            zeros_view._dataCols[i].begin(),
-                                            zeros_view._dataCols[i].end());
+        // Append zeros data if it exists
+        if (zeros_view.rowNum() > 0) {
+            for (size_t i = 0; i < zeros_view._dataCols.size() && i < result_view._dataCols.size(); ++i) {
+                result_view._dataCols[i].insert(result_view._dataCols[i].end(),
+                                                zeros_view._dataCols[i].begin(),
+                                                zeros_view._dataCols[i].end());
+            }
         }
     }
 
+    Log::i("UNION ALL result: {} rows", result_view.rowNum());
     return result_view;
 }
 
@@ -268,6 +333,7 @@ View sortFinalResults(View &final_view, int tid) {
     std::vector<bool> sortOrders = {false, false}; // false = descending
     final_view.sort(sortFields, sortOrders, tid + 500);
 
+    Log::i("Final sorted result: {} rows", final_view.rowNum());
     return final_view;
 }
 
@@ -287,7 +353,16 @@ int main(int argc, char *argv[]) {
 
     // 1) 固定明文数据（含 block 复制/裁剪）
     std::vector<int64_t> c_keys, o_cust, o_okey, o_flag;
-    generateTestData(customer_rows, orders_rows, c_keys, o_cust, o_okey, o_flag);
+    generateFixedDataRepeated(customer_rows, orders_rows, c_keys, o_cust, o_okey, o_flag);
+
+    // 2) 明文端计算并打印期望结果（客户端）
+    if (Comm::rank() == 2) {
+        auto expected = computeExpected(c_keys, o_cust, o_flag);
+        std::vector<std::string> rows;
+        rows.reserve(expected.size());
+        for (auto &p: expected) rows.push_back("(" + std::to_string(p.first) + ", " + std::to_string(p.second) + ")");
+        Log::i("[EXPECTED] (c_count, custdist) sorted: {}", StringUtils::vecToString(rows));
+    }
 
     // 3) 分享数据
     auto c_key_b = Secrets::boolShare(c_keys, 2, 64, tid);
@@ -296,12 +371,11 @@ int main(int argc, char *argv[]) {
     auto o_flag_b = Secrets::boolShare(o_flag, 2, 64, tid);
 
     // 4) 分享常量：word=0，用 XOR 分享（两端 share 相同）
-    int64_t word;
+    int64_t word = 0;
     if (Comm::isClient()) {
-        word = Math::randInt();
         int64_t s = Math::randInt();
         Comm::send(s, 64, 0, tid);
-        Comm::send(word ^ s, 64, 1, tid); // s ^ s = 0
+        Comm::send(s, 64, 1, tid); // s ^ s = 0
     } else {
         Comm::receive(word, 64, 2, tid);
     }
@@ -313,29 +387,36 @@ int main(int argc, char *argv[]) {
         auto t0 = System::currentTimeMillis();
 
         // Step 1: Create CTE cnt (filter and group by customer)
-        auto vCnt = createCntCTE(vOrders, word, tid);
+        auto vCnt = createCntCTE(vOrders, word, tid + 1000);
+        auto t1 = System::currentTimeMillis();
+        Log::i("CTE cnt time: {}ms", (t1 - t0));
+
         auto vCnt_copy = vCnt;
+        // Step 2: Create CTE hist (group by count for c_count >= 1)
+        auto vHist = createHistCTE(vCnt, tid + 2000);
+        auto t2 = System::currentTimeMillis();
+        Log::i("CTE hist time: {}ms", (t2 - t1));
 
-        View vHist, vZeros;
-        if (DbConf::BASELINE_MODE) {
-            // Step 2: Create CTE hist (group by count for c_count >= 1)
-            vHist = createHistCTE(vCnt, tid);
 
-            // Step 3: Create CTE zeros (calculate zero bucket)
-            vZeros = createZerosCTE(vCustomer, vCnt_copy, tid);
-        } else {
-            auto f = ThreadPoolSupport::submit([&] {
-                return createHistCTE(vCnt, tid);
-            });
-            vZeros = createZerosCTE(vCustomer, vCnt_copy, tid + 1000);
-            vHist = f.get();
-        }
+        // Step 3: Create CTE zeros (calculate zero bucket)
+        auto vZeros = createZerosCTE(vCustomer, vCnt_copy, tid + 3000);
+        auto t3 = System::currentTimeMillis();
+        Log::i("CTE zeros time: {}ms", (t3 - t2));
 
         // Step 4: UNION ALL hist and zeros
-        auto vUnion = unionHistAndZeros(vHist, vZeros, tid);
+        auto vUnion = unionHistAndZeros(vHist, vZeros, tid + 4000);
+        auto t4 = System::currentTimeMillis();
+        Log::i("UNION ALL time: {}ms", (t4 - t3));
 
-        auto vResult = sortFinalResults(vUnion, tid);
-        Log::i("Execution time: {}ms", (System::currentTimeMillis() - t0));
+        // Step 5: Final sort
+        auto vResult = sortFinalResults(vUnion, tid + 5000);
+        auto t5 = System::currentTimeMillis();
+        Log::i("Final sort time: {}ms", (t5 - t4));
+
+        // 展示实际结果
+        Log::i("[ACTUAL ] (c_count, custdist) sorted:");
+        Views::revealAndPrint(vResult);
+        Log::i("Optimized query total execution time: {}ms", (t5 - t0));
     }
 
     System::finalize();

@@ -16,6 +16,7 @@ public:
     inline static const std::string VALID_COL_NAME = "$valid";
     inline static const std::string PADDING_COL_NAME = "$padding";
     inline static const std::string COUNT_COL_NAME = "$cnt";
+    inline static const std::string OUTER_MATCH_PREFIX = "$match:";
 
     inline static std::string EMPTY_KEY_FIELD;
     inline static std::string EMPTY_VIEW_NAME;
@@ -57,6 +58,8 @@ public:
 
     void clearInvalidEntries(int msgTagBase);
 
+    void clearInvalidEntries(bool doSort, int msgTagBase);
+
     int clearInvalidEntriesTagStride();
 
     void addRedundantCols();
@@ -73,6 +76,8 @@ public:
 
     // View must have run group by before calling this
     void count(std::vector<std::string> &groupFields, std::vector<int64_t> &heads, std::string alias, int msgTagBase);
+
+    void count(std::vector<std::string> &groupFields, std::vector<int64_t> &heads, std::string alias, bool compress, int msgTagBase);
 
     // Max aggregation function - must have run group by before calling this
     void max(std::vector<int64_t> &heads, const std::string &fieldName, std::string alias, int msgTagBase);
@@ -128,9 +133,9 @@ private:
 
     std::vector<int64_t> groupByMultiBatches(const std::vector<std::string> &groupFields, int msgTagBase);
 
-    void countSingleBatch(std::vector<int64_t> &heads, std::string alias, int msgTagBase);
+    void countSingleBatch(std::vector<int64_t> &heads, std::string alias, int msgTagBase, std::string matchedTable, bool compress);
 
-    void countMultiBatches(std::vector<int64_t> &heads, std::string alias, int msgTagBase);
+    void countMultiBatches(std::vector<int64_t> &heads, std::string alias, int msgTagBase, std::string matchedTable, bool compress);
 
     void maxSingleBatch(std::vector<int64_t> &heads, const std::string &fieldName, std::string alias, int msgTagBase);
 

@@ -51,10 +51,8 @@ void boolShare(int width, std::vector<int64_t> &originsA, std::vector<int64_t> &
 
 bool testBackground(std::vector<std::string> &testPmts, std::string pmt, int width, std::vector<int64_t> &originsA,
                     std::vector<int64_t> &originsB, std::vector<int64_t> &conditions, int64_t &backgroundTime) {
-    if (Conf::BMT_METHOD != Conf::BMT_BACKGROUND) {
-        Conf::BMT_METHOD = Conf::BMT_BACKGROUND;
-        IntermediateDataSupport::init();
-    }
+    // 在每个实验之前清空BMT队列并重新开始后台生成
+    Conf::BMT_METHOD = Conf::BMT_BACKGROUND;
 
     std::vector<int64_t> secretsA;
     std::vector<int64_t> secretsB;
@@ -65,6 +63,11 @@ bool testBackground(std::vector<std::string> &testPmts, std::string pmt, int wid
     int batch_size = Conf::BATCH_SIZE;
     int batch_num = (static_cast<int>(secretsA.size()) + batch_size - 1) / batch_size;
     if (Comm::isServer()) {
+        // 清理现有的队列和后台线程
+        IntermediateDataSupport::finalize();
+
+        // 重新初始化，这会清空队列并重新开始后台生成
+        IntermediateDataSupport::init();
         int64_t start = System::currentTimeMillis();
         if (pmt == testPmts[0]) {
             // "<"
@@ -352,6 +355,28 @@ bool testJit(std::vector<std::string> &testPmts, std::string pmt, int width, std
     return true;
 }
 
+// Function to parse comma-separated string into vector of integers
+std::vector<int> parseCommaSeparatedInts(const std::string& str) {
+    std::vector<int> result;
+    std::stringstream ss(str);
+    std::string item;
+    
+    while (std::getline(ss, item, ',')) {
+        // Trim whitespace
+        item.erase(0, item.find_first_not_of(" \t"));
+        item.erase(item.find_last_not_of(" \t") + 1);
+        
+        if (!item.empty()) {
+            try {
+                result.push_back(std::stoi(item));
+            } catch (const std::exception& e) {
+                Log::e("Invalid number in input: {}", item);
+            }
+        }
+    }
+    return result;
+}
+
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
 
@@ -374,12 +399,78 @@ int main(int argc, char *argv[]) {
     ss << std::put_time(std::localtime(&time_t), "%Y%m%d_%H%M%S");
     std::string timestamp = ss.str();
 
-    std::vector testNums = {1000, 10000, 100000, 1000000};
-    std::vector testWidths = {1, 2, 4, 8, 16, 32, 64,};
+    // Default values
+    std::vector<int> testNums = {1000, 10000, 100000};
+    std::vector<int> testSortNums = {1000, 10000, 100000}; // Separate data sizes for sort
+    std::vector<int> testWidths = {1, 2, 4, 8, 16, 32, 64};
     std::vector<std::string> testPmts = {"<", "<=", "==", "!=", "mux", "sort"};
 
+    // Read data scales from command line using Conf::_userParams (like db/exp)
+    if (Conf::_userParams.count("nums")) {
+        std::string numsStr = Conf::_userParams["nums"];
+        testNums = parseCommaSeparatedInts(numsStr);
+        if (testNums.empty()) {
+            if (Comm::isClient()) {
+                Log::e("Invalid or empty nums parameter: {}", numsStr);
+                Log::i("Usage: --nums=1000,10000,100000 --sort_nums=500,1000,5000 [--widths=1,2,4,8,16,32,64]");
+            }
+            System::finalize();
+            return 1;
+        }
+    }
+
+    // Read sort-specific data scales from command line
+    if (Conf::_userParams.count("sort_nums")) {
+        std::string sortNumsStr = Conf::_userParams["sort_nums"];
+        testSortNums = parseCommaSeparatedInts(sortNumsStr);
+        if (testSortNums.empty()) {
+            if (Comm::isClient()) {
+                Log::e("Invalid or empty sort_nums parameter: {}", sortNumsStr);
+            }
+            System::finalize();
+            return 1;
+        }
+    } else {
+        // If sort_nums not specified, use same as nums
+        testSortNums = testNums;
+    }
+
+    if (Conf::_userParams.count("widths")) {
+        std::string widthsStr = Conf::_userParams["widths"];
+        testWidths = parseCommaSeparatedInts(widthsStr);
+        if (testWidths.empty()) {
+            if (Comm::isClient()) {
+                Log::e("Invalid or empty widths parameter: {}", widthsStr);
+            }
+            System::finalize();
+            return 1;
+        }
+    }
+
+    if (Comm::isClient()) {
+        Log::i("Starting benchmark with data scales for non-sort operations: ");
+        for (size_t i = 0; i < testNums.size(); i++) {
+            Log::i("  {}{}", testNums[i], (i == testNums.size() - 1) ? "" : ",");
+        }
+        Log::i("Data scales for sort operations: ");
+        for (size_t i = 0; i < testSortNums.size(); i++) {
+            Log::i("  {}{}", testSortNums[i], (i == testSortNums.size() - 1) ? "" : ",");
+        }
+        Log::i("Using widths: ");
+        for (size_t i = 0; i < testWidths.size(); i++) {
+            Log::i("  {}{}", testWidths[i], (i == testWidths.size() - 1) ? "" : ",");
+        }
+    }
+
     // Calculate total number of tests for progress tracking
-    int totalTests = testPmts.size() * testNums.size() * testWidths.size() * 2; // *2 for both JIT and Background
+    int totalTests = 0;
+    for (const std::string& pmt : testPmts) {
+        if (pmt == "sort") {
+            totalTests += testSortNums.size() * testWidths.size() * 2; // *2 for both JIT and Background
+        } else {
+            totalTests += testNums.size() * testWidths.size() * 2; // *2 for both JIT and Background
+        }
+    }
     int currentTest = 0;
 
     // Store timing results for pairing JIT and Background results
@@ -394,7 +485,11 @@ int main(int argc, char *argv[]) {
         if (Comm::isClient()) {
             Log::i("Starting JIT tests for primitive: {}", pmt);
         }
-        for (int num: testNums) {
+        
+        // Choose appropriate data sizes based on primitive type
+        std::vector<int> currentNums = (pmt == "sort") ? testSortNums : testNums;
+        
+        for (int num: currentNums) {
             for (int width: testWidths) {
                 currentTest++;
                 if (Comm::isClient()) {
@@ -439,7 +534,11 @@ int main(int argc, char *argv[]) {
         if (Comm::isClient()) {
             Log::i("Starting Background tests for primitive: {}", pmt);
         }
-        for (int num: testNums) {
+        
+        // Choose appropriate data sizes based on primitive type
+        std::vector<int> currentNums = (pmt == "sort") ? testSortNums : testNums;
+        
+        for (int num: currentNums) {
             for (int width: testWidths) {
                 currentTest++;
                 if (Comm::isClient()) {

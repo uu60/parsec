@@ -26,7 +26,11 @@ public:
 
     static View hashJoin(View &v0, View &v1, std::string &field0, std::string &field1);
 
+    static View hashJoin(View &v0, View &v1, std::string &field0, std::string &field1, bool compress);
+
     static View leftOuterJoin(View &v0, View &v1, std::string &field0, std::string &field1);
+
+    static View leftOuterJoin(View &v0, View &v1, std::string &field0, std::string &field1, bool doHashJoin, bool compress);
 
     static std::string getAliasColName(std::string &tableName, std::string &fieldName);
 
@@ -64,7 +68,8 @@ private:
         View &v0,
         View &v1,
         std::string &field0,
-        std::string &field1
+        std::string &field1,
+        bool compress
     );
 
     static int butterflyPermutationTagStride(View &v);

@@ -12,26 +12,30 @@
 #include "utils/StringUtils.h"
 
 #include <string>
+
+#include "utils/Math.h"
+
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
 
-    int num = 100;
-    int col = 2;
+    int rows = 100;
+    int cols = 2;
 
-    if (Conf::_userParams.count("num")) {
-        num = std::stoi(Conf::_userParams["num"]);
+    if (Conf::_userParams.count("rows")) {
+        rows = std::stoi(Conf::_userParams["rows"]);
     }
 
-    if (Conf::_userParams.count("col")) {
-        col = std::stoi(Conf::_userParams["col"]);
+    if (Conf::_userParams.count("cols")) {
+        cols = std::stoi(Conf::_userParams["cols"]);
     }
 
-    std::vector<int64_t> shares(num);
+    Log::ir(2, "Sorting benchmark: rows={}, cols={}", rows, cols);
+
+    std::vector<int64_t> shares(rows);
     if (Comm::rank() == 2) {
-        for (int i = num; i > 0; i--) {
-            shares[num - i] = i;
+        for (int i = 0; i < rows; i++) {
+            shares[i] = Math::randInt();
         }
-        shares.insert(shares.end(), shares.begin(), shares.end());
     }
 
     shares = Secrets::boolShare(shares, 2, 64, System::nextTask());
@@ -39,16 +43,16 @@ int main(int argc, char *argv[]) {
     View v;
     if (Comm::isServer()) {
         std::string name = "demo";
-        std::vector<std::string> fn(col);
-        for (int i = 0; i < col; i++) {
+        std::vector<std::string> fn(cols);
+        for (int i = 0; i < cols; i++) {
             fn[i] = "a" + std::to_string(i);
         }
-        std::vector<int> ws(col, 64);
+        std::vector<int> ws(cols, 64);
 
-        Table t(name, fn, ws, "a0");
+        Table t(name, fn, ws, "");
         for (int i = 0; i < shares.size(); i++) {
-            std::vector<int64_t> r(col + 1);
-            for (int j = 0; j < col + 1; j++) {
+            std::vector<int64_t> r(cols);
+            for (int j = 0; j < cols; j++) {
                 r[j] = shares[i];
             }
             t.insert(r);
@@ -56,19 +60,17 @@ int main(int argc, char *argv[]) {
 
         v = Views::selectAll(t);
 
-        auto start = System::currentTimeMillis();
-        v.sort("a0", true, 0);
-        Log::i("Sort time: {}ms", System::currentTimeMillis() - start);
-    }
-
-
-    for (int i = 0; i < col; i++) {
-        auto secrets = Comm::isServer() ? v._dataCols[i] : std::vector<int64_t>();
-        shares = Secrets::boolReconstruct(secrets, 2, 64, System::nextTask());
-
-        if (Comm::rank() == 2) {
-            Log::i("{}", StringUtils::vecToString(shares));
+        // Create vector of all column names for multi-column sorting
+        std::vector<std::string> sortColumns;
+        std::vector<bool> ascendingOrders;
+        for (int i = 0; i < cols; i++) {
+            sortColumns.push_back(v._fieldNames[i]);
+            ascendingOrders.push_back(true); // All columns in ascending order
         }
+        
+        auto start = System::currentTimeMillis();
+        v.sort(sortColumns, ascendingOrders, 0);
+        Log::i("Multi-column sort time (all {} columns): {}ms", cols, System::currentTimeMillis() - start);
     }
 
     System::finalize();

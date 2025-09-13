@@ -210,6 +210,28 @@ bool test(std::vector<std::string> &testPmts, std::string pmt, int width, int ba
     return true;
 }
 
+// Function to parse comma-separated string into vector of integers
+std::vector<int> parseCommaSeparatedInts(const std::string& str) {
+    std::vector<int> result;
+    std::stringstream ss(str);
+    std::string item;
+    
+    while (std::getline(ss, item, ',')) {
+        // Trim whitespace
+        item.erase(0, item.find_first_not_of(" \t"));
+        item.erase(item.find_last_not_of(" \t") + 1);
+        
+        if (!item.empty()) {
+            try {
+                result.push_back(std::stoi(item));
+            } catch (const std::exception& e) {
+                Log::e("Invalid number in input: {}", item);
+            }
+        }
+    }
+    return result;
+}
+
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
 
@@ -235,17 +257,95 @@ int main(int argc, char *argv[]) {
     ss << std::put_time(std::localtime(&time_t), "%Y%m%d_%H%M%S");
     std::string timestamp = ss.str();
 
-    std::vector testNums = {1000, 10000, 100000, 1000000};
-    std::vector testWidths = {1, 2, 4, 8, 16, 32, 64,};
+    // Default values
+    std::vector<int> testNums = {1000, 10000, 100000};
+    std::vector<int> testSortNums = {1000, 10000, 100000}; // Separate data sizes for sort
+    std::vector<int> testWidths = {1, 2, 4, 8, 16, 32, 64};
     std::vector<std::string> testPmts = {"<", "<=", "==", "!=", "mux", "ar", "sort"};
     std::vector<int> testBatchSizes = {1, 10, 100, 1000, 10000, 100000, 1000000, 10000000};
 
+    // Read data scales from command line using Conf::_userParams (like db/exp)
+    if (Conf::_userParams.count("nums")) {
+        std::string numsStr = Conf::_userParams["nums"];
+        testNums = parseCommaSeparatedInts(numsStr);
+        if (testNums.empty()) {
+            if (Comm::isClient()) {
+                Log::e("Invalid or empty nums parameter: {}", numsStr);
+                Log::i("Usage: --nums=1000,10000,100000 --sort_nums=500,1000,5000 [--widths=1,2,4,8,16,32,64] [--batch_sizes=1,10,100,1000]");
+            }
+            System::finalize();
+            return 1;
+        }
+    }
+
+    // Read sort-specific data scales from command line
+    if (Conf::_userParams.count("sort_nums")) {
+        std::string sortNumsStr = Conf::_userParams["sort_nums"];
+        testSortNums = parseCommaSeparatedInts(sortNumsStr);
+        if (testSortNums.empty()) {
+            if (Comm::isClient()) {
+                Log::e("Invalid or empty sort_nums parameter: {}", sortNumsStr);
+            }
+            System::finalize();
+            return 1;
+        }
+    } else {
+        // If sort_nums not specified, use same as nums
+        testSortNums = testNums;
+    }
+
+    if (Conf::_userParams.count("widths")) {
+        std::string widthsStr = Conf::_userParams["widths"];
+        testWidths = parseCommaSeparatedInts(widthsStr);
+        if (testWidths.empty()) {
+            if (Comm::isClient()) {
+                Log::e("Invalid or empty widths parameter: {}", widthsStr);
+            }
+            System::finalize();
+            return 1;
+        }
+    }
+
+    if (Conf::_userParams.count("batch_sizes")) {
+        std::string batchSizesStr = Conf::_userParams["batch_sizes"];
+        testBatchSizes = parseCommaSeparatedInts(batchSizesStr);
+        if (testBatchSizes.empty()) {
+            if (Comm::isClient()) {
+                Log::e("Invalid or empty batch_sizes parameter: {}", batchSizesStr);
+            }
+            System::finalize();
+            return 1;
+        }
+    }
+
+    if (Comm::isClient()) {
+        Log::i("Starting benchmark with data scales for non-sort operations: ");
+        for (size_t i = 0; i < testNums.size(); i++) {
+            Log::i("  {}{}", testNums[i], (i == testNums.size() - 1) ? "" : ",");
+        }
+        Log::i("Data scales for sort operations: ");
+        for (size_t i = 0; i < testSortNums.size(); i++) {
+            Log::i("  {}{}", testSortNums[i], (i == testSortNums.size() - 1) ? "" : ",");
+        }
+        Log::i("Using widths: ");
+        for (size_t i = 0; i < testWidths.size(); i++) {
+            Log::i("  {}{}", testWidths[i], (i == testWidths.size() - 1) ? "" : ",");
+        }
+        Log::i("Using batch sizes: ");
+        for (size_t i = 0; i < testBatchSizes.size(); i++) {
+            Log::i("  {}{}", testBatchSizes[i], (i == testBatchSizes.size() - 1) ? "" : ",");
+        }
+    }
+
     // Calculate total number of tests for progress tracking
     int totalTests = 0;
-    for (int num: testNums) {
-        for (int batchSize: testBatchSizes) {
-            if (batchSize <= num) {
-                totalTests += testPmts.size() * testWidths.size();
+    for (const std::string& pmt : testPmts) {
+        std::vector<int> currentNums = (pmt == "sort") ? testSortNums : testNums;
+        for (int num: currentNums) {
+            for (int batchSize: testBatchSizes) {
+                if (batchSize <= num) {
+                    totalTests += testWidths.size();
+                }
             }
         }
     }
@@ -260,7 +360,11 @@ int main(int argc, char *argv[]) {
         if (Comm::isClient()) {
             Log::i("Testing primitive: {}", pmt);
         }
-        for (int num: testNums) {
+        
+        // Choose appropriate data sizes based on primitive type
+        std::vector<int> currentNums = (pmt == "sort") ? testSortNums : testNums;
+        
+        for (int num: currentNums) {
             for (int width: testWidths) {
                 if (Comm::isClient()) {
                     Log::i("Testing num: {}, width: {}", num, width);

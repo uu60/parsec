@@ -490,7 +490,7 @@ std::vector<int64_t> View::groupByMultiBatches(const std::vector<std::string> &g
     return groupHeads;
 }
 
-void View::countSingleBatch(std::vector<int64_t> &heads, std::string alias, int msgTagBase) {
+void View::countSingleBatch(std::vector<int64_t> &heads, std::string alias, int msgTagBase, std::string matchedTable, bool compress) {
     const size_t n = rowNum();
     if (n == 0) return;
 
@@ -512,9 +512,10 @@ void View::countSingleBatch(std::vector<int64_t> &heads, std::string alias, int 
     // 初始化计数值：每个有效行计为1
     std::vector<int64_t> counts(n, 0);
     if (BASELINE || APPROX_COMPACT) {
-        // 不压缩/近似压缩：只对有效行计数
-        for (size_t i = 0; i < n; ++i) {
-            counts[i] = _dataCols[validIdx][i]; // valid列本身就是布尔分享
+        counts = _dataCols[validIdx];
+        if (!matchedTable.empty()) {
+            counts = BoolAndBatchOperator(&counts, &_dataCols[colIndex(OUTER_MATCH_PREFIX + matchedTable)], 1, 0,
+                                          msgTagBase, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         }
     } else {
         // 精确压缩：所有行都有效，每行计为1
@@ -634,20 +635,24 @@ void View::countSingleBatch(std::vector<int64_t> &heads, std::string alias, int 
         auto new_valid = BoolAndBatchOperator(&_dataCols[newValidIdx], &group_tails, 1, 0, msgTagBase,
                                               SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         _dataCols[newValidIdx] = std::move(new_valid);
-        clearInvalidEntries(msgTagBase);
+        if (compress) {
+            clearInvalidEntries(msgTagBase);
+        }
     } else {
         // 精确压缩：直接设置valid为组尾并精确截断
         _dataCols[newValidIdx] = std::move(group_tails);
-        clearInvalidEntries(msgTagBase);
+        if (compress) {
+            clearInvalidEntries(msgTagBase);
+        }
     }
 }
 
-void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int msgTagBase) {
+void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int msgTagBase, std::string matchedTable, bool compress) {
     size_t n = rowNum();
     const int batchSize = Conf::BATCH_SIZE;
     if (n == 0) return;
     if (n <= static_cast<size_t>(batchSize)) {
-        countSingleBatch(heads, alias, msgTagBase);
+        countSingleBatch(heads, alias, msgTagBase, matchedTable, compress);
         return;
     }
 
@@ -876,11 +881,15 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
         auto new_valid = BoolAndBatchOperator(&_dataCols[newValidIdx], &group_tails, 1, 0, msgTagBase,
                                               SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         _dataCols[newValidIdx] = std::move(new_valid);
-        clearInvalidEntries(msgTagBase);
+        if (compress) {
+            clearInvalidEntries(msgTagBase);
+        }
     } else {
         // 精确压缩：直接设置valid为组尾并精确截断
         _dataCols[newValidIdx] = std::move(group_tails);
-        clearInvalidEntries(msgTagBase);
+        if (compress) {
+            clearInvalidEntries(msgTagBase);
+        }
     }
 }
 
@@ -1959,11 +1968,17 @@ void View::filterAndConditions(std::vector<std::string> &fieldNames, std::vector
 }
 
 void View::clearInvalidEntries(int msgTagBase) {
+    clearInvalidEntries(true, msgTagBase);
+}
+
+void View::clearInvalidEntries(bool doSort, int msgTagBase) {
     if (DbConf::BASELINE_MODE) {
         return;
     }
-    // sort view by valid column
-    sort(VALID_COL_NAME, false, msgTagBase);
+    if (doSort) {
+        // sort view by valid column
+        sort(VALID_COL_NAME, false, msgTagBase);
+    }
     int64_t sumShare = 0, sumShare1;
     if (Conf::DISABLE_MULTI_THREAD || Conf::BATCH_SIZE <= 0) {
         // compute valid num
@@ -2406,12 +2421,14 @@ void View::minAndMaxSingleBatch(std::vector<int64_t> &heads,
 
         // 生成候选：min 选较小，max 选较大
         auto min_cand = BoolMutexBatchOperator(&min_L, &min_R, &less_min, minBitlen, 0,
-                                               msgTagBase + round * (2 * tag_off_less + tag_off_and + 4 * tag_off_mux) + 2 *
+                                               msgTagBase + round * (2 * tag_off_less + tag_off_and + 4 * tag_off_mux) +
+                                               2 *
                                                tag_off_less,
                                                SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
         auto max_cand = BoolMutexBatchOperator(&max_R, &max_L, &less_max, maxBitlen, 0,
-                                               msgTagBase + round * (2 * tag_off_less + tag_off_and + 4 * tag_off_mux) + 2 *
+                                               msgTagBase + round * (2 * tag_off_less + tag_off_and + 4 * tag_off_mux) +
+                                               2 *
                                                tag_off_less + tag_off_mux,
                                                SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
@@ -2421,12 +2438,14 @@ void View::minAndMaxSingleBatch(std::vector<int64_t> &heads,
 
         // 写回右侧
         auto min_new_right = BoolMutexBatchOperator(&min_cand, &min_R, &gate, minBitlen, 0,
-                                                    msgTagBase + round * (2 * tag_off_less + tag_off_and + 4 * tag_off_mux)
+                                                    msgTagBase + round * (
+                                                        2 * tag_off_less + tag_off_and + 4 * tag_off_mux)
                                                     + 2 * tag_off_less + 2 * tag_off_mux,
                                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
         auto max_new_right = BoolMutexBatchOperator(&max_cand, &max_R, &gate, maxBitlen, 0,
-                                                    msgTagBase + round * (2 * tag_off_less + tag_off_and + 4 * tag_off_mux)
+                                                    msgTagBase + round * (
+                                                        2 * tag_off_less + tag_off_and + 4 * tag_off_mux)
                                                     + 2 * tag_off_less + 3 * tag_off_mux,
                                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
@@ -2442,7 +2461,8 @@ void View::minAndMaxSingleBatch(std::vector<int64_t> &heads,
             not_r[i] = bs_bool[i + delta] ^ XOR_MASK;
         }
         auto and_out = BoolAndBatchOperator(&not_l, &not_r, 1, 0,
-                                            msgTagBase + round * (2 * tag_off_less + tag_off_and + 4 * tag_off_mux) + 2 *
+                                            msgTagBase + round * (2 * tag_off_less + tag_off_and + 4 * tag_off_mux) + 2
+                                            *
                                             tag_off_less + 4 * tag_off_mux,
                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         for (int i = 0; i < m; ++i) bs_bool[i + delta] = and_out[i] ^ XOR_MASK;
@@ -2634,11 +2654,13 @@ void View::minAndMaxMultiBatches(std::vector<int64_t> &heads,
                     }
                     min_left = BoolMutexBatchOperator(&min_left, &max_vals_min, &left_valid, minBitlen, 0, minLessTag,
                                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-                    min_right = BoolMutexBatchOperator(&min_right, &max_vals_min, &right_valid, minBitlen, 0, minLessTag,
+                    min_right = BoolMutexBatchOperator(&min_right, &max_vals_min, &right_valid, minBitlen, 0,
+                                                       minLessTag,
                                                        SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
                     max_left = BoolMutexBatchOperator(&max_left, &min_vals_max, &left_valid, maxBitlen, 0, maxLessTag,
                                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-                    max_right = BoolMutexBatchOperator(&max_right, &min_vals_max, &right_valid, maxBitlen, 0, maxLessTag,
+                    max_right = BoolMutexBatchOperator(&max_right, &min_vals_max, &right_valid, maxBitlen, 0,
+                                                       maxLessTag,
                                                        SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
                 }
 
@@ -2783,6 +2805,7 @@ std::vector<int64_t> View::groupBy(const std::string &groupField, bool doSort, i
             sortFields.push_back(groupField);
             ascending.push_back(true);
             sort(sortFields, ascending, msgTagBase);
+            clearInvalidEntries(false, msgTagBase);
         }
     }
 
@@ -2819,9 +2842,9 @@ std::vector<int64_t> View::groupBy(const std::vector<std::string> &groupFields, 
             ascending.push_back(true); // 组键升序
         }
         sort(sortFields, ascending, msgTagBase);
+        clearInvalidEntries(false, msgTagBase);
     }
     // Step 1: Sort by all group fields to ensure records with same keys are adjacent
-
     // Choose between single batch and multi-batch processing
     if (Conf::BATCH_SIZE <= 0 || Conf::DISABLE_MULTI_THREAD) {
         return groupBySingleBatch(groupFields, msgTagBase);
@@ -2832,8 +2855,24 @@ std::vector<int64_t> View::groupBy(const std::vector<std::string> &groupFields, 
 
 void View::count(std::vector<std::string> &groupFields, std::vector<int64_t> &heads, std::string alias,
                  int msgTagBase) {
+   count(groupFields, heads, std::move(alias), true, msgTagBase);
+}
+
+void View::count(std::vector<std::string> &groupFields, std::vector<int64_t> &heads, std::string alias, bool compress,
+    int msgTagBase) {
+     size_t pos = groupFields[0].find('.');
     // Remove all columns except the group field and the redundant columns (valid, padding)
     // 2) 在 move 之前缓存 valid/padding 的下标
+    std::string matchedTable;
+    if (groupFields.size() == 1 && pos != std::string::npos) {
+        std::string fieldTable = groupFields[0].substr(0, pos);
+        for (int i = 0; i < _fieldNames.size(); i++) {
+            if (_fieldNames[i] == OUTER_MATCH_PREFIX + fieldTable) {
+                matchedTable = fieldTable;
+                break;
+            }
+        }
+    }
     const int oldColNum = static_cast<int>(colNum());
     const int validIdx = oldColNum + VALID_COL_OFFSET;
     const int paddingIdx = oldColNum + PADDING_COL_OFFSET;
@@ -2863,6 +2902,12 @@ void View::count(std::vector<std::string> &groupFields, std::vector<int64_t> &he
     }
 
     // 4.2 移动 valid / padding（用之前缓存的旧索引）
+    if (!matchedTable.empty()) {
+        int mc = colIndex(View::OUTER_MATCH_PREFIX + matchedTable);
+        newDataCols.push_back(std::move(_dataCols[mc]));
+        newFieldNames.emplace_back(std::move(_fieldNames[mc]));
+        newFieldWidths.push_back(1);
+    }
     newDataCols.push_back(std::move(_dataCols[validIdx]));
     newDataCols.push_back(std::move(_dataCols[paddingIdx]));
     newFieldNames.emplace_back(VALID_COL_NAME);
@@ -2876,9 +2921,9 @@ void View::count(std::vector<std::string> &groupFields, std::vector<int64_t> &he
     _fieldWidths = std::move(newFieldWidths);
 
     if (Conf::BATCH_SIZE <= 0 || Conf::DISABLE_MULTI_THREAD) {
-        countSingleBatch(heads, alias, msgTagBase);
+        countSingleBatch(heads, alias, msgTagBase, matchedTable, compress);
     } else {
-        countMultiBatches(heads, alias, msgTagBase);
+        countMultiBatches(heads, alias, msgTagBase, matchedTable, compress);
     }
 }
 
@@ -2899,7 +2944,7 @@ void View::min(std::vector<int64_t> &heads, const std::string &fieldName, std::s
 }
 
 void View::minAndMax(std::vector<int64_t> &heads, const std::string &fieldName, std::string minAlias,
-    std::string maxAlias, int msgTagBase) {
+                     std::string maxAlias, int msgTagBase) {
     minAndMax(heads, fieldName, fieldName, std::move(minAlias), std::move(maxAlias), msgTagBase);
 }
 

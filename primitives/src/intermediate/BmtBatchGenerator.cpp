@@ -30,7 +30,7 @@ BmtBatchGenerator *BmtBatchGenerator::reconstruct(int clientRank) {
 }
 
 int BmtBatchGenerator::tagStride() {
-    return RandOtBatchOperator::tagStride();
+    return RandOtBatchOperator::tagStride() * 2;
 }
 
 void BmtBatchGenerator::computeMix(int sender) {
