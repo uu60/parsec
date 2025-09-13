@@ -1725,10 +1725,47 @@ void View::filterSingleBatch(std::vector<std::string> &fieldNames,
     int validColIndex = colNum() + VALID_COL_OFFSET;
 
     // Combine multiple conditions with AND operation (single batch approach)
-    std::vector<int64_t> result = std::move(collected[0]);
-    for (int i = 1; i < n; i++) {
-        result = BoolAndBatchOperator(&result, &collected[i], 1, 0, msgTagBase,
-                                      SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+    std::vector<int64_t> result;
+    if (DbConf::BASELINE_MODE || Conf::DISABLE_MULTI_THREAD) {
+        result = std::move(collected[0]);
+        for (int i = 1; i < n; i++) {
+            result = BoolAndBatchOperator(&result, &collected[i], 1, 0, msgTagBase,
+                                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        }
+    } else {
+        std::vector<std::vector<int64_t> > andCols = std::move(collected);
+        int level = 0;
+        while (andCols.size() > 1) {
+            const int m = static_cast<int>(andCols.size());
+            const int pairs = m / 2;
+            const int msgStride = BoolAndBatchOperator::tagStride();
+
+            std::vector<std::future<std::vector<int64_t> > > futures1;
+            futures1.reserve(pairs);
+
+            for (int p = 0; p < pairs; ++p) {
+                futures1.emplace_back(
+                    ThreadPoolSupport::submit([&, p, level]() {
+                        auto &L = andCols[2 * p];
+                        auto &R = andCols[2 * p + 1];
+                        return BoolAndBatchOperator(&L, &R, 1, 0,
+                                                    msgTagBase + level * msgStride + p,
+                                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                    })
+                );
+            }
+
+            std::vector<std::vector<int64_t> > nextCols;
+            nextCols.reserve((m + 1) / 2);
+
+            for (int p = 0; p < pairs; ++p) nextCols.push_back(futures1[p].get());
+            if (m % 2) nextCols.push_back(std::move(andCols.back()));
+
+            andCols.swap(nextCols);
+            ++level;
+        }
+        // 归约完成
+        result = std::move(andCols.front());
     }
 
     if (DbConf::BASELINE_MODE) {
@@ -1753,11 +1790,11 @@ void View::filterMultiBatches(std::vector<std::string> &fieldNames,
                               std::vector<ComparatorType> &comparatorTypes,
                               std::vector<int64_t> &constShares, bool clear,
                               int msgTagBase) {
-    if (rowNum() <= Conf::BATCH_SIZE) {
-        // 走单批实现（里面已处理精确/非精确压缩分支）
-        filterSingleBatch(fieldNames, comparatorTypes, constShares, clear, msgTagBase);
-        return;
-    }
+    // if (rowNum() <= Conf::BATCH_SIZE) {
+    //     // 走单批实现（里面已处理精确/非精确压缩分支）
+    //     filterSingleBatch(fieldNames, comparatorTypes, constShares, clear, msgTagBase);
+    //     return;
+    // }
 
     const size_t n = fieldNames.size();
     std::vector<std::vector<int64_t> > collected(n);

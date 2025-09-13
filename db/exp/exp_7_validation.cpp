@@ -28,22 +28,31 @@
 #include <algorithm>
 #include <cstdint>
 
+#include "../include/conf/DbConf.h"
 #include "compute/batch/arith/ArithMultiplyBatchOperator.h"
+#include "parallel/ThreadPoolSupport.h"
 
 // -------------------- 固定常量 --------------------
-static int64_t START_DATE = Math::randInt(); // [1994-01-01,
-static int64_t END_DATE_EX = Math::randInt(); //  1995-01-01)
-static int64_t DISCOUNT_MIN = Math::randInt(); // 中心 6 ± 1
-static int64_t DISCOUNT_MAX = Math::randInt();
-static int64_t QUANTITY_TH = Math::randInt();
+static constexpr int64_t START_DATE = 19940101; // [1994-01-01,
+static constexpr int64_t END_DATE_EX = 19950101; //  1995-01-01)
+static constexpr int64_t DISCOUNT_MIN = 5; // 中心 6 ± 1
+static constexpr int64_t DISCOUNT_MAX = 7;
+static constexpr int64_t QUANTITY_TH = 24;
 
 // -------------------- 声明 --------------------
-void generateTestData(int lineitem_rows,
-                      std::vector<int64_t> &l_shipdate_data,
-                      std::vector<int64_t> &l_discount_data,
-                      std::vector<int64_t> &l_quantity_data,
-                      std::vector<int64_t> &l_extendedprice_data,
-                      std::vector<int64_t> &l_revenue_data);
+void generateFixedData(
+    int lineitem_rows,
+    std::vector<int64_t> &l_shipdate,
+    std::vector<int64_t> &l_discount,
+    std::vector<int64_t> &l_quantity,
+    std::vector<int64_t> &l_extendedprice,
+    std::vector<int64_t> &l_revenue);
+
+int64_t computeExpectedRevenue(
+    const std::vector<int64_t> &l_shipdate,
+    const std::vector<int64_t> &l_discount,
+    const std::vector<int64_t> &l_quantity,
+    const std::vector<int64_t> &l_revenue);
 
 View createLineitemTable(
     std::vector<int64_t> &l_shipdate_b,
@@ -70,7 +79,7 @@ int main(int argc, char *argv[]) {
     const int tid = (System::nextTask() << (32 - Conf::TASK_TAG_BITS));
 
     // 行数参数（可选，默认 10）
-    int lineitem_rows = 1000;
+    int lineitem_rows = 10;
     if (Conf::_userParams.count("rows")) {
         lineitem_rows = std::stoi(Conf::_userParams["rows"]);
     }
@@ -80,8 +89,14 @@ int main(int argc, char *argv[]) {
 
     // 1) 客户端生成固定明文数据，并在明文阶段预计算 l_revenue
     std::vector<int64_t> l_shipdate_p, l_discount_p, l_quantity_p, l_extendedprice_p, l_revenue_p;
-    generateTestData(lineitem_rows, l_shipdate_p, l_discount_p, l_quantity_p, l_extendedprice_p, l_revenue_p);
+    generateFixedData(lineitem_rows, l_shipdate_p, l_discount_p, l_quantity_p, l_extendedprice_p, l_revenue_p);
 
+    // 2) 客户端计算期望值
+    int64_t expected_revenue = 0;
+    if (Comm::rank() == 2) {
+        expected_revenue = computeExpectedRevenue(l_shipdate_p, l_discount_p, l_quantity_p, l_revenue_p);
+        Log::i("[expected] revenue = {}", expected_revenue);
+    }
 
     // 3) 分享数据（布尔分享）
     auto l_shipdate_b = Secrets::boolShare(l_shipdate_p, 2, 64, tid);
@@ -126,6 +141,22 @@ int main(int argc, char *argv[]) {
 
         auto t1 = System::currentTimeMillis();
         Log::i("Validation query (server {}) time: {}ms", Comm::rank(), (t1 - t0));
+
+        // 把算术份额发给客户端，由客户端重构明文
+        Comm::send(sum_share, 64, 2, tid + 400 + Comm::rank()); // tag 区分两台 server
+    }
+
+    // 6) 客户端重构并对比
+    if (Comm::isClient()) {
+        int64_t s0 = 0, s1 = 0;
+        Comm::receive(s0, 64, 0, tid + 400 + 0);
+        Comm::receive(s1, 64, 1, tid + 400 + 1);
+        // 算术份额重构（mod 2^64）
+        unsigned __int128 recon = (unsigned long long) s0 + (unsigned long long) s1;
+        int64_t actual_revenue = (uint64_t) recon; // 环上还原
+
+        Log::i("[actual  ] revenue = {}", actual_revenue);
+        Log::i("Validation {}", (actual_revenue == expected_revenue ? "PASS ✅" : "FAIL ❌"));
     }
 
     System::finalize();
@@ -133,28 +164,69 @@ int main(int argc, char *argv[]) {
 }
 
 // -------------------- 实现 --------------------
-void generateTestData(int lineitem_rows,
-                      std::vector<int64_t> &l_shipdate_data,
-                      std::vector<int64_t> &l_discount_data,
-                      std::vector<int64_t> &l_quantity_data,
-                      std::vector<int64_t> &l_extendedprice_data,
-                      std::vector<int64_t> &l_revenue_data) {
-    if (Comm::rank() == 2) {
-        l_shipdate_data.reserve(lineitem_rows);
-        l_discount_data.reserve(lineitem_rows);
-        l_quantity_data.reserve(lineitem_rows);
-        l_extendedprice_data.reserve(lineitem_rows);
-        l_revenue_data.reserve(lineitem_rows);
 
-        for (int i = 0; i < lineitem_rows; i++) {
-            l_shipdate_data.push_back(Math::randInt());
-            l_discount_data.push_back(Math::randInt());
-            l_quantity_data.push_back(Math::randInt());
-            l_extendedprice_data.push_back(Math::randInt());
-            // Pre-calculate revenue: l_extendedprice * l_discount
-            l_revenue_data.push_back(l_extendedprice_data[i] * l_discount_data[i]); // mod 2^64
-        }
+// 固定 10 行模板；若 rows > 10，会按模板循环填充。
+void generateFixedData(
+    int lineitem_rows,
+    std::vector<int64_t> &l_shipdate,
+    std::vector<int64_t> &l_discount,
+    std::vector<int64_t> &l_quantity,
+    std::vector<int64_t> &l_extendedprice,
+    std::vector<int64_t> &l_revenue) {
+    if (Comm::rank() != 2) return;
+
+    std::vector<int64_t> ship = {
+        19940201, 19940301, 19940401, 19940501, 19940601, // 0..4 in [1994,1995)
+        19930101, 19950201, 19960101, 19970101, 19980101 // 5..9 out
+    };
+    std::vector<int64_t> disc = {
+        5, 6, 7, 5, 6, // 0..4 in [5,7]
+        3, 4, 8, 9, 10 // 5..9 out of [5,7]
+    };
+    std::vector<int64_t> qty = {
+        10, 15, 20, 23, 22, // 0..4 < 24
+        25, 30, 35, 40, 45 // 5..9 >= 24
+    };
+    std::vector<int64_t> price = {
+        100000, 200000, 300000, 400000, 500000, // 1000.00, 2000.00, ...
+        600000, 700000, 800000, 900000, 1000000
+    };
+
+    l_shipdate.reserve(lineitem_rows);
+    l_discount.reserve(lineitem_rows);
+    l_quantity.reserve(lineitem_rows);
+    l_extendedprice.reserve(lineitem_rows);
+    l_revenue.reserve(lineitem_rows);
+
+    for (int i = 0; i < lineitem_rows; ++i) {
+        int idx = i % 10;
+        l_shipdate.push_back(ship[idx]);
+        l_discount.push_back(disc[idx]);
+        l_quantity.push_back(qty[idx]);
+        l_extendedprice.push_back(price[idx]);
+        // 明文预计算：revenue = extendedprice * discount （整型按 2^64 环）
+        l_revenue.push_back(price[idx] * disc[idx]);
     }
+}
+
+// 期望结果（明文）：筛选命中行的 l_revenue 之和
+int64_t computeExpectedRevenue(
+    const std::vector<int64_t> &l_shipdate,
+    const std::vector<int64_t> &l_discount,
+    const std::vector<int64_t> &l_quantity,
+    const std::vector<int64_t> &l_revenue) {
+    unsigned __int128 acc = 0;
+    const size_t n = l_shipdate.size();
+    for (size_t i = 0; i < n; ++i) {
+        bool ok =
+                (l_shipdate[i] >= START_DATE) &&
+                (l_shipdate[i] < END_DATE_EX) &&
+                (l_discount[i] >= DISCOUNT_MIN) &&
+                (l_discount[i] <= DISCOUNT_MAX) &&
+                (l_quantity[i] < QUANTITY_TH);
+        if (ok) acc += (unsigned long long) l_revenue[i];
+    }
+    return (uint64_t) acc; // mod 2^64
 }
 
 View createLineitemTable(
@@ -205,7 +277,7 @@ View filterAllConditions(
         start_date_b, end_date_b, discount_min_b, discount_max_b, quantity_th_b
     };
 
-    v.filterAndConditions(cols, cmps, consts, false, tid);
+    v.filterAndConditions(cols, cmps, consts, tid);
     return v;
 }
 
@@ -221,10 +293,21 @@ int64_t calculateRevenue(View &filtered_view, int tid) {
     const int t0 = tid;
     const int t1 = tid + BoolToArithBatchOperator::tagStride();
 
-    auto rev_a = BoolToArithBatchOperator(&rev_b, 64, 0, t0,
-                                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-    auto valid_a = BoolToArithBatchOperator(&valid_b, 64, 0, t1,
+    std::vector<int64_t> rev_a, valid_a; // 算术份额
+    if (DbConf::BASELINE_MODE) {
+        rev_a = BoolToArithBatchOperator(&rev_b, 64, 0, t0,
+                                         SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        valid_a = BoolToArithBatchOperator(&valid_b, 64, 0, t1,
+                                           SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+    } else {
+        auto f = ThreadPoolSupport::submit([&] {
+            return BoolToArithBatchOperator(&rev_b, 64, 0, t0,
                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        });
+        valid_a = BoolToArithBatchOperator(&valid_b, 64, 0, t1,
+                                           SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        rev_a = f.get();
+    }
 
     // 3) 逐元素乘法做掩码：masked_i = revenue_i * valid_i
     const int t2 = t1 + ArithMultiplyBatchOperator::tagStride(64);
@@ -232,7 +315,7 @@ int64_t calculateRevenue(View &filtered_view, int tid) {
                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
     // 4) 本端局部求和（这是全局和的“算术份额”）
-    int64_t acc = 0;
-    for (auto x: masked) acc += x;
-    return acc; // 2^64 环
+    unsigned __int128 acc = 0;
+    for (auto x: masked) acc += (unsigned long long) x;
+    return (uint64_t) acc; // 2^64 环
 }
