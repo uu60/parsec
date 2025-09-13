@@ -42,6 +42,30 @@ public:
         log(ERROR, msg, std::forward<Args>(args)...);
     }
 
+    template<typename... Args>
+    static void ir(int rank, const std::string &msg, Args &&... args) {
+        if (Comm::rank() != rank) return;
+        log(INFO, msg, std::forward<Args>(args)...);
+    }
+
+    template<typename... Args>
+    static void dr(int rank, const std::string &msg, Args &&... args) {
+        if (Comm::rank() != rank) return;
+        log(DEBUG, msg, std::forward<Args>(args)...);
+    }
+
+    template<typename... Args>
+    static void wr(int rank, const std::string &msg, Args &&... args) {
+        if (Comm::rank() != rank) return;
+        log(WARN, msg, std::forward<Args>(args)...);
+    }
+
+    template<typename... Args>
+    static void er(int rank, const std::string &msg, Args &&... args) {
+        if (Comm::rank() != rank) return;
+        log(ERROR, msg, std::forward<Args>(args)...);
+    }
+
 private:
     template<typename... Args>
     static void

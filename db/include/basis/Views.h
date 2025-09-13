@@ -20,6 +20,8 @@ public:
     /**
      *  Make sure all records of v0 and v1 are valid (call View::clearInvalidEntriesObliviously() if necessary).
      */
+    static View nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string &field1, bool compress);
+
     static View nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string &field1);
 
     static View hashJoin(View &v0, View &v1, std::string &field0, std::string &field1);

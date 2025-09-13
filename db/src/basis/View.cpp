@@ -1916,6 +1916,9 @@ void View::filterAndConditions(std::vector<std::string> &fieldNames, std::vector
 }
 
 void View::clearInvalidEntries(int msgTagBase) {
+    if (DbConf::BASELINE_MODE) {
+        return;
+    }
     // sort view by valid column
     sort(VALID_COL_NAME, false, msgTagBase);
     int64_t sumShare = 0, sumShare1;

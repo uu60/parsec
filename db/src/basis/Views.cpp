@@ -76,7 +76,7 @@ View Views::selectColumns(Table &t, std::vector<std::string> &fieldNames) {
     return v;
 }
 
-View Views::nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string &field1) {
+View Views::nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string &field1, bool compress) {
     // remove padding and valid columns
     const size_t effectiveFieldNum0 = v0.colNum() - 2;
     const size_t effectiveFieldNum1 = v1.colNum() - 2;
@@ -95,7 +95,8 @@ View Views::nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string 
     };
 
     for (size_t i = 0; i < effectiveFieldNum0; ++i) fieldNames[i] = decorate(tableName0, v0._fieldNames[i]);
-    for (size_t i = 0; i < effectiveFieldNum1; ++i) fieldNames[i + effectiveFieldNum0] = decorate(tableName1, v1._fieldNames[i]);
+    for (size_t i = 0; i < effectiveFieldNum1; ++i) fieldNames[i + effectiveFieldNum0] = decorate(
+                                                        tableName1, v1._fieldNames[i]);
 
     std::vector<int> fieldWidths(effectiveFieldNum0 + effectiveFieldNum1);
     for (size_t i = 0; i < effectiveFieldNum0; ++i) fieldWidths[i] = v0._fieldWidths[i];
@@ -123,22 +124,24 @@ View Views::nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string 
 
     // 三种模式
     const bool BASELINE = DbConf::BASELINE_MODE;
-    const bool PRECISE  = (!DbConf::BASELINE_MODE) && (!DbConf::DISABLE_PRECISE_COMPACTION);
-    const bool APPROX   = (!DbConf::BASELINE_MODE) && ( DbConf::DISABLE_PRECISE_COMPACTION);
+    const bool PRECISE = (!DbConf::BASELINE_MODE) && (!DbConf::DISABLE_PRECISE_COMPACTION);
+    const bool APPROX = (!DbConf::BASELINE_MODE) && (DbConf::DISABLE_PRECISE_COMPACTION);
 
     // 左右 valid（布尔份额）
     const int validIdx0 = v0.colNum() + View::VALID_COL_OFFSET;
     const int validIdx1 = v1.colNum() + View::VALID_COL_OFFSET;
-    const auto &lvalid  = v0._dataCols[validIdx0];
-    const auto &rvalid  = v1._dataCols[validIdx1];
+    const auto &lvalid = v0._dataCols[validIdx0];
+    const auto &rvalid = v1._dataCols[validIdx1];
 
     const int batchSize = Conf::BATCH_SIZE;
 
-    if (batchSize <= 0 || Conf::DISABLE_MULTI_THREAD) {
+    if (DbConf::BASELINE_MODE || batchSize <= 0 || Conf::DISABLE_MULTI_THREAD) {
         // ---------- 单线程路径 ----------
         size_t rowIndex = 0;
-        std::vector<int64_t> cmp0; cmp0.reserve(n);
-        std::vector<int64_t> cmp1; cmp1.reserve(n);
+        std::vector<int64_t> cmp0;
+        cmp0.reserve(n);
+        std::vector<int64_t> cmp1;
+        cmp1.reserve(n);
 
         // 为可能的 BASELINE/APPROX 预备成对的 valid 展开
         std::vector<int64_t> bigLValid, bigRValid;
@@ -184,30 +187,34 @@ View Views::nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string 
             // outValid = eq ∧ pairValid
             outValid = BoolAndBatchOperator(&eqRes, &pairValid, 1,
                                             /*tid*/0,
-                                            /*msgTag*/BoolEqualBatchOperator::tagStride() + BoolAndBatchOperator::tagStride(),
+                                            /*msgTag*/
+                                            BoolEqualBatchOperator::tagStride() + BoolAndBatchOperator::tagStride(),
                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         }
 
         joined._dataCols[joined.colNum() + View::VALID_COL_OFFSET] = std::move(outValid);
     } else {
         // ---------- 多线程/分批路径 ----------
-        const int eqStride  = BoolEqualBatchOperator::tagStride();
+        const int eqStride = BoolEqualBatchOperator::tagStride();
         const int andStride = BoolAndBatchOperator::tagStride();
         const int blockStride = eqStride + 2 * andStride; // 每批占用的 tag 空间
 
         const int batchNum = static_cast<int>((n + batchSize - 1) / batchSize);
-        std::vector<std::future<std::vector<int64_t>>> futures(batchNum);
+        std::vector<std::future<std::vector<int64_t> > > futures(batchNum);
 
         for (int b = 0; b < batchNum; ++b) {
             futures[b] = ThreadPoolSupport::submit([&, b]() {
                 const size_t start = static_cast<size_t>(b) * batchSize;
-                const size_t end   = std::min(n, start + batchSize);
-                const size_t cnt   = end - start;
+                const size_t end = std::min(n, start + batchSize);
+                const size_t cnt = end - start;
 
                 std::vector<int64_t> cmp0(cnt), cmp1(cnt);
                 // 批量展开数据/有效位索引
                 std::vector<int64_t> Lval, Rval;
-                if (!PRECISE) { Lval.resize(cnt); Rval.resize(cnt); }
+                if (!PRECISE) {
+                    Lval.resize(cnt);
+                    Rval.resize(cnt);
+                }
 
                 for (size_t off = 0; off < cnt; ++off) {
                     const size_t g = start + off;
@@ -215,7 +222,10 @@ View Views::nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string 
                     const size_t j = g % rows1; // 右行
                     cmp0[off] = col0[i];
                     cmp1[off] = col1[j];
-                    if (!PRECISE) { Lval[off] = lvalid[i]; Rval[off] = rvalid[j]; }
+                    if (!PRECISE) {
+                        Lval[off] = lvalid[i];
+                        Rval[off] = rvalid[j];
+                    }
                 }
 
                 const int baseTag = b * blockStride;
@@ -261,13 +271,18 @@ View Views::nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string 
         }
     }
 
-    // 压缩策略
-    if (!BASELINE) {
+    // 压缩策略 - 使用传入的compress参数控制
+    if (compress && !BASELINE) {
         // 精确或非精确压缩：走统一清理入口（内部根据 DISABLE_PRECISE_COMPACTION 选择精确/近似）
         joined.clearInvalidEntries(0);
     }
 
     return joined;
+}
+
+View Views::nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string &field1) {
+    // 默认压缩版本
+    return nestedLoopJoin(v0, v1, field0, field1, true);
 }
 
 std::vector<std::vector<std::vector<int64_t> > > Views::butterflyPermutation(
@@ -466,16 +481,18 @@ View Views::performBucketJoins(
         right._dataCols = buckets1[b];
         right._dataCols.emplace_back(right.rowNum(), 0);
 
-        // if (Conf::DISABLE_MULTI_THREAD) {
-        //     left.clearInvalidEntries(0);
-        //     right.clearInvalidEntries(0);
-        // } else {
-        //     auto f = ThreadPoolSupport::submit([&left] {
-        //         left.clearInvalidEntries(0);
-        //     });
-        //     right.clearInvalidEntries(left.clearInvalidEntriesTagStride());
-        //     f.wait();
-        // }
+        if (!DbConf::DISABLE_PRECISE_COMPACTION) {
+            if (Conf::DISABLE_MULTI_THREAD) {
+                left.clearInvalidEntries(0);
+                right.clearInvalidEntries(0);
+            } else {
+                auto f = ThreadPoolSupport::submit([&left] {
+                    left.clearInvalidEntries(0);
+                });
+                right.clearInvalidEntries(left.clearInvalidEntriesTagStride());
+                f.wait();
+            }
+        }
 
         View joined = nestedLoopJoin(left, right, field0, field1);
 
@@ -519,7 +536,9 @@ View Views::performBucketJoins(
         result = View(fieldNames, fieldWidths);
     }
 
-    result.clearInvalidEntries(0);
+    if (DbConf::DISABLE_PRECISE_COMPACTION) {
+        result.clearInvalidEntries(0);
+    }
 
     return result;
 }
@@ -590,30 +609,38 @@ View Views::leftOuterJoin(View &v0, View &v1, std::string &field0, std::string &
     const int k1 = v1.colIndex(field1);
     if (k0 < 0 || k1 < 0) return inner;
 
-    const auto &left_keys  = v0._dataCols[k0];
+    const auto &left_keys = v0._dataCols[k0];
     const auto &right_keys = v1._dataCols[k1];
 
     const int v0_valid_idx = v0.colNum() + View::VALID_COL_OFFSET;
     const int v1_valid_idx = v1.colNum() + View::VALID_COL_OFFSET;
-    const auto &left_valid  = v0._dataCols[v0_valid_idx];
+    const auto &left_valid = v0._dataCols[v0_valid_idx];
     const auto &right_valid = v1._dataCols[v1_valid_idx];
 
     // 2) 半连接：has_match[i] ∈ {0,1}（布尔分享）
     // 已在 in() 内根据 PRECISE/非精确路径处理了右掩蔽与左掩蔽
     std::vector<int64_t> has_match =
-        in(const_cast<std::vector<int64_t>&>(left_keys),
-           const_cast<std::vector<int64_t>&>(right_keys),
-           const_cast<std::vector<int64_t>&>(v0._dataCols[v0_valid_idx]),
-           const_cast<std::vector<int64_t>&>(v1._dataCols[v1_valid_idx]));
+            in(const_cast<std::vector<int64_t> &>(left_keys),
+               const_cast<std::vector<int64_t> &>(right_keys),
+               const_cast<std::vector<int64_t> &>(v0._dataCols[v0_valid_idx]),
+               const_cast<std::vector<int64_t> &>(v1._dataCols[v1_valid_idx]));
 
     // 3) 目标列结构（与 inner 一致）：v0(有效列) + v1(有效列)
-    const size_t eff0 = v0.colNum() - 2;  // 去掉 VALID/PADDING
+    const size_t eff0 = v0.colNum() - 2; // 去掉 VALID/PADDING
     const size_t eff1 = v1.colNum() - 2;
 
-    std::vector<std::string> names; names.reserve(eff0 + eff1);
-    std::vector<int>         widths; widths.reserve(eff0 + eff1);
-    for (size_t i = 0; i < eff0; ++i) { names.push_back(v0._fieldNames[i]); widths.push_back(v0._fieldWidths[i]); }
-    for (size_t i = 0; i < eff1; ++i) { names.push_back(v1._fieldNames[i]); widths.push_back(v1._fieldWidths[i]); }
+    std::vector<std::string> names;
+    names.reserve(eff0 + eff1);
+    std::vector<int> widths;
+    widths.reserve(eff0 + eff1);
+    for (size_t i = 0; i < eff0; ++i) {
+        names.push_back(v0._fieldNames[i]);
+        widths.push_back(v0._fieldWidths[i]);
+    }
+    for (size_t i = 0; i < eff1; ++i) {
+        names.push_back(v1._fieldNames[i]);
+        widths.push_back(v1._fieldWidths[i]);
+    }
 
     // 4) 构造 left_only：右侧全空；有效位 = left_valid ∧ ¬has_match
     View left_only(names, widths);
@@ -621,7 +648,7 @@ View Views::leftOuterJoin(View &v0, View &v1, std::string &field0, std::string &
 
     // 4.1 左侧有效列拷贝
     for (size_t c = 0; c < eff0; ++c) {
-        left_only._dataCols[c] = v0._dataCols[c];  // 与 v0 行数一致
+        left_only._dataCols[c] = v0._dataCols[c]; // 与 v0 行数一致
     }
     // 4.2 右侧有效列置 0（空值）
     for (size_t c = 0; c < eff1; ++c) {
@@ -632,26 +659,26 @@ View Views::leftOuterJoin(View &v0, View &v1, std::string &field0, std::string &
     std::vector<int64_t> not_has(n0);
     const int64_t mask = Comm::rank();
     for (size_t i = 0; i < n0; ++i) {
-        not_has[i] = has_match[i] ^ mask;  // 先做 NOT(has_match)
+        not_has[i] = has_match[i] ^ mask; // 先做 NOT(has_match)
     }
     // 与 left_valid 相与
     not_has = BoolAndBatchOperator(&not_has,
-                                   const_cast<std::vector<int64_t>*>(&left_valid),
+                                   const_cast<std::vector<int64_t> *>(&left_valid),
                                    /*bitlen=*/1, /*tid=*/0, /*msgTagBase=*/0,
                                    SecureOperator::NO_CLIENT_COMPUTE)
-                    .execute()->_zis;
+            .execute()->_zis;
 
     // 写入 VALID / PADDING
-    left_only._dataCols[left_only.colNum() + View::VALID_COL_OFFSET]   = std::move(not_has);
+    left_only._dataCols[left_only.colNum() + View::VALID_COL_OFFSET] = std::move(not_has);
     left_only._dataCols[left_only.colNum() + View::PADDING_COL_OFFSET] = std::vector<int64_t>(n0, 0);
 
     // 5) 压缩策略：BASELINE 不压缩；精确/非精确压缩交给 clearInvalidEntries
     if (!DbConf::BASELINE_MODE) {
-        left_only.clearInvalidEntries(/*msgTagBase=*/0);  // 内部按 DISABLE_PRECISE_COMPACTION 选择精确/近似
+        left_only.clearInvalidEntries(/*msgTagBase=*/0); // 内部按 DISABLE_PRECISE_COMPACTION 选择精确/近似
     }
 
     // 6) 结果 = 内连接 ∪ left_only（逐列 append；保持原有列顺序与 tag 习惯）
-    View result = inner;  // 拷贝结构
+    View result = inner; // 拷贝结构
     const size_t total_cols = result.colNum() + 2; // 含 VALID/PADDING
     for (size_t col = 0; col < total_cols; ++col) {
         auto &dst = result._dataCols[col];
@@ -855,16 +882,16 @@ std::vector<int64_t> Views::inMultiBatches(std::vector<int64_t> &col1,
     }
 
     const int equalTagStride = BoolEqualBatchOperator::tagStride();
-    const int andTagStride   = BoolAndBatchOperator::tagStride();
+    const int andTagStride = BoolAndBatchOperator::tagStride();
 
     // ---------- 第一步：分批做等值比较（必要时顺带右掩蔽） ----------
-    std::vector<std::future<std::vector<int64_t>>> equalFutures(numBatches);
+    std::vector<std::future<std::vector<int64_t> > > equalFutures(numBatches);
 
     for (int b = 0; b < numBatches; ++b) {
         equalFutures[b] = ThreadPoolSupport::submit([&, b]() {
             const size_t start = static_cast<size_t>(b) * batchSize;
-            const size_t end   = std::min(totalSize, start + batchSize);
-            const size_t cnt   = end - start;
+            const size_t end = std::min(totalSize, start + batchSize);
+            const size_t cnt = end - start;
 
             std::vector<int64_t> batchLeft(cnt), batchRight(cnt);
 
@@ -872,7 +899,7 @@ std::vector<int64_t> Views::inMultiBatches(std::vector<int64_t> &col1,
             for (size_t idx = start; idx < end; ++idx) {
                 const size_t i = idx / m; // 行（来自 col1）
                 const size_t j = idx % m; // 列（来自 col2）
-                batchLeft[idx - start]  = col1[i];
+                batchLeft[idx - start] = col1[i];
                 batchRight[idx - start] = col2[j];
             }
 
@@ -882,7 +909,7 @@ std::vector<int64_t> Views::inMultiBatches(std::vector<int64_t> &col1,
                                                 /*width=*/64, /*tid=*/0,
                                                 /*msgTagOffset=*/eqTag,
                                                 SecureOperator::NO_CLIENT_COMPUTE)
-                         .execute()->_zis;
+                    .execute()->_zis;
 
             if (!PRECISE) {
                 // 右掩蔽：把无效右行的匹配置 0
@@ -904,7 +931,7 @@ std::vector<int64_t> Views::inMultiBatches(std::vector<int64_t> &col1,
             }
 
             // 取反：NOT(equal) 用本方异或掩码
-            for (auto &bit : eqRes) bit ^= rankShare;
+            for (auto &bit: eqRes) bit ^= rankShare;
             return eqRes;
         });
     }
@@ -912,7 +939,7 @@ std::vector<int64_t> Views::inMultiBatches(std::vector<int64_t> &col1,
     // 收集所有批次的 NOT(equal) 结果，按 n 行 × m 列扁平化存入 cur
     std::vector<int64_t> cur;
     cur.reserve(totalSize);
-    for (auto &f : equalFutures) {
+    for (auto &f: equalFutures) {
         auto part = f.get();
         cur.insert(cur.end(), part.begin(), part.end());
     }
@@ -923,8 +950,8 @@ std::vector<int64_t> Views::inMultiBatches(std::vector<int64_t> &col1,
 
     while (curCols > 1) {
         const size_t pairsPerRow = curCols / 2;
-        const bool   hasOdd      = (curCols & 1);
-        const size_t totalPairs  = n * pairsPerRow;
+        const bool hasOdd = (curCols & 1);
+        const size_t totalPairs = n * pairsPerRow;
 
         if (totalPairs == 0) break;
 
@@ -936,7 +963,7 @@ std::vector<int64_t> Views::inMultiBatches(std::vector<int64_t> &col1,
             for (size_t i = 0; i < n; ++i) {
                 const size_t base = i * curCols;
                 for (size_t p = 0; p < pairsPerRow; ++p) {
-                    andLeft[w]  = cur[base + 2 * p];
+                    andLeft[w] = cur[base + 2 * p];
                     andRight[w] = cur[base + 2 * p + 1];
                     ++w;
                 }
@@ -949,7 +976,7 @@ std::vector<int64_t> Views::inMultiBatches(std::vector<int64_t> &col1,
                                                /*width=*/1, /*tid=*/0,
                                                /*msgTagOffset=*/andBaseTag,
                                                SecureOperator::NO_CLIENT_COMPUTE)
-                          .execute()->_zis;
+                    .execute()->_zis;
 
             // 组装下一轮（奇数列末尾直接带过去）
             std::vector<int64_t> next(n * (pairsPerRow + (hasOdd ? 1 : 0)));
@@ -966,13 +993,13 @@ std::vector<int64_t> Views::inMultiBatches(std::vector<int64_t> &col1,
             cur.swap(next);
         } else {
             const int andBatches = (totalPairs + batchSize - 1) / batchSize;
-            std::vector<std::future<std::vector<int64_t>>> andFuts(andBatches);
+            std::vector<std::future<std::vector<int64_t> > > andFuts(andBatches);
 
             for (int b = 0; b < andBatches; ++b) {
                 andFuts[b] = ThreadPoolSupport::submit([&, b, round]() {
                     const size_t start = static_cast<size_t>(b) * batchSize;
-                    const size_t end   = std::min(totalPairs, start + batchSize);
-                    const size_t cnt   = end - start;
+                    const size_t end = std::min(totalPairs, start + batchSize);
+                    const size_t cnt = end - start;
 
                     std::vector<int64_t> andLeft(cnt), andRight(cnt);
 
@@ -980,9 +1007,9 @@ std::vector<int64_t> Views::inMultiBatches(std::vector<int64_t> &col1,
                     size_t globalPairIdx = start;
                     for (size_t t = 0; t < cnt; ++t, ++globalPairIdx) {
                         size_t row = globalPairIdx / pairsPerRow;
-                        size_t p   = globalPairIdx % pairsPerRow;
+                        size_t p = globalPairIdx % pairsPerRow;
                         const size_t base = row * curCols;
-                        andLeft[t]  = cur[base + 2 * p];
+                        andLeft[t] = cur[base + 2 * p];
                         andRight[t] = cur[base + 2 * p + 1];
                     }
 
@@ -993,14 +1020,14 @@ std::vector<int64_t> Views::inMultiBatches(std::vector<int64_t> &col1,
                                                 /*width=*/1, /*tid=*/0,
                                                 /*msgTagOffset=*/andTag,
                                                 SecureOperator::NO_CLIENT_COMPUTE)
-                           .execute()->_zis;
+                            .execute()->_zis;
                 });
             }
 
             // 收集 AND 结果并组装下一轮
             std::vector<int64_t> andOut;
             andOut.reserve(totalPairs);
-            for (auto &f : andFuts) {
+            for (auto &f: andFuts) {
                 auto part = f.get();
                 andOut.insert(andOut.end(), part.begin(), part.end());
             }
@@ -1032,13 +1059,13 @@ std::vector<int64_t> Views::inMultiBatches(std::vector<int64_t> &col1,
     if (!PRECISE) {
         if (left_valid.size() == n) {
             const int finalMaskTag =
-                numBatches * (equalTagStride + andTagStride)  // 等值 + 右掩蔽
-                + reduceRounds * andTagStride;               // 所有归约轮
+                    numBatches * (equalTagStride + andTagStride) // 等值 + 右掩蔽
+                    + reduceRounds * andTagStride; // 所有归约轮
             result = BoolAndBatchOperator(&result, &left_valid,
                                           /*width=*/1, /*tid=*/0,
                                           /*msgTagOffset=*/finalMaskTag,
                                           SecureOperator::NO_CLIENT_COMPUTE)
-                     .execute()->_zis;
+                    .execute()->_zis;
         } else {
             Log::e("inMultiBatches: left_valid size mismatch: got {}, expect {}", left_valid.size(), n);
         }

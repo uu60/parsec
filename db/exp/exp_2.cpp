@@ -77,6 +77,10 @@ int main(int argc, char *argv[]) {
         num_records = std::stoi(Conf::_userParams["rows"]);
     }
 
+    if (Comm::isClient()) {
+        Log::i("Data size: ", num_records);
+    }
+
     // Build random dataset
     std::vector<int64_t> pid_data, pid_hash_data, time_data, time_plus_15_data, time_plus_56_data;
     std::vector<int64_t> row_no_data, row_no_plus_1_data, diag_data;
