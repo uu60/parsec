@@ -61,6 +61,8 @@ public:
     // Group by functionality for 2PC secret sharing
     // Returns: pair<groupIds for each row, total number of groups>
     std::vector<int64_t> groupBy(const std::string &groupField, int msgTagBase);
+
+    std::vector<int64_t> groupBy(const std::string &groupField, bool doSort, int msgTagBase);
     
     // Multi-column group by functionality for 2PC secret sharing
     // Returns: group boundary indicators for each row (1 if starts new group, 0 otherwise)

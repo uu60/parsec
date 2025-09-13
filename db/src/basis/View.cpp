@@ -2614,22 +2614,28 @@ void View::minAndMaxMultiBatches(std::vector<int64_t> &heads,
 
 // Group by functionality for 2PC secret sharing
 std::vector<int64_t> View::groupBy(const std::string &groupField, int msgTagBase) {
+   return groupBy(groupField, true, msgTagBase);
+}
+
+std::vector<int64_t> View::groupBy(const std::string &groupField, bool doSort, int msgTagBase) {
     size_t n = rowNum();
     if (n == 0) {
         return std::vector<int64_t>();
     }
 
-    if (!DbConf::BASELINE_MODE && !DbConf::DISABLE_PRECISE_COMPACTION) {
-        // First, sort by the group field to ensure records with same keys are adjacent
-        sort(groupField, true, msgTagBase);
-    } else {
-        std::vector<std::string> sortFields;
-        std::vector<bool> ascending;
-        sortFields.push_back(VALID_COL_NAME);
-        ascending.push_back(false);
-        sortFields.push_back(groupField);
-        ascending.push_back(true);
-        sort(sortFields, ascending, msgTagBase);
+    if (doSort) {
+        if (!DbConf::BASELINE_MODE && !DbConf::DISABLE_PRECISE_COMPACTION) {
+            // First, sort by the group field to ensure records with same keys are adjacent
+            sort(groupField, true, msgTagBase);
+        } else {
+            std::vector<std::string> sortFields;
+            std::vector<bool> ascending;
+            sortFields.push_back(VALID_COL_NAME);
+            ascending.push_back(false);
+            sortFields.push_back(groupField);
+            ascending.push_back(true);
+            sort(sortFields, ascending, msgTagBase);
+        }
     }
 
     // Choose between single batch and multi-batch processing
