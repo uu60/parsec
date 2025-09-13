@@ -16,6 +16,7 @@
 #include <string>
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
+    DbConf::init();
 
     int num0 = 5; // Number of records in table 0
     int num1 = 5; // Number of records in table 1
