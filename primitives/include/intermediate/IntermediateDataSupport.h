@@ -20,8 +20,6 @@ private:
     inline static u_int _currentBmtQ = 0;
     inline static u_int _currentBitwiseBmtQ = 0;
 
-    inline static std::atomic_int version = 0;
-
     // Reuse of bmt
     inline static Bmt *_currentBmt{};
     inline static BitwiseBmt *_currentBitwiseBmt{};

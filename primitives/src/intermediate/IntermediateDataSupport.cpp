@@ -24,14 +24,6 @@ void IntermediateDataSupport::prepareBmt() {
         _fixedBmt = BmtGenerator(64, 0, 0).execute()->_bmt;
         _fixedBitwiseBmt = BitwiseBmtGenerator(64, 0, 0).execute()->_bmt;
     } else if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND || Conf::BMT_METHOD == Conf::BMT_PIPELINE) {
-        // synchronization
-        if (Comm::rank() == 0) {
-            Comm::send(version, 64, 1, 0); // send anything
-        } else {
-            int64_t temp;
-            Comm::receive(temp, 64, 0, 0);
-        }
-        _bitwiseBmtQs = std::vector<AbstractBlockingQueue<BitwiseBmt> *>();
         _bitwiseBmtQs.resize(Conf::BMT_QUEUE_NUM);
         if (Conf::BMT_QUEUE_TYPE == Conf::LOCK_QUEUE) {
             for (int i = 0; i < Conf::BMT_QUEUE_NUM; i++) {
@@ -53,7 +45,6 @@ void IntermediateDataSupport::prepareBmt() {
             return;
         }
 
-        _bmtQs = std::vector<AbstractBlockingQueue<Bmt> *>();
         _bmtQs.resize(Conf::BMT_QUEUE_NUM);
         if (Conf::BMT_QUEUE_TYPE == Conf::LOCK_QUEUE) {
             for (int i = 0; i < Conf::BMT_QUEUE_NUM; i++) {
@@ -88,7 +79,6 @@ void IntermediateDataSupport::init() {
 }
 
 void IntermediateDataSupport::finalize() {
-    ++version;
     delete _currentBmt;
     delete _currentBitwiseBmt;
     delete _sRot0;
@@ -227,23 +217,19 @@ void IntermediateDataSupport::startGenerateBmtsAsync() {
 void IntermediateDataSupport::startGenerateBitwiseBmtsAsync() {
     if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
         for (int i = 0; i < Conf::BMT_QUEUE_NUM; i++) {
-            ThreadPoolSupport::submit([&, i] {
+            ThreadPoolSupport::submit([i] {
                 try {
                     auto q = _bitwiseBmtQs[i];
-                    int currentVersion = version.load();
-                    while (!System::_shutdown.load() && currentVersion == version.load()) {
+                    while (!System::_shutdown.load()) {
                         auto bitwiseBmts = BitwiseBmtBatchGenerator(Conf::BMT_GEN_BATCH_SIZE, 64, i, 0).execute()->_bmts;
                         for (auto b: bitwiseBmts) {
-                            if (q == nullptr) {
-                                return;
-                            }
                             q->offer(b);
                         }
                     }
                 } catch (...) {}
             });
         }
-    } else if (Conf::BMT_METHOD == Conf::BMT_PIPELINE) { // NOT support restart
+    } else if (Conf::BMT_METHOD == Conf::BMT_PIPELINE) {
         for (int i = 0; i < Conf::BMT_QUEUE_NUM; i++) {
             ThreadPoolSupport::submit([i] {
                 try {
