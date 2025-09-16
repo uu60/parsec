@@ -14,31 +14,34 @@
 #include "utils/StringUtils.h"
 
 #include <string>
+
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
     DbConf::init();
 
-    int num0 = 5; // Number of records in table 0
-    int num1 = 5; // Number of records in table 1
-    bool testShuffle = false; // Whether to test shuffle bucket join
+    int rows1 = 5; // Number of records in table 0
+    int rows2 = 5; // Number of records in table 1
+    bool hash = false; // Whether to test shuffle bucket join
 
-    if (Conf::_userParams.count("num0")) {
-        num0 = std::stoi(Conf::_userParams["num0"]);
+    if (Conf::_userParams.count("rows1")) {
+        rows1 = std::stoi(Conf::_userParams["rows1"]);
     }
 
-    if (Conf::_userParams.count("num1")) {
-        num1 = std::stoi(Conf::_userParams["num1"]);
+    if (Conf::_userParams.count("rows2")) {
+        rows2 = std::stoi(Conf::_userParams["rows2"]);
     }
 
-    if (Conf::_userParams.count("shuffle")) {
-        testShuffle = (Conf::_userParams["shuffle"] == "1");
+    if (Conf::_userParams.count("hash")) {
+        hash = (Conf::_userParams["hash"] == "true");
     }
+
+    Log::ir(2, "Join benchmark - Table1 rows: {}, Table2 rows: {}, Hash join: {}", rows1, rows2, hash);
 
     // Create test data for table 0
-    std::vector<int64_t> shares0(num0);
-    std::vector<int64_t> tagShares0(num0);
+    std::vector<int64_t> shares0(rows1);
+    std::vector<int64_t> tagShares0(rows1);
     if (Comm::rank() == 2) {
-        for (int i = 0; i < num0; i++) {
+        for (int i = 0; i < rows1; i++) {
             shares0[i] = i; // Join key values 0-9
             // Compute bucket tag using hash of the key value
             int64_t keyValue = shares0[i];
@@ -51,10 +54,10 @@ int main(int argc, char *argv[]) {
     tagShares0 = Secrets::boolShare(tagShares0, 2, 64, 0);
 
     // Create test data for table 1
-    std::vector<int64_t> shares1(num1);
-    std::vector<int64_t> tagShares1(num1);
+    std::vector<int64_t> shares1(rows2);
+    std::vector<int64_t> tagShares1(rows2);
     if (Comm::rank() == 2) {
-        for (int i = 0; i < num1; i++) {
+        for (int i = 0; i < rows2; i++) {
             shares1[i] = i; // Join key values 0-9
             // Compute bucket tag using the same hash function as table 0
             int64_t keyValue = shares1[i];
@@ -70,26 +73,26 @@ int main(int argc, char *argv[]) {
 
     if (Comm::isServer()) {
         // Create table 0
-        std::vector<std::string> fieldNames0 = {"id", "value"};
-        std::vector<int> fieldWidths0 = {64, 64};
+        std::vector<std::string> fieldNames0 = {"id"};
+        std::vector<int> fieldWidths0 = {64};
 
         std::string tableName0 = "table0";
         std::string keyField0 = "id";
         Table table0(tableName0, fieldNames0, fieldWidths0, keyField0);
         for (int i = 0; i < shares0.size(); i++) {
-            std::vector<int64_t> record = {shares0[i], shares0[i], tagShares0[i]};
+            std::vector<int64_t> record = {shares0[i], tagShares0[i]};
             table0.insert(record);
         }
 
         // Create table 1
-        std::vector<std::string> fieldNames1 = {"id", "data"};
-        std::vector<int> fieldWidths1 = {64, 64};
+        std::vector<std::string> fieldNames1 = {"id"};
+        std::vector<int> fieldWidths1 = {64};
 
         std::string tableName1 = "table1";
         std::string keyField1 = "id";
         Table table1(tableName1, fieldNames1, fieldWidths1, keyField1);
         for (int i = 0; i < shares1.size(); i++) {
-            std::vector<int64_t> record = {shares1[i], shares1[i], tagShares1[i]};
+            std::vector<int64_t> record = {shares1[i], tagShares1[i]};
             table1.insert(record);
         }
 
@@ -97,25 +100,18 @@ int main(int argc, char *argv[]) {
         View view0 = Views::selectAll(table0);
         View view1 = Views::selectAll(table1);
 
-        Log::i("0");
-        Views::revealAndPrint(view0);
-        Log::i("1");
-        Views::revealAndPrint(view1);
-
         std::string joinField0 = "id";
         std::string joinField1 = "id";
 
         auto start = System::currentTimeMillis();
 
-        if (testShuffle) {
-            Log::i("Starting shuffle bucket join...");
-            joinResult = Views::hashJoin(view0, view1, joinField0, joinField1);
+        if (hash) {
+            joinResult = Views::hashJoin(view0, view1, joinField0, joinField1, false);
         } else {
-            Log::i("Starting nested loop join...");
-            joinResult = Views::nestedLoopJoin(view0, view1, joinField0, joinField1);
+            joinResult = Views::nestedLoopJoin(view0, view1, joinField0, joinField1, false);
         }
 
-        Views::revealAndPrint(joinResult);
+        // Views::revealAndPrint(joinResult);
         auto elapsed = System::currentTimeMillis() - start;
         Log::i("Join completed in {}ms", elapsed);
         Log::i("Result has {} records", joinResult._dataCols.empty() ? 0 : joinResult._dataCols[0].size());
@@ -137,20 +133,6 @@ int main(int argc, char *argv[]) {
                 allSecrets.push_back(joinResult._dataCols[col][row]);
             }
         }
-    }
-    // Single reconstruct call for all data
-    auto allReconstructed = Secrets::boolReconstruct(allSecrets, 2, 64, System::nextTask());
-
-    if (Comm::rank() == 2) {
-        numRows = allReconstructed.size() / numCols;
-        for (int col = 0; col < numCols; col++) {
-            std::vector<int64_t> tempCol;
-            for (int row = 0; row < numRows; row++) {
-                tempCol.push_back(allReconstructed[col * numRows + row]);
-            }
-            // Log::i("col[{}]: {}", col, StringUtils::vecString(tempCol));
-        }
-        Log::i("cols: {} rows: {}", numCols, numRows);
     }
 
 

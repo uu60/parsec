@@ -56,15 +56,15 @@ private:
 
     static void addRedundantCols(View &v);
 
-    static std::vector<std::vector<std::vector<int64_t> > > butterflyPermutation(
+    static std::vector<View> butterflyPermutation(
         View &view,
         int tagColIndex,
         int msgTagBase
     );
 
     static View performBucketJoins(
-        std::vector<std::vector<std::vector<int64_t> > > &buckets0,
-        std::vector<std::vector<std::vector<int64_t> > > &buckets1,
+        std::vector<View> &buckets0,
+        std::vector<View> &buckets1,
         View &v0,
         View &v1,
         std::string &field0,

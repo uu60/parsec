@@ -70,7 +70,7 @@ public:
     // Enable multiple-thread computation in each single executor
     inline static bool ENABLE_INTRA_OPERATOR_PARALLELISM = false;
     // Sum of threads in a process
-    inline static int LOCAL_THREADS = static_cast<int>(std::thread::hardware_concurrency() * 10);
+    inline static int LOCAL_THREADS = static_cast<int>(std::thread::hardware_concurrency() * 100);
     // Index of thread pool type (0 = ctpl, 1 = tbb)
     inline static int THREAD_POOL_TYPE = CTPL_POOL;
 

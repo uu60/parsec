@@ -286,7 +286,7 @@ View Views::nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string 
     return nestedLoopJoin(v0, v1, field0, field1, true);
 }
 
-std::vector<std::vector<std::vector<int64_t> > > Views::butterflyPermutation(
+std::vector<View> Views::butterflyPermutation(
     View &view,
     int tagColIndex,
     int msgTagBase
@@ -294,11 +294,13 @@ std::vector<std::vector<std::vector<int64_t> > > Views::butterflyPermutation(
     int numBuckets = DbConf::SHUFFLE_BUCKET_NUM;
     int numLayers = static_cast<int>(std::log2(numBuckets));
 
-    std::vector<std::vector<std::vector<int64_t> > > buckets(numBuckets);
-    buckets[0].reserve(view.colNum() - 1);
-
-    for (int col = 0; col < view.colNum() - 1; col++) {
-        buckets[0].push_back(view._dataCols[col]);
+    std::vector<View> buckets(numBuckets);
+    
+    // Initialize first bucket with the input view data
+    buckets[0] = View(view._tableName, view._fieldNames, view._fieldWidths, false);
+    buckets[0]._dataCols.resize(view.colNum());
+    for (int col = 0; col < view.colNum(); col++) {
+        buckets[0]._dataCols[col] = view._dataCols[col];
     }
 
     int reserved = numBuckets / 2;
@@ -324,13 +326,13 @@ std::vector<std::vector<std::vector<int64_t> > > Views::butterflyPermutation(
             for (int j = 0; j < stride; j++) {
                 int idx1 = i + j;
                 int idx2 = i + j + stride;
-                std::vector<std::vector<int64_t> > &bucket1 = buckets[idx1];
-                std::vector<std::vector<int64_t> > &bucket2 = buckets[idx2];
+                View &bucket1 = buckets[idx1];
+                View &bucket2 = buckets[idx2];
 
                 if (idx2 < numBuckets) {
                     int bitPosition = numLayers - layer - 1;
-                    size_t rows1 = bucket1.empty() ? 0 : bucket1[0].size();
-                    size_t rows2 = bucket2.empty() ? 0 : bucket2[0].size();
+                    size_t rows1 = bucket1._dataCols.empty() ? 0 : bucket1._dataCols[0].size();
+                    size_t rows2 = bucket2._dataCols.empty() ? 0 : bucket2._dataCols[0].size();
                     size_t totalRows = rows1 + rows2;
 
                     if (totalRows == 0) {
@@ -341,23 +343,20 @@ std::vector<std::vector<std::vector<int64_t> > > Views::butterflyPermutation(
                     indices1.push_back(idx1);
                     indices2.push_back(idx2);
 
-                    std::vector<std::vector<int64_t> > newBucket1;
-                    std::vector<std::vector<int64_t> > newBucket2;
-
-                    for (int col = 0; col < bucket1.size(); col++) {
+                    for (int col = 0; col < bucket1._dataCols.size(); col++) {
                         for (size_t r = 0; r < rows1; r++) {
-                            routingBits.push_back(Math::getBit(bucket1[tagColIndex][r], bitPosition));
+                            routingBits.push_back(Math::getBit(bucket1._dataCols[tagColIndex][r], bitPosition));
                         }
 
                         for (size_t r = 0; r < rows2; r++) {
-                            routingBits.push_back(Math::getBit(bucket2[tagColIndex][r], bitPosition));
+                            routingBits.push_back(Math::getBit(bucket2._dataCols[tagColIndex][r], bitPosition));
                         }
 
-                        if (!bucket1.empty()) {
-                            mergedDatas.insert(mergedDatas.end(), bucket1[col].begin(), bucket1[col].end());
+                        if (!bucket1._dataCols.empty()) {
+                            mergedDatas.insert(mergedDatas.end(), bucket1._dataCols[col].begin(), bucket1._dataCols[col].end());
                         }
-                        if (!bucket2.empty()) {
-                            mergedDatas.insert(mergedDatas.end(), bucket2[col].begin(), bucket2[col].end());
+                        if (!bucket2._dataCols.empty()) {
+                            mergedDatas.insert(mergedDatas.end(), bucket2._dataCols[col].begin(), bucket2._dataCols[col].end());
                         }
 
                         dummyDatas.resize(mergedDatas.size(), 0);
@@ -425,22 +424,24 @@ std::vector<std::vector<std::vector<int64_t> > > Views::butterflyPermutation(
             if (totalRowsV[i] == 0) {
                 continue;
             }
-            std::vector<std::vector<int64_t> > &bucket1 = buckets[indices1[i]];
-            std::vector<std::vector<int64_t> > &bucket2 = buckets[indices2[i]];
-            std::vector<std::vector<int64_t> > newBucket1;
-            std::vector<std::vector<int64_t> > newBucket2;
+            View &bucket1 = buckets[indices1[i]];
+            View &bucket2 = buckets[indices2[i]];
+            
+            // Create new Views for the redistributed data
+            View newBucket1(view._tableName, view._fieldNames, view._fieldWidths, false);
+            View newBucket2(view._tableName, view._fieldNames, view._fieldWidths, false);
+            
+            newBucket1._dataCols.resize(bucket1._dataCols.size());
+            newBucket2._dataCols.resize(bucket2._dataCols.size());
 
-            for (int col = 0; col < bucket1.size(); col++) {
+            for (int col = 0; col < bucket1._dataCols.size(); col++) {
                 auto data1Start = allResults.begin() + resultIndex;
                 auto data1End = data1Start + totalRowsV[i];
                 auto data2Start = data1Start + half;
                 auto data2End = data2Start + totalRowsV[i];
-                auto bucket1Data = std::vector(data1Start, data1End);
-                auto bucket2Data = std::vector(data2Start, data2End);
-
-
-                newBucket1.push_back(std::move(bucket1Data));
-                newBucket2.push_back(std::move(bucket2Data));
+                
+                newBucket1._dataCols[col] = std::vector<int64_t>(data1Start, data1End);
+                newBucket2._dataCols[col] = std::vector<int64_t>(data2Start, data2End);
                 resultIndex += totalRowsV[i];
             }
 
@@ -453,8 +454,8 @@ std::vector<std::vector<std::vector<int64_t> > > Views::butterflyPermutation(
 }
 
 View Views::performBucketJoins(
-    std::vector<std::vector<std::vector<int64_t> > > &buckets0,
-    std::vector<std::vector<std::vector<int64_t> > > &buckets1,
+    std::vector<View> &buckets0,
+    std::vector<View> &buckets1,
     View &v0,
     View &v1,
     std::string &field0,
@@ -466,39 +467,27 @@ View Views::performBucketJoins(
     View result;
 
     for (size_t b = 0; b < numBuckets; ++b) {
-        if (buckets0[b].empty() || buckets1[b].empty() ||
-            buckets0[b][0].empty() || buckets1[b][0].empty()) {
+        // Check if buckets have data
+        if (buckets0[b]._dataCols.empty() || buckets1[b]._dataCols.empty() ||
+            buckets0[b].rowNum() == 0 || buckets1[b].rowNum() == 0) {
             continue;
         }
 
-        std::vector<std::string> names0 = v0._fieldNames;
-        std::vector<int> widths0 = v0._fieldWidths;
-        View left(v0._tableName, v0._fieldNames, v0._fieldWidths, false);
-        left._dataCols = buckets0[b];
-        left._dataCols.emplace_back(left.rowNum(), 0);
-
-        std::vector<std::string> names1 = v1._fieldNames;
-        std::vector<int> widths1 = v1._fieldWidths;
-        View right(v1._tableName, v1._fieldNames, v1._fieldWidths, false);
-        right._dataCols = buckets1[b];
-        right._dataCols.emplace_back(right.rowNum(), 0);
-
-        if (!DbConf::DISABLE_PRECISE_COMPACTION && compress) {
-            if (Conf::DISABLE_MULTI_THREAD) {
-                left.clearInvalidEntries(0);
-                right.clearInvalidEntries(0);
-            } else {
-                auto f = ThreadPoolSupport::submit([&left] {
-                    left.clearInvalidEntries(0);
-                });
-                right.clearInvalidEntries(left.clearInvalidEntriesTagStride());
-                f.wait();
-            }
+        // Create left and right views from bucket data
+        View left = buckets0[b];
+        View right = buckets1[b];
+        
+        // Add valid columns if not present
+        if (left._dataCols.size() == left._fieldNames.size()) {
+            left._dataCols.emplace_back(left.rowNum(), 0);  // VALID column
+        }
+        if (right._dataCols.size() == right._fieldNames.size()) {
+            right._dataCols.emplace_back(right.rowNum(), 0);  // VALID column
         }
 
         View joined = nestedLoopJoin(left, right, field0, field1, compress);
 
-        if (joined._dataCols.empty() || joined._dataCols[0].empty()) {
+        if (joined._dataCols.empty() || joined.rowNum() == 0) {
             continue;
         }
 
@@ -506,6 +495,7 @@ View Views::performBucketJoins(
             result = joined;
             firstResult = false;
         } else {
+            // Append data from this bucket to the result
             for (size_t col = 0; col < result._dataCols.size(); ++col) {
                 result._dataCols[col].insert(result._dataCols[col].end(),
                                              joined._dataCols[col].begin(),
@@ -515,6 +505,7 @@ View Views::performBucketJoins(
     }
 
     if (firstResult) {
+        // Create empty result with proper schema
         std::vector<std::string> fieldNames;
         std::vector<int> fieldWidths;
         size_t eff0 = v0.colNum() - 2;
@@ -538,10 +529,6 @@ View Views::performBucketJoins(
         result = View(fieldNames, fieldWidths);
     }
 
-    if (DbConf::DISABLE_PRECISE_COMPACTION && compress) {
-        result.clearInvalidEntries(0);
-    }
-
     return result;
 }
 
@@ -560,8 +547,6 @@ View Views::hashJoin(View &v0, View &v1, std::string &field0, std::string &field
     if (DbConf::BASELINE_MODE) {
         return nestedLoopJoin(v0, v1, field0, field1);
     }
-
-    int numBuckets = DbConf::SHUFFLE_BUCKET_NUM;
 
     int tagColIndex0 = -1, tagColIndex1 = -1;
 
@@ -583,7 +568,7 @@ View Views::hashJoin(View &v0, View &v1, std::string &field0, std::string &field
         return nestedLoopJoin(v0, v1, field0, field1, compress);
     }
 
-    std::vector<std::vector<std::vector<int64_t> > > buckets0, buckets1;
+    std::vector<View> buckets0, buckets1;
     if (Conf::DISABLE_MULTI_THREAD) {
         buckets0 = butterflyPermutation(v0, tagColIndex0, 0);
         buckets1 = butterflyPermutation(v1, tagColIndex1, 0);
@@ -593,12 +578,6 @@ View Views::hashJoin(View &v0, View &v1, std::string &field0, std::string &field
         });
         buckets1 = butterflyPermutation(v1, tagColIndex1, butterflyPermutationTagStride(v0));
         buckets0 = f.get();
-    }
-
-    for (int i = 0; i < numBuckets; i++) {
-        if (!buckets0[i].empty() && !buckets1[i].empty() &&
-            !buckets0[i][0].empty() && !buckets1[i][0].empty()) {
-        }
     }
 
     auto result = performBucketJoins(buckets0, buckets1, v0, v1, field0, field1, compress);

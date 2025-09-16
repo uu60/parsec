@@ -50,7 +50,9 @@ View executeTopKByCount(View grouped_diag_cnt, int k, int tid);
 
 // ---- Small helpers for Top-K ----
 static View sliceRows(View &v, size_t start, size_t len);
+
 static View concatSameSchema(View &a, View &b);
+
 static View projectDiagCnt(View &v, std::string diag_field, std::string cnt_field);
 
 /**
@@ -86,9 +88,9 @@ int main(int argc, char *argv[]) {
                      diagnosis_extra_data, cdiff_cohort_pid_data);
 
     // Convert to secret shares for 2PC
-    auto diagnosis_pid_shares  = Secrets::boolShare(diagnosis_pid_data,  2, 64, tid);
+    auto diagnosis_pid_shares = Secrets::boolShare(diagnosis_pid_data, 2, 64, tid);
     auto diagnosis_diag_shares = Secrets::boolShare(diagnosis_diag_data, 2, 64, tid);
-    auto diagnosis_extra_shares= Secrets::boolShare(diagnosis_extra_data,2, 64, tid);
+    auto diagnosis_extra_shares = Secrets::boolShare(diagnosis_extra_data, 2, 64, tid);
 
     // ★ Bug fix: cohort shares must be created from cdiff_cohort_pid_data (NOT diagnosis_pid_data)
     auto cdiff_cohort_pid_shares = Secrets::boolShare(cdiff_cohort_pid_data, 2, 64, tid);
@@ -96,17 +98,17 @@ int main(int argc, char *argv[]) {
     View result_view;
     if (Comm::isServer()) {
         // Create tables
-        auto diagnosis_view     = createDiagnosisTable(diagnosis_pid_shares, diagnosis_diag_shares, diagnosis_extra_shares);
-        auto cdiff_cohort_view  = createCohortTable(cdiff_cohort_pid_shares);
+        auto diagnosis_view = createDiagnosisTable(diagnosis_pid_shares, diagnosis_diag_shares, diagnosis_extra_shares);
+        auto cdiff_cohort_view = createCohortTable(cdiff_cohort_pid_shares);
 
         auto query_start = System::currentTimeMillis();
 
         // Execute query steps
-        auto in_results         = executeWhereInClause(diagnosis_view, cdiff_cohort_view);
+        auto in_results = executeWhereInClause(diagnosis_view, cdiff_cohort_view);
         auto filtered_diagnosis = filterDiagnosisTable(diagnosis_view, in_results, tid);
 
         // GROUP BY diag, COUNT(*)  —— 内部会排序/分段；之后我们立即只保留 {diag, cnt}
-        auto diag_cnt_view      = executeGroupByCount(filtered_diagnosis, tid);
+        auto diag_cnt_view = executeGroupByCount(filtered_diagnosis, tid);
 
         // ★ Top-K：避免全排序；只拿 cnt 最大的前 10
         result_view = executeTopKByCount(std::move(diag_cnt_view), /*k=*/10, tid);
@@ -184,11 +186,11 @@ View createCohortTable(std::vector<int64_t> &cdiff_cohort_pid_shares) {
 std::vector<int64_t> executeWhereInClause(View &diagnosis_view, View &cdiff_cohort_view) {
     auto diagnosis_pid_col = diagnosis_view._dataCols[0];
     auto cdiff_cohort_pid_col = cdiff_cohort_view._dataCols[0];
-    
+
     auto in_results = Views::in(diagnosis_pid_col, cdiff_cohort_pid_col,
                                 diagnosis_view._dataCols[diagnosis_view.colNum() + View::VALID_COL_OFFSET],
                                 cdiff_cohort_view._dataCols[cdiff_cohort_view.colNum() + View::VALID_COL_OFFSET]);
-    
+
     return in_results;
 }
 
@@ -231,9 +233,9 @@ View executeTopKByCount(View grouped_diag_cnt, int k, int tid) {
         // 兜底：没有 cnt 列就直接返回（不应发生）
         return grouped_diag_cnt;
     }
-    
+
     size_t n = grouped_diag_cnt.rowNum();
-    if (n <= (size_t)k) {
+    if (n <= (size_t) k) {
         // 短路：行数不超过 k，直接一次排序返回
         grouped_diag_cnt.sort(count_field, /*ascending=*/false, tid);
         return grouped_diag_cnt;
@@ -250,7 +252,7 @@ View executeTopKByCount(View grouped_diag_cnt, int k, int tid) {
     // 2) 之后每次取接下来的 k 行，与缓冲拼成 2k，排序，再截断为 k
     size_t off = first_block;
     while (off < n) {
-        size_t take = std::min((size_t)k, n - off);
+        size_t take = std::min((size_t) k, n - off);
         View chunk = sliceRows(grouped_diag_cnt, off, take);
         off += take;
 
