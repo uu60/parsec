@@ -111,6 +111,8 @@ int main(int argc, char *argv[]) {
             joinResult = Views::nestedLoopJoin(view0, view1, joinField0, joinField1, false);
         }
 
+        Views::revealAndPrint(joinResult);
+
         // Views::revealAndPrint(joinResult);
         auto elapsed = System::currentTimeMillis() - start;
         Log::i("Join completed in {}ms", elapsed);
