@@ -15,7 +15,7 @@ BitwiseBmtBatchGenerator::BitwiseBmtBatchGenerator(int count, int width, int tas
     if (Comm::isClient()) {
         return;
     }
-    _totalBits = count * width;
+    _totalBits = static_cast<int64_t>(count) * static_cast<int64_t>(width);
     _bc = static_cast<int>((_totalBits + 63) / 64);
     _bmts.resize(_bc);
 }

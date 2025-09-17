@@ -17,8 +17,8 @@ int BoolAndBatchOperator::prepareBmts(std::vector<BitwiseBmt> &bmts) {
         bmts = std::move(*_bmts);
         return bmts.size();
     }
-    int num = static_cast<int>(_xis->size() * (_doWithConditions ? 2 : 1));
-    int totalBits = num * _width;
+    size_t num = _xis->size() * (_doWithConditions ? 2 : 1);
+    int64_t totalBits = num * _width;
     int bc = -1; // -1 means required bmt bits less than 64
     if (totalBits > 64) {
         // ceil division

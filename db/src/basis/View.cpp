@@ -1972,7 +1972,7 @@ void View::clearInvalidEntries(int msgTagBase) {
 }
 
 void View::clearInvalidEntries(bool doSort, int msgTagBase) {
-    if (DbConf::BASELINE_MODE) {
+    if (DbConf::BASELINE_MODE || DbConf::NO_COMPACTION) {
         return;
     }
     if (doSort) {

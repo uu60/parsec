@@ -26,7 +26,7 @@ done
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd -P) || exit 1
 cd "$SCRIPT_DIR" || exit 1
 
-sudo rm -rf build
+rm -rf build
 mkdir build && cd build || exit 1
 
 # Configure CMake with or without ASAN

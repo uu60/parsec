@@ -18,7 +18,7 @@ Table::Table(std::string &tableName, std::vector<std::string> &fieldNames, std::
     this->_tableName = tableName;
     this->_fieldNames = fieldNames;
     this->_fieldWidths = fieldWidths;
-    this->_keyField = std::move(keyField);
+    this->_keyField = keyField;
 
     if (!this->_keyField.empty()) {
         this->_fieldNames.push_back(BUCKET_TAG_PREFIX + _keyField);

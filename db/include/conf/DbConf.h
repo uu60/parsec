@@ -14,6 +14,7 @@ public:
     inline static int SHUFFLE_BUCKET_NUM = 32;
     inline static bool DISABLE_PRECISE_COMPACTION = true;
     inline static bool BASELINE_MODE = false;
+    inline static bool NO_COMPACTION = false;
 
     static void init() {
         if (Conf::_userParams.count("enable_hash_join")) {
@@ -25,11 +26,15 @@ public:
         if (Conf::_userParams.count("baseline_mode")) {
             BASELINE_MODE = Conf::_userParams["baseline_mode"] == "true";
         }
+        if (Conf::_userParams.count("no_compaction")) {
+            NO_COMPACTION = Conf::_userParams["no_compaction"] == "true";
+        }
         if (Conf::_userParams.count("disable_precise_compaction")) {
             DISABLE_PRECISE_COMPACTION = Conf::_userParams["disable_precise_compaction"] == "true";
         }
 
         if (BASELINE_MODE) {
+            NO_COMPACTION = true;
             Conf::DISABLE_MULTI_THREAD = true;
             Conf::ENABLE_INTRA_OPERATOR_PARALLELISM = false;
             Conf::ENABLE_SIMD = false;
