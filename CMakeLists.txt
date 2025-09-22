@@ -8,7 +8,7 @@
 include(CMakeMemoryCheck.cmake)
 
 # Set base optimization flags
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 
 find_package(MPI REQUIRED)

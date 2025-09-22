@@ -78,8 +78,3 @@ if(ENABLE_ASAN OR ENABLE_MSAN OR ENABLE_TSAN OR ENABLE_UBSAN OR ENABLE_VALGRIND_
     # 保留符号表
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -rdynamic")
 endif()
-
-# 打印最终的编译标志
-message(STATUS "最终的CXX编译标志: ${CMAKE_CXX_FLAGS}")
-message(STATUS "最终的C编译标志: ${CMAKE_C_FLAGS}")
-message(STATUS "最终的链接标志: ${CMAKE_EXE_LINKER_FLAGS}")
