@@ -65,9 +65,6 @@ add_subdirectory(primitives)
 add_subdirectory(db)
 add_subdirectory(db/benchmark)
 
-add_executable(test_multiply_comparison test_multiply_comparison.cpp)
-target_link_libraries(test_multiply_comparison parsec ${MPI_LIBRARIES} ${OPENSSL_LIBRARIES})
-
  #
  # # install libxx.so to ${CMAKE_INSTALL_PREFIX}/lib
  # install(

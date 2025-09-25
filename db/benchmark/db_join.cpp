@@ -90,14 +90,13 @@ int main(int argc, char *argv[]) {
             views.push_back(Views::selectAll(tables.back()));
         }
 
-        auto start = System::currentTimeMillis();
-
         // Perform sequential joins: result = table0 JOIN table1 JOIN table2 JOIN ...
         joinResult = views[0];
         std::string joinField = "id";
-        
+        auto start = System::currentTimeMillis();
+
         for (int i = 1; i < table_num; i++) {
-            Log::i("Joining table {} with previous result", i);
+            // Log::i("Joining table {} with previous result", i);
             if (hash) {
                 joinResult = Views::hashJoin(joinResult, views[i], joinField, joinField, false);
             } else {
@@ -122,11 +121,11 @@ int main(int argc, char *argv[]) {
                 joinResult._fieldNames[0] = "id";
             }
             
-            Log::i("Intermediate result has {} records", joinResult._dataCols.empty() ? 0 : joinResult._dataCols[0].size());
+            // Log::i("Intermediate result has {} records", joinResult._dataCols.empty() ? 0 : joinResult._dataCols[0].size());
         }
 
-        joinResult.clearInvalidEntries(0);
-        Views::revealAndPrint(joinResult);
+        // joinResult.clearInvalidEntries(0);
+        // Views::revealAndPrint(joinResult);
         auto elapsed = System::currentTimeMillis() - start;
         Log::i("Multi-table join completed in {}ms", elapsed);
         Log::i("Final result has {} records", joinResult._dataCols.empty() ? 0 : joinResult._dataCols[0].size());
