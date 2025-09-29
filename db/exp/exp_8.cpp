@@ -317,7 +317,7 @@ int main(int argc, char *argv[]) {
         auto vCnt_copy = vCnt;
 
         View vHist, vZeros;
-        if (DbConf::BASELINE_MODE) {
+        if (DbConf::BASELINE_MODE || DbConf::NO_COMPACTION) {
             // Step 2: Create CTE hist (group by count for c_count >= 1)
             vHist = createHistCTE(vCnt, tid);
 

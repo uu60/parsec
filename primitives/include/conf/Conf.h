@@ -70,15 +70,15 @@ public:
     // Enable multiple-thread computation in each single executor
     inline static bool ENABLE_INTRA_OPERATOR_PARALLELISM = false;
     // Sum of threads in a process
-    inline static int LOCAL_THREADS = static_cast<int>(std::thread::hardware_concurrency() * 100);
+    inline static int LOCAL_THREADS = static_cast<int>(std::thread::hardware_concurrency() * 10);
     // Index of thread pool type (0 = ctpl, 1 = tbb)
-    inline static int THREAD_POOL_TYPE = CTPL_POOL;
+    inline static int THREAD_POOL_TYPE = ASYNC;
 
     // ---------------Settings for networks---------------
     // Communication object index (0 = OpenMpi)
     inline static CommT COMM_TYPE = MPI;
     // Invalid if intra parallelism or batching is false
-    inline static int BATCH_SIZE = 10000;
+    inline static int BATCH_SIZE = 1000;
     // Transfer compression
     inline static bool ENABLE_TRANSFER_COMPRESSION = false;
     // Random OT in redundant data transfer

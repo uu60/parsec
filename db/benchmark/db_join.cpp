@@ -15,6 +15,8 @@
 
 #include <string>
 
+#include "utils/Math.h"
+
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
     DbConf::init();
@@ -54,7 +56,8 @@ int main(int argc, char *argv[]) {
         
         if (Comm::rank() == 2) {
             for (int i = 0; i < rows_per_table; i++) {
-                allShares[table_idx][i] = i; // Join key values 0-9
+                // allShares[table_idx][i] = i; // Join key values 0-9
+                allShares[table_idx][i] = Math::randInt(); // Join key values randomly
                 // Compute bucket tag using hash of the key value
                 int64_t keyValue = allShares[table_idx][i];
                 // Simple hash function: (key * 31 + 17) % numBuckets
@@ -116,9 +119,12 @@ int main(int argc, char *argv[]) {
                         break;
                     }
                 }
-                
+
                 // Rename the first column (join key) to "id"
                 joinResult._fieldNames[0] = "id";
+
+                std::vector<std::string> fieldNames = {"id", "$tag:id"};
+                joinResult.select(fieldNames);
             }
             
             // Log::i("Intermediate result has {} records", joinResult._dataCols.empty() ? 0 : joinResult._dataCols[0].size());
