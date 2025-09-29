@@ -342,9 +342,6 @@ std::vector<std::vector<std::vector<int64_t> > > Views::butterflyPermutation(
                     indices1.push_back(idx1);
                     indices2.push_back(idx2);
 
-                    std::vector<std::vector<int64_t> > newBucket1;
-                    std::vector<std::vector<int64_t> > newBucket2;
-
                     for (int col = 0; col < bucket1.size(); col++) {
                         for (size_t r = 0; r < rows1; r++) {
                             routingBits.push_back(Math::getBit(bucket1[tagColIndex][r], bitPosition));
