@@ -1,5 +1,6 @@
 #!/bin/sh
 
+SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd -P)
 # Parse command line arguments
 USE_ASAN=false
 while [ "$#" -gt 0 ]; do
