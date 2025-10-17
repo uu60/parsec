@@ -80,7 +80,6 @@ TEST(TPCHQueryDetailTest) {
   ASSERT_STREQ(select20->selectList->at(0)->getName(), "S_NAME");
   ASSERT_STREQ(select20->selectList->at(1)->getName(), "S_ADDRESS");
 
-  // Test WHERE Clause.
   Expr* where = select20->whereClause;
   ASSERT_NOTNULL(where);
   ASSERT(where->isType(kExprOperator));
@@ -91,7 +90,6 @@ TEST(TPCHQueryDetailTest) {
   ASSERT(andExpr2->isType(kExprOperator));
   ASSERT_EQ(andExpr2->opType, kOpAnd);
 
-  // Test IN expression.
   Expr* inExpr = andExpr2->expr;
   ASSERT_NOTNULL(inExpr);
   ASSERT(inExpr->isType(kExprOperator));
@@ -103,7 +101,6 @@ TEST(TPCHQueryDetailTest) {
   ASSERT(inExpr->select->selectList->at(0)->isType(kExprColumnRef));
   ASSERT_STREQ(inExpr->select->selectList->at(0)->getName(), "PS_SUPPKEY");
 
-  // Test ORDER BY clause.
   ASSERT_NOTNULL(select20->order);
   ASSERT_EQ(select20->order->size(), 1);
   ASSERT(select20->order->at(0)->expr->isType(kExprColumnRef));

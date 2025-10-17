@@ -3,7 +3,6 @@
 
 #include "SQLStatement.h"
 
-// Note: Implementations of constructors and destructors can be found in statements.cpp.
 namespace hsql {
 
 enum ActionType {
@@ -24,8 +23,6 @@ struct DropColumnAction : AlterAction {
   ~DropColumnAction() override;
 };
 
-// Represents SQL Alter Table statements.
-// Example "ALTER TABLE students DROP COLUMN name;"
 struct AlterStatement : SQLStatement {
   AlterStatement(char* name, AlterAction* action);
   ~AlterStatement() override;
@@ -35,6 +32,6 @@ struct AlterStatement : SQLStatement {
   char* name;
   AlterAction* action;
 };
-}  // namespace hsql
+}
 
 #endif

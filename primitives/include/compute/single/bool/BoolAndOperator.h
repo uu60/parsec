@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/11/12.
-//
 
 #ifndef INTANDEXECUTOR_H
 #define INTANDEXECUTOR_H
@@ -9,7 +6,6 @@
 
 class BoolAndOperator : public BoolOperator {
 private:
-    // std::vector<Bmt> *_bmts{};
     BitwiseBmt* _bmt{};
 
 public:
@@ -28,4 +24,4 @@ public:
 };
 
 
-#endif //INTANDEXECUTOR_H
+#endif

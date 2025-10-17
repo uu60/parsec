@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/7/7.
-//
 
 #include "base/SecureOperator.h"
 

@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/1/8.
-//
 
 #ifndef BOOLMUTEXEXECUTOR_H
 #define BOOLMUTEXEXECUTOR_H
@@ -32,4 +29,4 @@ private:
 };
 
 
-#endif //BOOLMUTEXEXECUTOR_H
+#endif

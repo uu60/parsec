@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/11/25.
-//
 
 #ifndef BMTHOLDER_H
 #define BMTHOLDER_H
@@ -20,7 +17,6 @@ private:
     inline static u_int _currentBmtQ = 0;
     inline static u_int _currentBitwiseBmtQ = 0;
 
-    // Reuse of bmt
     inline static Bmt *_currentBmt{};
     inline static BitwiseBmt *_currentBitwiseBmt{};
     inline static int _currentBmtLeftTimes = Conf::BMT_USAGE_LIMIT;
@@ -43,10 +39,7 @@ public:
 
     static void prepareRot();
 
-    /**
-      * Loop forever to insert bmts into queue.
-      * ASYNCHRONOUSLY
-    */
+    
     static void startGenerateBmtsAsync();
 
     static void startGenerateBitwiseBmtsAsync();
@@ -55,12 +48,10 @@ public:
 
     static void finalize();
 
-    // MUST SEQUENTIAL ACCESS
     static std::vector<Bmt> pollBmts(int count, int width);
 
-    // MUST SEQUENTIAL ACCESS
     static std::vector<BitwiseBmt> pollBitwiseBmts(int count, int width);
 };
 
 
-#endif //BMTHOLDER_H
+#endif

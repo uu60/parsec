@@ -1,14 +1,3 @@
-//
-// microtest.h
-//
-// URL: https://github.com/torpedro/microtest.h
-// Author: Pedro Flemming (http://torpedro.com/)
-// License: MIT License (https://github.com/torpedro/microtest.h/blob/master/LICENSE)
-// Copyright (c) 2017 Pedro Flemming
-//
-// This is a small header-only C++ unit testing framework.
-// It allows to define small unit tests with set of assertions available.
-//
 #ifndef __MICROTEST_H__
 #define __MICROTEST_H__
 
@@ -17,9 +6,6 @@
 #include <string>
 #include <vector>
 
-////////////////
-// Assertions //
-////////////////
 
 #define ASSERT(cond) ASSERT_TRUE(cond)
 
@@ -69,9 +55,6 @@
   }                                                                  \
   ASSERT(a != b)
 
-////////////////
-// Unit Tests //
-////////////////
 
 #define TEST(name)                                        \
   void name();                                            \
@@ -80,9 +63,6 @@
   }                                                       \
   void name()
 
-///////////////
-// Framework //
-///////////////
 
 namespace mt {
 
@@ -106,7 +86,6 @@ inline void printFailed(const char* message, FILE* file = stdout) {
   fprintf(file, "%s{  failed} %s%s\n", red(), message, def());
 }
 
-// Exception that is thrown when an assertion fails.
 class AssertFailedException : public std::exception {
  public:
   AssertFailedException(std::string description, std::string filepath, int line)
@@ -125,9 +104,6 @@ class AssertFailedException : public std::exception {
 };
 
 class TestsManager {
-  // Note: static initialization fiasco
-  // http://www.parashift.com/c++-faq-lite/static-init-order.html
-  // http://www.parashift.com/c++-faq-lite/static-init-order-on-first-use.html
  public:
   struct Test {
     const char* name;
@@ -139,21 +115,15 @@ class TestsManager {
     return tests_;
   }
 
-  // Adds a new test to the current set of tests.
-  // Returns false if a test with the same name already exists.
   inline static bool AddTest(void (*fn)(void), const char* name) {
     tests().push_back({name, fn});
     return true;
   }
 
-  // Run all tests that are registered.
-  // Returns the number of tests that failed.
   inline static size_t RunAllTests(FILE* file = stdout) {
     size_t num_failed = 0;
 
     for (const Test& test : tests()) {
-      // Run the test.
-      // If an AsserFailedException is thrown, the test has failed.
       try {
         printRunning(test.name, file);
 
@@ -174,7 +144,6 @@ class TestsManager {
   }
 };
 
-// Class that will capture the arguments passed to the program.
 class Runtime {
  public:
   static const std::vector<std::string>& args(int argc = -1, char** argv = NULL) {
@@ -187,7 +156,7 @@ class Runtime {
     return args_;
   }
 };
-}  // namespace mt
+}
 
 #define TEST_MAIN()                                                                                                \
   int main(int argc, char* argv[]) {                                                                               \
@@ -204,4 +173,4 @@ class Runtime {
     }                                                                                                              \
   }
 
-#endif  // __MICROTEST_H__
+#endif

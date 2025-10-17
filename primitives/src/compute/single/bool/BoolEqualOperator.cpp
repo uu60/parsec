@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/11/15.
-//
 
 #include "compute/single/bool/BoolEqualOperator.h"
 
@@ -11,11 +8,9 @@
 BoolEqualOperator *BoolEqualOperator::execute() {
     if (Comm::isServer()) {
         int64_t diff = _xi ^ _yi;
-        // z0 = ~z0
         if (Comm::rank() == 0) {
             diff = ~diff;
         }
-        // if equal, z will be all 1.
         _zi = diff & 1;
         auto bmt = _bmt == nullptr ? IntermediateDataSupport::pollBitwiseBmts(1, _width)[0] : *_bmt;
         if (_bmt != nullptr) {

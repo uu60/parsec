@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/9/12.
-//
 
 #ifndef MPC_PACKAGE_INTSECRET_H
 #define MPC_PACKAGE_INTSECRET_H
@@ -38,7 +35,6 @@ public:
 
     [[nodiscard]] ArithSecret mux(ArithSecret yi, BitSecret cond_i) const;
 
-    // need 3 * _l BMTs
     [[nodiscard]] ArithSecret boolean() const;
 
     [[nodiscard]] BitSecret lessThan(ArithSecret yi) const;
@@ -47,4 +43,4 @@ public:
 };
 
 
-#endif //MPC_PACKAGE_INTSECRET_H
+#endif

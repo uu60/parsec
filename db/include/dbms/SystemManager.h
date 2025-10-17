@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/10/25.
-//
 
 #ifndef SMPC_DATABASE_DBMS_H
 #define SMPC_DATABASE_DBMS_H
@@ -36,15 +33,12 @@ public:
     std::map<std::string, Database> _databases;
     Database *_currentDatabase = nullptr;
 
-    // temp
     int done{};
 
 private:
-    // private constructor
     SystemManager() = default;
 
 public:
-    // forbid clone
     SystemManager(const SystemManager &) = delete;
 
     SystemManager &operator=(const SystemManager &) = delete;
@@ -75,4 +69,4 @@ private:
     void clientUseDb(std::istringstream &iss, std::ostringstream &resp);
 };
 
-#endif //SMPC_DATABASE_DBMS_H
+#endif

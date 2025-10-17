@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/2/19.
-//
 
 #ifndef BMTBATCHGENERATOR_H
 #define BMTBATCHGENERATOR_H
@@ -32,4 +29,4 @@ public:
 
 
 
-#endif //BMTBATCHGENERATOR_H
+#endif

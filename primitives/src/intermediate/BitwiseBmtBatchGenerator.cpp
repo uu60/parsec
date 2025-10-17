@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/2/19.
-//
 
 #include "intermediate/BitwiseBmtBatchGenerator.h"
 
@@ -11,7 +8,7 @@
 
 BitwiseBmtBatchGenerator::BitwiseBmtBatchGenerator(int count, int width, int taskTag,
                                                    int msgTagOffset) : AbstractBmtBatchGenerator(count,
-                                                                                                 width, taskTag, msgTagOffset) {
+    width, taskTag, msgTagOffset) {
     if (Comm::isClient()) {
         return;
     }
@@ -61,7 +58,6 @@ void BitwiseBmtBatchGenerator::generateRandomAB() {
 void BitwiseBmtBatchGenerator::computeMix(int sender) {
     bool isSender = Comm::rank() == sender;
 
-    // messages and choices are stored in int64_t
     std::vector<int64_t> ss0, ss1;
     std::vector<int64_t> choices;
 
@@ -81,7 +77,7 @@ void BitwiseBmtBatchGenerator::computeMix(int sender) {
     }
 
     auto results = RandOtBatchOperator(sender, &ss0, &ss1, &choices, _taskTag,
-                          _currentMsgTag + sender * RandOtBatchOperator::tagStride()).execute()->_results;
+                                       _currentMsgTag + sender * RandOtBatchOperator::tagStride()).execute()->_results;
 
     std::vector<int64_t> *mix = sender == 0 ? &_usi : &_vsi;
     mix->resize(_bc);

@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 25-5-26.
-//
 
 #ifndef BOOLXORBATCHOPERATOR_H
 #define BOOLXORBATCHOPERATOR_H
@@ -19,4 +16,4 @@ public:
 };
 
 
-#endif //BOOLXORBATCHOPERATOR_H
+#endif

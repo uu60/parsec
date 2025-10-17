@@ -215,7 +215,6 @@ TEST(SelectConditionalSelectTest) {
   ASSERT(where->isType(kExprOperator));
   ASSERT_EQ(where->opType, kOpAnd);
 
-  // a = (SELECT ...)
   Expr* cond1 = where->expr;
   ASSERT_NOTNULL(cond1);
   ASSERT_NOTNULL(cond1->expr);
@@ -230,7 +229,6 @@ TEST(SelectConditionalSelectTest) {
   ASSERT_NOTNULL(select2);
   ASSERT_STREQ(select2->fromTable->getName(), "tt");
 
-  // EXISTS (SELECT ...)
   Expr* cond2 = where->expr2;
   ASSERT_EQ(cond2->opType, kOpExists);
   ASSERT_NOTNULL(cond2->select);
@@ -276,10 +274,6 @@ TEST(SelectCaseWhenWhen) {
   ASSERT_NOTNULL(caseExpr);
   ASSERT(caseExpr->isType(kExprOperator));
   ASSERT_EQ(caseExpr->opType, kOpCase);
-  // CASE [expr] [exprList]                                    [expr2]
-  //             [expr]                  [expr]
-  //             [expr]     [expr2]      [expr]        [expr2]
-  // CASE (null) WHEN X = 1 THEN 1       WHEN 1.25 < x THEN 2  (null)
   ASSERT_NULL(caseExpr->expr);
   ASSERT_NOTNULL(caseExpr->exprList);
   ASSERT_NULL(caseExpr->expr2);
@@ -338,8 +332,6 @@ TEST(SelectJoin) {
   ASSERT_STREQ(outer_join->condition->expr2->name, "id");
   ASSERT_FALSE(outer_join->namedColumns);
 
-  // Joins are are left associative.
-  // So the second join should be on the left.
   ASSERT_EQ(outer_join->left->type, kTableJoin);
 
   const JoinDefinition* inner_join = outer_join->left->join;
@@ -365,12 +357,10 @@ TEST(SelectJoinUsing) {
       result, 3);
 
   auto stmt = (SelectStatement*)result.getStatement(0);
-  // SELECT * ...
   ASSERT_TRUE(stmt->selectList);
   ASSERT_EQ(stmt->selectList->size(), 1);
   ASSERT_EQ(stmt->selectList->front()->type, kExprStar);
 
-  // ... FROM foo INNER JOIN bar ...
   ASSERT_TRUE(stmt->fromTable);
   ASSERT_EQ(stmt->fromTable->type, kTableJoin);
   ASSERT_TRUE(stmt->fromTable->join);
@@ -384,7 +374,6 @@ TEST(SelectJoinUsing) {
   ASSERT_TRUE(stmt->fromTable->join->right->name);
   ASSERT_STREQ(stmt->fromTable->join->right->name, "bar");
 
-  // ... USING a, b;
   ASSERT_FALSE(stmt->fromTable->join->condition);
   ASSERT_TRUE(stmt->fromTable->join->namedColumns);
   ASSERT_EQ(stmt->fromTable->join->namedColumns->size(), 2);
@@ -392,7 +381,6 @@ TEST(SelectJoinUsing) {
   ASSERT_STREQ(stmt->fromTable->join->namedColumns->at(1), "b");
 
   stmt = (SelectStatement*)result.getStatement(1);
-  // SELECT a, b, c ...
   ASSERT_TRUE(stmt->selectList);
   ASSERT_EQ(stmt->selectList->size(), 3);
   ASSERT_EQ(stmt->selectList->at(0)->type, kExprColumnRef);
@@ -405,7 +393,6 @@ TEST(SelectJoinUsing) {
   ASSERT_TRUE(stmt->selectList->at(2)->name);
   ASSERT_STREQ(stmt->selectList->at(2)->name, "c");
 
-  // ... FROM foo LEFT JOIN bar ...
   ASSERT_TRUE(stmt->fromTable);
   ASSERT_EQ(stmt->fromTable->type, kTableJoin);
   ASSERT_TRUE(stmt->fromTable->join);
@@ -419,21 +406,18 @@ TEST(SelectJoinUsing) {
   ASSERT_TRUE(stmt->fromTable->join->right->name);
   ASSERT_STREQ(stmt->fromTable->join->right->name, "bar");
 
-  // ... USING a;
   ASSERT_FALSE(stmt->fromTable->join->condition);
   ASSERT_TRUE(stmt->fromTable->join->namedColumns);
   ASSERT_EQ(stmt->fromTable->join->namedColumns->size(), 1);
   ASSERT_STREQ(stmt->fromTable->join->namedColumns->at(0), "a");
 
   stmt = (SelectStatement*)result.getStatement(2);
-  // SELECT b ...
   ASSERT_TRUE(stmt->selectList);
   ASSERT_EQ(stmt->selectList->size(), 1);
   ASSERT_EQ(stmt->selectList->at(0)->type, kExprColumnRef);
   ASSERT_TRUE(stmt->selectList->at(0)->name);
   ASSERT_STREQ(stmt->selectList->at(0)->name, "b");
 
-  // ... FROM foo as baz JOIN bar ...
   ASSERT_TRUE(stmt->fromTable);
   ASSERT_EQ(stmt->fromTable->type, kTableJoin);
   ASSERT_TRUE(stmt->fromTable->join);
@@ -450,7 +434,6 @@ TEST(SelectJoinUsing) {
   ASSERT_TRUE(stmt->fromTable->join->right->name);
   ASSERT_STREQ(stmt->fromTable->join->right->name, "bar");
 
-  // ... USING a;
   ASSERT_FALSE(stmt->fromTable->join->condition);
   ASSERT_TRUE(stmt->fromTable->join->namedColumns);
   ASSERT_EQ(stmt->fromTable->join->namedColumns->size(), 1);
@@ -468,7 +451,6 @@ TEST(SelectColumnOrder) {
 
   ASSERT_EQ(stmt->fromTable->list->size(), 4);
 
-  // Make sure the order of the table list is corrects
   ASSERT_STREQ(stmt->fromTable->list->at(0)->name, "a");
   ASSERT_STREQ(stmt->fromTable->list->at(1)->alias->name, "b");
   ASSERT_STREQ(stmt->fromTable->list->at(2)->alias->name, "c");
@@ -805,18 +787,14 @@ TEST(WithClauseSingle) {
       "SELECT name FROM a;",
       kStmtSelect, SelectStatement, result, stmt);
 
-  // with_description_list – count
   ASSERT_EQ(stmt->withDescriptions->size(), 1);
 
-  // with_description – alias
   ASSERT_STREQ(stmt->withDescriptions->at(0)->alias, "a");
 
-  // with_description – select stmt
   ASSERT_EQ(stmt->withDescriptions->at(0)->select->selectList->size(), 1);
   ASSERT_STREQ(stmt->withDescriptions->at(0)->select->selectList->at(0)->name, std::string("name"));
   ASSERT_STREQ(stmt->withDescriptions->at(0)->select->fromTable->name, std::string("peopleA"));
 
-  // main select
   ASSERT_EQ(stmt->selectList->size(), 1);
   ASSERT_STREQ(stmt->selectList->at(0)->name, "name");
   ASSERT_STREQ(stmt->fromTable->name, "a");
@@ -830,20 +808,16 @@ TEST(WithClauseDouble) {
       "SELECT nameA FROM a;",
       kStmtSelect, SelectStatement, result, stmt);
 
-  // with_description_list – count
   ASSERT_EQ(stmt->withDescriptions->size(), 2);
 
-  // with_description – aliases
   ASSERT_STREQ(stmt->withDescriptions->at(0)->alias, "a");
   ASSERT_STREQ(stmt->withDescriptions->at(1)->alias, "b");
 
-  // with_description – select stmts
   ASSERT_EQ(stmt->withDescriptions->at(0)->select->selectList->size(), 1);
   ASSERT_STREQ(stmt->withDescriptions->at(0)->select->fromTable->name, "peopleA");
   ASSERT_EQ(stmt->withDescriptions->at(1)->select->selectList->size(), 2);
   ASSERT_STREQ(stmt->withDescriptions->at(1)->select->fromTable->name, "peopleB");
 
-  // main select
   ASSERT_EQ(stmt->selectList->size(), 1);
   ASSERT_STREQ(stmt->selectList->at(0)->name, "nameA");
   ASSERT_STREQ(stmt->fromTable->name, "a");

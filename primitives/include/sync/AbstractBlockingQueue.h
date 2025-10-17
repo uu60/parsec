@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/1/18.
-//
 
 #ifndef ABSTRACTBLOCKINGQUEUE_H
 #define ABSTRACTBLOCKINGQUEUE_H
@@ -20,4 +17,4 @@ public:
 };
 
 
-#endif //ABSTRACTBLOCKINGQUEUE_H
+#endif

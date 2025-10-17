@@ -18,7 +18,7 @@ target_link_libraries(db PRIVATE db_core)
 find_library(READLINE_LIBRARY NAMES readline)
 if (NOT READLINE_LIBRARY)
     message(FATAL_ERROR "readline library not found.")
-endif()
+endif ()
 
 add_executable(db_client ${CMAKE_CURRENT_SOURCE_DIR}/client/main.cpp)
 

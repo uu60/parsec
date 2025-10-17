@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/3/22.
-//
 
 #ifndef MPIREQUEST_H
 #define MPIREQUEST_H
@@ -15,7 +12,6 @@ class MpiRequestWrapper : public AbstractRequest {
 public:
     bool _recv{};
 
-    // target pointer
     int64_t *_targetInt{};
     std::vector<int64_t> *_targetIntVec{};
 
@@ -25,8 +21,6 @@ public:
 
     Mode _mode = NO_CALLBACK;
 
-    // temp storage
-    // atore to recycle
     bool *_si1{};
     int8_t *_si8{};
     int16_t *_si16{};
@@ -36,13 +30,11 @@ public:
     std::vector<int16_t> *_sv16{};
     std::vector<int32_t> *_sv32{};
 
-    // int
     bool _int1{};
     int8_t _int8{};
     int16_t _int16{};
     int32_t _int32{};
 
-    // vec<int>
     bool *_vec1{};
     int _vec1Size{};
     std::vector<int8_t> _vec8;
@@ -73,4 +65,4 @@ public:
 
 
 
-#endif //MPIREQUEST_H
+#endif

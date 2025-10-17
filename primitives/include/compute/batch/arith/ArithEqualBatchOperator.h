@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 25-7-27.
-//
 
 #ifndef ATCHOPERATOR_H
 #define ATCHOPERATOR_H
@@ -24,4 +21,4 @@ public:
     static int tagStride(int width);
 };
 
-#endif //ARITHEQUALB ATCHOPERATOR_H
+#endif

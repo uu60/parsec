@@ -1,15 +1,10 @@
-//
-// Created by 杜建璋 on 2024/12/29.
-//
 
 #ifndef DEKOPON_SS_SMPC_PACKAGE_ROT_H
 #define DEKOPON_SS_SMPC_PACKAGE_ROT_H
 
 #include <cstdint>
 
-/*
- * Used by sender in a Random OT process.
- */
+
 class SRot {
 public:
     int64_t _r0{};
@@ -17,4 +12,4 @@ public:
 };
 
 
-#endif //DEKOPON_SS_SMPC_PACKAGE_ROT_H
+#endif

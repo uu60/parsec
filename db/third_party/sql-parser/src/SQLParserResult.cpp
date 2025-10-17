@@ -8,7 +8,6 @@ SQLParserResult::SQLParserResult() : isValid_(false), errorMsg_(nullptr) {}
 
 SQLParserResult::SQLParserResult(SQLStatement* stmt) : isValid_(false), errorMsg_(nullptr) { addStatement(stmt); }
 
-// Move constructor.
 SQLParserResult::SQLParserResult(SQLParserResult&& moved) { *this = std::forward<SQLParserResult>(moved); }
 
 SQLParserResult& SQLParserResult::operator=(SQLParserResult&& moved) {
@@ -71,7 +70,6 @@ void SQLParserResult::reset() {
   errorColumn_ = -1;
 }
 
-// Does NOT take ownership.
 void SQLParserResult::addParameter(Expr* parameter) {
   parameters_.push_back(parameter);
   std::sort(parameters_.begin(), parameters_.end(), [](const Expr* a, const Expr* b) { return a->ival < b->ival; });
@@ -79,4 +77,4 @@ void SQLParserResult::addParameter(Expr* parameter) {
 
 const std::vector<Expr*>& SQLParserResult::parameters() { return parameters_; }
 
-}  // namespace hsql
+}

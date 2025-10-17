@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/1/31.
-//
 
 #ifndef ABSTRACTOTBATCHEXECUTOR_H
 #define ABSTRACTOTBATCHEXECUTOR_H
@@ -11,8 +8,7 @@ class AbstractOtBatchOperator : public AbstractBatchOperator {
 protected:
     std::vector<int64_t> *_ms0{};
     std::vector<int64_t> *_ms1{};
-    std::vector<int> *_choices{}; // msg choice
-    // correspond mpi rank
+    std::vector<int> *_choices{};
     bool _isSender{};
 
 public:
@@ -27,4 +23,4 @@ public:
 };
 
 
-#endif //ABSTRACTOTBATCHEXECUTOR_H
+#endif

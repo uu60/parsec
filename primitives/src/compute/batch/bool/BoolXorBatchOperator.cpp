@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 25-5-26.
-//
 
 #include "compute/batch/bool/BoolXorBatchOperator.h"
 

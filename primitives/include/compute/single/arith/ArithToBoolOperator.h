@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/12/1.
-//
 
 #ifndef BOOLCONVERTEXECUTOR_H
 #define BOOLCONVERTEXECUTOR_H
@@ -12,7 +9,6 @@ private:
     std::vector<BitwiseBmt> *_bmts{};
 
 public:
-    // Temporarily lend zi for xi preparation in super constructor.
     ArithToBoolOperator(int64_t xi, int l, int taskTag, int msgTagOffset, int clientRank) : ArithOperator(
         xi, l, taskTag, msgTagOffset, clientRank) {
         _xi = _zi;
@@ -34,4 +30,4 @@ private:
 };
 
 
-#endif //BOOLCONVERTEXECUTOR_H
+#endif

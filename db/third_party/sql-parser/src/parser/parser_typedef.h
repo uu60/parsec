@@ -19,11 +19,8 @@ struct HSQL_CUST_LTYPE {
 
   int total_column;
 
-  // Length of the string in the SQL query string
   int string_length;
 
-  // Parameters.
-  // int param_id;
   std::vector<void*> param_list;
 };
 

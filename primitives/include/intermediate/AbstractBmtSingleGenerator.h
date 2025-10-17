@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/2/19.
-//
 
 #ifndef ABSTRACTBMTGENERATOR_H
 #define ABSTRACTBMTGENERATOR_H
@@ -24,4 +21,4 @@ protected:
 };
 
 
-#endif //ABSTRACTBMTGENERATOR_H
+#endif

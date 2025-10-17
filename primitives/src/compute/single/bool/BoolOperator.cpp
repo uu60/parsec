@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/11/7.
-//
 
 #include "compute/single/bool/BoolOperator.h"
 
@@ -18,7 +15,6 @@ BoolOperator::BoolOperator(int64_t z, int l, int taskTag, int msgTagOffset,
     if (clientRank < 0) {
         _zi = ring(z);
     } else {
-        // distribute operator
         if (Comm::rank() == clientRank) {
             int64_t z1 = ring(Math::randInt());
             int64_t z0 = ring(z ^ z1);
@@ -28,7 +24,6 @@ BoolOperator::BoolOperator(int64_t z, int l, int taskTag, int msgTagOffset,
             Comm::wait(r0);
             Comm::wait(r1);
         } else {
-            // operator
             Comm::receive(_zi, _width, clientRank, buildTag(_currentMsgTag));
         }
     }
@@ -40,12 +35,9 @@ BoolOperator::BoolOperator(int64_t x, int64_t y, int l, int taskTag, int msgTagO
         _xi = ring(x);
         _yi = ring(y);
     } else {
-        // distribute operator
         if (Comm::rank() == clientRank) {
-            // int64_t x1 = ring(Math::randInt());
             int64_t x1 = 1;
             int64_t x0 = ring(x ^ x1);
-            // int64_t y1 = ring(Math::randInt());
             int64_t y1 = 1;
             int64_t y0 = ring(y ^ y1);
             std::vector xy0 = {x0, y0};
@@ -55,7 +47,6 @@ BoolOperator::BoolOperator(int64_t x, int64_t y, int l, int taskTag, int msgTagO
             Comm::wait(r0);
             Comm::wait(r1);
         } else {
-            // operator
             std::vector<int64_t> temp;
             Comm::receive(temp, _width, clientRank, buildTag(_currentMsgTag));
             _xi = temp[0];

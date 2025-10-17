@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/2/24.
-//
 
 #include "compute/batch/bool/BoolAndBatchOperator.h"
 
@@ -19,9 +16,8 @@ int BoolAndBatchOperator::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     }
     size_t num = _xis->size() * (_doWithConditions ? 2 : 1);
     int64_t totalBits = num * _width;
-    int bc = -1; // -1 means required bmt bits less than 64
+    int bc = -1;
     if (totalBits > 64) {
-        // ceil division
         bc = (totalBits + 63) / 64;
     }
     if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND || Conf::BMT_METHOD == Conf::BMT_PIPELINE) {
@@ -94,7 +90,6 @@ void BoolAndBatchOperator::execute0() {
     int bc = prepareBmts(bmts);
     int num = static_cast<int>(_xis->size());
 
-    // The first num elements are ei, and the left num elements are fi
     std::vector<int64_t> efi(num * 2);
 
     if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
@@ -125,7 +120,6 @@ void BoolAndBatchOperator::execute0() {
 
     std::vector<int64_t> efs;
 
-    // Verified SIMD performance
     if (Conf::ENABLE_SIMD) {
         efs = SimdSupport::xorV(efi, efo);
     } else {
@@ -176,7 +170,6 @@ void BoolAndBatchOperator::executeForMutex() {
     auto condNum = _conds_i->size();
     int bc;
 
-    // The first num * 2 elements are ei (xi and yi), and the other num * 2 elements are fi (condi and condi)
     std::vector<int64_t> efi(num * 4);
 
     if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
@@ -192,13 +185,11 @@ void BoolAndBatchOperator::executeForMutex() {
         bc = prepareBmts(bmts);
         if (_width < 64 && bc != -2) {
             for (int i = 0; i < num; i++) {
-                // Multiple 64 bit bmts
                 auto bmt = BitwiseBmt::extract(bmts, i, _width);
                 efi[i] = (*_xis)[i] ^ bmt._a;
                 efi[num * 2 + i] = (*_conds_i)[i % condNum] ^ bmt._b;
             }
             for (int i = num; i < num * 2; i++) {
-                // Multiple 64 bit bmts
                 auto bmt = BitwiseBmt::extract(bmts, i, _width);
                 efi[i] = (*_yis)[i - num] ^ bmt._a;
                 efi[num * 2 + i] = (*_conds_i)[i % condNum] ^ bmt._b;
@@ -223,7 +214,6 @@ void BoolAndBatchOperator::executeForMutex() {
 
     std::vector<int64_t> efs;
 
-    // Verified SIMD performance
     if (Conf::ENABLE_SIMD) {
         efs = SimdSupport::xorV(efi, efo);
     } else {
@@ -250,7 +240,6 @@ void BoolAndBatchOperator::executeForMutex() {
             for (int i = 0; i < num * 2; i++) {
                 int64_t e = efs[i];
                 int64_t f = efs[num * 2 + i];
-                // Multiple 64 bit bmts
                 auto bmt = BitwiseBmt::extract(bmts, i, _width);
                 _zis[i] = Math::ring((extendedRank & e & f) ^ (f & bmt._a) ^ (e & bmt._b) ^ bmt._c, _width);
             }
@@ -258,7 +247,6 @@ void BoolAndBatchOperator::executeForMutex() {
             for (int i = 0; i < num * 2; i++) {
                 int64_t e = efs[i];
                 int64_t f = efs[num * 2 + i];
-                // Multiple 64 bit bmts
                 _zis[i] = Math::ring((extendedRank & e & f) ^ (f & bmts[i]._a) ^ (e & bmts[i]._b) ^ bmts[i]._c, _width);
             }
         }

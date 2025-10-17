@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/10/31.
-//
 
 #include "../../include/socket/LocalServer.h"
 #include <iostream>
@@ -65,7 +62,6 @@ void LocalServer::setupServer() {
 
 void LocalServer::run() {
     while (true) {
-        // Wait for a new client connection
         if ((new_socket = accept(server_fd, (struct sockaddr *) &address, (socklen_t *) &addrlen)) < 0) {
             perror("Accept failed");
             return;
@@ -76,23 +72,18 @@ void LocalServer::run() {
             char buffer[BUFFER_SIZE] = {0};
             int64_t valread;
 
-            // Receive message in chunks
             while ((valread = read(new_socket, buffer, BUFFER_SIZE)) > 0) {
-                // Append the chunk to the command string
                 command.append(buffer, valread);
 
-                // If the received data is less than BUFFER_SIZE, assume the end of the message
                 if (valread < BUFFER_SIZE) {
                     break;
                 }
             }
 
             if (valread <= 0) {
-                // Client disconnected or an error occurred
                 break;
             }
 
-            // Check if the command is "exit" (case-insensitive)
             if (strcasecmp(command.c_str(), "exit") == 0) {
                 json j;
                 j["type"] = "exit";
@@ -100,15 +91,12 @@ void LocalServer::run() {
                 break;
             }
 
-            // Process the complete command
             SystemManager::getInstance().clientExecute(command);
         }
 
-        // Close the socket for the current client, allowing the server to accept a new connection
         close(new_socket);
     }
 
-    // Close the server socket when the server shuts down
     close(server_fd);
 }
 

@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/12/29.
-//
 
 #include <cmath>
 
@@ -45,7 +42,6 @@ BoolLessOperator *BoolLessOperator::execute() {
 
     int64_t diag = Math::changeBit(x_xor_y, 0, Math::getBit(_yi, 0) ^ Comm::rank());
 
-    // diag & x
     diag = BoolAndOperator(diag, _xi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmt(
         gotBmt ? &bmts[bmtI++] : nullptr)->execute()->_zi;
 

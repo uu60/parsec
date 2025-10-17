@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/11/7.
-//
 
 #ifndef INTBOOLEXECUTOR_H
 #define INTBOOLEXECUTOR_H
@@ -17,4 +14,4 @@ public:
     BoolOperator *execute() override;
 };
 
-#endif //INTBOOLEXECUTOR_H
+#endif

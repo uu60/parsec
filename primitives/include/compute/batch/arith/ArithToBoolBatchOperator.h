@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 25-7-19.
-//
 
 #ifndef ARITHTOBOOLBATCHOPERATOR_H
 #define ARITHTOBOOLBATCHOPERATOR_H
@@ -23,4 +20,4 @@ public:
     static int tagStride(int width);
 };
 
-#endif //ARITHTOBOOLBATCHOPERATOR_H
+#endif

@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/10/25.
-//
 
 #ifndef SMPC_DATABASE_TABLE_H
 #define SMPC_DATABASE_TABLE_H
@@ -37,4 +34,4 @@ public:
 };
 
 
-#endif //SMPC_DATABASE_TABLE_H
+#endif

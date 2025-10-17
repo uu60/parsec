@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/7/18.
-//
 
 #include "utils/Crypto.h"
 #include <openssl/rsa.h>
@@ -12,7 +9,6 @@ std::unordered_map<int, std::string> Crypto::_selfPubs = {};
 std::unordered_map<int, std::string> Crypto::_selfPris = {};
 std::unordered_map<int, std::string> Crypto::_otherPubs = {};
 
-// copilot
 bool Crypto::generateRsaKeys(int bits) {
     if (_selfPubs.count(bits) > 0) {
         return false;
@@ -53,7 +49,6 @@ bool Crypto::generateRsaKeys(int bits) {
     return true;
 }
 
-// copilot
 std::string Crypto::rsaEncrypt(const std::string &data, const std::string &publicKey) {
     EVP_PKEY *pkey = nullptr;
     EVP_PKEY_CTX *ctx = nullptr;
@@ -73,7 +68,6 @@ std::string Crypto::rsaEncrypt(const std::string &data, const std::string &publi
     return std::string(outbuf.begin(), outbuf.end());
 }
 
-// copilot
 std::string Crypto::rsaDecrypt(const std::string &encryptedData, const std::string &privateKey) {
     EVP_PKEY *pkey = nullptr;
     EVP_PKEY_CTX *ctx = nullptr;

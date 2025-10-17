@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/10/31.
-//
 
 #ifndef SMPC_DATABASE_LOCALSERVER_H
 #define SMPC_DATABASE_LOCALSERVER_H
@@ -43,4 +40,4 @@ private:
 };
 
 
-#endif //SMPC_DATABASE_LOCALSERVER_H
+#endif

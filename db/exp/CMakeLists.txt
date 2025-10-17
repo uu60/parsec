@@ -1,5 +1,5 @@
 file(GLOB_RECURSE EXP_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
-foreach(src ${EXP_SRCS})
+foreach (src ${EXP_SRCS})
     get_filename_component(execName ${src} NAME_WE)
     add_executable(${execName} ${src})
     target_include_directories(${execName} PRIVATE
@@ -8,4 +8,4 @@ foreach(src ${EXP_SRCS})
     target_link_libraries(${execName} PRIVATE
             db_core
     )
-endforeach()
+endforeach ()

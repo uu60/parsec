@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/2/12.
-//
 
 #include "secret/Secrets.h"
 #include <cmath>
@@ -141,7 +138,6 @@ void bitonicSortBoolSplittedBatches(std::vector<BoolSecret> &secrets, bool asc, 
                 std::shared_ptr<std::vector<BitwiseBmt>> bmtLessB, bmtMuxB;
 
                 if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
-                    // Calculate the number of BMTs needed for this batch
                     bmtLessB = std::make_shared<std::vector<BitwiseBmt>>(IntermediateDataSupport::pollBitwiseBmts(
                         BoolLessBatchOperator::bmtCount(xsBatches[b].size(), secrets[0]._width), 64));
                     bmtMuxB = std::make_shared<std::vector<BitwiseBmt>>(IntermediateDataSupport::pollBitwiseBmts(
@@ -244,7 +240,6 @@ std::vector<int64_t> Secrets::arithReconstruct(std::vector<int64_t> &secrets, in
             _results;
 }
 
-// ArithSecret sorting implementation using bitonic sort
 void bitonicSortArithSingleBatch(std::vector<ArithSecret> &secrets, bool asc, int taskTag, int msgTagOffset) {
     size_t n = secrets.size();
     for (int k = 2; k <= n; k *= 2) {
@@ -282,7 +277,6 @@ void bitonicSortArithSingleBatch(std::vector<ArithSecret> &secrets, bool asc, in
                 ascs.push_back(dir ^ !asc);
             }
 
-            // Compare using ArithLessBatchOperator
             auto zs = ArithLessBatchOperator(&xs, &ys, secrets[0]._width, taskTag, msgTagOffset,
                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
@@ -382,7 +376,6 @@ void bitonicSortArithSplittedBatches(std::vector<ArithSecret> &secrets, bool asc
                         int offset = std::max(ArithLessBatchOperator::tagStride(secrets[0]._width),
                                               ArithMutexBatchOperator::tagStride(secrets[0]._width));
 
-                        // Compare elements
                         auto zs1 = ArithLessBatchOperator(
                             &xsB, &ysB,
                             secrets[0]._width,
@@ -404,7 +397,6 @@ void bitonicSortArithSplittedBatches(std::vector<ArithSecret> &secrets, bool asc
                         xsB.insert(xsB.end(), ysB.begin(), ysB.end());
                         ysB.insert(ysB.end(), xsB.begin(), bk);
                         zs1.insert(zs1.end(), zs1.begin(), zs1.end());
-                        // Perform conditional swaps
                         auto zs2 = ArithMutexBatchOperator(
                             &xsB, &ysB, &zs1,
                             secrets[0]._width,

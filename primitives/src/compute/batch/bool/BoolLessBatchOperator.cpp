@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/3/17.
-//
 
 #include "compute/batch/bool/BoolLessBatchOperator.h"
 
@@ -56,7 +53,6 @@ BoolLessBatchOperator *BoolLessBatchOperator::execute() {
 
     std::vector<int64_t> diag;
 
-    // Verified SIMD performance
     if (Conf::ENABLE_SIMD) {
         diag = SimdSupport::computeDiag(*_yis, x_xor_y);
     } else {
@@ -66,7 +62,6 @@ BoolLessBatchOperator *BoolLessBatchOperator::execute() {
         }
     }
 
-    // diag & x
     if (gotBmt) {
         bmts = std::vector(allBmts.end() - bmtCount, allBmts.end());
         allBmts.resize(allBmts.size() - bmtCount);

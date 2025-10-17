@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/2/19.
-//
 
 #include "intermediate/BmtBatchGenerator.h"
 

@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 25-5-30.
-//
 
 #ifndef DBCONF_H
 #define DBCONF_H
@@ -44,4 +41,4 @@ public:
 };
 
 
-#endif //DBCONF_H
+#endif

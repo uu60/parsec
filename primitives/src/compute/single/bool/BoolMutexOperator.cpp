@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/1/8.
-//
 
 #include "compute/single/bool/BoolMutexOperator.h"
 
@@ -13,7 +10,6 @@ BoolMutexOperator::BoolMutexOperator(int64_t x, int64_t y, bool cond, int width,
                                      int clientRank) : BoolOperator(x, y, width, taskTag, msgTagOffset, clientRank) {
     _cond_i = BoolOperator(cond, 1, _taskTag, _currentMsgTag, clientRank)._zi;
     if (_cond_i) {
-        // Set to all 1 on each bit
         _cond_i = ring(-1ll);
     }
 }

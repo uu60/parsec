@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/11/3.
-//
 
 #ifndef INSERT_H
 #define INSERT_H
@@ -18,4 +15,4 @@ public:
 
 
 
-#endif //INSERT_H
+#endif

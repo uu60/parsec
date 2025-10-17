@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/11/15.
-//
 
 #ifndef XOREXECUTOR_H
 #define XOREXECUTOR_H
@@ -19,4 +16,4 @@ public:
 
 
 
-#endif //XOREXECUTOR_H
+#endif

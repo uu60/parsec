@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 25-4-18.
-//
 
 #include "../../include/intermediate/PipelineBitwiseBmtBatchGenerator.h"
 
@@ -37,7 +34,6 @@ void PipelineBitwiseBmtBatchGenerator::generateRandomAB(std::vector<int64_t> &as
 }
 
 void PipelineBitwiseBmtBatchGenerator::compute(int sender, std::vector<int64_t> &as, std::vector<int64_t> &bs) {
-    // messages and choices are stored in int64_t
     std::vector<int64_t> ssi, sso;
     std::vector<int64_t> choices;
 
@@ -83,9 +79,7 @@ void PipelineBitwiseBmtBatchGenerator::otAsync(int sender, std::vector<int64_t> 
 
         Comm::serverSendAsync(*send, _width, buildTag(_currentMsgTag));
     } else {
-        // Do OT async and handle in sub-thread
         int size = static_cast<int>(choiceBits.size());
-        // Memory recycle in sub-thread
 
         HandleData hd;
         hd._recv = new std::vector<int64_t>();
@@ -97,7 +91,6 @@ void PipelineBitwiseBmtBatchGenerator::otAsync(int sender, std::vector<int64_t> 
 
 void PipelineBitwiseBmtBatchGenerator::mainThreadHandle() {
     while (!System::_shutdown) {
-        // Generate randoms a and b
         std::vector<int64_t> as, bs;
         generateRandomAB(as, bs);
         compute(0, as, bs);
@@ -143,7 +136,6 @@ void PipelineBitwiseBmtBatchGenerator::subThreadHandle() {
             delete recv;
             delete choiceBits;
 
-            // Compute u and v
             auto ssi = _ssis.poll();
             auto bmts = _bmts.poll();
             for (int i = 0; i < size; ++i) {

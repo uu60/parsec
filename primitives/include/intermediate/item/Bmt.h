@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/11/16.
-//
 
 #ifndef BMT_H
 #define BMT_H
@@ -16,4 +13,4 @@ public:
 
 
 
-#endif //BMT_H
+#endif

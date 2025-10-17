@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/11/3.
-//
 
 #include "operator/InsertSupport.h"
 
@@ -29,14 +26,11 @@ bool InsertSupport::clientInsert(std::ostringstream &resp, const hsql::SQLStatem
     }
     const auto fieldNames = table->_fieldNames;
 
-    // get inserted values
     const auto columns = insertStmt->columns;
     const auto values = insertStmt->values;
     std::vector<std::string> cols;
 
-    // insert values all columns
     std::string keyField = table->_keyField;
-    // if table has no key field, pass this check
     bool containsKey = !keyField.empty();
     if (!insertStmt->columns) {
         for (auto n : table->_fieldNames) {
@@ -93,7 +87,6 @@ bool InsertSupport::clientInsert(std::ostringstream &resp, const hsql::SQLStatem
             return false;
         }
 
-        // column idx in the table
         int64_t idx = std::distance(fieldNames.begin(),
                                     std::find(fieldNames.begin(), fieldNames.end(), cols[i]));
         int type = table->_fieldWidths[idx];
@@ -111,10 +104,8 @@ bool InsertSupport::clientInsert(std::ostringstream &resp, const hsql::SQLStatem
     cols.push_back(View::BUCKET_TAG_PREFIX + keyField);
     parsedValues.emplace_back(Views::hash(keyValue));
 
-    // secret share
     std::vector<int64_t> shareValues(table->colNum());
     for (size_t i = 0; i < table->colNum(); ++i) {
-        // table field idx in the inserted columns
         const auto &find = std::find(cols.begin(), cols.end(), fieldNames[i]);
         int64_t idx = std::distance(cols.begin(), find);
 

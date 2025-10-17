@@ -101,7 +101,6 @@ void printExpression(Expr* expr, uintmax_t num_indent) {
         inprint(expr->table, num_indent + 2);
       }
       break;
-    // case kExprTableColumnRef: inprint(expr->table, expr->name, num_indent); break;
     case kExprLiteralFloat:
       inprint(expr->fval, num_indent);
       break;
@@ -494,4 +493,4 @@ std::ostream& operator<<(std::ostream& os, const FrameBound& frame_bound) {
   return os;
 }
 
-}  // namespace hsql
+}

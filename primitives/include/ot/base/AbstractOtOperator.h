@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/12/29.
-//
 
 #ifndef ABSTRACTOTEXECUTOR_H
 #define ABSTRACTOTEXECUTOR_H
@@ -11,8 +8,7 @@ class AbstractOtOperator : public AbstractSingleOperator {
 protected:
     int64_t _m0{};
     int64_t _m1{};
-    int _choice; // msg choice
-    // correspond mpi rank
+    int _choice;
     bool _isSender{};
 
 public:
@@ -23,4 +19,4 @@ public:
 
 
 
-#endif //ABSTRACTOTEXECUTOR_H
+#endif

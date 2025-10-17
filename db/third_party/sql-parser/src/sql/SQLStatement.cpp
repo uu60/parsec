@@ -3,7 +3,6 @@
 
 namespace hsql {
 
-// SQLStatement
 SQLStatement::SQLStatement(StatementType type) : hints(nullptr), type_(type) {}
 
 SQLStatement::~SQLStatement() {
@@ -21,4 +20,4 @@ bool SQLStatement::isType(StatementType type) const { return (type_ == type); }
 
 bool SQLStatement::is(StatementType type) const { return isType(type); }
 
-}  // namespace hsql
+}

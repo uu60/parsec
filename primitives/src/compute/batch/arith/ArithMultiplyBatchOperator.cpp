@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/7/23.
-//
 
 #include "compute/batch/arith/ArithMultiplyBatchOperator.h"
 

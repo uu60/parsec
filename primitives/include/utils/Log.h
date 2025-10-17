@@ -21,7 +21,6 @@ private:
     static inline std::mutex logMutex;
 
 public:
-    // Variadic template functions for logging
     template<typename... Args>
     static void i(const std::string &msg, Args &&... args) {
         log(INFO, msg, std::forward<Args>(args)...);
@@ -120,4 +119,4 @@ private:
     }
 };
 
-#endif // MPC_PACKAGE_LOG_H
+#endif

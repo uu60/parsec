@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 25-5-2.
-//
 
 #include "secret/Secrets.h"
 #include "utils/System.h"
@@ -60,14 +57,13 @@ int main(int argc, char *argv[]) {
 
         v = Views::selectAll(t);
 
-        // Create vector of all column names for multi-column sorting
         std::vector<std::string> sortColumns;
         std::vector<bool> ascendingOrders;
         for (int i = 0; i < cols; i++) {
             sortColumns.push_back(v._fieldNames[i]);
-            ascendingOrders.push_back(true); // All columns in ascending order
+            ascendingOrders.push_back(true);
         }
-        
+
         auto start = System::currentTimeMillis();
         v.sort(sortColumns, ascendingOrders, 0);
         Log::i("Multi-column sort time (all {} columns): {}ms", cols, System::currentTimeMillis() - start);

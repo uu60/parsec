@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/11/15.
-//
 
 #ifndef BOOLEQUALEXECUTOR_H
 #define BOOLEQUALEXECUTOR_H
@@ -10,7 +7,6 @@
 
 class BoolEqualOperator : public BoolOperator {
 private:
-    // std::vector<Bmt> *_bmts{};
     BitwiseBmt *_bmt{};
 
 public:
@@ -22,4 +18,4 @@ public:
     BoolEqualOperator *setBmt(BitwiseBmt *bmt);
 };
 
-#endif //BOOLEQUALEXECUTOR_H
+#endif

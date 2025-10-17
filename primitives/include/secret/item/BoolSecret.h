@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/1/8.
-//
 
 #ifndef BOOLSECRET_H
 #define BOOLSECRET_H
@@ -44,4 +41,4 @@ public:
 
 
 
-#endif //BOOLSECRET_H
+#endif

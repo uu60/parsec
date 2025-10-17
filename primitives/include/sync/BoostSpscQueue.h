@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/4/9.
-//
 
 #ifndef BOOSTSPSCQUEUE_H
 #define BOOSTSPSCQUEUE_H
@@ -45,4 +42,4 @@ public:
 
 
 
-#endif //BOOSTSPSCQUEUE_H
+#endif

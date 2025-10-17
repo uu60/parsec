@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/7/13.
-//
 
 #ifndef MPC_PACKAGE_ADDITIONSHAREEXECUTOR_H
 #define MPC_PACKAGE_ADDITIONSHAREEXECUTOR_H
@@ -17,4 +14,4 @@ public:
 };
 
 
-#endif //MPC_PACKAGE_ADDITIONSHAREEXECUTOR_H
+#endif

@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/11/3.
-//
 
 #include "operator/DropSupport.h"
 
@@ -23,7 +20,6 @@ bool DropSupport::clientDropTable(std::ostringstream &resp, const hsql::SQLState
             return false;
         }
 
-        // notify servers
         json j;
         j["type"] = SystemManager::getCommandPrefix(SystemManager::DROP_TABLE);
         j["name"] = tableName;

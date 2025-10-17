@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/3/1.
-//
 
 #ifndef BOOLMUTEXBATCHEXECUTOR_H
 #define BOOLMUTEXBATCHEXECUTOR_H
@@ -15,7 +12,6 @@ public:
 private:
     std::vector<BitwiseBmt> *_bmts{};
 
-    // for bidirectional
     bool _bidir{};
 
 public:
@@ -23,7 +19,6 @@ public:
                            int taskTag,
                            int msgTagOffset, int clientRank);
 
-    // For sort. Do mutex [xs, ys] [ys, xs] on [conds, conds]
     BoolMutexBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys, std::vector<int64_t> *conds, int width,
                            int taskTag, int msgTagOffset);
 
@@ -35,7 +30,6 @@ public:
 
     static int tagStride();
 
-    // Returns needed bmt num when _bidir is false, else *2
     static int bmtCount(int num, int width);
 
 private:
@@ -47,4 +41,4 @@ private:
 };
 
 
-#endif //BOOLMUTEXBATCHEXECUTOR_H
+#endif

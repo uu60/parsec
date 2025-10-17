@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 25-5-1.
-//
 
 #include <sstream>
 #include <set>
@@ -144,22 +141,19 @@ bool SelectSupport::clientSelect(std::ostringstream &resp, const hsql::SQLStatem
 
     auto *selectStmt = dynamic_cast<const hsql::SelectStatement *>(stmt);
 
-    // Check if this is a JOIN query
     std::vector<JoinInfo> joinInfos;
     std::vector<std::string> allFieldNames;
     bool isJoin = selectStmt->fromTable->type == hsql::kTableJoin;
 
     std::vector<std::string> selectedFieldNames;
-    std::string tableName; // For single table queries
-    Table *table = nullptr; // For single table queries
+    std::string tableName;
+    Table *table = nullptr;
 
     if (isJoin) {
-        // Handle JOIN query - get table info and field names
         if (!clientHandleJoin(resp, selectStmt, joinInfos, allFieldNames)) {
             return false;
         }
 
-        // Parse selected fields for JOIN
         const auto list = selectStmt->selectList;
         for (const auto c: *list) {
             if (c->type == hsql::kExprStar) {
@@ -176,7 +170,6 @@ bool SelectSupport::clientSelect(std::ostringstream &resp, const hsql::SQLStatem
             }
         }
     } else {
-        // Handle single table query - get table info and field names
         tableName = selectStmt->fromTable->getName();
         table = SystemManager::getInstance()._currentDatabase->getTable(tableName);
         if (!table) {
@@ -184,7 +177,6 @@ bool SelectSupport::clientSelect(std::ostringstream &resp, const hsql::SQLStatem
             return false;
         }
 
-        // Parse selected fields for single table
         const auto list = selectStmt->selectList;
         for (const auto c: *list) {
             if (c->type == hsql::kExprStar) {
@@ -203,21 +195,18 @@ bool SelectSupport::clientSelect(std::ostringstream &resp, const hsql::SQLStatem
         }
     }
 
-    // Common processing for both JOIN and single table: filter and order
     std::vector<std::string> filterCols;
     std::vector<View::ComparatorType> filterCmps;
     std::vector<int64_t> filterVals;
     std::vector<std::string> orderFields;
     std::vector<bool> ascendings;
 
-    // Parse filter conditions (simplified for now - could be enhanced for JOIN)
     if (selectStmt->whereClause) {
         if (!clientHandleFilter(resp, selectStmt, joinInfos, filterCols, filterCmps, filterVals)) {
             return false;
         }
     }
 
-    // Parse order conditions
     if (selectStmt->order) {
         auto fieldNames = table->_fieldNames;
         if (!clientHandleOrder(resp, selectStmt, fieldNames, orderFields, ascendings)) {
@@ -225,7 +214,6 @@ bool SelectSupport::clientSelect(std::ostringstream &resp, const hsql::SQLStatem
         }
     }
 
-    // Send unified JSON message to servers
     json js;
     js["type"] = SystemManager::getCommandPrefix(SystemManager::SELECT);
     js["fieldNames"] = selectedFieldNames;
@@ -247,7 +235,6 @@ bool SelectSupport::clientSelect(std::ostringstream &resp, const hsql::SQLStatem
         js["name"] = tableName;
     }
 
-    // Add filter and order info to JSON
     std::vector<int64_t> fv0, fv1;
     if (selectStmt->whereClause && !filterCols.empty()) {
         fv0.resize(filterVals.size());
@@ -265,7 +252,6 @@ bool SelectSupport::clientSelect(std::ostringstream &resp, const hsql::SQLStatem
         js["ascendings"] = ascendings;
     }
 
-    // Send to servers
     std::string m = js.dump();
     Comm::send(m, 0, 0);
 
@@ -275,7 +261,6 @@ bool SelectSupport::clientSelect(std::ostringstream &resp, const hsql::SQLStatem
     m = js.dump();
     Comm::send(m, 1, 0);
 
-    // Reconstruct results
     int maxWidth = isJoin ? 64 : table->_maxWidth;
     auto reconstructed = Secrets::boolReconstruct(Table::EMPTY_COL, 2, maxWidth, 0);
     size_t cols = selectedFieldNames.size();
@@ -308,10 +293,8 @@ bool SelectSupport::clientSelect(std::ostringstream &resp, const hsql::SQLStatem
 }
 
 void SelectSupport::serverSelect(json js) {
-    // Check if this is a JOIN operation
     View v;
     if (js.contains("isJoin") && js.at("isJoin").get<bool>()) {
-        // Handle JOIN operation
         std::vector<std::string> selectedFields = js.at("fieldNames").get<std::vector<std::string> >();
         auto joinArray = js.at("joins");
 
@@ -320,7 +303,6 @@ void SelectSupport::serverSelect(json js) {
             return;
         }
 
-        // Collect all unique table names from joins
         std::set<std::string> tableNamesSet;
         for (const auto &joinObj: joinArray) {
             tableNamesSet.insert(joinObj.at("leftTable").get<std::string>());
@@ -329,10 +311,8 @@ void SelectSupport::serverSelect(json js) {
 
         std::vector<std::string> tableNames(tableNamesSet.begin(), tableNamesSet.end());
 
-        // Create views for all tables with prefixed field names and apply single-table filters
         std::map<std::string, View> tableViews;
         
-        // Classify filters by table if filters exist
         std::map<std::string, std::vector<std::string>> tableFilterCols;
         std::map<std::string, std::vector<View::ComparatorType>> tableFilterCmps;
         std::map<std::string, std::vector<int64_t>> tableFilterVals;
@@ -342,7 +322,6 @@ void SelectSupport::serverSelect(json js) {
             std::vector<View::ComparatorType> filterCmps = js.at("filterCmps").get<std::vector<View::ComparatorType>>();
             std::vector<int64_t> filterVals = js.at("filterVals").get<std::vector<int64_t>>();
             
-            // Classify filters by table name (extract from "tableName.columnName" format)
             for (int i = 0; i < filterFields.size(); ++i) {
                 std::string filterField = filterFields[i];
                 size_t dotPos = filterField.find('.');
@@ -357,12 +336,10 @@ void SelectSupport::serverSelect(json js) {
             }
         }
         
-        // Create views and apply single-table filters before joins
         for (const auto &tableName: tableNames) {
             Table *table = SystemManager::getInstance()._currentDatabase->getTable(tableName);
             View tableView = Views::selectAllWithFieldPrefix(*table);
             
-            // Apply filters specific to this table before joining
             if (tableFilterCols.count(tableName) > 0) {
                 tableView.filterAndConditions(tableFilterCols[tableName], 
                                             tableFilterCmps[tableName], 
@@ -372,10 +349,9 @@ void SelectSupport::serverSelect(json js) {
             tableViews[tableName] = tableView;
         }
 
-        // Perform joins sequentially - start with first two tables
         View currentResult;
         bool firstJoin = true;
-        std::set<std::string> tablesInResult; // Track which tables are already in the result
+        std::set<std::string> tablesInResult;
 
         for (const auto &joinObj: joinArray) {
             std::string leftTableName = joinObj.at("leftTable").get<std::string>();
@@ -384,7 +360,6 @@ void SelectSupport::serverSelect(json js) {
             std::string rightField = joinObj.at("rightField").get<std::string>();
 
             if (firstJoin) {
-                // First join: join two tables directly
                 View leftView = tableViews[leftTableName];
                 View rightView = tableViews[rightTableName];
                 currentResult = Views::hashJoin(leftView, rightView, leftField, rightField);
@@ -392,39 +367,30 @@ void SelectSupport::serverSelect(json js) {
                 tablesInResult.insert(rightTableName);
                 firstJoin = false;
             } else {
-                // Subsequent joins: only join if at least one table is not in result yet
                 bool leftInResult = tablesInResult.count(leftTableName) > 0;
                 bool rightInResult = tablesInResult.count(rightTableName) > 0;
                 
-                // Skip this join if both tables are already in the result
                 if (leftInResult && rightInResult) {
                     continue;
                 }
                 
-                // Determine which table to join with current result
                 std::string nextTableName;
                 std::string nextField;
                 std::string currentField;
 
                 if (leftInResult) {
-                    // Left table is in result, join with right table
                     nextTableName = rightTableName;
                     nextField = rightField;
                     currentField = leftField;
                 } else if (rightInResult) {
-                    // Right table is in result, join with left table
                     nextTableName = leftTableName;
                     nextField = leftField;
                     currentField = rightField;
                 } else {
-                    // Neither table is in result - this shouldn't happen in a proper join sequence
-                    // but handle it by joining the two tables and then joining with current result
                     View leftView = tableViews[leftTableName];
                     View rightView = tableViews[rightTableName];
                     View tempResult = Views::hashJoin(leftView, rightView, leftField, rightField);
                     
-                    // This is a complex case - for now, just continue with the temp result
-                    // In a real implementation, you'd need to find a common field to join with currentResult
                     continue;
                 }
 
@@ -439,7 +405,6 @@ void SelectSupport::serverSelect(json js) {
             return;
         }
 
-        // Select only the requested fields from the join result
         std::vector<std::string> availableFields = currentResult._fieldNames;
         std::vector<std::string> finalSelectedFields;
 
@@ -450,17 +415,15 @@ void SelectSupport::serverSelect(json js) {
         }
 
         if (finalSelectedFields.empty()) {
-            finalSelectedFields = availableFields; // Select all if none specified
+            finalSelectedFields = availableFields;
         }
 
         v = Views::selectColumns(currentResult, finalSelectedFields);
     } else {
-        // Handle single table operation (original logic)
         std::string tableName = js.at("name").get<std::string>();
         std::vector<std::string> selectedFields = js.at("fieldNames").get<std::vector<std::string> >();
 
         Table *table = SystemManager::getInstance()._currentDatabase->getTable(tableName);
-        // v's task tag is assigned by System::nextTag()
         v = Views::selectColumns(*table, selectedFields);
     }
 
@@ -469,9 +432,7 @@ void SelectSupport::serverSelect(json js) {
         return;
     }
 
-    // Apply remaining filters only for single table queries or cross-table filters
     if (js.contains("filterFields") && !js.contains("isJoin")) {
-        // For single table queries, apply all filters here
         std::vector<std::string> filterFields = js.at("filterFields").get<std::vector<std::string> >();
         std::vector<View::ComparatorType> filterCmps = js.at("filterCmps").get<std::vector<
             View::ComparatorType> >();
@@ -479,7 +440,6 @@ void SelectSupport::serverSelect(json js) {
         v.filterAndConditions(filterFields, filterCmps, filterVals, 0);
     }
 
-    // order
     if (js.contains("orderFields")) {
         std::vector<std::string> orderFields = js.at("orderFields").get<std::vector<std::string> >();
         std::vector<bool> ascendings = js.at("ascendings").get<std::vector<bool> >();
@@ -563,11 +523,9 @@ bool SelectSupport::parseJoinCondition(std::ostringstream &resp, const hsql::Exp
 
 bool SelectSupport::clientHandleJoin(std::ostringstream &resp, const hsql::SelectStatement *selectStmt,
                                      std::vector<JoinInfo> &joinInfos, std::vector<std::string> &allFieldNames) {
-    // Collect all tables and joins recursively
     std::vector<std::string> tableNames;
     std::vector<hsql::JoinDefinition *> joins;
 
-    // Recursive function to parse join structure
     std::function<void(hsql::TableRef *)> parseTableRef = [&](hsql::TableRef *tableRef) {
         if (tableRef->type == hsql::kTableJoin) {
             parseTableRef(tableRef->join->left);
@@ -580,7 +538,6 @@ bool SelectSupport::clientHandleJoin(std::ostringstream &resp, const hsql::Selec
 
     parseTableRef(selectStmt->fromTable);
 
-    // Validate all tables exist and collect field names
     for (const auto &tableName: tableNames) {
         Table *table = SystemManager::getInstance()._currentDatabase->getTable(tableName);
         if (!table) {
@@ -588,20 +545,17 @@ bool SelectSupport::clientHandleJoin(std::ostringstream &resp, const hsql::Selec
             return false;
         }
 
-        // Add field names with table prefix to avoid conflicts
         for (const auto &fieldName: table->_fieldNames) {
             allFieldNames.push_back(Views::getAliasColName(const_cast<std::string &>(tableName),
                                                            const_cast<std::string &>(fieldName)));
         }
     }
 
-    // Process joins - for cartesian product, we need to create join pairs
     for (auto joinDef: joins) {
         JoinInfo joinInfo;
         joinInfo.leftTable = joinDef->left->getName();
         joinInfo.rightTable = joinDef->right->getName();
 
-        // Validate tables exist
         Table *leftTable = SystemManager::getInstance()._currentDatabase->getTable(joinInfo.leftTable);
         Table *rightTable = SystemManager::getInstance()._currentDatabase->getTable(joinInfo.rightTable);
 
@@ -610,7 +564,6 @@ bool SelectSupport::clientHandleJoin(std::ostringstream &resp, const hsql::Selec
             return false;
         }
 
-        // Parse join condition if exists
         if (joinDef->condition) {
             if (!parseJoinCondition(resp, joinDef->condition,
                                     joinInfo.leftTable, joinInfo.rightTable,
@@ -618,7 +571,6 @@ bool SelectSupport::clientHandleJoin(std::ostringstream &resp, const hsql::Selec
                 return false;
             }
         } else {
-            // For cartesian product without condition, use first field of each table
             joinInfo.leftField = leftTable->_fieldNames[0];
             joinInfo.rightField = rightTable->_fieldNames[0];
         }

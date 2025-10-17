@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 25-7-19.
-//
 
 #include "compute/batch/arith/ArithToBoolBatchOperator.h"
 
@@ -20,7 +17,6 @@
 ArithToBoolBatchOperator::ArithToBoolBatchOperator(std::vector<int64_t> *xs, int width, int taskTag, int msgTagOffset,
                                                    int clientRank)
     : ArithBatchOperator(*xs, width, taskTag, msgTagOffset, clientRank) {
-    // Temporarily lend zis for xis preparation in super constructor.
     _xis = new std::vector<int64_t>(std::move(_zis));
     _zis.resize(xs->size(), 0);
 }
@@ -48,7 +44,6 @@ ArithToBoolBatchOperator *ArithToBoolBatchOperator::execute() {
     int num = static_cast<int>(_xis->size());
     _zis.resize(num, 0);
 
-    // Bitwise separate all xi values
     std::vector<int64_t> xi_i_vec(num), xi_o_vec(num);
     for (int i = 0; i < num; i++) {
         xi_i_vec[i] = Math::randInt();
@@ -57,11 +52,9 @@ ArithToBoolBatchOperator *ArithToBoolBatchOperator::execute() {
 
     std::vector<bool> carry_i_vec(num, false);
 
-    // Process each bit position
     for (int bitPos = 0; bitPos < _width; bitPos++) {
         std::vector<bool> ai_vec(num), ao_vec(num), bi_vec(num), bo_vec(num);
 
-        // Extract bit values for all numbers
         for (int i = 0; i < num; i++) {
             if (Comm::rank() == 0) {
                 ai_vec[i] = (xi_i_vec[i] >> bitPos) & 1;
@@ -72,7 +65,6 @@ ArithToBoolBatchOperator *ArithToBoolBatchOperator::execute() {
             }
         }
 
-        // Communication for bit exchange
         std::vector<int64_t> self_ov(num), other_iv(num);
         for (int i = 0; i < num; i++) {
             if (Comm::rank() == 0) {
@@ -95,32 +87,26 @@ ArithToBoolBatchOperator *ArithToBoolBatchOperator::execute() {
             }
         }
 
-        // Compute output bits
         for (int i = 0; i < num; i++) {
             _zis[i] += static_cast<int64_t>((ai_vec[i] ^ bi_vec[i]) ^ carry_i_vec[i]) << bitPos;
         }
 
-        // Compute carry for next bit (if not the last bit)
         if (bitPos < _width - 1) {
             std::vector<bool> propagate_i_vec(num), generate_i_vec(num), tempCarry_i_vec(num);
 
-            // Prepare propagate values
             for (int i = 0; i < num; i++) {
                 propagate_i_vec[i] = ai_vec[i] ^ bi_vec[i];
             }
 
-            // Batch AND operation for generate: ai & bi
             std::vector<int64_t> ai_int(num), bi_int(num);
             for (int i = 0; i < num; i++) {
                 ai_int[i] = static_cast<int64_t>(ai_vec[i]);
                 bi_int[i] = static_cast<int64_t>(bi_vec[i]);
             }
 
-            // Generate AND operation
             BoolAndBatchOperator generateOp(&ai_int, &bi_int, 1, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
             generateOp.execute();
 
-            // Propagate AND carry operation
             std::vector<int64_t> propagate_int(num), carry_int(num);
             for (int i = 0; i < num; i++) {
                 propagate_int[i] = static_cast<int64_t>(propagate_i_vec[i]);
@@ -131,7 +117,6 @@ ArithToBoolBatchOperator *ArithToBoolBatchOperator::execute() {
                                              NO_CLIENT_COMPUTE);
             propagateOp.execute();
 
-            // Compute sum and final carry
             std::vector<int64_t> generate_results = generateOp._zis;
             std::vector<int64_t> tempCarry_results = propagateOp._zis;
             std::vector<int64_t> sum_int(num);
@@ -142,19 +127,16 @@ ArithToBoolBatchOperator *ArithToBoolBatchOperator::execute() {
                 sum_int[i] = generate_results[i] ^ tempCarry_results[i];
             }
 
-            // Final AND operation for carry computation
             BoolAndBatchOperator finalOp(&generate_results, &tempCarry_results, 1, _taskTag, _currentMsgTag,
                                          NO_CLIENT_COMPUTE);
             finalOp.execute();
 
-            // Update carry for next iteration
             for (int i = 0; i < num; i++) {
                 carry_i_vec[i] = sum_int[i] ^ finalOp._zis[i];
             }
         }
     }
 
-    // Apply ring operation to all results
     for (int i = 0; i < num; i++) {
         _zis[i] = ring(_zis[i]);
     }

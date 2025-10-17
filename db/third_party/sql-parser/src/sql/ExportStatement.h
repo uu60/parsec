@@ -6,12 +6,10 @@
 #include "SelectStatement.h"
 
 namespace hsql {
-// Represents SQL Export statements.
 struct ExportStatement : SQLStatement {
   ExportStatement(ImportType type);
   ~ExportStatement() override;
 
-  // ImportType is used for compatibility reasons
   ImportType type;
   char* filePath;
   char* schema;
@@ -20,6 +18,6 @@ struct ExportStatement : SQLStatement {
   char* encoding;
 };
 
-}  // namespace hsql
+}
 
 #endif

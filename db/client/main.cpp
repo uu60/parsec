@@ -59,17 +59,15 @@ public:
 
         std::string command;
         while (true) {
-            // Use readline to get user input with advanced line editing and history support
             char* input = readline("smpc-db> ");
             if (!input) {
                 std::cout << "Goodbye!" << std::endl;
-                break;  // Exit if EOF (Ctrl+D)
+                break;
             }
 
             std::string line(input);
-            free(input);  // Free the memory allocated by readline
+            free(input);
 
-            // Add the line to history if it's not empty
             if (!line.empty()) {
                 add_history(line.c_str());
             }
@@ -81,14 +79,11 @@ public:
 
             command += line;
 
-            // Check if the command ends with a semicolon to indicate it's complete
             if (!command.empty() && command.back() == ';') {
-                command.pop_back(); // Remove the trailing semicolon
+                command.pop_back();
 
-                // Send the command to the server
                 send(sock, command.c_str(), command.size(), 0);
 
-                // Receive the response in chunks
                 std::string response;
                 char buffer[BUFFER_SIZE];
                 int64_t bytes_received;
@@ -100,14 +95,11 @@ public:
                         std::cerr << "Error receiving data from server." << std::endl;
                         break;
                     } else if (bytes_received == 0) {
-                        // No more data; server closed connection
                         break;
                     }
 
-                    // Append the chunk to the response
                     response.append(buffer, bytes_received);
 
-                    // If the received data is less than the buffer size, assume the end of message
                     if (bytes_received < BUFFER_SIZE) {
                         break;
                     }
@@ -115,9 +107,8 @@ public:
 
                 std::cout << response << std::endl;
 
-                command.clear();  // Clear the command for the next input
+                command.clear();
             } else {
-                // Continue collecting lines for multi-line command
                 command += " ";
             }
         }

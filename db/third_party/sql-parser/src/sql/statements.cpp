@@ -4,7 +4,6 @@
 
 namespace hsql {
 
-// KeyConstraints
 TableConstraint::TableConstraint(ConstraintType type, std::vector<char*>* columnNames)
     : type(type), columnNames(columnNames) {}
 
@@ -15,7 +14,6 @@ TableConstraint::~TableConstraint() {
   delete columnNames;
 }
 
-// ColumnDefinition
 ColumnDefinition::ColumnDefinition(char* name, ColumnType type, std::unordered_set<ConstraintType>* column_constraints)
     : column_constraints(column_constraints), name(name), type(type), nullable(true) {}
 
@@ -88,7 +86,6 @@ std::ostream& operator<<(std::ostream& stream, const ColumnType& column_type) {
   return stream;
 }
 
-// DeleteStatement
 DeleteStatement::DeleteStatement() : SQLStatement(kStmtDelete), schema(nullptr), tableName(nullptr), expr(nullptr) {}
 
 DeleteStatement::~DeleteStatement() {
@@ -97,7 +94,6 @@ DeleteStatement::~DeleteStatement() {
   delete expr;
 }
 
-// DropStatement
 DropStatement::DropStatement(DropType type)
     : SQLStatement(kStmtDrop), type(type), schema(nullptr), name(nullptr), indexName(nullptr) {}
 
@@ -107,7 +103,6 @@ DropStatement::~DropStatement() {
   free(indexName);
 }
 
-// AlterStatement and supportive classes
 
 AlterAction::AlterAction(ActionType type) : type(type) {}
 
@@ -127,13 +122,11 @@ AlterStatement::~AlterStatement() {
   delete action;
 }
 
-// TransactionStatement
 TransactionStatement::TransactionStatement(TransactionCommand command)
     : SQLStatement(kStmtTransaction), command(command) {}
 
 TransactionStatement::~TransactionStatement() {}
 
-// ExecuteStatement
 ExecuteStatement::ExecuteStatement() : SQLStatement(kStmtExecute), name(nullptr), parameters(nullptr) {}
 
 ExecuteStatement::~ExecuteStatement() {
@@ -147,7 +140,6 @@ ExecuteStatement::~ExecuteStatement() {
   }
 }
 
-// ExportStatement
 ExportStatement::ExportStatement(ImportType type)
     : SQLStatement(kStmtExport),
       type(type),
@@ -169,7 +161,6 @@ ImportExportOptions::ImportExportOptions() : format(kImportAuto), encoding(nullp
 
 ImportExportOptions::~ImportExportOptions() { free(encoding); }
 
-// ImportStatement
 ImportStatement::ImportStatement(ImportType type)
     : SQLStatement(kStmtImport),
       type(type),
@@ -187,7 +178,6 @@ ImportStatement::~ImportStatement() {
   free(encoding);
 }
 
-// InsertStatement
 InsertStatement::InsertStatement(InsertType type)
     : SQLStatement(kStmtInsert),
       type(type),
@@ -217,7 +207,6 @@ InsertStatement::~InsertStatement() {
   }
 }
 
-// ShowStatament
 ShowStatement::ShowStatement(ShowType type) : SQLStatement(kStmtShow), type(type), schema(nullptr), name(nullptr) {}
 
 ShowStatement::~ShowStatement() {
@@ -225,14 +214,11 @@ ShowStatement::~ShowStatement() {
   free(name);
 }
 
-// SelectStatement.h
 
-// OrderDescription
 OrderDescription::OrderDescription(OrderType type, Expr* expr) : type(type), expr(expr) {}
 
 OrderDescription::~OrderDescription() { delete expr; }
 
-// LimitDescription
 LimitDescription::LimitDescription(Expr* limit, Expr* offset) : limit(limit), offset(offset) {}
 
 LimitDescription::~LimitDescription() {
@@ -240,7 +226,6 @@ LimitDescription::~LimitDescription() {
   delete offset;
 }
 
-// GroypByDescription
 GroupByDescription::GroupByDescription() : columns(nullptr), having(nullptr) {}
 
 GroupByDescription::~GroupByDescription() {
@@ -259,7 +244,6 @@ WithDescription::~WithDescription() {
   delete select;
 }
 
-// SelectStatement
 SelectStatement::SelectStatement()
     : SQLStatement(kStmtSelect),
       fromTable(nullptr),
@@ -279,7 +263,6 @@ SelectStatement::~SelectStatement() {
   delete groupBy;
   delete limit;
 
-  // Delete each element in the select list.
   if (selectList) {
     for (Expr* expr : *selectList) {
       delete expr;
@@ -322,7 +305,6 @@ SelectStatement::~SelectStatement() {
   }
 }
 
-// UpdateStatement
 UpdateStatement::UpdateStatement() : SQLStatement(kStmtUpdate), table(nullptr), updates(nullptr), where(nullptr) {}
 
 UpdateStatement::~UpdateStatement() {
@@ -339,7 +321,6 @@ UpdateStatement::~UpdateStatement() {
   }
 }
 
-// Alias
 Alias::Alias(char* name, std::vector<char*>* columns) : name(name), columns(columns) {}
 
 Alias::~Alias() {
@@ -352,7 +333,6 @@ Alias::~Alias() {
   }
 }
 
-// TableRef
 TableRef::TableRef(TableRefType type)
     : type(type), schema(nullptr), name(nullptr), alias(nullptr), select(nullptr), list(nullptr), join(nullptr) {}
 
@@ -381,7 +361,6 @@ const char* TableRef::getName() const {
     return name;
 }
 
-// JoinDefinition
 JoinDefinition::JoinDefinition()
     : left(nullptr), right(nullptr), condition(nullptr), namedColumns(nullptr), type(kJoinInner) {}
 
@@ -412,4 +391,4 @@ SetOperation::~SetOperation() {
   }
 }
 
-}  // namespace hsql
+}

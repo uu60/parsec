@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/2/20.
-//
 
 #ifndef TBBTHREADPOOL_H
 #define TBBTHREADPOOL_H
@@ -39,24 +36,20 @@ public:
 };
 
 #else
-// Dummy TbbThreadPool class when TBB is not available
 #include <future>
 #include <stdexcept>
 
 class TbbThreadPool {
 public:
     explicit TbbThreadPool(int num_threads) {
-        // Do nothing when TBB is not available
     }
 
     template<typename F>
     auto submit(F &&f) -> std::future<decltype(f())> {
-        // This should never be called when TBB is not available
-        // The ThreadPoolSupport should handle this case
         throw std::runtime_error("TBB thread pool is not available");
     }
 };
 
-#endif // PARSEC_HAS_TBB
+#endif
 
-#endif //TBBTHREADPOOL_H
+#endif

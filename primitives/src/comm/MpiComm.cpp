@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/7/15.
-//
 
 #include "comm/MpiComm.h"
 #include <mpi.h>
@@ -23,7 +20,6 @@ void MpiComm::init_(int argc, char **argv) {
     if (Conf::DISABLE_MULTI_THREAD) {
         MPI_Init(&argc, &argv);
     } else {
-        // init
         int provided;
         int required = MPI_THREAD_MULTIPLE;
         MPI_Init_thread(&argc, &argv, required, &provided);
@@ -34,7 +30,6 @@ void MpiComm::init_(int argc, char **argv) {
     }
     MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
     MPI_Comm_set_errhandler(MPI_COMM_SELF,  MPI_ERRORS_RETURN);
-    // process _mpiRank and sum
     MPI_Comm_rank(MPI_COMM_WORLD, &_mpiRank);
     MPI_Comm_size(MPI_COMM_WORLD, &_mpiSize);
     if (_mpiSize != 3) {

@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/3/22.
-//
 
 #ifndef ABSTRACTREQUEST_H
 #define ABSTRACTREQUEST_H
@@ -16,4 +13,4 @@ public:
 
 
 
-#endif //ABSTRACTREQUEST_H
+#endif

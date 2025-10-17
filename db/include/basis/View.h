@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 25-4-25.
-//
 
 #ifndef VIEW_H
 #define VIEW_H
@@ -36,14 +33,12 @@ public:
 
     View(std::string &tableName, std::vector<std::string> &fieldNames, std::vector<int> &fieldWidths);
 
-    // without auto add redundant columns
     View(std::string &tableName, std::vector<std::string> &fieldNames, std::vector<int> &fieldWidths, bool dummy);
 
     void select(std::vector<std::string> &fieldNames);
 
     void sort(const std::string &orderField, bool ascendingOrder, int msgTagBase);
 
-    // Multi-column sort support
     void sort(const std::vector<std::string> &orderFields, const std::vector<bool> &ascendingOrders, int msgTagBase);
 
     int sortTagStride();
@@ -64,28 +59,21 @@ public:
 
     void addRedundantCols();
 
-    // Group by functionality for 2PC secret sharing
-    // Returns: pair<groupIds for each row, total number of groups>
     std::vector<int64_t> groupBy(const std::string &groupField, int msgTagBase);
 
     std::vector<int64_t> groupBy(const std::string &groupField, bool doSort, int msgTagBase);
 
-    // Multi-column group by functionality for 2PC secret sharing
-    // Returns: group boundary indicators for each row (1 if starts new group, 0 otherwise)
     std::vector<int64_t> groupBy(const std::vector<std::string> &groupFields, int msgTagBase);
 
-    // View must have run group by before calling this
     void count(std::vector<std::string> &groupFields, std::vector<int64_t> &heads, std::string alias, int msgTagBase);
 
-    void count(std::vector<std::string> &groupFields, std::vector<int64_t> &heads, std::string alias, bool compress, int msgTagBase);
+    void count(std::vector<std::string> &groupFields, std::vector<int64_t> &heads, std::string alias, bool compress,
+               int msgTagBase);
 
-    // Max aggregation function - must have run group by before calling this
     void max(std::vector<int64_t> &heads, const std::string &fieldName, std::string alias, int msgTagBase);
 
     void min(std::vector<int64_t> &heads, const std::string &fieldName, std::string alias, int msgTagBase);
 
-    // Combined min and max aggregation function - must have run group by before calling this
-    // 便捷封装：根据是否多批/多线程自动选择
     void minAndMax(std::vector<int64_t> &heads, const std::string &fieldName, std::string minAlias,
                    std::string maxAlias, int msgTagBase);
 
@@ -107,7 +95,6 @@ private:
 
     void bitonicSortMultiBatches(const std::string &orderField, bool ascendingOrder, int msgTagBase);
 
-    // Multi-column sort private methods
     void bitonicSortSingleBatch(const std::vector<std::string> &orderFields, const std::vector<bool> &ascendingOrders,
                                 int msgTagBase);
 
@@ -133,9 +120,11 @@ private:
 
     std::vector<int64_t> groupByMultiBatches(const std::vector<std::string> &groupFields, int msgTagBase);
 
-    void countSingleBatch(std::vector<int64_t> &heads, std::string alias, int msgTagBase, std::string matchedTable, bool compress);
+    void countSingleBatch(std::vector<int64_t> &heads, std::string alias, int msgTagBase, std::string matchedTable,
+                          bool compress);
 
-    void countMultiBatches(std::vector<int64_t> &heads, std::string alias, int msgTagBase, std::string matchedTable, bool compress);
+    void countMultiBatches(std::vector<int64_t> &heads, std::string alias, int msgTagBase, std::string matchedTable,
+                           bool compress);
 
     void maxSingleBatch(std::vector<int64_t> &heads, const std::string &fieldName, std::string alias, int msgTagBase);
 
@@ -161,4 +150,4 @@ private:
 };
 
 
-#endif //VIEW_H
+#endif

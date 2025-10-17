@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/2/1.
-//
 
 #ifndef BITWISEBMTGENERATOR_H
 #define BITWISEBMTGENERATOR_H
@@ -37,4 +34,4 @@ public:
 };
 
 
-#endif //BITWISEBMTGENERATOR_H
+#endif

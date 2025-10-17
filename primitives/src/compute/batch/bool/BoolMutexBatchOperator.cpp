@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/3/1.
-//
 
 #include "compute/batch/bool/BoolMutexBatchOperator.h"
 
@@ -28,7 +25,6 @@ BoolMutexBatchOperator::BoolMutexBatchOperator(std::vector<int64_t> *xs, std::ve
     }
     for (int64_t &ci: *_conds_i) {
         if (ci != 0) {
-            // Set to all 1 on each bit
             ci = ring(-1ll);
         }
     }
@@ -41,7 +37,6 @@ BoolMutexBatchOperator::BoolMutexBatchOperator(std::vector<int64_t> *xs, std::ve
     _conds_i = new std::vector(*conds);
     for (int64_t &ci: *_conds_i) {
         if (ci != 0) {
-            // Set to all 1 on each bit
             ci = ring(-1ll);
         }
     }
@@ -70,10 +65,9 @@ void BoolMutexBatchOperator::execute0() {
     auto zis = BoolAndBatchOperator(_xis, _yis, _conds_i, _width, _taskTag, _currentMsgTag).setBmts(
         gotBmt ? &bmts : nullptr)->execute()->_zis;
 
-    // Verified SIMD performance
     if (Conf::ENABLE_SIMD) {
         _zis = SimdSupport::xor3(zis.data(), _yis->data(), zis.data() + num, num);
-        for (auto &zi : _zis) {
+        for (auto &zi: _zis) {
             zi = ring(zi);
         }
     } else {
@@ -90,14 +84,12 @@ void BoolMutexBatchOperator::executeBidirectionally() {
 
     auto num = _xis->size();
 
-    // First half is xis & conds_i, the other is yis & conds_i
     auto zis = BoolAndBatchOperator(_xis, _yis, _conds_i, _width, _taskTag, _currentMsgTag).setBmts(
         gotBmt ? &bmts : nullptr)->execute()->_zis;
 
-    // Verified SIMD performance
     if (Conf::ENABLE_SIMD) {
         _zis = SimdSupport::xor3Concat(zis.data(), _yis->data(), _xis->data(), zis.data() + num, num);
-        for (auto &zi : _zis) {
+        for (auto &zi: _zis) {
             zi = ring(zi);
         }
     } else {

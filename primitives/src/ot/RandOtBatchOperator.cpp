@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/1/31.
-//
 
 #include "../../include/ot/RandOtBatchOperator.h"
 
@@ -173,22 +170,6 @@ void RandOtBatchOperator::executeForBitsSingleTransfer() {
             int64_t xor_val = (ir0b & mask_sel0) | (ir1b & ~mask_sel0);
 
             _results[i] = yb_combined ^ xor_val;
-
-            /**
-             * The following is the same logic but doing in bit loop instead of current bit operations.
-             */
-            // int64_t e = 0;
-            // for (int j = 0; j < _width; j++) {
-            //     bool choice = Math::getBit((*_choiceBits)[i], j);
-            //     if (choice == ib0) {
-            //         int64_t yb = toRecv[i * 4 + choice];
-            //         e ^= static_cast<int64_t>(Math::getBit(yb ^ ir0b, j)) << j;
-            //     } else {
-            //         int64_t yb = toRecv[i * 4 + 2 + choice];
-            //         e ^= static_cast<int64_t>(Math::getBit(yb ^ ir1b, j)) << j;
-            //     }
-            // }
-            // _results[i] = e;
         }
     }
 }

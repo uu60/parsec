@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/1/8.
-//
 
 #include "secret/item/BoolSecret.h"
 

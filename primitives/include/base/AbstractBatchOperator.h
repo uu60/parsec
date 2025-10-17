@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/1/30.
-//
 
 #ifndef ABSTRACTBATCHEXECUTOR_H
 #define ABSTRACTBATCHEXECUTOR_H
@@ -33,4 +30,4 @@ public:
 
 
 
-#endif //ABSTRACTBATCHEXECUTOR_H
+#endif

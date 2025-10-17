@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/9/2.
-//
 
 #ifndef MPC_PACKAGE_COMPAREEXECUTOR_H
 #define MPC_PACKAGE_COMPAREEXECUTOR_H
@@ -27,4 +24,4 @@ public:
     ArithLessOperator *setBmts(std::vector<BitwiseBmt> *bmts);
 };
 
-#endif //MPC_PACKAGE_COMPAREEXECUTOR_H
+#endif

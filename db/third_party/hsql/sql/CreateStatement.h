@@ -7,18 +7,15 @@
 #include <ostream>
 #include <unordered_set>
 
-// Note: Implementations of constructors and destructors can be found in statements.cpp.
 namespace hsql {
 struct SelectStatement;
 
 enum struct ConstraintType { None, NotNull, Null, PrimaryKey, Unique };
 
-// Superclass for both TableConstraint and Column Definition
 struct TableElement {
   virtual ~TableElement() {}
 };
 
-// Represents definition of a table constraint
 struct TableConstraint : TableElement {
   TableConstraint(ConstraintType keyType, std::vector<char*>* columnNames);
 
@@ -28,14 +25,11 @@ struct TableConstraint : TableElement {
   std::vector<char*>* columnNames;
 };
 
-// Represents definition of a table column
 struct ColumnDefinition : TableElement {
   ColumnDefinition(char* name, ColumnType type, std::unordered_set<ConstraintType>* column_constraints);
 
   ~ColumnDefinition() override;
 
-  // By default, columns are nullable. However, we track if a column is explicitly requested to be nullable to
-  // notice conflicts with PRIMARY KEY table constraints.
   bool trySetNullableExplicit() {
     if (column_constraints->count(ConstraintType::NotNull) || column_constraints->count(ConstraintType::PrimaryKey)) {
       if (column_constraints->count(ConstraintType::Null)) {
@@ -55,13 +49,11 @@ struct ColumnDefinition : TableElement {
 
 enum CreateType {
   kCreateTable,
-  kCreateTableFromTbl,  // Hyrise file format
+  kCreateTableFromTbl,
   kCreateView,
   kCreateIndex
 };
 
-// Represents SQL Create statements.
-// Example: "CREATE TABLE students (name TEXT, student_number INTEGER, city TEXT, grade DOUBLE)"
 struct CreateStatement : SQLStatement {
   CreateStatement(CreateType type);
   ~CreateStatement() override;
@@ -69,18 +61,18 @@ struct CreateStatement : SQLStatement {
   void setColumnDefsAndConstraints(std::vector<TableElement*>* tableElements);
 
   CreateType type;
-  bool ifNotExists;                                 // default: false
-  char* filePath;                                   // default: nullptr
-  char* schema;                                     // default: nullptr
-  char* tableName;                                  // default: nullptr
-  char* indexName;                                  // default: nullptr
-  std::vector<char*>* indexColumns;                 // default: nullptr
-  std::vector<ColumnDefinition*>* columns;          // default: nullptr
-  std::vector<TableConstraint*>* tableConstraints;  // default: nullptr
+  bool ifNotExists;
+  char* filePath;
+  char* schema;
+  char* tableName;
+  char* indexName;
+  std::vector<char*>* indexColumns;
+  std::vector<ColumnDefinition*>* columns;
+  std::vector<TableConstraint*>* tableConstraints;
   std::vector<char*>* viewColumns;
   SelectStatement* select;
 };
 
-}  // namespace hsql
+}
 
 #endif

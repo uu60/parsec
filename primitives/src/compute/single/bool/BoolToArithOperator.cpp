@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/12/2.
-//
 
 #include "compute/single/bool/BoolToArithOperator.h"
 
@@ -78,39 +75,4 @@ BoolToArithOperator *BoolToArithOperator::reconstruct(int clientRank) {
     return this;
 }
 
-/*
- * This is the method of Crypten to convert bool share to arith share.
- */
-// ToArithE *ToArithE::execute() {
-//     _currentMsgTag = _startMsgTag;
-//     if (IComm::isServer()) {
-//         std::atomic_int64_t res = 0;
-//         auto msgTags = nextMsgTags(_l);
-//         std::vector<std::future<void> > futures;
-//         futures.reserve(_l);
-//
-//         for (int i = 0; i < _l; i++) {
-//             ABPair r = IntermediateDataSupport::pollABPairs(1)[0];
-//             futures.push_back(System::_threadPool.push([this, i, &msgTags, &res, r](int _) {
-//                 int64_t ri_b = r._b;
-//                 int64_t ri_a = r._a;
-//
-//                 // Compute
-//                 int64_t zi_b = ((_zi >> i) & 1) ^ ri_b;
-//                 int64_t zo_b;
-//
-//                 // Decrypt
-//                 IComm::serverExchange(&zi_b, &zo_b, buildTag(msgTags[i]));
-//                 int64_t z = zo_b ^ zi_b;
-//
-//                 // Compute
-//                 res += (ri_a + z * IComm::rank() - 2 * ri_a * z) << i;
-//             }));
-//         }
-//         for (auto &f: futures) {
-//             f.wait();
-//         }
-//         _zi = ring(res);
-//     }
-//     return this;
-// }
+

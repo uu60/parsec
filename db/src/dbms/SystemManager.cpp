@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/10/25.
-//
 
 #include "../../include/dbms/SystemManager.h"
 #include <iostream>
@@ -91,18 +88,15 @@ bool SystemManager::useDatabase(const std::string &dbName, std::string &msg) {
 std::string handleEndingDatabaseName(std::istringstream &iss, std::ostringstream &resp) {
     std::string dbName;
     iss >> dbName;
-    // missing db name
     if (dbName.empty()) {
         resp << "Failed. Syntax error: Missing database name." << std::endl;
         return "";
     }
 
-    // remove extra chars
     std::string remaining;
     std::getline(iss, remaining);
     remaining.erase(std::remove_if(remaining.begin(), remaining.end(), ::isspace), remaining.end());
 
-    // handle `;`
     if (!remaining.empty() && remaining != ";") {
         resp << "Failed. Syntax error: Invalid characters after database name." << std::endl;
         return "";
@@ -120,12 +114,10 @@ void SystemManager::notifyServersSync(json &j) {
     Comm::send(m, 0, 0);
     Comm::send(m, 1, 0);
 
-    // sync
     Comm::receive(done, 1, 0, 0);
     Comm::receive(done, 1, 1, 0);
 }
 
-// return if is create table
 bool SystemManager::clientCreateOrDeleteDb(std::istringstream &iss, std::ostringstream &resp, std::string &word,
                                          bool create) {
     iss >> word;
@@ -137,13 +129,11 @@ bool SystemManager::clientCreateOrDeleteDb(std::istringstream &iss, std::ostring
         }
 
         if (create) {
-            // execute
             std::string msg;
             if (!createDatabase(dbName, msg)) {
                 resp << "Failed. " << msg << std::endl;
                 return false;
             }
-            // notify servers
             json j;
             j["type"] = getCommandPrefix(CREATE_DB);
             j["name"] = dbName;
@@ -157,7 +147,6 @@ bool SystemManager::clientCreateOrDeleteDb(std::istringstream &iss, std::ostring
                 return false;
             }
 
-            // notify servers
             json j;
             j["type"] = getCommandPrefix(DROP_DB);
             j["name"] = dbName;
@@ -177,7 +166,6 @@ void SystemManager::clientUseDb(std::istringstream &iss, std::ostringstream &res
         resp << "Failed. " << msg << std::endl;
         return;
     }
-    // notify servers
     json j;
     j["type"] = getCommandPrefix(USE_DB);
     j["name"] = dbName;
@@ -194,11 +182,9 @@ void SystemManager::clientExecute(const std::string &command) {
     std::ostringstream resp;
     hsql::SQLParserResult result;
     hsql::SQLParser::parse(command, &result);
-    // handle `create db` and `use db`
     bool create = strcasecmp(word.c_str(), "create") == 0;
     bool drop = strcasecmp(word.c_str(), "drop") == 0;
     if (create || drop) {
-        // return if create table
         if (!clientCreateOrDeleteDb(iss, resp, word, create)) {
             goto over;
         }
@@ -267,7 +253,6 @@ void SystemManager::serverExecute() {
                 break;
             }
             case CREATE_DB: {
-                // create database
                 std::string dbName = j.at("name").get<std::string>();
                 std::string msg;
                 createDatabase(dbName, msg);
@@ -306,7 +291,6 @@ void SystemManager::serverExecute() {
                 break;
             }
         }
-        // sync
         Comm::send(done, 1, 2, 0);
     }
 }

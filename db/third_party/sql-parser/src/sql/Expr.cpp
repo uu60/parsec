@@ -108,8 +108,6 @@ Expr* Expr::makeBetween(Expr* expr, Expr* left, Expr* right) {
 
 Expr* Expr::makeCaseList(Expr* caseListElement) {
   Expr* e = new Expr(kExprOperator);
-  // Case list expressions are temporary and will be integrated into the case
-  // expressions exprList - thus assign operator type kOpNone
   e->opType = kOpNone;
   e->exprList = new std::vector<Expr*>();
   e->exprList->push_back(caseListElement);
@@ -306,4 +304,4 @@ char* substr(const char* source, int from, int to) {
   copy[len] = '\0';
   return copy;
 }
-}  // namespace hsql
+}

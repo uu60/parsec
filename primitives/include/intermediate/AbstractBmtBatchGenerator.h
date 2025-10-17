@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/2/19.
-//
 
 #ifndef ABSTRACTBMTBATCHGENERATOR_H
 #define ABSTRACTBMTBATCHGENERATOR_H
@@ -26,4 +23,4 @@ protected:
 };
 
 
-#endif //ABSTRACTBMTBATCHGENERATOR_H
+#endif

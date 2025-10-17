@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/2/19.
-//
 
 #ifndef CTPLTHREADPOOL_H
 #define CTPLTHREADPOOL_H
@@ -32,4 +29,4 @@ public:
 };
 
 
-#endif //CTPLTHREADPOOL_H
+#endif

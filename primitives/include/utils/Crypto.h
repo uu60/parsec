@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/7/18.
-//
 
 #ifndef MPC_PACKAGE_CRYPTO_H
 #define MPC_PACKAGE_CRYPTO_H
@@ -14,7 +11,6 @@ public:
     static std::unordered_map<int, std::string> _selfPris;
     static std::unordered_map<int, std::string> _otherPubs;
 
-    // true if generated else existed
     static bool generateRsaKeys(int bits);
 
     static std::string rsaEncrypt(const std::string &data, const std::string &publicKey);
@@ -23,4 +19,4 @@ public:
 };
 
 
-#endif //MPC_PACKAGE_CRYPTO_H
+#endif

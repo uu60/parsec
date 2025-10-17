@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/2/1.
-//
 
 #include "../../include/intermediate/BitwiseBmtGenerator.h"
 #include "../../include/ot/RandOtBatchOperator.h"
@@ -45,11 +42,9 @@ void BitwiseBmtGenerator::generateRandomAB() {
 }
 
 void BitwiseBmtGenerator::computeMix(int sender) {
-    // atomic integer needed for multiple-thread computation
     int64_t sum = 0;
     bool isSender = Comm::rank() == sender;
 
-    // messages and choices are stored in int64_t
     std::vector<int64_t> ss0, ss1;
     std::vector<int> choices;
 

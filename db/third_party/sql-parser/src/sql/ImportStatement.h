@@ -6,7 +6,6 @@
 
 namespace hsql {
 
-// Represents SQL Import statements.
 struct ImportStatement : SQLStatement {
   ImportStatement(ImportType type);
   ~ImportStatement() override;
@@ -19,6 +18,6 @@ struct ImportStatement : SQLStatement {
   char* encoding;
 };
 
-}  // namespace hsql
+}
 
 #endif

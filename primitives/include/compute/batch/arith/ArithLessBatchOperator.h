@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 25-7-21.
-//
 
 #ifndef ARITHLESSBATCHOPERATOR_H
 #define ARITHLESSBATCHOPERATOR_H
@@ -25,4 +22,4 @@ public:
     static int tagStride(int width);
 };
 
-#endif //ARITHLESSBATCHOPERATOR_H
+#endif

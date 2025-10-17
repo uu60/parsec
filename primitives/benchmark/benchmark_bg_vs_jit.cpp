@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 25-7-28.
-//
 
 #include "compute/batch/bool/BoolLessBatchOperator.h"
 #include "compute/single/arith/ArithLessOperator.h"
@@ -27,7 +24,6 @@ static int task;
 
 void prepareOrigins(int num, std::vector<int64_t> &originsA, std::vector<int64_t> &originsB,
                     std::vector<int64_t> &conditions) {
-    // arith compare less than
     if (Comm::isClient()) {
         originsA.resize(num);
         originsB.resize(num);
@@ -51,7 +47,6 @@ void boolShare(int width, std::vector<int64_t> &originsA, std::vector<int64_t> &
 
 bool testBackground(std::vector<std::string> &testPmts, std::string pmt, int width, std::vector<int64_t> &originsA,
                     std::vector<int64_t> &originsB, std::vector<int64_t> &conditions, int64_t &backgroundTime) {
-    // 在每个实验之前清空BMT队列并重新开始后台生成
     Conf::BMT_METHOD = Conf::BMT_BACKGROUND;
 
     std::vector<int64_t> secretsA;
@@ -63,14 +58,11 @@ bool testBackground(std::vector<std::string> &testPmts, std::string pmt, int wid
     int batch_size = Conf::BATCH_SIZE;
     int batch_num = (static_cast<int>(secretsA.size()) + batch_size - 1) / batch_size;
     if (Comm::isServer()) {
-        // 清理现有的队列和后台线程
         IntermediateDataSupport::finalize();
 
-        // 重新初始化，这会清空队列并重新开始后台生成
         IntermediateDataSupport::init();
         int64_t start = System::currentTimeMillis();
         if (pmt == testPmts[0]) {
-            // "<"
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
@@ -93,7 +85,6 @@ bool testBackground(std::vector<std::string> &testPmts, std::string pmt, int wid
                 zs.insert(zs.end(), v.begin(), v.end());
             }
         } else if (pmt == testPmts[1]) {
-            // "<="
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
@@ -120,7 +111,6 @@ bool testBackground(std::vector<std::string> &testPmts, std::string pmt, int wid
                 zs.insert(zs.end(), v.begin(), v.end());
             }
         } else if (pmt == testPmts[2]) {
-            // "=="
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
@@ -143,7 +133,6 @@ bool testBackground(std::vector<std::string> &testPmts, std::string pmt, int wid
                 zs.insert(zs.end(), v.begin(), v.end());
             }
         } else if (pmt == testPmts[3]) {
-            // "!="
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
@@ -170,7 +159,6 @@ bool testBackground(std::vector<std::string> &testPmts, std::string pmt, int wid
                 zs.insert(zs.end(), v.begin(), v.end());
             }
         } else if (pmt == testPmts[4]) {
-            // "mux"
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
@@ -195,7 +183,6 @@ bool testBackground(std::vector<std::string> &testPmts, std::string pmt, int wid
                 zs.insert(zs.end(), v.begin(), v.end());
             }
         } else if (pmt == testPmts[5]) {
-            // "sort"
             std::vector<BoolSecret> boolSecrets;
             boolSecrets.reserve(secretsA.size());
             for (size_t i = 0; i < secretsA.size(); i++) {
@@ -225,7 +212,6 @@ bool testJit(std::vector<std::string> &testPmts, std::string pmt, int width, std
     if (Comm::isServer()) {
         int64_t start = System::currentTimeMillis();
         if (pmt == testPmts[0]) {
-            // "<"
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
@@ -245,7 +231,6 @@ bool testJit(std::vector<std::string> &testPmts, std::string pmt, int width, std
                 zs.insert(zs.end(), v.begin(), v.end());
             }
         } else if (pmt == testPmts[1]) {
-            // "<="
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
@@ -270,7 +255,6 @@ bool testJit(std::vector<std::string> &testPmts, std::string pmt, int width, std
                 zs.insert(zs.end(), v.begin(), v.end());
             }
         } else if (pmt == testPmts[2]) {
-            // "=="
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
@@ -290,7 +274,6 @@ bool testJit(std::vector<std::string> &testPmts, std::string pmt, int width, std
                 zs.insert(zs.end(), v.begin(), v.end());
             }
         } else if (pmt == testPmts[3]) {
-            // "!="
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
@@ -315,7 +298,6 @@ bool testJit(std::vector<std::string> &testPmts, std::string pmt, int width, std
                 zs.insert(zs.end(), v.begin(), v.end());
             }
         } else if (pmt == testPmts[4]) {
-            // "mux"
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
@@ -338,7 +320,6 @@ bool testJit(std::vector<std::string> &testPmts, std::string pmt, int width, std
                 zs.insert(zs.end(), v.begin(), v.end());
             }
         } else if (pmt == testPmts[5]) {
-            // "sort"
             std::vector<BoolSecret> boolSecrets;
             boolSecrets.reserve(secretsA.size());
             for (size_t i = 0; i < secretsA.size(); i++) {
@@ -355,21 +336,19 @@ bool testJit(std::vector<std::string> &testPmts, std::string pmt, int width, std
     return true;
 }
 
-// Function to parse comma-separated string into vector of integers
-std::vector<int> parseCommaSeparatedInts(const std::string& str) {
+std::vector<int> parseCommaSeparatedInts(const std::string &str) {
     std::vector<int> result;
     std::stringstream ss(str);
     std::string item;
-    
+
     while (std::getline(ss, item, ',')) {
-        // Trim whitespace
         item.erase(0, item.find_first_not_of(" \t"));
         item.erase(item.find_last_not_of(" \t") + 1);
-        
+
         if (!item.empty()) {
             try {
                 result.push_back(std::stoi(item));
-            } catch (const std::exception& e) {
+            } catch (const std::exception &e) {
                 Log::e("Invalid number in input: {}", item);
             }
         }
@@ -380,7 +359,6 @@ std::vector<int> parseCommaSeparatedInts(const std::string& str) {
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
 
-    // CSV data collection structure
     struct BenchmarkResult {
         std::string primitive;
         int num{};
@@ -392,20 +370,17 @@ int main(int argc, char *argv[]) {
 
     std::vector<BenchmarkResult> results;
 
-    // Generate timestamp for filename
     auto now = std::chrono::system_clock::now();
     auto time_t = std::chrono::system_clock::to_time_t(now);
     std::stringstream ss;
     ss << std::put_time(std::localtime(&time_t), "%Y%m%d_%H%M%S");
     std::string timestamp = ss.str();
 
-    // Default values
     std::vector<int> testNums = {1000, 10000, 100000};
-    std::vector<int> testSortNums = {1000, 10000, 100000}; // Separate data sizes for sort
+    std::vector<int> testSortNums = {1000, 10000, 100000};
     std::vector<int> testWidths = {1, 2, 4, 8, 16, 32, 64};
     std::vector<std::string> testPmts = {"<", "<=", "==", "!=", "mux", "sort"};
 
-    // Read data scales from command line using Conf::_userParams (like db/exp)
     if (Conf::_userParams.count("nums")) {
         std::string numsStr = Conf::_userParams["nums"];
         testNums = parseCommaSeparatedInts(numsStr);
@@ -419,7 +394,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // Read sort-specific data scales from command line
     if (Conf::_userParams.count("sort_nums")) {
         std::string sortNumsStr = Conf::_userParams["sort_nums"];
         testSortNums = parseCommaSeparatedInts(sortNumsStr);
@@ -431,7 +405,6 @@ int main(int argc, char *argv[]) {
             return 1;
         }
     } else {
-        // If sort_nums not specified, use same as nums
         testSortNums = testNums;
     }
 
@@ -462,22 +435,19 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // Calculate total number of tests for progress tracking
     int totalTests = 0;
-    for (const std::string& pmt : testPmts) {
+    for (const std::string &pmt: testPmts) {
         if (pmt == "sort") {
-            totalTests += testSortNums.size() * testWidths.size() * 2; // *2 for both JIT and Background
+            totalTests += testSortNums.size() * testWidths.size() * 2;
         } else {
-            totalTests += testNums.size() * testWidths.size() * 2; // *2 for both JIT and Background
+            totalTests += testNums.size() * testWidths.size() * 2;
         }
     }
     int currentTest = 0;
 
-    // Store timing results for pairing JIT and Background results
-    std::map<std::string, int64_t> jitResults; // key: "pmt_num_width"
+    std::map<std::string, int64_t> jitResults;
     std::map<std::string, int64_t> backgroundResults;
 
-    // First, run all JIT tests
     if (Comm::isClient()) {
         Log::i("Starting JIT tests...");
     }
@@ -485,10 +455,9 @@ int main(int argc, char *argv[]) {
         if (Comm::isClient()) {
             Log::i("Starting JIT tests for primitive: {}", pmt);
         }
-        
-        // Choose appropriate data sizes based on primitive type
+
         std::vector<int> currentNums = (pmt == "sort") ? testSortNums : testNums;
-        
+
         for (int num: currentNums) {
             for (int width: testWidths) {
                 currentTest++;
@@ -503,18 +472,14 @@ int main(int argc, char *argv[]) {
                 if (!testJit(testPmts, pmt, width, originsA, originsB, conditions, jitTime))
                     continue;
 
-                // Collect timing data from servers
                 if (Comm::isServer()) {
-                    // Send timing data to client (rank 2)
                     Comm::send(jitTime, 64, 2, 0);
                 } else if (Comm::isClient()) {
-                    // Client receives timing data from both servers (rank 0 and 1)
                     int64_t jitTime0, jitTime1;
 
                     Comm::receive(jitTime0, 64, 0, 0);
                     Comm::receive(jitTime1, 64, 1, 0);
 
-                    // Calculate average time and store
                     double avgJitTime = (jitTime0 + jitTime1) / 2.0;
                     std::string key = pmt + "_" + std::to_string(num) + "_" + std::to_string(width);
                     jitResults[key] = static_cast<int64_t>(avgJitTime);
@@ -526,7 +491,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // Then, run all Background tests
     if (Comm::isClient()) {
         Log::i("Starting Background tests...");
     }
@@ -534,10 +498,9 @@ int main(int argc, char *argv[]) {
         if (Comm::isClient()) {
             Log::i("Starting Background tests for primitive: {}", pmt);
         }
-        
-        // Choose appropriate data sizes based on primitive type
+
         std::vector<int> currentNums = (pmt == "sort") ? testSortNums : testNums;
-        
+
         for (int num: currentNums) {
             for (int width: testWidths) {
                 currentTest++;
@@ -552,23 +515,18 @@ int main(int argc, char *argv[]) {
                 if (!testBackground(testPmts, pmt, width, originsA, originsB, conditions, backgroundTime))
                     continue;
 
-                // Collect timing data from servers
                 if (Comm::isServer()) {
-                    // Send timing data to client (rank 2)
                     Comm::send(backgroundTime, 64, 2, task);
                 } else if (Comm::isClient()) {
-                    // Client receives timing data from both servers (rank 0 and 1)
                     int64_t backgroundTime0, backgroundTime1;
 
                     Comm::receive(backgroundTime0, 64, 0, task);
                     Comm::receive(backgroundTime1, 64, 1, task);
 
-                    // Calculate average time and store
                     double avgBackgroundTime = (backgroundTime0 + backgroundTime1) / 2.0;
                     std::string key = pmt + "_" + std::to_string(num) + "_" + std::to_string(width);
                     backgroundResults[key] = static_cast<int64_t>(avgBackgroundTime);
 
-                    // Create result entry if we have both JIT and Background results
                     if (jitResults.find(key) != jitResults.end()) {
                         BenchmarkResult result;
                         result.primitive = pmt;
@@ -588,17 +546,14 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // Write results to CSV file (only on client side)
     if (Comm::isClient() && !results.empty()) {
         std::string filename = "benchmark_bg_vs_jit_" + timestamp + ".csv";
         std::ofstream csvFile(filename);
 
         if (csvFile.is_open()) {
-            // Write CSV header
             csvFile <<
                     "Timestamp,Primitive,NumElements,Width,AvgBackgroundTime_ms,AvgJitTime_ms,BackgroundVsJitRatio,JitVsBackgroundSpeedup\n";
 
-            // Write data rows
             for (const auto &result: results) {
                 double ratio = result.avgBackgroundTime / result.avgJitTime;
                 double speedup = result.avgJitTime / result.avgBackgroundTime;

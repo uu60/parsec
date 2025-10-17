@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/7/13.
-//
 
 #include "compute/single/arith/ArithMultiplyOperator.h"
 
@@ -11,7 +8,6 @@
 
 ArithMultiplyOperator *ArithMultiplyOperator::execute() {
     _currentMsgTag = _startMsgTag;
-    // process
     if (Comm::isServer()) {
         Bmt bmt;
         if (_bmt != nullptr) {

@@ -1,21 +1,5 @@
-//
-// Created by 杜建璋 on 25-8-21.
-//
 
-/*
-* SELECT o_orderpriority, count(*) as order_count
-* FROM orders
-* WHERE o_orderdate >= date '[DATE]'
-*   AND o_orderdate < date '[DATE]' + interval '3' month
-*   AND EXISTS (
-*           SELECT *
-*           FROM lineitem
-*           WHERE l_orderkey = o_orderkey
-*           AND l_commitdate < l_receiptdate
-*           )
-* GROUP BY o_orderpriority
-* ORDER BY o_orderpriority
- */
+
 
 #include "secret/Secrets.h"
 #include "utils/System.h"
@@ -40,10 +24,9 @@
 #include "conf/DbConf.h"
 #include "utils/StringUtils.h"
 
-static int64_t PLAIN_START_DATE = Math::randInt(); // [199401, 199404)
+static int64_t PLAIN_START_DATE = Math::randInt();
 static int64_t PLAIN_END_DATE   = PLAIN_START_DATE + 3;
 
-// Forward declarations
 void generateTestData(int orders_rows, int lineitem_rows,
                       std::vector<int64_t> &o_orderkey_data,
                       std::vector<int64_t> &o_orderpriority_data,
@@ -77,7 +60,6 @@ int main(int argc, char *argv[]) {
     DbConf::init();
     auto tid = System::nextTask() << (32 - Conf::TASK_TAG_BITS);
 
-    // Read parameters from command line
     int orders_rows = 1000;
     int lineitem_rows = 1000;
 
@@ -92,13 +74,11 @@ int main(int argc, char *argv[]) {
         Log::i("Data size: orders: {} lineitem: {}", orders_rows, lineitem_rows);
     }
 
-    // Generate test data
     std::vector<int64_t> o_orderkey_data, o_orderpriority_data, o_orderdate_data;
     std::vector<int64_t> l_orderkey_data, l_commitdate_data, l_receiptdate_data;
     generateTestData(orders_rows, lineitem_rows, o_orderkey_data, o_orderpriority_data, o_orderdate_data,
                      l_orderkey_data, l_commitdate_data, l_receiptdate_data);
 
-    // Convert to secret shares for 2PC
     auto o_orderkey_shares = Secrets::boolShare(o_orderkey_data, 2, 64, tid);
     auto o_orderpriority_shares = Secrets::boolShare(o_orderpriority_data, 2, 64, tid);
     auto o_orderdate_shares = Secrets::boolShare(o_orderdate_data, 2, 64, tid);
@@ -125,7 +105,6 @@ int main(int argc, char *argv[]) {
 
     View result_view;
     if (Comm::isServer()) {
-        // Create tables
         auto orders_view = createOrdersTable(o_orderkey_shares, o_orderpriority_shares, o_orderdate_shares);
         auto lineitem_view = createLineitemTable(l_orderkey_shares, l_commitdate_shares, l_receiptdate_shares);
 
@@ -133,9 +112,7 @@ int main(int argc, char *argv[]) {
 
         View filtered_orders, filtered_lineitem;
         if (DbConf::BASELINE_MODE) {
-            // Step 1: Filter orders by date range
             filtered_orders = filterOrdersByDate(orders_view, start_date, end_date, tid);
-            // Step 2: Filter lineitem by commit date < receipt date
             filtered_lineitem = filterLineitemByCommitDate(lineitem_view, tid);
         } else {
             auto f = ThreadPoolSupport::submit([&] {
@@ -145,16 +122,11 @@ int main(int argc, char *argv[]) {
             filtered_orders = f.get();
         }
 
-        // Step 3: Execute EXISTS clause (semi-join)
         auto exists_results = executeExistsClause(filtered_orders, filtered_lineitem, tid);
-        // Step 4: Filter orders by EXISTS results
         auto final_orders = filterOrdersByExists(filtered_orders, exists_results, tid);
 
-        // Step 5: GROUP BY o_orderpriority and COUNT(*)
         result_view = executeGroupByCount(final_orders, tid);
 
-        // Step 6: ORDER BY o_orderpriority (NO NEED, Already sorted in last process)
-        // result_view = executeSortByPriority(result_view, tid);
 
         auto query_end = System::currentTimeMillis();
         Log::i("Total query execution time: {}ms", query_end - query_start);
@@ -164,7 +136,6 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-// Function implementations
 
 void generateTestData(int orders_rows, int lineitem_rows,
                       std::vector<int64_t> &o_orderkey_data,
@@ -185,18 +156,17 @@ void generateTestData(int orders_rows, int lineitem_rows,
         for (int i = 0; i < orders_rows; i++) {
             int64_t orderkey = Math::randInt();
             int64_t priority = Math::randInt();
-            int64_t orderdate = Math::randInt(); // Dates in range 1994-01-01 to 1994-04-30
+            int64_t orderdate = Math::randInt();
 
             o_orderkey_data.push_back(orderkey);
             o_orderpriority_data.push_back(priority);
             o_orderdate_data.push_back(orderdate);
         }
 
-        // Generate lineitem data
         for (int i = 0; i < lineitem_rows; i++) {
-            int64_t orderkey = Math::randInt(); // Reference to orders
+            int64_t orderkey = Math::randInt();
             int64_t commitdate = Math::randInt();
-            int64_t receiptdate = Math::randInt(); // Some commit < receipt, some not
+            int64_t receiptdate = Math::randInt();
 
             l_orderkey_data.push_back(orderkey);
             l_commitdate_data.push_back(commitdate);
@@ -266,20 +236,15 @@ View filterLineitemByCommitDate(View &lineitem_view, int tid) {
         return lineitem_view;
     }
 
-    // Get the column data for comparison
     auto &commitdate_col = lineitem_view._dataCols[lineitem_view.colIndex("l_commitdate")];
     auto &receiptdate_col = lineitem_view._dataCols[lineitem_view.colIndex("l_receiptdate")];
 
-    // Perform field-to-field comparison: l_commitdate < l_receiptdate
-    // Since data is stored as bool shares, use BoolLessBatchOperator directly
     std::vector<int64_t> comparison_result;
 
     if (Conf::BATCH_SIZE <= 0 || Conf::DISABLE_MULTI_THREAD) {
-        // Single batch processing
         comparison_result = BoolLessBatchOperator(&commitdate_col, &receiptdate_col, 64, tid, 0,
                                                   SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
     } else {
-        // Multi-batch processing
         size_t data_size = commitdate_col.size();
         int batchSize = Conf::BATCH_SIZE;
         int batchNum = (data_size + batchSize - 1) / batchSize;
@@ -308,7 +273,6 @@ View filterLineitemByCommitDate(View &lineitem_view, int tid) {
         }
     }
 
-    // Apply the filter condition
     View filtered_view = lineitem_view;
     filtered_view._dataCols[filtered_view.colNum() + View::VALID_COL_OFFSET] = comparison_result;
     filtered_view.clearInvalidEntries(tid + BoolLessBatchOperator::tagStride());
@@ -317,8 +281,8 @@ View filterLineitemByCommitDate(View &lineitem_view, int tid) {
 }
 
 std::vector<int64_t> executeExistsClause(View &filtered_orders, View &filtered_lineitem, int tid) {
-    auto orders_orderkey_col = filtered_orders._dataCols[0]; // o_orderkey
-    auto lineitem_orderkey_col = filtered_lineitem._dataCols[0]; // l_orderkey
+    auto orders_orderkey_col = filtered_orders._dataCols[0];
+    auto lineitem_orderkey_col = filtered_lineitem._dataCols[0];
 
     auto exists_results = Views::in(orders_orderkey_col, lineitem_orderkey_col,
                                     filtered_orders._dataCols[filtered_orders.colNum() + View::VALID_COL_OFFSET],
@@ -333,7 +297,6 @@ View filterOrdersByExists(View &filtered_orders, std::vector<int64_t> &exists_re
                         tid, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
     filtered_orders._dataCols[vIdx] = std::move(new_valid);
 
-    // 不压缩
     return filtered_orders;
 }
 
@@ -360,7 +323,7 @@ View executeSortByPriority(View &result_view, int tid) {
     }
 
     std::string priority_field = "o_orderpriority";
-    result_view.sort(priority_field, true, tid); // true for ascending order
+    result_view.sort(priority_field, true, tid);
 
     return result_view;
 }

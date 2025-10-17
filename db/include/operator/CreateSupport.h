@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/11/3.
-//
 
 #ifndef CREATE_H
 #define CREATE_H
@@ -19,4 +16,4 @@ public:
 
 
 
-#endif //CREATE_H
+#endif

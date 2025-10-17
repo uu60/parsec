@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/3/22.
-//
 
 #include "comm/item/MpiRequestWrapper.h"
 

@@ -1,13 +1,3 @@
-// tpch_q6_validation.cpp
-// Validation for TPCH-Q6-like query:
-// SELECT sum(l_extendedprice*l_discount) AS revenue
-// FROM lineitem
-// WHERE l_shipdate in [DATE, DATE+1y)
-//   AND l_discount BETWEEN (d-1) AND (d+1)
-//   AND l_quantity < Q
-//
-// 关键点：明文阶段预计算 l_revenue 并入表；一次性 AND 组合 5 个谓词；
-// 客户端计算期望值，服务端求和并将算术份额发回客户端做重构。
 
 #include "secret/Secrets.h"
 #include "utils/System.h"
@@ -30,14 +20,12 @@
 
 #include "compute/batch/arith/ArithMultiplyBatchOperator.h"
 
-// -------------------- 固定常量 --------------------
-static int64_t START_DATE = Math::randInt(); // [1994-01-01,
-static int64_t END_DATE_EX = Math::randInt(); //  1995-01-01)
-static int64_t DISCOUNT_MIN = Math::randInt(); // 中心 6 ± 1
+static int64_t START_DATE = Math::randInt();
+static int64_t END_DATE_EX = Math::randInt();
+static int64_t DISCOUNT_MIN = Math::randInt();
 static int64_t DISCOUNT_MAX = Math::randInt();
 static int64_t QUANTITY_TH = Math::randInt();
 
-// -------------------- 声明 --------------------
 void generateTestData(int lineitem_rows,
                       std::vector<int64_t> &l_shipdate_data,
                       std::vector<int64_t> &l_discount_data,
@@ -63,13 +51,11 @@ View filterAllConditions(
 
 int64_t calculateRevenue(View &filtered_view, int tid);
 
-// -------------------- 主流程 --------------------
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
     DbConf::init();
     const int tid = (System::nextTask() << (32 - Conf::TASK_TAG_BITS));
 
-    // 行数参数（可选，默认 10）
     int lineitem_rows = 1000;
     if (Conf::_userParams.count("rows")) {
         lineitem_rows = std::stoi(Conf::_userParams["rows"]);
@@ -78,19 +64,16 @@ int main(int argc, char *argv[]) {
         Log::i("Validation: lineitem rows = {}", lineitem_rows);
     }
 
-    // 1) 客户端生成固定明文数据，并在明文阶段预计算 l_revenue
     std::vector<int64_t> l_shipdate_p, l_discount_p, l_quantity_p, l_extendedprice_p, l_revenue_p;
     generateTestData(lineitem_rows, l_shipdate_p, l_discount_p, l_quantity_p, l_extendedprice_p, l_revenue_p);
 
 
-    // 3) 分享数据（布尔分享）
     auto l_shipdate_b = Secrets::boolShare(l_shipdate_p, 2, 64, tid);
     auto l_discount_b = Secrets::boolShare(l_discount_p, 2, 64, tid);
     auto l_quantity_b = Secrets::boolShare(l_quantity_p, 2, 64, tid);
     auto l_extendedprice_b = Secrets::boolShare(l_extendedprice_p, 2, 64, tid);
     auto l_revenue_b = Secrets::boolShare(l_revenue_p, 2, 64, tid);
 
-    // 4) 客户端将常量按 XOR 语义分享给两台服务端
     int64_t start_b, end_b, dmin_b, dmax_b, q_b;
     if (Comm::isClient()) {
         auto splitXor = [&](int64_t plain, int dst0, int dst1, int tag) {
@@ -112,16 +95,13 @@ int main(int argc, char *argv[]) {
         Comm::receive(q_b, 64, 2, tid + 104);
     }
 
-    // 5) 服务端查询执行 & 把算术份额发送回客户端重构
     if (Comm::isServer()) {
         auto v = createLineitemTable(l_shipdate_b, l_discount_b, l_quantity_b, l_extendedprice_b, l_revenue_b);
 
         auto t0 = System::currentTimeMillis();
 
-        // 一次性过滤五个谓词，并 clearInvalidEntries 避免无效行参与求和
         auto vf = filterAllConditions(v, start_b, end_b, dmin_b, dmax_b, q_b, tid + 200);
 
-        // 将 l_revenue（布尔分享）转算术，再局部求和，得到本端**算术份额**的总和
         int64_t sum_share = calculateRevenue(vf, tid + 300);
 
         auto t1 = System::currentTimeMillis();
@@ -132,7 +112,6 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-// -------------------- 实现 --------------------
 void generateTestData(int lineitem_rows,
                       std::vector<int64_t> &l_shipdate_data,
                       std::vector<int64_t> &l_discount_data,
@@ -151,8 +130,7 @@ void generateTestData(int lineitem_rows,
             l_discount_data.push_back(Math::randInt());
             l_quantity_data.push_back(Math::randInt());
             l_extendedprice_data.push_back(Math::randInt());
-            // Pre-calculate revenue: l_extendedprice * l_discount
-            l_revenue_data.push_back(l_extendedprice_data[i] * l_discount_data[i]); // mod 2^64
+            l_revenue_data.push_back(l_extendedprice_data[i] * l_discount_data[i]);
         }
     }
 }
@@ -180,7 +158,6 @@ View createLineitemTable(
     return Views::selectAll(t);
 }
 
-// 一次性应用 5 个谓词（AND），并 clearInvalidEntries
 View filterAllConditions(
     View v,
     int64_t start_date_b,
@@ -195,11 +172,11 @@ View filterAllConditions(
         "l_quantity"
     };
     std::vector<View::ComparatorType> cmps = {
-        View::GREATER_EQ, // l_shipdate >= start
-        View::LESS, // l_shipdate <  end
-        View::GREATER_EQ, // l_discount >= dmin
-        View::LESS_EQ, // l_discount <= dmax
-        View::LESS // l_quantity <  Q
+        View::GREATER_EQ,
+        View::LESS,
+        View::GREATER_EQ,
+        View::LESS_EQ,
+        View::LESS
     };
     std::vector<int64_t> consts = {
         start_date_b, end_date_b, discount_min_b, discount_max_b, quantity_th_b
@@ -209,15 +186,12 @@ View filterAllConditions(
     return v;
 }
 
-// 将 l_revenue（布尔分享）→ 算术分享，然后局部求和，得到**本端算术份额**总和
 int64_t calculateRevenue(View &filtered_view, int tid) {
     if (filtered_view.rowNum() == 0) return 0;
 
-    // 1) 取列
-    auto &rev_b = filtered_view._dataCols[filtered_view.colIndex("l_revenue")]; // 布尔份额
-    auto &valid_b = filtered_view._dataCols[filtered_view.colNum() + View::VALID_COL_OFFSET]; // 布尔份额(0/1)
+    auto &rev_b = filtered_view._dataCols[filtered_view.colIndex("l_revenue")];
+    auto &valid_b = filtered_view._dataCols[filtered_view.colNum() + View::VALID_COL_OFFSET];
 
-    // 2) 转算术份额
     const int t0 = tid;
     const int t1 = tid + BoolToArithBatchOperator::tagStride();
 
@@ -226,13 +200,11 @@ int64_t calculateRevenue(View &filtered_view, int tid) {
     auto valid_a = BoolToArithBatchOperator(&valid_b, 64, 0, t1,
                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
-    // 3) 逐元素乘法做掩码：masked_i = revenue_i * valid_i
     const int t2 = t1 + ArithMultiplyBatchOperator::tagStride(64);
     auto masked = ArithMultiplyBatchOperator(&rev_a, &valid_a, 64, 0, t2,
                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
-    // 4) 本端局部求和（这是全局和的“算术份额”）
     int64_t acc = 0;
     for (auto x: masked) acc += x;
-    return acc; // 2^64 环
+    return acc;
 }

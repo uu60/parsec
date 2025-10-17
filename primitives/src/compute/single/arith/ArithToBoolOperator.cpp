@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/12/1.
-//
 
 #include "compute/single/arith/ArithToBoolOperator.h"
 
@@ -35,8 +32,6 @@ void ArithToBoolOperator::prepareBmts(BitwiseBmt &b0, BitwiseBmt &b1, BitwiseBmt
 ArithToBoolOperator *ArithToBoolOperator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isServer()) {
-        // bitwise separate xi
-        // xi is xored into xi_i and xi_o
         int64_t xi_i = Math::randInt();
         int64_t xi_o = xi_i ^ _xi;
         bool carry_i = false;
@@ -58,7 +53,6 @@ ArithToBoolOperator *ArithToBoolOperator::execute() {
             *other_i = other_iv[0];
             this->_zi += static_cast<int64_t>((ai ^ bi) ^ carry_i) << i;
 
-            // Compute carry
             if (i < _width - 1) {
                 bool propagate_i = ai ^ bi;
 

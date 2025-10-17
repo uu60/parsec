@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/2/12.
-//
 
 #ifndef SECRETS_H
 #define SECRETS_H
@@ -10,9 +7,7 @@
 #include "./item/BoolSecret.h"
 
 
-/**
- * A utility method class for secrets.
- */
+
 class Secrets {
 public:
     static void sort(std::vector<BoolSecret> &secrets, bool asc, int taskTag);
@@ -29,4 +24,4 @@ public:
 };
 
 
-#endif //SECRETS_H
+#endif

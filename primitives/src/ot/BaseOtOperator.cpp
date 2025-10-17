@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/7/15.
-//
 
 #include "ot/BaseOtOperator.h"
 
@@ -23,18 +20,15 @@ BaseOtOperator::BaseOtOperator(int bits, int sender, int64_t m0, int64_t m1, int
 
 BaseOtOperator *BaseOtOperator::execute() {
     if (Comm::isServer()) {
-        // preparation
         generateAndShareRandoms();
         generateAndShareRsaKeys();
 
-        // process
         process();
     }
     return this;
 }
 
 void BaseOtOperator::generateAndShareRandoms() {
-    // 11 for PKCS#1 v1.5 padding
     int len = (_bits >> 3) - 11;
     if (_isSender) {
         _rand0 = Math::randString(len);
@@ -60,7 +54,6 @@ void BaseOtOperator::generateAndShareRsaKeys() {
             Comm::serverSend(_pub, buildTag(_currentMsgTag));
         }
     } else {
-        // receiver
         if (Crypto::_otherPubs.count(_bits) > 0) {
             _pub = Crypto::_otherPubs[_bits];
         } else {

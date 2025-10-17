@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 25-5-1.
-//
 
 #ifndef STRINGUTILS_H
 #define STRINGUTILS_H
@@ -28,4 +25,4 @@ public:
 };
 
 
-#endif //STRINGUTILS_H
+#endif

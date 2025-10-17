@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/3/26.
-//
 
 #include "conf/Conf.h"
 #include <iostream>
@@ -9,6 +6,7 @@
 
 #include <string>
 namespace po = boost::program_options;
+
 void Conf::init(int argc, char **argv) {
     try {
         po::options_description desc("Allowed options");
@@ -166,7 +164,7 @@ void Conf::init(int argc, char **argv) {
         }
         static const std::regex EXTRA_ARG_RE{R"(^--([^=]+)=(.+)$)"};
 
-        for (auto const &arg : extra_args) {
+        for (auto const &arg: extra_args) {
             std::smatch m;
             if (!std::regex_match(arg, m, EXTRA_ARG_RE)) {
                 throw std::runtime_error("Wrong extra_args format: " + arg);

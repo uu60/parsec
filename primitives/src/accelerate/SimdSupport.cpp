@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/3/11.
-//
 
 #include "accelerate/SimdSupport.h"
 
@@ -317,8 +314,8 @@ std::vector<int64_t> SimdSupport::xor2VC(const std::vector<int64_t> &xis, const 
 
 #ifdef SIMD_AVX512
     int i = 0;
-    __m512i a_vec = _mm512_set1_epi64(a);  // 512-bit broadcast a
-    __m512i b_vec = _mm512_set1_epi64(b);  // 512-bit broadcast b
+    __m512i a_vec = _mm512_set1_epi64(a);
+    __m512i b_vec = _mm512_set1_epi64(b);
     for (; i + 8 <= num; i += 8) {
         __m512i xis_vec = _mm512_loadu_si512(&xis[i]);
         __m512i yis_vec = _mm512_loadu_si512(&yis[i]);
@@ -333,8 +330,8 @@ std::vector<int64_t> SimdSupport::xor2VC(const std::vector<int64_t> &xis, const 
     }
 #elif defined(SIMD_AVX2)
     int i = 0;
-    __m256i a_vec = _mm256_set1_epi64x(a);  // 256-bit broadcast a
-    __m256i b_vec = _mm256_set1_epi64x(b);  // 256-bit broadcast b
+    __m256i a_vec = _mm256_set1_epi64x(a);
+    __m256i b_vec = _mm256_set1_epi64x(b);
     for (; i + 4 <= num; i += 4) {
         __m256i xis_vec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(&xis[i]));
         __m256i yis_vec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(&yis[i]));
@@ -349,8 +346,8 @@ std::vector<int64_t> SimdSupport::xor2VC(const std::vector<int64_t> &xis, const 
     }
 #elif defined(SIMD_SSE2)
     int i = 0;
-    __m128i a_vec = _mm_set1_epi64x(a);  // 128-bit broadcast a
-    __m128i b_vec = _mm_set1_epi64x(b);  // 128-bit broadcast b
+    __m128i a_vec = _mm_set1_epi64x(a);
+    __m128i b_vec = _mm_set1_epi64x(b);
     for (; i + 2 <= num; i += 2) {
         __m128i xis_vec = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&xis[i]));
         __m128i yis_vec = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&yis[i]));
@@ -365,8 +362,8 @@ std::vector<int64_t> SimdSupport::xor2VC(const std::vector<int64_t> &xis, const 
     }
 #elif defined(SIMD_NEON)
     int i = 0;
-    int64x2_t a_vec = vdupq_n_s64(a); // 128-bit broadcast a
-    int64x2_t b_vec = vdupq_n_s64(b); // 128-bit broadcast b
+    int64x2_t a_vec = vdupq_n_s64(a);
+    int64x2_t b_vec = vdupq_n_s64(b);
     for (; i + 2 <= num; i += 2) {
         int64x2_t xis_vec = vld1q_s64(&xis[i]);
         int64x2_t yis_vec = vld1q_s64(&yis[i]);
@@ -453,23 +450,12 @@ std::vector<int64_t> SimdSupport::xor3(const int64_t *a, const int64_t *b, const
     return output;
 }
 
-/// @brief Computes two XOR3 operations and concatenates the results into a single vector.
-/// @param commonA Pointer to the first common array (e.g. zis.data())
-/// @param arrB    Pointer to the first auxiliary array (e.g. _yis->data())
-/// @param arrD    Pointer to the second auxiliary array (e.g. _xis->data())
-/// @param commonC Pointer to the second common array (e.g. zis.data() + num)
-/// @param num     Number of elements per group
-/// @return        A vector containing the results concatenated:
-///                [0, num) holds commonA ^ arrB ^ commonC,
-///                [num, 2*num) holds commonA ^ arrD ^ commonC.
 std::vector<int64_t> SimdSupport::xor3Concat(const int64_t *commonA, const int64_t *arrB, const int64_t *arrD,
                                              const int64_t *commonC, int num) {
-    // Allocate the output vector with enough space for both results
     std::vector<int64_t> output(2 * num);
 
 #ifdef SIMD_AVX512
     int i = 0;
-    // Process first group using AVX512: commonA ^ arrB ^ commonC
     for (; i + 8 <= num; i += 8) {
         __m512i va = _mm512_loadu_si512(commonA + i);
         __m512i vb = _mm512_loadu_si512(arrB + i);
@@ -481,7 +467,6 @@ std::vector<int64_t> SimdSupport::xor3Concat(const int64_t *commonA, const int64
     for (; i < num; i++) {
         output[i] = commonA[i] ^ arrB[i] ^ commonC[i];
     }
-    // Process second group using AVX512: commonA ^ arrD ^ commonC
     i = 0;
     for (; i + 8 <= num; i += 8) {
         __m512i va = _mm512_loadu_si512(commonA + i);
@@ -496,7 +481,6 @@ std::vector<int64_t> SimdSupport::xor3Concat(const int64_t *commonA, const int64
     }
 #elif defined(SIMD_AVX2)
     int i = 0;
-    // Process first group using AVX2 (256-bit registers, 4 int64_t per operation)
     for (; i + 4 <= num; i += 4) {
         __m256i va = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(commonA + i));
         __m256i vb = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(arrB + i));
@@ -508,7 +492,6 @@ std::vector<int64_t> SimdSupport::xor3Concat(const int64_t *commonA, const int64
     for (; i < num; i++) {
         output[i] = commonA[i] ^ arrB[i] ^ commonC[i];
     }
-    // Process second group using AVX2: commonA ^ arrD ^ commonC
     i = 0;
     for (; i + 4 <= num; i += 4) {
         __m256i va = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(commonA + i));
@@ -523,7 +506,6 @@ std::vector<int64_t> SimdSupport::xor3Concat(const int64_t *commonA, const int64
     }
 #elif defined(SIMD_SSE2)
     int i = 0;
-    // Process first group using SSE2 (128-bit registers, 2 int64_t per operation)
     for (; i + 2 <= num; i += 2) {
         __m128i va = _mm_loadu_si128(reinterpret_cast<const __m128i*>(commonA + i));
         __m128i vb = _mm_loadu_si128(reinterpret_cast<const __m128i*>(arrB + i));
@@ -535,7 +517,6 @@ std::vector<int64_t> SimdSupport::xor3Concat(const int64_t *commonA, const int64
     for (; i < num; i++) {
         output[i] = commonA[i] ^ arrB[i] ^ commonC[i];
     }
-    // Process second group using SSE2: commonA ^ arrD ^ commonC
     i = 0;
     for (; i + 2 <= num; i += 2) {
         __m128i va = _mm_loadu_si128(reinterpret_cast<const __m128i*>(commonA + i));
@@ -550,7 +531,6 @@ std::vector<int64_t> SimdSupport::xor3Concat(const int64_t *commonA, const int64
     }
 #elif defined(SIMD_NEON)
     int i = 0;
-    // Process first group using NEON (2 int64_t per operation)
     for (; i + 2 <= num; i += 2) {
         int64x2_t va = vld1q_s64(commonA + i);
         int64x2_t vb = vld1q_s64(arrB + i);
@@ -562,7 +542,6 @@ std::vector<int64_t> SimdSupport::xor3Concat(const int64_t *commonA, const int64
     for (; i < num; i++) {
         output[i] = commonA[i] ^ arrB[i] ^ commonC[i];
     }
-    // Process second group using NEON: commonA ^ arrD ^ commonC
     i = 0;
     for (; i + 2 <= num; i += 2) {
         int64x2_t va = vld1q_s64(commonA + i);
@@ -576,7 +555,6 @@ std::vector<int64_t> SimdSupport::xor3Concat(const int64_t *commonA, const int64
         output[num + i] = commonA[i] ^ arrD[i] ^ commonC[i];
     }
 #else
-    // Default non-SIMD implementation
     for (int i = 0; i < num; i++) {
         output[i] = commonA[i] ^ arrB[i] ^ commonC[i];
         output[num + i] = commonA[i] ^ arrD[i] ^ commonC[i];
@@ -694,13 +672,9 @@ std::vector<int64_t> SimdSupport::computeDiag(const std::vector<int64_t> &_yis,
     for (; i + 8 <= n; i += 8) {
         __m512i y_vec = _mm512_loadu_si512(&_yis[i]);
         __m512i x_vec = _mm512_loadu_si512(&x_xor_y[i]);
-        // yis_lsb = _yis[i] & 1
         __m512i yis_lsb = _mm512_and_si512(y_vec, one);
-        // xor_result = yis_lsb XOR rank
         __m512i xor_result = _mm512_xor_si512(yis_lsb, rank_vec);
-        // m = x_xor_y[i] & (~1)
         __m512i m = _mm512_and_si512(x_vec, not_one);
-        // diag = m OR xor_result
         __m512i res = _mm512_or_si512(m, xor_result);
         _mm512_storeu_si512(&diag[i], res);
     }

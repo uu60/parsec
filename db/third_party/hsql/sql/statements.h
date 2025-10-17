@@ -15,4 +15,4 @@
 #include "TransactionStatement.h"
 #include "UpdateStatement.h"
 
-#endif  // SQLPARSER_STATEMENTS_H
+#endif

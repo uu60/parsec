@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/1/19.
-//
 
 #ifndef LOCKFREEBLOCKINGQUEUE_H
 #define LOCKFREEBLOCKINGQUEUE_H
@@ -44,4 +41,4 @@ public:
 };
 
 
-#endif //LOCKFREEBLOCKINGQUEUE_H
+#endif

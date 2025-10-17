@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/11/15.
-//
 
 #include "compute/single/bool/BoolXorOperator.h"
 

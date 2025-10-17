@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/8/30.
-//
 
 #ifndef MPC_PACKAGE_RSAOTTRIPLEGENERATOR_H
 #define MPC_PACKAGE_RSAOTTRIPLEGENERATOR_H
@@ -34,4 +31,4 @@ public:
 };
 
 
-#endif //MPC_PACKAGE_RSAOTTRIPLEGENERATOR_H
+#endif

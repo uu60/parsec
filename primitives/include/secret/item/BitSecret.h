@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/9/13.
-//
 
 #ifndef MPC_PACKAGE_BITSECRET_H
 #define MPC_PACKAGE_BITSECRET_H
@@ -37,4 +34,4 @@ public:
 };
 
 
-#endif //MPC_PACKAGE_BITSECRET_H
+#endif

@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/1/30.
-//
 
 #include "compute/batch/arith/ArithBatchOperator.h"
 
@@ -13,7 +10,6 @@ ArithBatchOperator::ArithBatchOperator(std::vector<int64_t> &zs, int width, int 
     if (clientRank < 0) {
         _zis = zs;
     } else {
-        // distribute operator
         if (Comm::rank() == clientRank) {
             std::vector<int64_t> zv0, zv1;
             zv0.reserve(zs.size());
@@ -29,7 +25,6 @@ ArithBatchOperator::ArithBatchOperator(std::vector<int64_t> &zs, int width, int 
             Comm::wait(r);
         } else if (Comm::isServer()) {
             _zis.clear();
-            // operator
             Comm::receive(_zis, _width, clientRank, buildTag(_currentMsgTag));
         }
     }
@@ -42,7 +37,6 @@ ArithBatchOperator::ArithBatchOperator(std::vector<int64_t> *xs, std::vector<int
         _xis = xs;
         _yis = ys;
     } else {
-        // distribute operator
         if (Comm::rank() == clientRank) {
             std::vector<int64_t> v0, v1;
             size_t size = xs->size();
@@ -65,7 +59,6 @@ ArithBatchOperator::ArithBatchOperator(std::vector<int64_t> *xs, std::vector<int
             Comm::send(v1, _width, 1, buildTag(_currentMsgTag));
             Comm::wait(r);
         } else if (Comm::isServer()) {
-            // operator
             std::vector<int64_t> temp;
             Comm::receive(temp, _width, clientRank, buildTag(_currentMsgTag));
             size_t size = temp.size() / 2;

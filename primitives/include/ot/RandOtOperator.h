@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/12/29.
-//
 
 #ifndef RANDOTEXECUTOR_H
 #define RANDOTEXECUTOR_H
@@ -18,4 +15,4 @@ public:
     static int tagStride(int width);
 };
 
-#endif //RANDOTEXECUTOR_H
+#endif

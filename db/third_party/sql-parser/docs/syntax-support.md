@@ -1,12 +1,16 @@
 Supported SQL Queries
 =====================
 
-This page contains a short list of queries that can be correctly parsed with our parser. If you are interested in finding out if a certain feature is supported, it is probably the easiest to checkout the repository and try the example project or check our [list of known limitations](known-limitations.md). Also the file [queries-good.sql](../test/queries/queries-good.sql) shows a list of queries which are parsable with the current version.
-
+This page contains a short list of queries that can be correctly parsed with our parser. If you are interested in
+finding out if a certain feature is supported, it is probably the easiest to checkout the repository and try the example
+project or check our [list of known limitations](known-limitations.md). Also the
+file [queries-good.sql](../test/queries/queries-good.sql) shows a list of queries which are parsable with the current
+version.
 
 ## Select Statements
 
-We implement a broad support for the most common elements for `SELECT` statements. Following are a few examples of basic constructs that are supported.
+We implement a broad support for the most common elements for `SELECT` statements. Following are a few examples of basic
+constructs that are supported.
 
 ```sql
 SELECT name, city, *
@@ -25,6 +29,7 @@ SELECT city, AVG(grade) AS average,
 ## Data Definition & Modification
 
 **Create Tables**
+
 ```sql
 CREATE TABLE students (
     name TEXT,
@@ -35,12 +40,12 @@ CREATE TABLE students (
 ```
 
 **Update and Delete**
+
 ```sql
 UPDATE students SET name='Max Mustermann' WHERE name = 'Ralf Mustermann';
 
 DELETE FROM students WHERE name = 'Max Mustermann';
 ```
-
 
 ## Prepared Statements
 

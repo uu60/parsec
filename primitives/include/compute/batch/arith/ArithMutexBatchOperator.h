@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/7/23.
-//
 
 #ifndef ARITHMUTEXBATCHOPERATOR_H
 #define ARITHMUTEXBATCHOPERATOR_H
@@ -30,4 +27,4 @@ public:
     ArithMutexBatchOperator *setBmts(std::vector<Bmt> *bmts);
 };
 
-#endif //ARITHMUTEXBATCHOPERATOR_H
+#endif

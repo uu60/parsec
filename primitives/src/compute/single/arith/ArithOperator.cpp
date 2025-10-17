@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/9/6.
-//
 
 #include "compute/single/arith/ArithOperator.h"
 
@@ -15,7 +12,6 @@ ArithOperator::ArithOperator(int64_t z, int width, int taskTag, int msgTagOffset
     if (clientRank < 0) {
         _zi = z;
     } else {
-        // distribute operator
         if (Comm::rank() == clientRank) {
             int64_t z1 = Math::randInt();
             int64_t z0 = z - z1;
@@ -24,7 +20,6 @@ ArithOperator::ArithOperator(int64_t z, int width, int taskTag, int msgTagOffset
             Comm::wait(r0);
             Comm::wait(r1);
         } else if (Comm::isServer()) {
-            // operator
             Comm::receive(_zi, _width, clientRank, buildTag(_currentMsgTag));
         }
     }
@@ -36,7 +31,6 @@ ArithOperator::ArithOperator(int64_t x, int64_t y, int width, int taskTag, int m
         _xi = x;
         _yi = y;
     } else {
-        // distribute operator
         if (Comm::rank() == clientRank) {
             int64_t x1 = Math::randInt();
             int64_t x0 = x - x1;
@@ -49,7 +43,6 @@ ArithOperator::ArithOperator(int64_t x, int64_t y, int width, int taskTag, int m
             Comm::wait(r0);
             Comm::wait(r1);
         } else if (Comm::isServer()) {
-            // operator
             std::vector<int64_t> temp;
             Comm::receive(temp, _width, clientRank, buildTag(_currentMsgTag));
             _xi = temp[0];

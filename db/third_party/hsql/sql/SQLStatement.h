@@ -7,7 +7,7 @@
 
 namespace hsql {
 enum StatementType {
-  kStmtError,  // unused
+  kStmtError,
   kStmtSelect,
   kStmtImport,
   kStmtInsert,
@@ -24,7 +24,6 @@ enum StatementType {
   kStmtTransaction
 };
 
-// Base struct for every SQL statement
 struct SQLStatement {
   SQLStatement(StatementType type);
 
@@ -34,10 +33,8 @@ struct SQLStatement {
 
   bool isType(StatementType type) const;
 
-  // Shorthand for isType(type).
   bool is(StatementType type) const;
 
-  // Length of the string in the SQL query string
   size_t stringLength;
 
   std::vector<Expr*>* hints;
@@ -46,6 +43,6 @@ struct SQLStatement {
   StatementType type_;
 };
 
-}  // namespace hsql
+}
 
-#endif  // SQLPARSER_SQLSTATEMENT_H
+#endif

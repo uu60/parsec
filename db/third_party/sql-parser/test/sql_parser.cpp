@@ -32,10 +32,8 @@ TEST(SQLParserTokenizeStringifyTest) {
   std::vector<int16_t> tokens;
   ASSERT(SQLParser::tokenize(query, &tokens));
 
-  // Make u16string.
   std::u16string token_string(tokens.cbegin(), tokens.cend());
 
-  // Check if u16 string is cacheable.
   std::map<std::u16string, std::string> cache;
   cache[token_string] = query;
 

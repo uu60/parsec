@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/12/8.
-//
 
 #ifndef BLOCKINGQUEUE_H
 #define BLOCKINGQUEUE_H
@@ -49,4 +46,4 @@ public:
         return _maxSize;
     }
 };
-#endif //BLOCKINGQUEUE_H
+#endif

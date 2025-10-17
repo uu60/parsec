@@ -1,15 +1,18 @@
 import random
 
+
 def to_signed(bits, value):
     mask = (1 << bits) - 1
     if bits > 1 and value & (1 << (bits - 1)):
         return value | ~mask
     return value & mask
 
+
 def rand(bits):
     if bits == 1:
         return random.randint(0, 1)
     return random.randint(- (1 << (bits - 1)), (1 << (bits - 1)) - 1)
+
 
 def format_triplets_for_cpp(bits):
     formatted_triplets_0 = []

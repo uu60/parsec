@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/8/30.
-//
 
 #include "intermediate/BmtGenerator.h"
 
@@ -30,7 +27,6 @@ int BmtGenerator::tagStride(int width) {
 }
 
 void BmtGenerator::computeMix(int sender) {
-    // atomic integer needed for multiple-thread computation
     int64_t sum = 0;
     bool isSender = Comm::rank() == sender;
 

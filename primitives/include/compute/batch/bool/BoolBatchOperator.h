@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/2/24.
-//
 
 #ifndef BOOLBATCHEXECUTOR_H
 #define BOOLBATCHEXECUTOR_H
@@ -20,4 +17,4 @@ public:
 
 
 
-#endif //BOOLBATCHEXECUTOR_H
+#endif

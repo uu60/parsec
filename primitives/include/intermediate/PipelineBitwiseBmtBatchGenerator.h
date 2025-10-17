@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 25-4-18.
-//
 
 #ifndef PIPELINEBITWISEBMTBATCHGENERATOR_H
 #define PIPELINEBITWISEBMTBATCHGENERATOR_H
@@ -11,7 +8,6 @@
 class PipelineBitwiseBmtBatchGenerator : public AbstractBatchOperator {
 private:
     int64_t _totalBits{};
-    // Write NO._index queue
     int _index{};
     BoostSPSCQueue<std::vector<BitwiseBmt>, INT16_MAX> _bmts{};
     BoostSPSCQueue<std::vector<int64_t>, INT16_MAX> _ssis{};
@@ -51,4 +47,4 @@ public:
 };
 
 
-#endif //PIPELINEBITWISEBMTBATCHGENERATOR_H
+#endif

@@ -1,19 +1,3 @@
-//
-// exp_2 (random data) — optimized flow (same as validate), runtime-only printing
-//
-// Pipeline:
-//   1) sort(diagnosis by pid, time)
-//   2) filter(diag == cdiff)         // cdiff constant is secret-shared
-//   3) reorder by (pid asc, $valid desc, time asc)
-//   4) adjacent compare (i with i+1): same pid, both valid,
-//      and 15 <= (t[i+1] - t[i]) <= 56 (implemented via < / == and OR = XOR/AND; no NOT)
-//   5) project pid -> robust distinct (sort-by-keys + groupBy heads)
-//
-// Notes:
-// - Avoids NOT on Boolean shares
-// - Uses bitonicSortSingleBatch for secure ordering
-// - Only prints execution time, as requested
-//
 
 #include "secret/Secrets.h"
 #include "utils/System.h"
@@ -38,7 +22,6 @@
 #include "conf/DbConf.h"
 #include "parallel/ThreadPoolSupport.h"
 
-// -------------------- Forward declarations --------------------
 void generateRandomData(int num_records,
                         std::vector<int64_t> &pid_data,
                         std::vector<int64_t> &pid_hash_data,
@@ -58,7 +41,6 @@ View createDiagnosisTable(std::vector<int64_t> &pid_shares,
                           std::vector<int64_t> &row_no_plus_1_shares,
                           std::vector<int64_t> &diag_shares);
 
-// MPC plan
 View buildRcdNoJoin(View diagnosis_view, int64_t cdiff_code, int tid);
 
 View markAdjacentPairsWithinPid(View rcd_view, int tid);
@@ -66,7 +48,7 @@ View markAdjacentPairsWithinPid(View rcd_view, int tid);
 View selectDistinctPid(View &filtered_view, int tid);
 
 static int64_t CDIFF_CODE = Math::randInt();
-// -------------------- Main --------------------
+
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
     DbConf::init();
@@ -81,14 +63,12 @@ int main(int argc, char *argv[]) {
         Log::i("Data size: {}", num_records);
     }
 
-    // Build random dataset
     std::vector<int64_t> pid_data, pid_hash_data, time_data, time_plus_15_data, time_plus_56_data;
     std::vector<int64_t> row_no_data, row_no_plus_1_data, diag_data;
 
     generateRandomData(num_records, pid_data, pid_hash_data, time_data, time_plus_15_data,
                        time_plus_56_data, row_no_data, row_no_plus_1_data, diag_data);
 
-    // Convert to secret shares for 2PC
     auto pid_shares = Secrets::boolShare(pid_data, 2, 64, tid);
     auto pid_hash_shares = Secrets::boolShare(pid_hash_data, 2, 64, tid);
     auto time_shares = Secrets::boolShare(time_data, 2, 64, tid);
@@ -98,11 +78,10 @@ int main(int argc, char *argv[]) {
     auto row_no_plus_1_shares = Secrets::boolShare(row_no_plus_1_data, 2, 64, tid);
     auto diag_shares = Secrets::boolShare(diag_data, 2, 64, tid);
 
-    // Secret-shared C.diff constant for MPC filter
     int64_t cdiff_code;
     if (Comm::isClient()) {
         int64_t s0 = Math::randInt();
-        int64_t s1 = s0 ^ CDIFF_CODE; // Boolean share: s0 XOR s1 == CDIFF_CODE
+        int64_t s1 = s0 ^ CDIFF_CODE;
         Comm::send(s0, 64, 0, tid);
         Comm::send(s1, 64, 1, tid);
     } else {
@@ -110,19 +89,15 @@ int main(int argc, char *argv[]) {
     }
 
     if (Comm::isServer()) {
-        // Step 1: Create diagnosis table with hash tag & redundant fields
         auto diagnosis_view = createDiagnosisTable(pid_shares, pid_hash_shares, time_shares,
                                                    time_plus_15_shares, time_plus_56_shares,
                                                    row_no_shares, row_no_plus_1_shares, diag_shares);
         auto query_start = System::currentTimeMillis();
 
-        // Step 2–3: rcd = sort(pid,time) + filter(diag=cdiff) + compaction
         auto rcd_view = buildRcdNoJoin(diagnosis_view, cdiff_code, tid);
 
-        // Step 4: adjacent compare within rcd (i with i+1) for time window & same pid
         auto paired_view = markAdjacentPairsWithinPid(rcd_view, tid);
 
-        // Step 5: select distinct pid
         auto result_view = selectDistinctPid(paired_view, tid);
 
         auto query_end = System::currentTimeMillis();
@@ -133,7 +108,6 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-// -------------------- Function implementations --------------------
 
 void generateRandomData(int num_records,
                         std::vector<int64_t> &pid_data,
@@ -156,8 +130,8 @@ void generateRandomData(int num_records,
 
         for (int i = 0; i < num_records; i++) {
             int64_t pid = Math::randInt();
-            int64_t t = Math::randInt(); // [0,10000)
-            bool is_cd = Math::randInt(); // ~1/3 cdiff
+            int64_t t = Math::randInt();
+            bool is_cd = Math::randInt();
             int64_t d = Math::randInt();
 
             pid_data.push_back(pid);
@@ -171,7 +145,6 @@ void generateRandomData(int num_records,
             time_plus_56_data.push_back(t + 56);
         }
 
-        // Hash tags for pid (plaintext hashing on client)
         pid_hash_data.reserve(num_records);
         for (int64_t key: pid_data) {
             pid_hash_data.push_back(Views::hash(key));
@@ -206,7 +179,7 @@ View createDiagnosisTable(std::vector<int64_t> &pid_shares,
             row_no_shares[i],
             row_no_plus_1_shares[i],
             diag_shares[i],
-            pid_hash_shares[i], // Hash tag column
+            pid_hash_shares[i],
         };
         diagnosis_table.insert(row);
     }
@@ -214,153 +187,143 @@ View createDiagnosisTable(std::vector<int64_t> &pid_shares,
     return Views::selectAll(diagnosis_table);
 }
 
-// Step 2–3: sort + filter + reorder ($valid desc within pid)
 View buildRcdNoJoin(View diagnosis_view, int64_t cdiff_code, int tid) {
-    // Filter diag == cdiff (here we pass a PUBLIC constant for test convenience)
     std::vector<std::string> fieldNames = {"diag"};
     std::vector<View::ComparatorType> comparatorTypes = {View::EQUALS};
     std::vector<int64_t> constShares = {cdiff_code};
     diagnosis_view.filterAndConditions(fieldNames, comparatorTypes, constShares, false, tid);
 
-    // Stable compaction: keep only selected rows (rcd)
-    // const int clearTid = tid + 64;
-    // diagnosis_view.clearInvalidEntries(clearTid);
     std::vector<std::string> order1 = {"pid", "$valid", "time"};
     std::vector<bool> asc1 = {true, false, true};
     diagnosis_view.sort(order1, asc1, tid);
     return diagnosis_view;
 }
 
-// ---- Step 4: adjacent compare within rcd (i with i+1) ----
-// ---- Optimized Step 4: adjacent compare within rcd (i with i+1) ----
-// Step 4: adjacent compare (i with i+1) using only </== and XOR/AND (no NOT)
 View markAdjacentPairsWithinPid(View rcd_view, int tid) {
     const int n_rows = rcd_view.rowNum();
     if (n_rows <= 1) return rcd_view;
 
-    const int pid_idx   = rcd_view.colIndex("pid");
-    const int t_idx     = rcd_view.colIndex("time");
-    const int t15_idx   = rcd_view.colIndex("time_plus_15");
-    const int t56_idx   = rcd_view.colIndex("time_plus_56");
-    const int valid_idx = rcd_view.colNum() + View::VALID_COL_OFFSET; // $valid
+    const int pid_idx = rcd_view.colIndex("pid");
+    const int t_idx = rcd_view.colIndex("time");
+    const int t15_idx = rcd_view.colIndex("time_plus_15");
+    const int t56_idx = rcd_view.colIndex("time_plus_56");
+    const int valid_idx = rcd_view.colNum() + View::VALID_COL_OFFSET;
     if (pid_idx < 0 || t_idx < 0 || t15_idx < 0 || t56_idx < 0) return rcd_view;
 
-    auto &pid   = rcd_view._dataCols[pid_idx];
-    auto &t     = rcd_view._dataCols[t_idx];
-    auto &t15   = rcd_view._dataCols[t15_idx];
-    auto &t56   = rcd_view._dataCols[t56_idx];
+    auto &pid = rcd_view._dataCols[pid_idx];
+    auto &t = rcd_view._dataCols[t_idx];
+    auto &t15 = rcd_view._dataCols[t15_idx];
+    auto &t56 = rcd_view._dataCols[t56_idx];
     auto &valid = rcd_view._dataCols[valid_idx];
 
-    const size_t n = (size_t)n_rows;
-    std::vector<int64_t> final_cond(n, 0);  // 命中标记，按 i 写入
+    const size_t n = (size_t) n_rows;
+    std::vector<int64_t> final_cond(n, 0);
 
-    const int B = (Conf::BATCH_SIZE > 0 ? Conf::BATCH_SIZE : (int)n);
-    const int batches = (int)((n + B - 1) / B);
+    const int B = (Conf::BATCH_SIZE > 0 ? Conf::BATCH_SIZE : (int) n);
+    const int batches = (int) ((n + B - 1) / B);
 
     const int strideLess64 = BoolLessBatchOperator::tagStride();
-    const int strideEq64   = BoolEqualBatchOperator::tagStride();
-    const int strideAnd1   = BoolAndBatchOperator::tagStride();
-    const int stridePerBatch = 2*strideLess64 + 3*strideEq64 + 5*strideAnd1;
+    const int strideEq64 = BoolEqualBatchOperator::tagStride();
+    const int strideAnd1 = BoolAndBatchOperator::tagStride();
+    const int stridePerBatch = 2 * strideLess64 + 3 * strideEq64 + 5 * strideAnd1;
 
-    auto workBatch = [&](int b) -> std::pair<int,std::vector<int64_t>> {
+    auto workBatch = [&](int b) -> std::pair<int, std::vector<int64_t> > {
         const int start = b * B;
-        // i 取值区间：[start, endExclusive)；最后一个 i 是 endExclusive-1
-        const int endExclusive = std::min(start + B, (int)n - 1);
+        const int endExclusive = std::min(start + B, (int) n - 1);
         if (start >= endExclusive) return {start, {}};
 
-        const int L = endExclusive - start;  // 本批输出长度（对应 i 的个数）
+        const int L = endExclusive - start;
 
-        // 切片：i 与 i+1
-        std::vector<int64_t> pid_i (pid.begin()   + start, pid.begin()   + endExclusive);
-        std::vector<int64_t> pid_j (pid.begin()   + start + 1, pid.begin()   + endExclusive + 1);
-        std::vector<int64_t> t_i   (t.begin()     + start, t.begin()     + endExclusive);
-        std::vector<int64_t> t_j   (t.begin()     + start + 1, t.begin()     + endExclusive + 1);
-        std::vector<int64_t> t15_i (t15.begin()   + start, t15.begin()   + endExclusive);
-        std::vector<int64_t> t56_i (t56.begin()   + start, t56.begin()   + endExclusive);
-        std::vector<int64_t> v_i   (valid.begin() + start, valid.begin() + endExclusive);
-        std::vector<int64_t> v_j   (valid.begin() + start + 1, valid.begin() + endExclusive + 1);
+        std::vector<int64_t> pid_i(pid.begin() + start, pid.begin() + endExclusive);
+        std::vector<int64_t> pid_j(pid.begin() + start + 1, pid.begin() + endExclusive + 1);
+        std::vector<int64_t> t_i(t.begin() + start, t.begin() + endExclusive);
+        std::vector<int64_t> t_j(t.begin() + start + 1, t.begin() + endExclusive + 1);
+        std::vector<int64_t> t15_i(t15.begin() + start, t15.begin() + endExclusive);
+        std::vector<int64_t> t56_i(t56.begin() + start, t56.begin() + endExclusive);
+        std::vector<int64_t> v_i(valid.begin() + start, valid.begin() + endExclusive);
+        std::vector<int64_t> v_j(valid.begin() + start + 1, valid.begin() + endExclusive + 1);
 
         int bt = tid + b * stridePerBatch;
 
-        // ge15: (t15_i < t_j) OR (t15_i == t_j)
         auto lt_t15 = BoolLessBatchOperator(&t15_i, &t_j, 64, 0, bt,
-                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis; bt += strideLess64;
+                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        bt += strideLess64;
         auto eq_t15 = BoolEqualBatchOperator(&t15_i, &t_j, 64, 0, bt,
-                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis; bt += strideEq64;
+                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        bt += strideEq64;
         auto ltANDt15 = BoolAndBatchOperator(&lt_t15, &eq_t15, 1, 0, bt,
-                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis; bt += strideAnd1;
-        std::vector<int64_t> ge15 = lt_t15;            // OR = XOR + AND
-        for (int k=0;k<L;++k) ge15[k] ^= eq_t15[k];
-        for (int k=0;k<L;++k) ge15[k] ^= ltANDt15[k];
+                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        bt += strideAnd1;
+        std::vector<int64_t> ge15 = lt_t15;
+        for (int k = 0; k < L; ++k) ge15[k] ^= eq_t15[k];
+        for (int k = 0; k < L; ++k) ge15[k] ^= ltANDt15[k];
 
-        // le56: (t_j < t56_i) OR (t_j == t56_i)
         auto lt_56 = BoolLessBatchOperator(&t_j, &t56_i, 64, 0, bt,
-                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis; bt += strideLess64;
+                                           SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        bt += strideLess64;
         auto eq_56 = BoolEqualBatchOperator(&t_j, &t56_i, 64, 0, bt,
-                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis; bt += strideEq64;
+                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        bt += strideEq64;
         auto ltAND56 = BoolAndBatchOperator(&lt_56, &eq_56, 1, 0, bt,
-                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis; bt += strideAnd1;
+                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        bt += strideAnd1;
         std::vector<int64_t> le56 = lt_56;
-        for (int k=0;k<L;++k) le56[k] ^= eq_56[k];
-        for (int k=0;k<L;++k) le56[k] ^= ltAND56[k];
+        for (int k = 0; k < L; ++k) le56[k] ^= eq_56[k];
+        for (int k = 0; k < L; ++k) le56[k] ^= ltAND56[k];
 
-        // in-range = ge15 & le56
         auto inrng = BoolAndBatchOperator(&ge15, &le56, 1, 0, bt,
-                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis; bt += strideAnd1;
+                                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        bt += strideAnd1;
 
-        // same pid
         auto samepid = BoolEqualBatchOperator(&pid_i, &pid_j, 64, 0, bt,
-                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis; bt += strideEq64;
+                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        bt += strideEq64;
 
-        // both valid
         auto bothv = BoolAndBatchOperator(&v_i, &v_j, 1, 0, bt,
-                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis; bt += strideAnd1;
+                                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        bt += strideAnd1;
 
-        // final = inrng & samepid & bothv
         auto hit1 = BoolAndBatchOperator(&inrng, &samepid, 1, 0, bt,
-                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis; bt += strideAnd1;
-        auto hit  = BoolAndBatchOperator(&hit1, &bothv, 1, 0, bt,
-                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                         SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        bt += strideAnd1;
+        auto hit = BoolAndBatchOperator(&hit1, &bothv, 1, 0, bt,
+                                        SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
-        // 这里直接返回长度为 L 的结果（不再 +1）
         return {start, hit};
     };
 
     if (Conf::BATCH_SIZE <= 0 || Conf::DISABLE_MULTI_THREAD) {
         auto pr = workBatch(0);
         const int start = pr.first;
-        auto &part = pr.second;               // 长度 n-1
+        auto &part = pr.second;
         if (!part.empty()) {
             std::copy(part.begin(), part.end(), final_cond.begin() + start);
         }
     } else {
-        std::vector<std::future<std::pair<int,std::vector<int64_t>>>> futs(batches);
+        std::vector<std::future<std::pair<int, std::vector<int64_t> > > > futs(batches);
         for (int b = 0; b < batches; ++b)
             futs[b] = ThreadPoolSupport::submit([&, b]() { return workBatch(b); });
 
         for (int b = 0; b < batches; ++b) {
             auto pr = futs[b].get();
             const int start = pr.first;
-            auto &part = pr.second;           // 长度 endExclusive-start
+            auto &part = pr.second;
             if (!part.empty()) {
-                // 直接写入 final_cond 的对应区间
                 std::copy(part.begin(), part.end(), final_cond.begin() + start);
             }
         }
     }
 
-    // 最后一个位置 i = n-1 必为 0（因为没有 j = i+1）
-    final_cond[n-1] = 0;
+    final_cond[n - 1] = 0;
 
     View v = rcd_view;
     const int vidx = v.colNum() + View::VALID_COL_OFFSET;
     v._dataCols[vidx] = std::move(final_cond);
 
-    v.clearInvalidEntries(tid + batches * stridePerBatch + 64); // 可选：便于调试
+    v.clearInvalidEntries(tid + batches * stridePerBatch + 64);
     return v;
 }
 
-// ---- Step 5: select distinct pid ----
 View selectDistinctPid(View &filtered_view, int tid) {
     if (filtered_view.rowNum() == 0) {
         std::vector<std::string> result_fields = {"pid"};

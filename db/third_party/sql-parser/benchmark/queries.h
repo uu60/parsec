@@ -6,7 +6,6 @@
 
 typedef std::pair<std::string, std::string> SQLQuery;
 
-// name, query
 static std::vector<SQLQuery> sql_queries = {
   {"Q1", "SELECT * FROM test;"},
   {"Q2", "SELECT a, b AS address FROM (SELECT * FROM test WHERE c < 100 AND b > 3) t1 WHERE a < 10 AND b < 100;"},
@@ -44,7 +43,6 @@ static std::vector<SQLQuery> sql_queries = {
   {"ExecuteNoParams",     "EXECUTE procedure;"},
   {"Execute2Params",      "EXECUTE procedure(11, 'test');"},
   {"Execute10Params",     "EXECUTE procedure(11, 'test', 5.6, 4.2, 'abc', 6, 7, 8, 9, 10000);"},
-  // {"name", "query"},
 };
 
 std::string getQueryName(unsigned i);

@@ -10,8 +10,6 @@ namespace hsql {
 struct SelectStatement;
 struct OrderDescription;
 
-// Helper function used by the lexer.
-// TODO: move to more appropriate place.
 char* substr(const char* source, int from, int to);
 
 enum ExprType {
@@ -34,18 +32,14 @@ enum ExprType {
   kExprCast
 };
 
-// Operator types. These are important for expressions of type kExprOperator.
 enum OperatorType {
   kOpNone,
 
-  // Ternary operator
   kOpBetween,
 
-  // n-nary special case
   kOpCase,
-  kOpCaseListElement,  // `WHEN expr THEN expr`
+  kOpCaseListElement,
 
-  // Binary operators.
   kOpPlus,
   kOpMinus,
   kOpAsterisk,
@@ -67,7 +61,6 @@ enum OperatorType {
   kOpIn,
   kOpConcat,
 
-  // Unary operators.
   kOpNot,
   kOpUnaryMinus,
   kOpIsNull,
@@ -84,7 +77,6 @@ enum DatetimeField {
   kDatetimeYear,
 };
 
-// Description of the frame clause within a window expression.
 enum FrameBoundType { kFollowing, kPreceding, kCurrentRow };
 struct FrameBound {
   FrameBound(int64_t offset, FrameBoundType type, bool unbounded);
@@ -106,7 +98,6 @@ struct FrameDescription {
 
 typedef struct Expr Expr;
 
-// Description of additional fields for a window expression.
 struct WindowDescription {
   WindowDescription(std::vector<Expr*>* partitionList, std::vector<OrderDescription*>* orderList,
                     FrameDescription* frameDescription);
@@ -117,16 +108,12 @@ struct WindowDescription {
   FrameDescription* frameDescription;
 };
 
-// Represents SQL expressions (i.e. literals, operators, column_refs).
-// TODO: When destructing a placeholder expression, we might need to alter the
-// placeholder_list.
 struct Expr {
   Expr(ExprType type);
   virtual ~Expr();
 
   ExprType type;
 
-  // TODO: Replace expressions by list.
   Expr* expr;
   Expr* expr2;
   std::vector<Expr*>* exprList;
@@ -146,7 +133,6 @@ struct Expr {
 
   WindowDescription* windowDescription;
 
-  // Convenience accessor methods.
 
   bool isType(ExprType exprType) const;
 
@@ -158,7 +144,6 @@ struct Expr {
 
   const char* getName() const;
 
-  // Static constructors.
 
   static Expr* make(ExprType type);
 
@@ -219,10 +204,6 @@ struct Expr {
   static Expr* makeCast(Expr* expr, ColumnType columnType);
 };
 
-// Zero initializes an Expr object and assigns it to a space in the heap
-// For Hyrise we still had to put in the explicit NULL constructor
-// http://www.ex-parrot.com/~chris/random/initialise.html
-// Unused
 #define ALLOC_EXPR(var, type)         \
   Expr* var;                          \
   do {                                \
@@ -232,6 +213,6 @@ struct Expr {
   } while (0);
 #undef ALLOC_EXPR
 
-}  // namespace hsql
+}
 
 #endif

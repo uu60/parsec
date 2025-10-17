@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/7/23.
-//
 
 #include "compute/batch/arith/ArithMutexBatchOperator.h"
 
@@ -34,24 +31,21 @@ ArithMutexBatchOperator *ArithMutexBatchOperator::execute() {
     }
 
     int num = static_cast<int>(_xis->size());
-    _zis.resize(num);  // Result contains swapped x values
+    _zis.resize(num);
 
     std::vector<int64_t> cx_results, cy_results;
     std::future<std::vector<int64_t>> f;
 
     if (Conf::ENABLE_INTRA_OPERATOR_PARALLELISM) {
-        // Parallel execution: compute cond * x and cond * y in parallel
         f = ThreadPoolSupport::submit([&]() -> std::vector<int64_t> {
             auto mul_cx = ArithMultiplyBatchOperator(&_conds_i, _xis, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
             return mul_cx.execute()->_zis;
         });
     } else {
-        // Sequential execution: compute cond * x first
         auto mul_cx = ArithMultiplyBatchOperator(&_conds_i, _xis, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
         cx_results = mul_cx.execute()->_zis;
     }
 
-    // Compute cond * y
     auto mul_cy = ArithMultiplyBatchOperator(&_conds_i, _yis, _width, _taskTag,
                                            _currentMsgTag + ArithMultiplyBatchOperator::tagStride(_width), 
                                            NO_CLIENT_COMPUTE);
@@ -61,7 +55,6 @@ ArithMutexBatchOperator *ArithMutexBatchOperator::execute() {
         cx_results = f.get();
     }
 
-    // Compute final result: new_x = cond * x + (1-cond) * y = cx + y - cy
     for (int i = 0; i < num; i++) {
         _zis[i] = ring(cx_results[i] + (*_yis)[i] - cy_results[i]);
     }
@@ -80,7 +73,7 @@ int ArithMutexBatchOperator::tagStride(int width) {
 }
 
 int ArithMutexBatchOperator::bmtCount(int width, int batchSize) {
-    return 2 * batchSize;  // Two multiplications per element
+    return 2 * batchSize;
 }
 
 ArithMutexBatchOperator *ArithMutexBatchOperator::setBmts(std::vector<Bmt> *bmts) {

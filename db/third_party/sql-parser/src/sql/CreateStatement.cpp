@@ -3,7 +3,6 @@
 
 namespace hsql {
 
-// CreateStatemnet
 CreateStatement::CreateStatement(CreateType type)
     : SQLStatement(kStmtCreate),
       type(type),
@@ -67,4 +66,4 @@ void CreateStatement::setColumnDefsAndConstraints(std::vector<TableElement*>* ta
   }
 }
 
-}  // namespace hsql
+}

@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/11/3.
-//
 
 #include "../../include/operator/CreateSupport.h"
 
@@ -66,7 +63,6 @@ bool CreateSupport::clientCreateTable(std::ostringstream &resp, const hsql::SQLS
         return false;
     }
 
-    // notify servers
     json j;
     j["type"] = SystemManager::getCommandPrefix(SystemManager::CREATE_TABLE);
     j["name"] = tableName;

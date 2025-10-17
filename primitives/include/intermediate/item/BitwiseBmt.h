@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/2/4.
-//
 
 #ifndef BITWISEBMT_H
 #define BITWISEBMT_H
@@ -8,7 +5,6 @@
 #include "../../utils/Math.h"
 #include "utils/Log.h"
 
-// Just for distinguish
 class BitwiseBmt : public Bmt {
 public:
     [[nodiscard]] BitwiseBmt extract(int i) const {
@@ -32,4 +28,4 @@ public:
 };
 
 
-#endif //BITWISEBMT_H
+#endif

@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/4/3.
-//
 
 #ifndef CPPASYNCTHREADPOOL_H
 #define CPPASYNCTHREADPOOL_H
@@ -34,4 +31,4 @@ public:
 };
 
 
-#endif //CPPASYNCTHREADPOOL_H
+#endif

@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 25-6-2.
-//
 
 #ifndef VIEWS_H
 #define VIEWS_H
@@ -17,9 +14,7 @@ public:
 
     static View selectColumns(Table &t, std::vector<std::string> &fieldNames);
 
-    /**
-     *  Make sure all records of v0 and v1 are valid (call View::clearInvalidEntriesObliviously() if necessary).
-     */
+    
     static View nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string &field1, bool compress);
 
     static View nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string &field1);
@@ -76,4 +71,4 @@ private:
 };
 
 
-#endif //VIEWS_H
+#endif

@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/7/23.
-//
 
 #ifndef ARITHMULTIPLYBATCHOPERATOR_H
 #define ARITHMULTIPLYBATCHOPERATOR_H
@@ -20,4 +17,4 @@ public:
     [[nodiscard]] static int tagStride(int width);
 };
 
-#endif //ARITHMULTIPLYBATCHOPERATOR_H
+#endif

@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2025/1/30.
-//
 
 #ifndef ARITHBATCHEXECUTOR_H
 #define ARITHBATCHEXECUTOR_H
@@ -20,4 +17,4 @@ public:
 
 
 
-#endif //ARITHBATCHEXECUTOR_H
+#endif

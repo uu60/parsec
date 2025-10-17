@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 25-7-27.
-//
 
 #include "compute/batch/arith/ArithEqualBatchOperator.h"
 
@@ -32,30 +29,22 @@ ArithEqualBatchOperator *ArithEqualBatchOperator::execute() {
         start = System::currentTimeMillis();
     }
     
-    // Following BoolEqualBatchOperator pattern:
-    // Create combined vectors for bidirectional comparison
     std::vector<int64_t> xy = *_xis;
     xy.insert(xy.end(), _yis->begin(), _yis->end());
     std::vector<int64_t> yx = *_yis;
     yx.insert(yx.end(), _xis->begin(), _xis->end());
 
-    // Use ArithLessBatchOperator with bidirectional data
-    // The ArithLessBatchOperator constructor sets _doBidirectional = true by default
     ArithLessBatchOperator ltOp(&xy, &yx, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
     auto gtv_ltv = ltOp.execute()->_zis;
     
-    // XOR with rank to get correct comparison results (similar to BoolEqualBatchOperator)
     for (auto &v: gtv_ltv) {
         v = v ^ Comm::rank();
     }
     
-    // Split the results: first half is x < y, second half is y < x
     std::vector<int64_t> ltv(gtv_ltv.begin() + gtv_ltv.size() / 2, gtv_ltv.end());
     std::vector<int64_t> gtv = std::move(gtv_ltv);
     gtv.resize(gtv.size() / 2);
     
-    // x == y iff !(x < y) && !(y < x)
-    // Use BoolAndBatchOperator to compute the AND of the negated results
     _zis = BoolAndBatchOperator(&gtv, &ltv, 1, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).execute()->_zis;
     
     if (Conf::ENABLE_CLASS_WISE_TIMING) {
@@ -68,7 +57,6 @@ ArithEqualBatchOperator *ArithEqualBatchOperator::execute() {
 ArithEqualBatchOperator *ArithEqualBatchOperator::reconstruct(int clientRank) {
     ArithBatchOperator::reconstruct(clientRank);
     
-    // Ensure results are single bits (0 or 1)
     if (Comm::rank() == clientRank) {
         for (int i = 0; i < _results.size(); i++) {
             _results[i] &= 1;

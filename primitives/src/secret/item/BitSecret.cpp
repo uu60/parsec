@@ -1,6 +1,3 @@
-//
-// Created by 杜建璋 on 2024/9/13.
-//
 
 #include "secret/item/BitSecret.h"
 
