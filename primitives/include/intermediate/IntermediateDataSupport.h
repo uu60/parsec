@@ -3,6 +3,7 @@
 #define BMTHOLDER_H
 
 #include <vector>
+#include <array>
 
 #include "./item/Bmt.h"
 #include "./item/SRot.h"
@@ -33,6 +34,13 @@ public:
     inline static RRot *_rRot0 = nullptr;
     inline static SRot *_sRot1 = nullptr;
     inline static RRot *_rRot1 = nullptr;
+
+    static constexpr int IKNP_K = 128;
+    inline static std::vector<std::array<int64_t, 2>> _iknpBaseSeeds;
+    inline static std::atomic_uint64_t _iknpExpansionCounter{0};
+
+    static void prepareIknpSeeds();
+    static uint64_t nextIknpExpansionId();
 
 public:
     static void prepareBmt();

@@ -1,5 +1,6 @@
 
 #include "../../include/intermediate/BitwiseBmtGenerator.h"
+#include "../../include/ot/OtSupport.h"
 #include "../../include/ot/RandOtBatchOperator.h"
 #include "../../include/utils/Math.h"
 #include "conf/Conf.h"
@@ -64,9 +65,10 @@ void BitwiseBmtGenerator::computeMix(int sender) {
     }
 
     auto s = Math::randInt();
-    auto results = RandOtBatchOperator(sender, &ss0, &ss1, &choices, 1, _taskTag,
-                                       _currentMsgTag + sender * RandOtBatchOperator::tagStride()).execute()->
-            _results;
+    (void)s;
+    std::vector<int64_t> results;
+    OtSupport::otBatch(sender, &ss0, &ss1, &choices, 1, _taskTag,
+                       _currentMsgTag + sender * RandOtBatchOperator::tagStride(), &results);
 
     if (isSender) {
         for (int i = 0; i < _width; ++i) {

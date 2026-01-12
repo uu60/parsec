@@ -1,6 +1,7 @@
 
 #include "compute/batch/bool/BoolToArithBatchOperator.h"
 
+#include "ot/OtSupport.h"
 #include "ot/RandOtBatchOperator.h"
 #include "utils/Log.h"
 #include "utils/Math.h"
@@ -41,8 +42,8 @@ BoolToArithBatchOperator *BoolToArithBatchOperator::execute() {
             }
         }
     }
-    RandOtBatchOperator e(0, &ss0, &ss1, &choices, _width, _taskTag, _currentMsgTag);
-    e.execute();
+    std::vector<int64_t> results;
+    OtSupport::otBatch(0, &ss0, &ss1, &choices, _width, _taskTag, _currentMsgTag, &results);
 
     _zis.resize(_xis->size(), 0);
     if (isSender) {
@@ -54,7 +55,7 @@ BoolToArithBatchOperator *BoolToArithBatchOperator::execute() {
     } else {
         for (int i = 0; i < _xis->size(); i++) {
             for (int j = 0; j < _width; ++j) {
-                _zis[i] = ring(_zis[i] + e._results[i * _width + j]);
+                _zis[i] = ring(_zis[i] + results[i * _width + j]);
             }
         }
     }

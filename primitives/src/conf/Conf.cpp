@@ -84,6 +84,8 @@ void Conf::init(int argc, char **argv) {
                  "Set enable_transfer_compression (true/false)")
                 ("enable_redundant_ot", po::value<bool>(&ENABLE_REDUNDANT_OT)->default_value(ENABLE_REDUNDANT_OT),
                  "Set enable_redundant_ot")
+                ("ot_method", po::value<std::string>(&_userParams["ot_method"])->default_value("iknp"),
+                 "Set ot_method (base, rand, iknp)")
                 ("enable_class_wise_timing",
                  po::value<bool>(&ENABLE_CLASS_WISE_TIMING)->default_value(ENABLE_CLASS_WISE_TIMING),
                  "Set enable_class_wise_timing (true/false)")
@@ -126,6 +128,18 @@ void Conf::init(int argc, char **argv) {
                 BMT_QUEUE_TYPE = SPSC_QUEUE;
             } else {
                 throw std::runtime_error("Unknown bmt_queue_type value.");
+            }
+        }
+        if (vm.count("ot_method")) {
+            const auto &ot_method = _userParams["ot_method"];
+            if (ot_method == "base") {
+                OT_METHOD = OT_BASE;
+            } else if (ot_method == "rand") {
+                OT_METHOD = OT_RAND;
+            } else if (ot_method == "iknp") {
+                OT_METHOD = OT_IKNP;
+            } else {
+                throw std::runtime_error("Unknown ot_method value.");
             }
         }
 

@@ -36,6 +36,12 @@ public:
         BMT_PIPELINE
     };
 
+    enum OtT {
+        OT_BASE,
+        OT_RAND,
+        OT_IKNP,
+    };
+
 public:
     static void init(int argc, char **argv);
 
@@ -58,6 +64,8 @@ public:
     inline static int BATCH_SIZE = 1000;
     inline static bool ENABLE_TRANSFER_COMPRESSION = false;
     inline static bool ENABLE_REDUNDANT_OT = true;
+
+    inline static OtT OT_METHOD = OT_IKNP;
 
     inline static bool ENABLE_CLASS_WISE_TIMING = false;
 

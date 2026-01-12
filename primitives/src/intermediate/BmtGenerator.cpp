@@ -1,11 +1,9 @@
-
 #include "intermediate/BmtGenerator.h"
 
 #include "utils/Math.h"
 #include "comm/Comm.h"
 #include "conf/Conf.h"
-#include "ot/RandOtBatchOperator.h"
-#include "ot/RandOtOperator.h"
+#include "ot/OtSupport.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Log.h"
 
@@ -23,7 +21,8 @@ BmtGenerator *BmtGenerator::reconstruct(int clientRank) {
 }
 
 int BmtGenerator::tagStride(int width) {
-    return 2 * RandOtBatchOperator::tagStride();
+    (void) width;
+    return 2 * OtSupport::batchTagStride(1);
 }
 
 void BmtGenerator::computeMix(int sender) {
@@ -47,9 +46,9 @@ void BmtGenerator::computeMix(int sender) {
         }
     }
 
-    auto results = RandOtBatchOperator(sender, &ss0, &ss1, &choices, 1, _taskTag,
-                                       _currentMsgTag + sender * RandOtBatchOperator::tagStride()).execute()->
-            _results;
+    std::vector<int64_t> results;
+    OtSupport::otBatch(sender, &ss0, &ss1, &choices, 1, _taskTag,
+                       _currentMsgTag + sender * OtSupport::batchTagStride(1), &results);
 
     if (isSender) {
         for (int i = 0; i < ss0.size(); ++i) {

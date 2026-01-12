@@ -2,7 +2,6 @@
 #include "base/SecureOperator.h"
 
 #include "conf/Conf.h"
-#include "ot/RandOtBatchOperator.h"
 #include "ot/RandOtOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Math.h"

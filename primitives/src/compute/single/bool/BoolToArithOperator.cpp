@@ -4,7 +4,7 @@
 #include "intermediate/IntermediateDataSupport.h"
 #include "comm/Comm.h"
 #include "compute/single/arith/ArithOperator.h"
-#include "ot/RandOtBatchOperator.h"
+#include "ot/OtSupport.h"
 #include "ot/RandOtOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Math.h"
@@ -44,8 +44,8 @@ BoolToArithOperator *BoolToArithOperator::execute() {
         }
     }
 
-    RandOtBatchOperator e(0, &ss0, &ss1, &choices, _width, _taskTag, _currentMsgTag);
-    e.execute();
+    std::vector<int64_t> results;
+    OtSupport::otBatch(0, &ss0, &ss1, &choices, _width, _taskTag, _currentMsgTag, &results);
 
     if (isSender) {
         for (auto r: rs) {
@@ -53,7 +53,7 @@ BoolToArithOperator *BoolToArithOperator::execute() {
         }
     } else {
         for (int i = 0; i < _width; ++i) {
-            temp += e._results[i];
+            temp += results[i];
         }
     }
 

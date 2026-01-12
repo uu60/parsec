@@ -68,11 +68,43 @@ void IntermediateDataSupport::init() {
 
     prepareRot();
 
+    prepareIknpSeeds();
+
     prepareBmt();
 
     if ((Conf::BMT_METHOD == Conf::BMT_BACKGROUND || Conf::BMT_METHOD == Conf::BMT_PIPELINE) && Conf::BMT_PRE_GEN_SECONDS > 0) {
         std::this_thread::sleep_for(std::chrono::seconds(Conf::BMT_PRE_GEN_SECONDS));
     }
+}
+
+void IntermediateDataSupport::prepareIknpSeeds() {
+    if (Comm::isClient()) {
+        return;
+    }
+
+    if (!_iknpBaseSeeds.empty()) {
+        return;
+    }
+
+    _iknpBaseSeeds.resize(IKNP_K);
+
+    const int64_t a0 = _sRot0 ? _sRot0->_r0 : Math::randInt();
+    const int64_t a1 = _sRot0 ? _sRot0->_r1 : Math::randInt();
+    const int64_t b0 = _sRot1 ? _sRot1->_r0 : Math::randInt();
+    const int64_t b1 = _sRot1 ? _sRot1->_r1 : Math::randInt();
+    const int64_t rb0 = _rRot0 ? _rRot0->_rb : Math::randInt();
+    const int64_t rb1 = _rRot1 ? _rRot1->_rb : Math::randInt();
+
+    std::hash<int64_t> h;
+    for (int i = 0; i < IKNP_K; ++i) {
+        int64_t s0 = static_cast<int64_t>(h(a0 ^ (rb0 + i * 0x9e37)) ^ h(b0 ^ (i * 0xbf58)));
+        int64_t s1 = static_cast<int64_t>(h(a1 ^ (rb1 + i * 0x9e37)) ^ h(b1 ^ (i * 0xbf58)));
+        _iknpBaseSeeds[i] = {s0, s1};
+    }
+}
+
+uint64_t IntermediateDataSupport::nextIknpExpansionId() {
+    return _iknpExpansionCounter.fetch_add(1);
 }
 
 void IntermediateDataSupport::finalize() {

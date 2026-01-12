@@ -1,10 +1,10 @@
-
 #ifndef ABSTRACTBMTBATCHGENERATOR_H
 #define ABSTRACTBMTBATCHGENERATOR_H
+
 #include "../base/AbstractBatchOperator.h"
-#include "../conf/Conf.h"
-#include "../ot/RandOtBatchOperator.h"
-#include "../ot/RandOtOperator.h"
+#include "comm/Comm.h"
+
+#include <vector>
 
 template <class BmtT>
 class AbstractBmtBatchGenerator : public AbstractBatchOperator {

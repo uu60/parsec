@@ -3,6 +3,7 @@
 
 #include "conf/Conf.h"
 #include "intermediate/IntermediateDataSupport.h"
+#include "ot/OtSupport.h"
 #include "ot/RandOtBatchOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Math.h"
@@ -56,9 +57,9 @@ void BmtBatchGenerator::computeMix(int sender) {
         }
     }
 
-    auto results = RandOtBatchOperator(sender, &ss0, &ss1, &choices, _width, _taskTag,
-                                       _currentMsgTag + sender * RandOtBatchOperator::tagStride()).execute()->
-            _results;
+    std::vector<int64_t> results;
+    OtSupport::otBatch(sender, &ss0, &ss1, &choices, _width, _taskTag,
+                       _currentMsgTag + sender * RandOtBatchOperator::tagStride(), &results);
 
     std::vector<int64_t> sums;
     sums.reserve(bmtCount);

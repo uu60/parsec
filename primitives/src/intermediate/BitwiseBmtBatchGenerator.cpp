@@ -1,9 +1,7 @@
-
 #include "intermediate/BitwiseBmtBatchGenerator.h"
 
 #include "conf/Conf.h"
-#include "ot/RandOtBatchOperator.h"
-#include "ot/RandOtOperator.h"
+#include "ot/OtSupport.h"
 #include "parallel/ThreadPoolSupport.h"
 
 BitwiseBmtBatchGenerator::BitwiseBmtBatchGenerator(int count, int width, int taskTag,
@@ -76,8 +74,9 @@ void BitwiseBmtBatchGenerator::computeMix(int sender) {
         }
     }
 
-    auto results = RandOtBatchOperator(sender, &ss0, &ss1, &choices, _taskTag,
-                                       _currentMsgTag + sender * RandOtBatchOperator::tagStride()).execute()->_results;
+    std::vector<int64_t> results;
+    OtSupport::otBatchPackedChoices64(sender, &ss0, &ss1, &choices, 1, _taskTag,
+                                     _currentMsgTag + sender * OtSupport::batchTagStride(1), &results);
 
     std::vector<int64_t> *mix = sender == 0 ? &_usi : &_vsi;
     mix->resize(_bc);
@@ -102,5 +101,5 @@ SecureOperator *BitwiseBmtBatchGenerator::reconstruct(int clientRank) {
 }
 
 int BitwiseBmtBatchGenerator::tagStride() {
-    return 2 * RandOtBatchOperator::tagStride();
+    return 2 * OtSupport::batchTagStride(1);
 }
