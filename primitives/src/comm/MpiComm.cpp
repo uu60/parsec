@@ -1,4 +1,3 @@
-
 #include "comm/MpiComm.h"
 #include <mpi.h>
 #include <iostream>
@@ -260,22 +259,23 @@ MpiRequestWrapper *MpiComm::sendAsync_(const int64_t &source, int width, int rec
             auto s1 = new bool(source);
             request->_mode = MpiRequestWrapper::INT1;
             request->_si1 = s1;
-            MPI_Isend(&s1, 1, MPI_CXX_BOOL, receiverRank, tag, MPI_COMM_WORLD, request->_r);
+            // send the allocated scalar buffer, not the pointer variable
+            MPI_Isend(s1, 1, MPI_CXX_BOOL, receiverRank, tag, MPI_COMM_WORLD, request->_r);
         } else if (width <= 8) {
             auto s8 = new int8_t(static_cast<int8_t>(source));
             request->_mode = MpiRequestWrapper::INT8;
             request->_si8 = s8;
-            MPI_Isend(&s8, 1, MPI_INT8_T, receiverRank, tag, MPI_COMM_WORLD, request->_r);
+            MPI_Isend(s8, 1, MPI_INT8_T, receiverRank, tag, MPI_COMM_WORLD, request->_r);
         } else if (width <= 16) {
             auto s16 = new int16_t(static_cast<int16_t>(source));
             request->_mode = MpiRequestWrapper::INT16;
             request->_si16 = s16;
-            MPI_Isend(&s16, 1, MPI_INT16_T, receiverRank, tag, MPI_COMM_WORLD, request->_r);
+            MPI_Isend(s16, 1, MPI_INT16_T, receiverRank, tag, MPI_COMM_WORLD, request->_r);
         } else if (width <= 32) {
-            auto s32 = new int32_t(source);
+            auto s32 = new int32_t(static_cast<int32_t>(source));
             request->_mode = MpiRequestWrapper::INT32;
             request->_si32 = s32;
-            MPI_Isend(&s32, 1, MPI_INT32_T, receiverRank, tag, MPI_COMM_WORLD, request->_r);
+            MPI_Isend(s32, 1, MPI_INT32_T, receiverRank, tag, MPI_COMM_WORLD, request->_r);
         } else {
             MPI_Isend(&source, 1, MPI_INT64_T, receiverRank, tag, MPI_COMM_WORLD, request->_r);
         }

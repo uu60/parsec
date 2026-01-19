@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
     std::vector<int64_t> shares(rows);
     if (Comm::rank() == 2) {
         for (int i = 0; i < rows; i++) {
-            shares[i] = Math::randInt();
+            shares[i] = Math::randInt(0, 100);
         }
     }
 
@@ -67,6 +67,7 @@ int main(int argc, char *argv[]) {
         auto start = System::currentTimeMillis();
         v.sort(sortColumns, ascendingOrders, 0);
         Log::i("Multi-column sort time (all {} columns): {}ms", cols, System::currentTimeMillis() - start);
+        Views::revealAndPrint(v);
     }
 
     System::finalize();
