@@ -3,7 +3,7 @@
 
 #include "conf/Conf.h"
 #include "intermediate/IntermediateDataSupport.h"
-#include "ot/RandOtBatchOperator.h"
+#include "ot/IknpOtBatchOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Math.h"
 
@@ -27,7 +27,7 @@ BmtBatchGenerator *BmtBatchGenerator::reconstruct(int clientRank) {
 }
 
 int BmtBatchGenerator::tagStride() {
-    return RandOtBatchOperator::tagStride() * 2;
+    return IknpOtBatchOperator::tagStride() * 2;
 }
 
 void BmtBatchGenerator::computeMix(int sender) {
@@ -56,8 +56,8 @@ void BmtBatchGenerator::computeMix(int sender) {
         }
     }
 
-    auto results = RandOtBatchOperator(sender, &ss0, &ss1, &choices, _width, _taskTag,
-                                       _currentMsgTag + sender * RandOtBatchOperator::tagStride()).execute()->
+    auto results = IknpOtBatchOperator(sender, &ss0, &ss1, &choices, _width, _taskTag,
+                                       _currentMsgTag + sender * IknpOtBatchOperator::tagStride()).execute()->
             _results;
 
     std::vector<int64_t> sums;

@@ -19,10 +19,6 @@ namespace {
         uint64_t hi;
     };
 
-    static inline U128 xorU128(const U128 &a, const U128 &b) {
-        return {a.lo ^ b.lo, a.hi ^ b.hi};
-    }
-
     // Fast 128x128 bit-matrix transpose (bit-sliced) using 64-bit swap layers.
     // Input: 128 rows, each is a 128-bit word (lo,hi). Output: 128 rows of transposed.
     static inline void transpose128x128_inplace(U128 v[128]) {
@@ -32,17 +28,6 @@ namespace {
             x0[i] = v[i].lo;
             x1[i] = v[i].hi;
         }
-
-        // Transpose the 128x128 matrix represented as two 128x64 halves.
-        // We do staged swaps within 64-bit words, then swap across the 64-bit boundary.
-        auto swap_layer = [](uint64_t *a, uint64_t *b, uint64_t mask, int shift) {
-            for (int i = 0; i < 128; ++i) {
-                const uint64_t ta = (a[i] >> shift) & mask;
-                const uint64_t tb = (b[i] & mask);
-                a[i] = (a[i] & ~(mask << shift)) | (tb << shift);
-                b[i] = (b[i] & ~mask) | ta;
-            }
-        };
 
         // In-word transpose for each 64-bit slice via butterfly network across rows.
         // We implement the classic Eklundh style using masks and shifts across the row index.
@@ -167,44 +152,6 @@ namespace {
         std::array<unsigned char, 16> _key{};
         std::array<unsigned char, 16> _iv{};
     };
-
-
-    static void expandMasksPacked64(const std::vector<int64_t> &packed, std::vector<int64_t> &outMsgs) {
-        outMsgs.clear();
-        outMsgs.reserve(packed.size() * 64);
-        for (size_t i = 0; i < packed.size(); ++i) {
-            const uint64_t limb = static_cast<uint64_t>(packed[i]);
-            for (int b = 0; b < 64; ++b) {
-                const int bit = static_cast<int>((limb >> b) & 1ULL);
-                outMsgs.push_back(bit == 0 ? 0LL : -1LL);
-            }
-        }
-    }
-
-    static void expandChoicesPacked64(const std::vector<int64_t> &packed, std::vector<int> &outChoices) {
-        outChoices.clear();
-        outChoices.reserve(packed.size() * 64);
-        for (size_t i = 0; i < packed.size(); ++i) {
-            const uint64_t limb = static_cast<uint64_t>(packed[i]);
-            for (int b = 0; b < 64; ++b) {
-                outChoices.push_back(static_cast<int>((limb >> b) & 1ULL));
-            }
-        }
-    }
-
-    static void packResultsToBits64(const std::vector<int64_t> &bitResults, std::vector<int64_t> &outPacked,
-                                    size_t nPacked) {
-        outPacked.assign(nPacked, 0);
-        size_t idx = 0;
-        for (size_t i = 0; i < nPacked; ++i) {
-            uint64_t limb = 0;
-            for (int b = 0; b < 64; ++b) {
-                const uint64_t bit = (bitResults[idx++] == 0) ? 0ULL : 1ULL;
-                limb |= (bit << b);
-            }
-            outPacked[i] = static_cast<int64_t>(limb);
-        }
-    }
 } // namespace
 
 IknpOtBatchOperator::IknpOtBatchOperator(int sender,

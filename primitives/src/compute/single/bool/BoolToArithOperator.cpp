@@ -4,6 +4,7 @@
 #include "intermediate/IntermediateDataSupport.h"
 #include "comm/Comm.h"
 #include "compute/single/arith/ArithOperator.h"
+#include "ot/IknpOtBatchOperator.h"
 #include "ot/RandOtBatchOperator.h"
 #include "ot/RandOtOperator.h"
 #include "parallel/ThreadPoolSupport.h"
@@ -44,7 +45,8 @@ BoolToArithOperator *BoolToArithOperator::execute() {
         }
     }
 
-    RandOtBatchOperator e(0, &ss0, &ss1, &choices, _width, _taskTag, _currentMsgTag);
+    // RandOtBatchOperator e(0, &ss0, &ss1, &choices, _width, _taskTag, _currentMsgTag);
+    IknpOtBatchOperator e(0, &ss0, &ss1, &choices, _width, _taskTag, _currentMsgTag);
     e.execute();
 
     if (isSender) {

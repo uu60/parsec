@@ -1,9 +1,8 @@
 
 #include "../../include/intermediate/BitwiseBmtGenerator.h"
-#include "../../include/ot/RandOtBatchOperator.h"
 #include "../../include/utils/Math.h"
 #include "conf/Conf.h"
-#include "ot/RandOtOperator.h"
+#include "ot/IknpOtBatchOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 
 BitwiseBmtGenerator *BitwiseBmtGenerator::execute() {
@@ -64,8 +63,8 @@ void BitwiseBmtGenerator::computeMix(int sender) {
     }
 
     auto s = Math::randInt();
-    auto results = RandOtBatchOperator(sender, &ss0, &ss1, &choices, 1, _taskTag,
-                                       _currentMsgTag + sender * RandOtBatchOperator::tagStride()).execute()->
+    auto results = IknpOtBatchOperator(sender, &ss0, &ss1, &choices, 1, _taskTag,
+                                       _currentMsgTag + sender * IknpOtBatchOperator::tagStride()).execute()->
             _results;
 
     if (isSender) {
@@ -98,5 +97,5 @@ SecureOperator *BitwiseBmtGenerator::reconstruct(int clientRank) {
 }
 
 int BitwiseBmtGenerator::tagStride(int width) {
-    return 2 * RandOtBatchOperator::tagStride();
+    return 2 * IknpOtBatchOperator::tagStride();
 }

@@ -1,6 +1,7 @@
 
 #include "compute/batch/bool/BoolToArithBatchOperator.h"
 
+#include "ot/IknpOtBatchOperator.h"
 #include "ot/RandOtBatchOperator.h"
 #include "utils/Log.h"
 #include "utils/Math.h"
@@ -41,7 +42,8 @@ BoolToArithBatchOperator *BoolToArithBatchOperator::execute() {
             }
         }
     }
-    RandOtBatchOperator e(0, &ss0, &ss1, &choices, _width, _taskTag, _currentMsgTag);
+    // RandOtBatchOperator e(0, &ss0, &ss1, &choices, _width, _taskTag, _currentMsgTag);
+    IknpOtBatchOperator e(0, &ss0, &ss1, &choices, _width, _taskTag, _currentMsgTag);
     e.execute();
 
     _zis.resize(_xis->size(), 0);
@@ -62,5 +64,5 @@ BoolToArithBatchOperator *BoolToArithBatchOperator::execute() {
 }
 
 int BoolToArithBatchOperator::tagStride() {
-    return RandOtBatchOperator::tagStride();
+    return IknpOtBatchOperator::tagStride();
 }

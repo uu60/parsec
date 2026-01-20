@@ -4,8 +4,7 @@
 #include "utils/Math.h"
 #include "comm/Comm.h"
 #include "conf/Conf.h"
-#include "ot/RandOtBatchOperator.h"
-#include "ot/RandOtOperator.h"
+#include "ot/IknpOtBatchOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Log.h"
 
@@ -23,7 +22,7 @@ BmtGenerator *BmtGenerator::reconstruct(int clientRank) {
 }
 
 int BmtGenerator::tagStride(int width) {
-    return 2 * RandOtBatchOperator::tagStride();
+    return 2 * IknpOtBatchOperator::tagStride();
 }
 
 void BmtGenerator::computeMix(int sender) {
@@ -47,8 +46,8 @@ void BmtGenerator::computeMix(int sender) {
         }
     }
 
-    auto results = RandOtBatchOperator(sender, &ss0, &ss1, &choices, 1, _taskTag,
-                                       _currentMsgTag + sender * RandOtBatchOperator::tagStride()).execute()->
+    auto results = IknpOtBatchOperator(sender, &ss0, &ss1, &choices, 1, _taskTag,
+                                       _currentMsgTag + sender * IknpOtBatchOperator::tagStride()).execute()->
             _results;
 
     if (isSender) {
