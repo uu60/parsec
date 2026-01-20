@@ -334,7 +334,6 @@ void IknpOtBatchOperator::receiverExtendForBits() {
             const uint64_t hi = (p + 1 < nPacked) ? static_cast<uint64_t>((*_choiceBitsPacked)[p + 1]) : 0ULL;
             rPacked[blk++] = {lo, hi};
         }
-        // Remaining blocks (only possible if m rounded up to 128) stay 0.
     }
 
     // 2) PRG t0/t1
@@ -348,7 +347,7 @@ void IknpOtBatchOperator::receiverExtendForBits() {
         g1.generateBlocks(tRows1[i].data(), blocks);
     }
 
-    // 3) u = t0 ^ t1 ^ r
+    // 3) u = t0 ^ t1 ^ r   (must be sent to sender)
     std::vector<int64_t> uRaw(SECURITY_PARAM * blocks * 2);
     for (int i = 0; i < SECURITY_PARAM; ++i) {
         for (size_t blk = 0; blk < blocks; ++blk) {
@@ -376,39 +375,37 @@ void IknpOtBatchOperator::receiverExtendForBits() {
     Comm::wait(rSendU);
     Comm::wait(rRecv);
 
-    // 5) transpose t0
-    std::vector<U128> tCols0, uCols;
-    transpose128xNBlocks(tRows0, tCols0, blocks); {
-        std::array<std::vector<U128>, 128> rowsU;
-        for (int i = 0; i < SECURITY_PARAM; ++i) {
-            rowsU[i].resize(blocks);
-            for (size_t blk = 0; blk < blocks; ++blk) {
-                size_t off = (i * blocks + blk) * 2;
-                rowsU[i][blk] = {
-                    (uint64_t) uRaw[off],
-                    (uint64_t) uRaw[off + 1]
-                };
-            }
-        }
-        transpose128xNBlocks(rowsU, uCols, blocks);
-    }
+    // 5) transpose t0 and t1; avoid transposing u (CPU hotspot).
+    //    For choice=1, q = t0 ^ u = t1 ^ r (since u = t0 ^ t1 ^ r).
+    std::vector<U128> tCols0, tCols1;
+    transpose128xNBlocks(tRows0, tCols0, blocks);
+    transpose128xNBlocks(tRows1, tCols1, blocks);
 
-    // 6) bit-sliced select
+    // 6) bit-sliced select per packed limb: build q from (t0) or (t1 ^ r).
     _results.resize(nPacked);
     for (size_t p = 0; p < nPacked; ++p) {
-        int64_t choice = (*_choiceBitsPacked)[p];
-        int64_t mask = (choice == 0 ? 0LL : -1LL);
+        const size_t j = p * 64;
 
-        int64_t block0 = recvBuf[p * 2];
-        int64_t block1 = recvBuf[p * 2 + 1];
+        const U128 t0 = tCols0[j];
+        const U128 t1 = tCols1[j];
 
-        int64_t selected = (block0 & ~mask) | (block1 & mask);
+        // r for this 64-bit chunk (as a mask in the low 64 bits; hi part is 0)
+        const U128 rLimb{static_cast<uint64_t>((*_choiceBitsPacked)[p]), 0ULL};
+        const U128 q1{t1.lo ^ rLimb.lo, t1.hi ^ rLimb.hi};
 
-        int64_t pad = hash64(p * 64,
-                             (int64_t) (tCols0[p * 64].lo ^ tCols0[p * 64].hi)
-        );
+        // mask selects between q0=t0 and q1=t1^r using 64 parallel bits.
+        const uint64_t cmask = static_cast<uint64_t>((*_choiceBitsPacked)[p]);
+        const uint64_t qlo = (t0.lo & ~cmask) | (q1.lo & cmask);
+        const uint64_t qhi = (t0.hi & ~cmask) | (q1.hi & cmask);
 
-        _results[p] = selected ^ pad;
+        const int64_t pad = hash64(static_cast<int>(j), static_cast<int64_t>(qlo ^ qhi));
+
+        // payload selection uses the same mask trick as RandOtBatchOperator
+        const int64_t block0 = recvBuf[p * 2];
+        const int64_t block1 = recvBuf[p * 2 + 1];
+        const int64_t sel = (block0 & ~static_cast<int64_t>(cmask)) | (block1 & static_cast<int64_t>(cmask));
+
+        _results[p] = sel ^ pad;
     }
 
     _currentMsgTag += tagStride();
@@ -437,58 +434,23 @@ IknpOtBatchOperator *IknpOtBatchOperator::execute() {
     std::vector<int64_t> expandedMs1;
     std::vector<int> expandedChoices;
 
-    std::vector<int64_t> *savedMs0Ptr = _ms0;
-    std::vector<int64_t> *savedMs1Ptr = _ms1;
-    std::vector<int> *savedChoicesPtr = _choices;
-    const int savedWidth = _width;
-
-    bool usingTempExpand = false;
-    size_t nPacked = 0;
-
     if (_doBits) {
-        usingTempExpand = true;
-        _width = 1;
-
         if (_isSender) {
-            if (!_ms0 || !_ms1 || _ms0->size() != _ms1->size()) {
-                throw std::invalid_argument("IKNP(bits) temp-expand sender: ms0/ms1 null or size mismatch");
-            }
-            nPacked = _ms0->size();
-            expandMasksPacked64(*_ms0, expandedMs0);
-            expandMasksPacked64(*_ms1, expandedMs1);
-            _ms0 = &expandedMs0;
-            _ms1 = &expandedMs1;
-            // sender doesn't use _choices
+            senderExtendForBits();
         } else {
-            if (!_choiceBitsPacked) {
-                throw std::invalid_argument("IKNP(bits) temp-expand receiver: choiceBitsPacked is null");
-            }
-            nPacked = _choiceBitsPacked->size();
-            expandChoicesPacked64(*_choiceBitsPacked, expandedChoices);
-            _choices = &expandedChoices;
-            // receiver doesn't use _ms0/_ms1
+            receiverExtendForBits();
         }
+
+        if (Conf::ENABLE_CLASS_WISE_TIMING) {
+            _totalTime += System::currentTimeMillis() - start;
+        }
+        return this;
     }
 
     if (_isSender) {
         senderExtend();
     } else {
         receiverExtend();
-    }
-
-    if (usingTempExpand) {
-        // restore pointers first
-        _ms0 = savedMs0Ptr;
-        _ms1 = savedMs1Ptr;
-        _choices = savedChoicesPtr;
-        _width = savedWidth;
-
-        // receiver side: pack per-bit results to 64-bit limbs so callers see packed output
-        if (!_isSender) {
-            std::vector<int64_t> packed;
-            packResultsToBits64(_results, packed, nPacked);
-            _results = std::move(packed);
-        }
     }
 
     if (Conf::ENABLE_CLASS_WISE_TIMING) {

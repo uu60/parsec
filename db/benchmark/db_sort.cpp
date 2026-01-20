@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
         auto start = System::currentTimeMillis();
         v.sort(sortColumns, ascendingOrders, 0);
         Log::i("Multi-column sort time (all {} columns): {}ms", cols, System::currentTimeMillis() - start);
-        Views::revealAndPrint(v);
+        // Views::revealAndPrint(v);
     }
 
     System::finalize();
