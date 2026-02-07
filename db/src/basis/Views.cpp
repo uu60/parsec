@@ -273,10 +273,24 @@ std::vector<std::vector<std::vector<int64_t> > > Views::butterflyPermutation(
     int numLayers = static_cast<int>(std::log2(numBuckets));
 
     std::vector<std::vector<std::vector<int64_t> > > buckets(numBuckets);
-    buckets[0].reserve(view.colNum() - 1);
 
+    // Uniformly distribute rows across all buckets
+    int rowNum = view.rowNum();
+
+    // Initialize all buckets
+    for (int b = 0; b < numBuckets; b++) {
+        buckets[b].reserve(view.colNum() - 1);
+        for (int col = 0; col < view.colNum() - 1; col++) {
+            buckets[b].push_back(std::vector<int64_t>());
+        }
+    }
+
+    // Distribute rows uniformly across buckets
     for (int col = 0; col < view.colNum() - 1; col++) {
-        buckets[0].push_back(view._dataCols[col]);
+        for (int row = 0; row < rowNum; row++) {
+            int bucketIdx = row % numBuckets; // Uniform distribution
+            buckets[bucketIdx][col].push_back(view._dataCols[col][row]);
+        }
     }
 
     int reserved = numBuckets / 2;
