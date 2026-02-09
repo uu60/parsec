@@ -234,7 +234,6 @@ IknpOtBatchOperator::IknpOtBatchOperator(int sender,
     } else {
         _choiceBitsPacked = choiceBitsPacked;
     }
-    agent = new RandOtBatchOperator(sender, bits0Packed, bits1Packed, choiceBitsPacked, taskTag, msgTagOffset);
 }
 
 IknpOtBatchOperator::IknpOtBatchOperator(int sender,
@@ -250,7 +249,6 @@ IknpOtBatchOperator::IknpOtBatchOperator(int sender,
     }
     _doBits = false;
     _choiceBitsPacked = nullptr;
-    agent = new RandOtBatchOperator(sender, ms0, ms1, choices, width, taskTag, msgTagOffset);
 }
 
 int IknpOtBatchOperator::tagStride() {

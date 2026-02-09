@@ -30,8 +30,6 @@ public:
     bool _doBits{};
     std::vector<int64_t> *_choiceBitsPacked{};
 
-    RandOtBatchOperator *agent;
-
 public:
     IknpOtBatchOperator(int sender,
                         std::vector<int64_t> *ms0,
