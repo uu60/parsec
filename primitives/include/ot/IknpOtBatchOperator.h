@@ -8,6 +8,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "RandOtBatchOperator.h"
+
 // Minimal IKNP OT extension operator (k=128).
 //
 // Notes for this repo/version:
@@ -27,6 +29,8 @@ public:
     // Packed-bits mode (compatible with RandOtBatchOperator bits constructor)
     bool _doBits{};
     std::vector<int64_t> *_choiceBitsPacked{};
+
+    RandOtBatchOperator *agent;
 
 public:
     IknpOtBatchOperator(int sender,

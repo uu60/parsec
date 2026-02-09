@@ -23,6 +23,8 @@
 #include <stdexcept>
 #include <vector>
 
+#include "ot/RandOtBatchOperator.h"
+
 namespace {
 struct U128 {
     uint64_t lo;
@@ -232,6 +234,7 @@ IknpOtBatchOperator::IknpOtBatchOperator(int sender,
     } else {
         _choiceBitsPacked = choiceBitsPacked;
     }
+    agent = new RandOtBatchOperator(sender, bits0Packed, bits1Packed, choiceBitsPacked, taskTag, msgTagOffset);
 }
 
 IknpOtBatchOperator::IknpOtBatchOperator(int sender,
@@ -247,6 +250,7 @@ IknpOtBatchOperator::IknpOtBatchOperator(int sender,
     }
     _doBits = false;
     _choiceBitsPacked = nullptr;
+    agent = new RandOtBatchOperator(sender, ms0, ms1, choices, width, taskTag, msgTagOffset);
 }
 
 int IknpOtBatchOperator::tagStride() {
@@ -466,7 +470,12 @@ IknpOtBatchOperator *IknpOtBatchOperator::execute() {
         return this;
     }
 
+    // agent->execute();
+    // _results = std::move(agent->_results);
+    //
+    // return this;
     int64_t start = 0;
+
     if (Conf::ENABLE_CLASS_WISE_TIMING) {
         start = System::currentTimeMillis();
     }
