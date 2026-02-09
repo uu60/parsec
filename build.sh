@@ -3,15 +3,26 @@
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd -P)
 # Parse command line arguments
 USE_ASAN=false
+OPT_LEVEL=O3
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --asan)
       USE_ASAN=true
       shift
       ;;
+    --O2)
+      OPT_LEVEL=O2
+      shift
+      ;;
+    --O3)
+      OPT_LEVEL=O3
+      shift
+      ;;
     -h|--help)
-      echo "Usage: $0 [--asan] [--help]"
+      echo "Usage: $0 [--asan] [--O2|--O3] [--help]"
       echo "  --asan    Enable AddressSanitizer build"
+      echo "  --O2      Use -O2 for Release build"
+      echo "  --O3      Use -O3 for Release build (default)"
       echo "  --help    Show this help message"
       exit 0
       ;;
@@ -74,11 +85,11 @@ if [ "$USE_ASAN" = true ]; then
     -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address" \
     -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address"
 else
-  echo "Building without AddressSanitizer (Using O3)…"
+  echo "Building without AddressSanitizer (Using ${OPT_LEVEL})…"
   cmake .. -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG" \
-    -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG"
+    -DCMAKE_C_FLAGS_RELEASE="-${OPT_LEVEL} -DNDEBUG" \
+    -DCMAKE_CXX_FLAGS_RELEASE="-${OPT_LEVEL} -DNDEBUG"
 fi
 
 # Print actual CMake configuration after cmake runs
