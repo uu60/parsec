@@ -1,4 +1,3 @@
-
 #include "intermediate/IntermediateDataSupport.h"
 
 #include "comm/Comm.h"
@@ -13,6 +12,7 @@
 #include "utils/Log.h"
 #include "utils/Math.h"
 #include <climits>
+#include <stdexcept>
 
 #include "intermediate/PipelineBitwiseBmtBatchGenerator.h"
 
@@ -70,6 +70,8 @@ void IntermediateDataSupport::init() {
 
     prepareBmt();
 
+    prepareIknp();
+
     if ((Conf::BMT_METHOD == Conf::BMT_BACKGROUND || Conf::BMT_METHOD == Conf::BMT_PIPELINE) && Conf::BMT_PRE_GEN_SECONDS > 0) {
         std::this_thread::sleep_for(std::chrono::seconds(Conf::BMT_PRE_GEN_SECONDS));
     }
@@ -82,6 +84,7 @@ void IntermediateDataSupport::finalize() {
     delete _rRot0;
     delete _sRot1;
     delete _rRot1;
+    _iknpBaseSeeds.clear();
 }
 
 void IntermediateDataSupport::prepareRot() {
@@ -238,3 +241,33 @@ void IntermediateDataSupport::startGenerateBitwiseBmtsAsync() {
         }
     }
 }
+
+void IntermediateDataSupport::prepareIknp() {
+    if (Comm::isClient()) {
+        return;
+    }
+
+    if (!_iknpBaseSeeds.empty()) {
+        return;
+    }
+
+    if (!_sRot0 || !_rRot0 || !_sRot1 || !_rRot1) {
+        throw std::runtime_error("IKNP: ROT not prepared; call IntermediateDataSupport::init() first");
+    }
+
+    _iknpBaseSeeds.resize(128);
+
+    const uint64_t s00 = static_cast<uint64_t>(_sRot0->_r0);
+    const uint64_t s01 = static_cast<uint64_t>(_sRot0->_r1);
+    const uint64_t s10 = static_cast<uint64_t>(_sRot1->_r0);
+    const uint64_t s11 = static_cast<uint64_t>(_sRot1->_r1);
+
+    for (int i = 0; i < 128; ++i) {
+        const uint64_t mix = (static_cast<uint64_t>(i) + 1) * 0x9e3779b97f4a7c15ULL;
+        _iknpBaseSeeds[i] = {
+            static_cast<int64_t>(s00 ^ s10 ^ mix),
+            static_cast<int64_t>(s01 ^ s11 ^ (mix << 1))
+        };
+    }
+}
+

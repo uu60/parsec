@@ -21,10 +21,7 @@ public:
 
     static constexpr int SECURITY_PARAM = 128;
 
-    bool _baseReady{};
-
-    // Sender side keeps two seeds per i. Receiver uses both (repo uses a symmetric seed cache).
-    std::vector<std::array<int64_t, 2> > _baseSeeds; // [k] pair seeds
+    // Sender side keeps two seeds per i, derived per-operator from base seeds.
     std::vector<std::array<int64_t, 2> > _senderSeeds; // [k] derived per-batch seeds
 
     // Packed-bits mode (compatible with RandOtBatchOperator bits constructor)
@@ -58,8 +55,6 @@ private:
     void senderExtendForBits();
 
     void receiverExtendForBits();
-
-    void prepareBaseSeeds();
 
     void deriveSenderSeeds();
 

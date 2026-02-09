@@ -1,8 +1,9 @@
-
 #ifndef BMTHOLDER_H
 #define BMTHOLDER_H
 
 #include <vector>
+#include <array>
+#include <cstdint>
 
 #include "./item/Bmt.h"
 #include "./item/SRot.h"
@@ -34,6 +35,9 @@ public:
     inline static SRot *_sRot1 = nullptr;
     inline static RRot *_rRot1 = nullptr;
 
+    // IKNP base seeds derived from ROT; computed once in init().
+    inline static std::vector<std::array<int64_t, 2> > _iknpBaseSeeds;
+
 public:
     static void prepareBmt();
 
@@ -43,6 +47,8 @@ public:
     static void startGenerateBmtsAsync();
 
     static void startGenerateBitwiseBmtsAsync();
+
+    static void prepareIknp();
 
     static void init();
 

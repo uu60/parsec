@@ -74,11 +74,11 @@ if [ "$USE_ASAN" = true ]; then
     -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address" \
     -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address"
 else
-  echo "Building without AddressSanitizer (O2)…"
+  echo "Building without AddressSanitizer (Using O3)…"
   cmake .. -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG" \
-    -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG"
+    -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG" \
+    -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG"
 fi
 
 # Print actual CMake configuration after cmake runs
