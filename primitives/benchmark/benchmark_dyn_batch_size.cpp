@@ -55,7 +55,7 @@ bool test(std::vector<std::string> &testPmts, std::string pmt, int width, int ba
     int batch_num = (static_cast<int>(secretsA.size()) + batchSize - 1) / batchSize;
     if (Comm::isServer()) {
         int64_t start = System::currentTimeMillis();
-        if (pmt == testPmts[0]) {
+        if (pmt == "<") {
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
@@ -74,7 +74,7 @@ bool test(std::vector<std::string> &testPmts, std::string pmt, int width, int ba
                 auto v = f.get();
                 zs.insert(zs.end(), v.begin(), v.end());
             }
-        } else if (pmt == testPmts[1]) {
+        } else if (pmt == "<=") {
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
@@ -98,7 +98,7 @@ bool test(std::vector<std::string> &testPmts, std::string pmt, int width, int ba
                 auto v = f.get();
                 zs.insert(zs.end(), v.begin(), v.end());
             }
-        } else if (pmt == testPmts[2]) {
+        } else if (pmt == "==") {
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
@@ -117,7 +117,7 @@ bool test(std::vector<std::string> &testPmts, std::string pmt, int width, int ba
                 auto v = f.get();
                 zs.insert(zs.end(), v.begin(), v.end());
             }
-        } else if (pmt == testPmts[3]) {
+        } else if (pmt == "!=") {
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
@@ -141,7 +141,7 @@ bool test(std::vector<std::string> &testPmts, std::string pmt, int width, int ba
                 auto v = f.get();
                 zs.insert(zs.end(), v.begin(), v.end());
             }
-        } else if (pmt == testPmts[4]) {
+        } else if (pmt == "mux") {
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
@@ -163,7 +163,7 @@ bool test(std::vector<std::string> &testPmts, std::string pmt, int width, int ba
                 auto v = f.get();
                 zs.insert(zs.end(), v.begin(), v.end());
             }
-        } else if (pmt == testPmts[5]) {
+        } else if (pmt == "ar") {
             std::vector<std::future<void> > futures(batch_num);
             std::atomic_int64_t sumShare = 0;
             int64_t sumShare1;
@@ -182,7 +182,7 @@ bool test(std::vector<std::string> &testPmts, std::string pmt, int width, int ba
             for (auto &f: futures) {
                 f.wait();
             }
-        } else if (pmt == testPmts[6]) {
+        } else if (pmt == "sort") {
             std::vector<BoolSecret> boolSecrets;
             boolSecrets.reserve(secretsA.size());
             for (size_t i = 0; i < secretsA.size(); i++) {
