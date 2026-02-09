@@ -245,7 +245,7 @@ int main(int argc, char *argv[]) {
     std::vector<int> testNums = {1000, 10000, 100000};
     std::vector<int> testSortNums = {1000, 10000, 100000};
     std::vector<int> testWidths = {1, 2, 4, 8, 16, 32, 64};
-    std::vector<std::string> testPmts = {"<", "<=", "==", "!=", "mux", "ar", "sort"};
+    std::vector<std::string> testPmts = {"<", /*"<=",*/ "==", /*"!=",*/ "mux", "ar", "sort"};
     std::vector<int> testBatchSizes = {10, 100, 1000, 10000, 100000, 1000000, 10000000};
 
     if (Conf::_userParams.count("nums")) {
