@@ -22,6 +22,7 @@
 #include <openssl/evp.h>
 #include <stdexcept>
 #include <vector>
+#include <memory>
 
 #include "ot/RandOtBatchOperator.h"
 
@@ -187,13 +188,13 @@ public:
     inline void generateBlocks(U128* out, size_t blocks) const {
         if (blocks == 0) return;
 
-        thread_local EVP_CIPHER_CTX* ctx = nullptr;
+        std::unique_ptr<EVP_CIPHER_CTX, decltype(&EVP_CIPHER_CTX_free)>
+            ctx(EVP_CIPHER_CTX_new(), &EVP_CIPHER_CTX_free);
         if (!ctx) {
-            ctx = EVP_CIPHER_CTX_new();
-            if (!ctx) throw std::runtime_error("EVP_CIPHER_CTX_new failed");
+            throw std::runtime_error("EVP_CIPHER_CTX_new failed");
         }
 
-        if (EVP_EncryptInit_ex(ctx, EVP_aes_128_ctr(), nullptr, _key.data(), _iv.data()) != 1) {
+        if (EVP_EncryptInit_ex(ctx.get(), EVP_aes_128_ctr(), nullptr, _key.data(), _iv.data()) != 1) {
             throw std::runtime_error("EVP_EncryptInit_ex failed");
         }
 
@@ -203,7 +204,7 @@ public:
         std::memset(bytes, 0, nbytes);
 
         int outLen = 0;
-        if (EVP_EncryptUpdate(ctx, bytes, &outLen, bytes, static_cast<int>(nbytes)) != 1) {
+        if (EVP_EncryptUpdate(ctx.get(), bytes, &outLen, bytes, static_cast<int>(nbytes)) != 1) {
             throw std::runtime_error("EVP_EncryptUpdate failed");
         }
     }
@@ -270,12 +271,12 @@ void IknpOtBatchOperator::senderExtendForBits() {
     const size_t blocks = (m + 127) / 128;
 
     // Reuse big buffers to reduce alloc churn (thread_local, no header change)
-    thread_local std::vector<U128> qRowsTL;
-    thread_local std::vector<U128> qCol0TL;
-    thread_local std::vector<U128> qCol64TL;
-    thread_local std::vector<U128> uCol0TL;
-    thread_local std::vector<U128> uCol64TL;
-    thread_local std::vector<int64_t> sendBufTL;
+    std::vector<U128> qRowsTL;
+    std::vector<U128> qCol0TL;
+    std::vector<U128> qCol64TL;
+    std::vector<U128> uCol0TL;
+    std::vector<U128> uCol64TL;
+    std::vector<int64_t> sendBufTL;
 
     qRowsTL.resize(static_cast<size_t>(SECURITY_PARAM) * blocks);
     qCol0TL.resize(blocks);
@@ -352,15 +353,15 @@ void IknpOtBatchOperator::receiverExtendForBits() {
     const size_t blocks = (m + 127) / 128;
 
     // thread_local buffers
-    thread_local std::vector<U128> rPackedTL;
-    thread_local std::vector<U128> tRows0TL;
-    thread_local std::vector<U128> tRows1TL;
-    thread_local std::vector<int64_t> uRawTL;
-    thread_local std::vector<int64_t> recvBufTL;
-    thread_local std::vector<U128> t0Col0TL;
-    thread_local std::vector<U128> t0Col64TL;
-    thread_local std::vector<U128> uCol0TL;
-    thread_local std::vector<U128> uCol64TL;
+    std::vector<U128> rPackedTL;
+    std::vector<U128> tRows0TL;
+    std::vector<U128> tRows1TL;
+    std::vector<int64_t> uRawTL;
+    std::vector<int64_t> recvBufTL;
+    std::vector<U128> t0Col0TL;
+    std::vector<U128> t0Col64TL;
+    std::vector<U128> uCol0TL;
+    std::vector<U128> uCol64TL;
 
     rPackedTL.assign(blocks, U128{0,0});
     tRows0TL.resize(static_cast<size_t>(SECURITY_PARAM) * blocks);
