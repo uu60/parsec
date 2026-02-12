@@ -65,7 +65,7 @@ bool testArith(std::vector<std::string> &testPmts, std::string pmt, int width,
     if (Comm::isServer()) {
         int64_t start = System::currentTimeMillis();
 
-        if (pmt == testPmts[0]) {
+        if (pmt == "<") {
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
@@ -83,7 +83,7 @@ bool testArith(std::vector<std::string> &testPmts, std::string pmt, int width,
                 auto v = f.get();
                 zs.insert(zs.end(), v.begin(), v.end());
             }
-        } else if (pmt == testPmts[1]) {
+        } else if (pmt == "<=") {
             std::vector<int64_t> temp;
             temp.reserve(secretsA.size());
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
@@ -100,7 +100,7 @@ bool testArith(std::vector<std::string> &testPmts, std::string pmt, int width,
                 temp.insert(temp.end(), v.begin(), v.end());
             }
             for (auto &t: temp) t ^= Comm::rank();
-        } else if (pmt == testPmts[2]) {
+        } else if (pmt == "==") {
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
@@ -116,7 +116,7 @@ bool testArith(std::vector<std::string> &testPmts, std::string pmt, int width,
                 auto v = f.get();
                 zs.insert(zs.end(), v.begin(), v.end());
             }
-        } else if (pmt == testPmts[3]) {
+        } else if (pmt == "!=") {
             std::vector<int64_t> temp;
             temp.reserve(secretsA.size());
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
@@ -133,7 +133,7 @@ bool testArith(std::vector<std::string> &testPmts, std::string pmt, int width,
                 temp.insert(temp.end(), v.begin(), v.end());
             }
             for (auto &t: temp) t ^= Comm::rank();
-        } else if (pmt == testPmts[4]) {
+        } else if (pmt == "mux") {
             std::vector<std::future<void> > futures(batch_num);
             for (int b = 0; b < batch_num; ++b) {
                 int s = b * batch_size, e = std::min((b + 1) * batch_size, (int) secretsA.size());
@@ -145,7 +145,7 @@ bool testArith(std::vector<std::string> &testPmts, std::string pmt, int width,
                 });
             }
             for (auto &f: futures) f.get();
-        } else if (pmt == testPmts[5]) {
+        } else if (pmt == "ar") {
             std::vector<int64_t> results_ar;
             results_ar.reserve(secretConditions.size());
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
@@ -163,7 +163,7 @@ bool testArith(std::vector<std::string> &testPmts, std::string pmt, int width,
             }
             volatile int64_t sink = std::accumulate(results_ar.begin(), results_ar.end(), 0ll);
             (void) sink;
-        } else if (pmt == testPmts[6]) {
+        } else if (pmt == "sort") {
             std::vector<ArithSecret> as;
             as.reserve(secretsA.size());
             for (size_t i = 0; i < secretsA.size(); ++i) as.emplace_back(secretsA[i], width, 0, 0);
@@ -178,7 +178,7 @@ bool testArith(std::vector<std::string> &testPmts, std::string pmt, int width,
     return true;
 }
 
-bool testBool(std::vector<std::string> &testPmt, std::string pmt, int width,
+bool testBool(std::vector<std::string> &testPmts, std::string pmt, int width,
               std::vector<int64_t> &originsA, std::vector<int64_t> &originsB,
               std::vector<int64_t> &conditions, int64_t &boolTime) {
     std::vector<int64_t> secretsA, secretsB, secretConditions;
@@ -191,7 +191,7 @@ bool testBool(std::vector<std::string> &testPmt, std::string pmt, int width,
     if (Comm::isServer()) {
         const int64_t start = System::currentTimeMillis();
 
-        if (pmt == testPmt[0]) {
+        if (pmt == "<") {
             std::vector<int64_t> zs;
             zs.reserve(total);
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
@@ -213,7 +213,7 @@ bool testBool(std::vector<std::string> &testPmt, std::string pmt, int width,
                 auto part = f.get();
                 zs.insert(zs.end(), part.begin(), part.end());
             }
-        } else if (pmt == testPmt[1]) {
+        } else if (pmt == "<=") {
             std::vector<int64_t> temp;
             temp.reserve(total);
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
@@ -236,7 +236,7 @@ bool testBool(std::vector<std::string> &testPmt, std::string pmt, int width,
                 temp.insert(temp.end(), part.begin(), part.end());
             }
             for (auto &t: temp) t ^= Comm::rank();
-        } else if (pmt == testPmt[2]) {
+        } else if (pmt == "==") {
             std::vector<int64_t> zs;
             zs.reserve(total);
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
@@ -258,7 +258,7 @@ bool testBool(std::vector<std::string> &testPmt, std::string pmt, int width,
                 auto part = f.get();
                 zs.insert(zs.end(), part.begin(), part.end());
             }
-        } else if (pmt == testPmt[3]) {
+        } else if (pmt == "!=") {
             std::vector<int64_t> temp;
             temp.reserve(total);
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
@@ -281,7 +281,7 @@ bool testBool(std::vector<std::string> &testPmt, std::string pmt, int width,
                 temp.insert(temp.end(), part.begin(), part.end());
             }
             for (auto &t: temp) t ^= Comm::rank();
-        } else if (pmt == testPmt[4]) {
+        } else if (pmt == "mux") {
             std::vector<std::future<void> > futures(batch_num);
             for (int b = 0; b < batch_num; ++b) {
                 const int s = b * batch_size;
@@ -299,7 +299,7 @@ bool testBool(std::vector<std::string> &testPmt, std::string pmt, int width,
                 });
             }
             for (auto &f: futures) f.get();
-        } else if (pmt == testPmt[5]) {
+        } else if (pmt == "ar") {
             std::vector<int64_t> results_ar;
             results_ar.reserve(secretConditions.size());
             std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
@@ -318,7 +318,7 @@ bool testBool(std::vector<std::string> &testPmt, std::string pmt, int width,
             }
             volatile int64_t sink = std::accumulate(results_ar.begin(), results_ar.end(), 0ll);
             (void) sink;
-        } else if (pmt == testPmt[6]) {
+        } else if (pmt == "sort") {
             std::vector<BoolSecret> bs;
             bs.reserve(secretsA.size());
             for (size_t i = 0; i < secretsA.size(); ++i) {
@@ -379,7 +379,7 @@ int main(int argc, char *argv[]) {
     std::vector<int> testNums = {1000, 10000, 100000};
     std::vector<int> testSortNums = {1000, 10000, 100000};
     std::vector<int> testWidths = {1, 2, 4, 8, 16, 32, 64};
-    std::vector<std::string> testPmts = {"<", "<=", "==", "!=", "mux", "ar", "sort"};
+    std::vector<std::string> testPmts = {"<", /*"<=",*/ "==", /*"!=",*/ "mux", "ar", "sort"};
 
     if (Conf::_userParams.count("nums")) {
         std::string numsStr = Conf::_userParams["nums"];
