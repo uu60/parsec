@@ -1,4 +1,3 @@
-
 #include "../../../../include/compute/batch/bool/BoolEqualBatchOperator.h"
 
 #include "compute/batch/bool/BoolAndBatchOperator.h"
@@ -13,29 +12,30 @@ BoolEqualBatchOperator *BoolEqualBatchOperator::execute() {
     std::vector<BitwiseBmt> allBmts;
     bool gotBmt = prepareBmts(allBmts);
 
-    std::vector<BitwiseBmt> bmts;
+    const int lessBmtCount = BoolLessBatchOperator::bmtCount(_xis->size(), _width);
+    std::vector<BitwiseBmt> bmtsLessXy;
+    std::vector<BitwiseBmt> bmtsLessYx;
     if (gotBmt) {
-        int bc = BoolLessBatchOperator::bmtCount(_xis->size() * 2, _width);
-        bmts = std::vector(allBmts.end() - bc, allBmts.end());
-        allBmts.resize(allBmts.size() - bc);
+        bmtsLessYx = std::vector(allBmts.end() - lessBmtCount, allBmts.end());
+        allBmts.resize(allBmts.size() - lessBmtCount);
+        bmtsLessXy = std::vector(allBmts.end() - lessBmtCount, allBmts.end());
+        allBmts.resize(allBmts.size() - lessBmtCount);
     }
 
-    std::vector<int64_t> xy = *_xis;
-    xy.insert(xy.end(), _yis->begin(), _yis->end());
-    std::vector<int64_t> yx = *_yis;
-    yx.insert(yx.end(), _xis->begin(), _xis->end());
+    auto gtv = BoolLessBatchOperator(_xis, _yis, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
+            .setBmts(gotBmt ? &bmtsLessXy : nullptr)->execute()->_zis;
+    auto ltv = BoolLessBatchOperator(_yis, _xis, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
+            .setBmts(gotBmt ? &bmtsLessYx : nullptr)->execute()->_zis;
 
-    auto gtv_ltv = BoolLessBatchOperator(&xy, &yx, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
-            .setBmts(gotBmt ? &bmts : nullptr)->execute()->_zis;
-    for (auto &v: gtv_ltv) {
+    for (auto &v: gtv) {
         v = v ^ Comm::rank();
     }
-    std::vector ltv(gtv_ltv.begin() + gtv_ltv.size() / 2, gtv_ltv.end());
-    std::vector gtv = std::move(gtv_ltv);
-    gtv.resize(gtv.size() / 2);
+    for (auto &v: ltv) {
+        v = v ^ Comm::rank();
+    }
 
-    _zis = BoolAndBatchOperator(&gtv, &ltv, 1, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmts(
-        gotBmt ? &allBmts : nullptr)->execute()->_zis;
+    _zis = BoolAndBatchOperator(&gtv, &ltv, 1, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
+            .setBmts(gotBmt ? &allBmts : nullptr)->execute()->_zis;
     return this;
 }
 
@@ -49,7 +49,7 @@ int BoolEqualBatchOperator::tagStride() {
 }
 
 int BoolEqualBatchOperator::bmtCount(int num, int width) {
-    return BoolLessBatchOperator::bmtCount(2 * num, width) + BoolAndBatchOperator::bmtCount(num, width);
+    return 2 * BoolLessBatchOperator::bmtCount(num, width) + BoolAndBatchOperator::bmtCount(num, width);
 }
 
 bool BoolEqualBatchOperator::prepareBmts(std::vector<BitwiseBmt> &bmts) {
