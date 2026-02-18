@@ -17,7 +17,7 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    IntermediateDataSupport::init();
+    // IntermediateDataSupport::init();
 
     const int task = System::nextTask();
     const int sender = 0;

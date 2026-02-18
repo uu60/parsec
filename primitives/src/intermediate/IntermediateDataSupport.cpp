@@ -15,6 +15,7 @@
 #include <stdexcept>
 
 #include "intermediate/PipelineBitwiseBmtBatchGenerator.h"
+#include "utils/Crypto.h"
 
 void IntermediateDataSupport::prepareBmt() {
     if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
@@ -66,6 +67,8 @@ void IntermediateDataSupport::init() {
         return;
     }
 
+    prepareBaseOtRsaKeys();
+
     prepareRot();
 
     prepareIknp();
@@ -85,6 +88,31 @@ void IntermediateDataSupport::finalize() {
     delete _sRot1;
     delete _rRot1;
     _iknpBaseSeeds.clear();
+}
+
+void IntermediateDataSupport::prepareBaseOtRsaKeys() {
+    if (Comm::isClient()) {
+        return;
+    }
+
+    const int bits = 2048;
+    const int tag = 1;
+
+    // Each rank generates its own RSA key pair
+    for (int i = 0; i < 2; i++) {
+        if (Comm::rank() == i) {
+            // Generate my RSA key pair
+            Crypto::generateRsaKeys(bits);
+            _baseOtSelfPub = Crypto::_selfPubs[bits];
+            _baseOtSelfPri = Crypto::_selfPris[bits];
+
+            // Send public key to the other party
+            Comm::serverSend(_baseOtSelfPub, tag);
+        } else {
+            // Receive the other party's public key
+            Comm::serverReceive(_baseOtOtherPub, tag);
+        }
+    }
 }
 
 void IntermediateDataSupport::prepareRot() {

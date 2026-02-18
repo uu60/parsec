@@ -46,7 +46,7 @@ void BmtGenerator::computeMix(int sender) {
         }
     }
 
-    auto results = IknpOtBatchOperator(sender, &ss0, &ss1, &choices, 1, _taskTag,
+    auto results = IknpOtBatchOperator(sender, &ss0, &ss1, &choices, _width, _taskTag,
                                        _currentMsgTag + sender * IknpOtBatchOperator::tagStride()).execute()->
             _results;
 

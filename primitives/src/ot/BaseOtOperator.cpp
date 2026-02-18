@@ -3,33 +3,25 @@
 
 #include <string>
 #include "comm/Comm.h"
-#include "parallel/ThreadPoolSupport.h"
+#include "intermediate/IntermediateDataSupport.h"
 #include "utils/Math.h"
 #include "utils/Crypto.h"
-#include "utils/Log.h"
 
 BaseOtOperator::BaseOtOperator(int sender, int64_t m0, int64_t m1, int choice, int l, int taskTag, int msgTagOffset)
-    : BaseOtOperator(2048, sender, m0, m1, choice, l, taskTag, msgTagOffset) {
-}
-
-BaseOtOperator::BaseOtOperator(int bits, int sender, int64_t m0, int64_t m1, int choice, int l, int taskTag,
-                               int msgTagOffset) : AbstractOtOperator(sender, m0, m1, choice, l, taskTag,
-                                                                      msgTagOffset) {
-    _bits = bits;
+    : AbstractOtOperator(sender, m0, m1, choice, l, taskTag, msgTagOffset) {
 }
 
 BaseOtOperator *BaseOtOperator::execute() {
     if (Comm::isServer()) {
         generateAndShareRandoms();
-        generateAndShareRsaKeys();
-
         process();
     }
     return this;
 }
 
 void BaseOtOperator::generateAndShareRandoms() {
-    int len = (_bits >> 3) - 11;
+    // RSA 2048 bits: (2048 >> 3) - 11 = 256 - 11 = 245
+    const int len = 245;
     if (_isSender) {
         _rand0 = Math::randString(len);
         _rand1 = Math::randString(len);
@@ -45,27 +37,10 @@ void BaseOtOperator::generateAndShareRandoms() {
     }
 }
 
-void BaseOtOperator::generateAndShareRsaKeys() {
-    if (_isSender) {
-        bool newKey = Crypto::generateRsaKeys(_bits);
-        _pub = Crypto::_selfPubs[_bits];
-        _pri = Crypto::_selfPris[_bits];
-        if (newKey) {
-            Comm::serverSend(_pub, buildTag(_currentMsgTag));
-        }
-    } else {
-        if (Crypto::_otherPubs.count(_bits) > 0) {
-            _pub = Crypto::_otherPubs[_bits];
-        } else {
-            Comm::serverReceive(_pub, buildTag(_currentMsgTag));
-            Crypto::_otherPubs[_bits] = _pub;
-        }
-    }
-}
 
 void BaseOtOperator::process() {
     if (!_isSender) {
-        std::string ek = Crypto::rsaEncrypt(_randK, _pub);
+        std::string ek = Crypto::rsaEncrypt(_randK, IntermediateDataSupport::_baseOtOtherPub);
         std::string sumStr = Math::add(ek, _choice == 0 ? _rand0 : _rand1);
         Comm::serverSend(sumStr, buildTag(_currentMsgTag));
 
@@ -78,10 +53,10 @@ void BaseOtOperator::process() {
         std::string sumStr;
         Comm::serverReceive(sumStr, buildTag(_currentMsgTag));
         std::string k0 = Crypto::rsaDecrypt(
-            Math::minus(sumStr, _rand0), _pri
+            Math::minus(sumStr, _rand0), IntermediateDataSupport::_baseOtSelfPri
         );
         std::string k1 = Crypto::rsaDecrypt(
-            Math::minus(sumStr, _rand1), _pri
+            Math::minus(sumStr, _rand1), IntermediateDataSupport::_baseOtSelfPri
         );
         std::string m0 = Math::add(std::to_string(_m0), k0);
         std::string m1 = Math::add(std::to_string(_m1), k1);

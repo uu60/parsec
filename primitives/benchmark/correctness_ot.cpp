@@ -2,6 +2,8 @@
 // Created by 杜建璋 on 26-1-17.
 //
 
+#include "ot/BaseOtBatchOperator.h"
+#include "ot/BaseOtOperator.h"
 #include "ot/RandOtBatchOperator.h"
 #include "utils/Log.h"
 #include "utils/Math.h"
@@ -19,7 +21,7 @@ int main(int argc, char *argv[]) {
     bool isSender = Comm::rank() == 0;
 
     std::vector<int64_t> ss0, ss1;
-    std::vector<int64_t> choices;
+    std::vector<int> choices;
 
     if (isSender) {
         ss0.resize(10);
@@ -36,8 +38,12 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    auto results = RandOtBatchOperator(0, &ss0, &ss1, &choices, 1,
-                                       0).execute()->_results;
+    auto results = BaseOtBatchOperator(0, &ss0, &ss1, &choices, 64, 1, 0).execute()->_results;
+
+    // std::vector<int64_t> results;
+    // for (int i = 0; i < 10; i++) {
+    //     results.push_back(BaseOtOperator(0, isSender ? ss0[i] : -1, isSender ? ss1[i] : -1, !isSender ? choices[i] : -1, 64, 1, 0).execute()->_result);
+    // }
 
     if (Comm::rank() == 1) {
         Log::i("{}", StringUtils::vecToString(results));

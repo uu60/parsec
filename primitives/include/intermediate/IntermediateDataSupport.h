@@ -38,12 +38,19 @@ public:
     // IKNP base seeds derived from ROT; computed once in init().
     inline static std::vector<std::array<int64_t, 2> > _iknpBaseSeeds;
 
+    // RSA keys for BaseOT, pre-generated at initialization
+    inline static std::string _baseOtSelfPub;
+    inline static std::string _baseOtSelfPri;
+    inline static std::string _baseOtOtherPub;
+
 public:
     static void prepareBmt();
 
     static void prepareRot();
 
-    
+    static void prepareBaseOtRsaKeys();
+
+
     static void startGenerateBmtsAsync();
 
     static void startGenerateBitwiseBmtsAsync();
