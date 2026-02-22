@@ -35,8 +35,15 @@ public:
     inline static SRot *_sRot1 = nullptr;
     inline static RRot *_rRot1 = nullptr;
 
-    // IKNP base seeds derived from ROT; computed once in init().
-    inline static std::vector<std::array<int64_t, 2> > _iknpBaseSeeds;
+    // IKNP base seeds derived from base OT; computed once in init().
+    // _iknpBaseSeeds[dir][i] where dir=0 means sender=0, dir=1 means sender=1
+    // For each direction, the IKNP sender has one seed per row, receiver has two
+    inline static std::vector<std::array<int64_t, 2>> _iknpBaseSeeds0;  // For sender=0 direction
+    inline static std::vector<std::array<int64_t, 2>> _iknpBaseSeeds1;  // For sender=1 direction
+
+    // IKNP sender's choice bits (128 bits, one per base OT)
+    inline static std::vector<bool> _iknpSenderChoices0;  // For sender=0 direction
+    inline static std::vector<bool> _iknpSenderChoices1;  // For sender=1 direction
 
     // RSA keys for BaseOT, pre-generated at initialization
     inline static std::string _baseOtSelfPub;

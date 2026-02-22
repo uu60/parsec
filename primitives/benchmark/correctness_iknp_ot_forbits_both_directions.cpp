@@ -8,20 +8,7 @@
 #include <cstdint>
 #include <vector>
 
-int main(int argc, char **argv) {
-    System::init(argc, argv);
-
-    if (Comm::isClient()) {
-        System::finalize();
-        return 0;
-    }
-
-    IntermediateDataSupport::init();
-
-    const int task = System::nextTask();
-    const int sender = 1;
-    const int limbs = 256; // 256 limbs * 64 bits = 16384 OTs
-
+void testDirection(int sender, int task, int limbs) {
     const bool isSender = (Comm::rank() == sender);
 
     std::vector<int64_t> bits0Packed;
@@ -77,14 +64,31 @@ int main(int argc, char **argv) {
                 if (expBit != gotBit) {
                     ++mism;
                     if (mism <= 10) {
-                        Log::e("MISMATCH limb={} bit={} exp={} got={}", limb, bit, expBit, gotBit);
+                        Log::e("sender={} MISMATCH limb={} bit={} exp={} got={}", sender, limb, bit, expBit, gotBit);
                     }
                 }
             }
         }
 
-        Log::i(mism == 0 ? "[IKNP OT for bits correctness] PASS" : "[IKNP OT for bits correctness] FAIL mismatches={}", mism);
+        Log::i(mism == 0 ? "[IKNP OT forbits sender={}] PASS" : "[IKNP OT forbits sender={}] FAIL mismatches={}", sender, mism);
     }
+}
+
+int main(int argc, char **argv) {
+    System::init(argc, argv);
+
+    if (Comm::isClient()) {
+        System::finalize();
+        return 0;
+    }
+
+    const int limbs = 256; // 256 limbs * 64 bits = 16384 OTs
+
+    // Test sender=0
+    testDirection(0, System::nextTask(), limbs);
+
+    // Test sender=1
+    testDirection(1, System::nextTask(), limbs);
 
     System::finalize();
     return 0;

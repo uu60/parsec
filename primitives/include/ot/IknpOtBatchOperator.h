@@ -24,11 +24,14 @@ public:
     static constexpr int SECURITY_PARAM = 128;
 
     // Sender side keeps two seeds per i, derived per-operator from base seeds.
-    std::vector<std::array<int64_t, 2> > _senderSeeds; // [k] derived per-batch seeds
+    std::vector<std::array<uint64_t, 2> > _senderSeeds; // [k] derived per-batch seeds
 
     // Packed-bits mode (compatible with RandOtBatchOperator bits constructor)
     bool _doBits{};
     std::vector<int64_t> *_choiceBitsPacked{};
+
+    // Track which rank is the IKNP sender (0 or 1) to select correct base seeds
+    int _senderRank{};
 
 public:
     IknpOtBatchOperator(int sender,
@@ -54,17 +57,13 @@ public:
     static int tagStride();
 
 private:
-    void senderExtendForBits();
-
-    void receiverExtendForBits();
-
     void deriveSenderSeeds();
 
+    void senderExtendForBits();
+    void receiverExtendForBits();
+
     void senderExtend();
-
     void receiverExtend();
-
-    static int64_t hash64(int index, int64_t v);
 };
 
 #endif

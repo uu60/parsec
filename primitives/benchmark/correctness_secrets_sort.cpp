@@ -39,8 +39,8 @@ int main(int argc, char **argv) {
         for (int i = 0; i < n; i++) {
             origins[i] = Math::randInt(0, 1000);
         }
-        Secrets::arithShare(origins, 2, width, task);
         if (mode == "arith") {
+            Secrets::arithShare(origins, 2, width, task);
             std::vector<int64_t> result = Secrets::arithReconstruct(origins, 2, width, task);
 
             // Sort the original data for comparison
@@ -65,6 +65,7 @@ int main(int argc, char **argv) {
                 Log::i("[ArithSecret Sort correctness] FAIL mismatches={}", mismatch);
             }
         } else {
+            Secrets::boolShare(origins, 2, width, task);
             std::vector<int64_t> result = Secrets::boolReconstruct(origins, 2, width, task);
 
             // Sort the original data for comparison
