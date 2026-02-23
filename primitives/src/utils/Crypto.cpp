@@ -246,6 +246,51 @@ void Crypto::AesCtrPrg::generateBlocks(U128 *out, size_t blocks) const {
     }
 }
 
+void Crypto::batchPrgGenerate(const uint64_t* seeds, size_t numSeeds,
+                               U128* out, size_t blocksPerSeed) {
+    if (numSeeds == 0 || blocksPerSeed == 0) return;
+
+    // Thread-local EVP_CIPHER_CTX to avoid repeated allocation
+    thread_local struct CtxHolder {
+        EVP_CIPHER_CTX *ctx;
+        CtxHolder() { ctx = EVP_CIPHER_CTX_new(); }
+        ~CtxHolder() { if (ctx) EVP_CIPHER_CTX_free(ctx); }
+    } holder;
+
+    EVP_CIPHER_CTX *ctx = holder.ctx;
+    if (!ctx) {
+        throw std::runtime_error("EVP_CIPHER_CTX_new failed");
+    }
+
+    alignas(16) unsigned char key[16];
+    alignas(16) unsigned char iv[16] = {0};
+
+    for (size_t i = 0; i < numSeeds; ++i) {
+        // Derive key from seed (same as AesCtrPrg constructor)
+        uint64_t k0 = h(seeds[i] ^ 0x9e3779b97f4a7c15ULL);
+        uint64_t k1 = h(seeds[i] ^ 0xbf58476d1ce4e5b9ULL);
+        std::memcpy(key, &k0, 8);
+        std::memcpy(key + 8, &k1, 8);
+
+        // Initialize cipher with this key
+        if (EVP_EncryptInit_ex(ctx, EVP_aes_128_ctr(), nullptr, key, iv) != 1) {
+            throw std::runtime_error("EVP_EncryptInit_ex failed");
+        }
+
+        // Generate output for this seed
+        U128* seedOut = &out[i * blocksPerSeed];
+        unsigned char* bytes = reinterpret_cast<unsigned char*>(seedOut);
+        const size_t nbytes = blocksPerSeed * 16;
+
+        std::memset(bytes, 0, nbytes);
+
+        int outLen = 0;
+        if (EVP_EncryptUpdate(ctx, bytes, &outLen, bytes, static_cast<int>(nbytes)) != 1) {
+            throw std::runtime_error("EVP_EncryptUpdate failed");
+        }
+    }
+}
+
 // ============== Hash Function ==============
 
 uint64_t Crypto::hash64(int index, uint64_t v) {
@@ -328,12 +373,14 @@ uint64_t Crypto::hashBatchForBits(int baseIndex, const U128* columns, const size
 }
 
 uint64_t Crypto::hash64Fast(int index, const U128& v) {
-    // Fast correlation-robust hash using AES with FIXED key
+    // Ultra-fast correlation-robust hash using fixed-key AES
     // H(index, x) = AES_k(x XOR index_block) XOR x
-    // Using a fixed key is much faster as we can reuse expanded key
-    // The index is mixed into the input for domain separation
+    //
+    // Key optimization: Use a single static EVP_CIPHER_CTX with fixed key,
+    // and mix the index into the plaintext instead of the key.
+    // This avoids key schedule computation on every call.
 
-    // Fixed key for IKNP hashing (can be any constant)
+    // Fixed key for IKNP hashing
     static const unsigned char FIXED_KEY[16] = {
         0x49, 0x4B, 0x4E, 0x50,  // "IKNP"
         0x48, 0x41, 0x53, 0x48,  // "HASH"
@@ -341,34 +388,36 @@ uint64_t Crypto::hash64Fast(int index, const U128& v) {
         0x00, 0x00, 0x00, 0x00
     };
 
-    // Thread-local AES context for efficiency
-    thread_local EVP_CIPHER_CTX *ctx = nullptr;
-    thread_local bool initialized = false;
+    // Thread-local AES context - initialized once per thread
+    thread_local struct AesCtxHolder {
+        EVP_CIPHER_CTX *ctx;
+        AesCtxHolder() {
+            ctx = EVP_CIPHER_CTX_new();
+            EVP_EncryptInit_ex(ctx, EVP_aes_128_ecb(), nullptr, FIXED_KEY, nullptr);
+            EVP_CIPHER_CTX_set_padding(ctx, 0);
+        }
+        ~AesCtxHolder() {
+            if (ctx) EVP_CIPHER_CTX_free(ctx);
+        }
+    } holder;
 
-    if (!initialized) {
-        ctx = EVP_CIPHER_CTX_new();
-        EVP_EncryptInit_ex(ctx, EVP_aes_128_ecb(), nullptr, FIXED_KEY, nullptr);
-        EVP_CIPHER_CTX_set_padding(ctx, 0);
-        initialized = true;
-    }
-
-    // Input = v XOR index_block (mix index into input for domain separation)
+    // Mix index into input for domain separation
+    // Use XOR which is fast and provides good mixing
     alignas(16) unsigned char input[16];
-    uint64_t lo_mixed = v.lo ^ static_cast<uint64_t>(index);
-    uint64_t hi_mixed = v.hi ^ (static_cast<uint64_t>(index) << 32);
+    alignas(16) unsigned char output[16];
+
+    const uint64_t index64 = static_cast<uint64_t>(static_cast<uint32_t>(index));
+    const uint64_t lo_mixed = v.lo ^ index64;
+    const uint64_t hi_mixed = v.hi ^ (index64 * 0x9e3779b97f4a7c15ULL);  // Golden ratio constant for better mixing
+
     store_u64_le(lo_mixed, input);
     store_u64_le(hi_mixed, input + 8);
 
-    // Output buffer
-    alignas(16) unsigned char output[16];
-
-    // Re-init is needed for ECB mode to reset state
-    EVP_EncryptInit_ex(ctx, nullptr, nullptr, nullptr, nullptr);
-
+    // Single AES block encryption - no re-init needed for ECB with same key
     int outlen;
-    EVP_EncryptUpdate(ctx, output, &outlen, input, 16);
+    EVP_EncryptUpdate(holder.ctx, output, &outlen, input, 16);
 
-    // XOR with original input (Davies-Meyer style)
+    // XOR with original input (Davies-Meyer construction)
     uint64_t result;
     std::memcpy(&result, output, sizeof(uint64_t));
     result ^= v.lo;
@@ -429,6 +478,71 @@ uint64_t Crypto::hashBatchForBitsFast(int baseIndex, const U128* columns, const 
     return result;
 }
 
+void Crypto::hashTileBatch(int baseIndex, const U128* tile, size_t validCount, uint64_t* hashBits) {
+    // Ultra-fast batch hash for entire tile
+    // Processes up to 128 columns and packs LSB of each hash into hashBits array
+    // hashBits[0] contains bits for columns 0-63, hashBits[1] for columns 64-127
+
+    hashBits[0] = 0;
+    hashBits[1] = 0;
+
+    if (validCount == 0) return;
+
+    // Fixed key for IKNP hashing
+    static const unsigned char FIXED_KEY[16] = {
+        0x49, 0x4B, 0x4E, 0x50,  // "IKNP"
+        0x48, 0x41, 0x53, 0x48,  // "HASH"
+        0x4B, 0x45, 0x59, 0x31,  // "KEY1"
+        0x00, 0x00, 0x00, 0x00
+    };
+
+    // Thread-local AES context
+    thread_local struct AesCtxHolder {
+        EVP_CIPHER_CTX *ctx;
+        AesCtxHolder() {
+            ctx = EVP_CIPHER_CTX_new();
+            EVP_EncryptInit_ex(ctx, EVP_aes_128_ecb(), nullptr, FIXED_KEY, nullptr);
+            EVP_CIPHER_CTX_set_padding(ctx, 0);
+        }
+        ~AesCtxHolder() {
+            if (ctx) EVP_CIPHER_CTX_free(ctx);
+        }
+    } holder;
+
+    alignas(16) unsigned char input[16];
+    alignas(16) unsigned char output[16];
+
+    const size_t count = std::min(validCount, static_cast<size_t>(128));
+
+    for (size_t k = 0; k < count; ++k) {
+        const U128& col = tile[k];
+        const int index = baseIndex + static_cast<int>(k);
+
+        // Mix index into input
+        const uint64_t index64 = static_cast<uint64_t>(static_cast<uint32_t>(index));
+        const uint64_t lo_mixed = col.lo ^ index64;
+        const uint64_t hi_mixed = col.hi ^ (index64 * 0x9e3779b97f4a7c15ULL);
+
+        store_u64_le(lo_mixed, input);
+        store_u64_le(hi_mixed, input + 8);
+
+        int outlen;
+        EVP_EncryptUpdate(holder.ctx, output, &outlen, input, 16);
+
+        // XOR with original and extract LSB
+        uint64_t h;
+        std::memcpy(&h, output, sizeof(uint64_t));
+        h ^= col.lo;
+
+        if (h & 1) {
+            if (k < 64) {
+                hashBits[0] |= (1ULL << k);
+            } else {
+                hashBits[1] |= (1ULL << (k - 64));
+            }
+        }
+    }
+}
 
 
 void Crypto::transpose128x128_inplace(U128 v[128]) {

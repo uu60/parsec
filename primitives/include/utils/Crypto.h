@@ -63,6 +63,12 @@ public:
         std::array<unsigned char, 16> _iv{};
     };
 
+    // Batch PRG generation for multiple seeds - much faster than creating individual AesCtrPrg objects
+    // Generates PRG output for 128 seeds at once, each producing 'blocksPerSeed' U128 blocks
+    // Output layout: out[seed * blocksPerSeed + block]
+    static void batchPrgGenerate(const uint64_t* seeds, size_t numSeeds,
+                                  U128* out, size_t blocksPerSeed);
+
     // Hash function for OT
     static uint64_t hash64(int index, uint64_t v);
 
@@ -79,6 +85,11 @@ public:
 
     // Fast batch hash using AES for packed-bits IKNP
     static uint64_t hashBatchForBitsFast(int baseIndex, const U128* columns, const size_t* colIndices, size_t count);
+
+    // Ultra-fast: hash entire tile and return packed bits for each limb
+    // Processes all 128 columns of a transposed tile, returns hash LSBs packed into result array
+    // Much faster than calling hash64Fast 128 times
+    static void hashTileBatch(int baseIndex, const U128* tile, size_t validCount, uint64_t* hashBits);
 
     // 128x128 bit matrix transpose (in-place)
     static void transpose128x128_inplace(U128 v[128]);
