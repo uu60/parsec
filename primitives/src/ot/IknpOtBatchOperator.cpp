@@ -295,11 +295,11 @@ void IknpOtBatchOperator::senderExtendForBits() {
                     }
                 }
 
-                // Batch hash entire tile for h0 and h1
+                // Batch hash tile AND tile^sBlock in ONE AES call (2× faster)
                 uint64_t h0Bits[2], h1Bits[2];
                 const size_t validInTile = std::min<size_t>(TILE_ROWS, chunk - blk * TILE_ROWS);
-                Crypto::hashTileBatch(static_cast<int>(offset + blk * TILE_ROWS), tile, validInTile, h0Bits);
-                Crypto::hashTileBatch(static_cast<int>(offset + blk * TILE_ROWS), tile_xor_s, validInTile, h1Bits);
+                Crypto::hashTileBatchPair(static_cast<int>(offset + blk * TILE_ROWS),
+                                         tile, tile_xor_s, validInTile, h0Bits, h1Bits);
 
                 // Process results
                 for (size_t k = 0; k < TILE_ROWS && (blk + k * blocks) < chunk; ++k) {

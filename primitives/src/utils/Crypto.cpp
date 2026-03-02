@@ -574,6 +574,66 @@ void Crypto::hashTileBatch(int baseIndex, const U128* tile, size_t validCount, u
     }
 }
 
+void Crypto::hashTileBatchPair(int baseIndex, const U128 *tile, const U128 *tileXorS,
+                               size_t validCount,
+                               uint64_t *h0Bits, uint64_t *h1Bits) {
+    // Hash tile[0..validCount) AND tileXorS[0..validCount) in ONE EVP_EncryptUpdate.
+    // Layout: [tile[0..cnt), tileXorS[0..cnt)] → 2*cnt AES blocks in one call.
+    h0Bits[0] = h0Bits[1] = 0;
+    h1Bits[0] = h1Bits[1] = 0;
+    if (validCount == 0) return;
+
+    static const unsigned char FIXED_KEY[16] = {
+        0x49, 0x4B, 0x4E, 0x50, 0x48, 0x41, 0x53, 0x48,
+        0x4B, 0x45, 0x59, 0x31, 0x00, 0x00, 0x00, 0x00
+    };
+    thread_local struct AesCtxHolder {
+        EVP_CIPHER_CTX *ctx;
+        AesCtxHolder() {
+            ctx = EVP_CIPHER_CTX_new();
+            EVP_EncryptInit_ex(ctx, EVP_aes_128_ecb(), nullptr, FIXED_KEY, nullptr);
+            EVP_CIPHER_CTX_set_padding(ctx, 0);
+        }
+        ~AesCtxHolder() { if (ctx) EVP_CIPHER_CTX_free(ctx); }
+    } holder;
+
+    const size_t count = std::min(validCount, static_cast<size_t>(128));
+
+    // Pack: first 'count' blocks from tile, next 'count' blocks from tileXorS
+    alignas(16) unsigned char inputs[256 * 16];
+    for (size_t k = 0; k < count; ++k) {
+        const uint64_t idx64 = static_cast<uint64_t>(static_cast<uint32_t>(baseIndex + static_cast<int>(k)));
+        const uint64_t mul   = idx64 * 0x9e3779b97f4a7c15ULL;
+        {
+            const U128 &c = tile[k];
+            uint64_t lo = c.lo ^ idx64, hi = c.hi ^ mul;
+            std::memcpy(inputs + k * 16,     &lo, 8);
+            std::memcpy(inputs + k * 16 + 8, &hi, 8);
+        }
+        {
+            const U128 &c = tileXorS[k];
+            uint64_t lo = c.lo ^ idx64, hi = c.hi ^ mul;
+            std::memcpy(inputs + (count + k) * 16,     &lo, 8);
+            std::memcpy(inputs + (count + k) * 16 + 8, &hi, 8);
+        }
+    }
+
+    alignas(16) unsigned char outputs[256 * 16];
+    int outlen = 0;
+    EVP_EncryptUpdate(holder.ctx, outputs, &outlen, inputs,
+                      static_cast<int>(count * 2 * 16));
+
+    for (size_t k = 0; k < count; ++k) {
+        uint64_t v0, v1;
+        std::memcpy(&v0, outputs + k * 16, 8);
+        std::memcpy(&v1, outputs + (count + k) * 16, 8);
+        v0 ^= tile[k].lo;       // Davies-Meyer
+        v1 ^= tileXorS[k].lo;
+        if (v0 & 1) { if (k < 64) h0Bits[0] |= (1ULL << k); else h0Bits[1] |= (1ULL << (k - 64)); }
+        if (v1 & 1) { if (k < 64) h1Bits[0] |= (1ULL << k); else h1Bits[1] |= (1ULL << (k - 64)); }
+    }
+}
+
 
 void Crypto::transpose128x128_inplace(U128 v[128]) {
     uint64_t x0[128];

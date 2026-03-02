@@ -91,6 +91,20 @@ public:
     // Much faster than calling hash64Fast 128 times
     static void hashTileBatch(int baseIndex, const U128* tile, size_t validCount, uint64_t* hashBits);
 
+    static void hashTileBatchPair(int baseIndex, const U128* tile, const U128* tileXorS,
+                                  size_t validCount,
+                                  uint64_t* h0Bits, uint64_t* h1Bits);
+
+    static void hashMultiTileBatchPair(int baseIndexStart,
+                                       const U128* tiles, const U128* tilesXorS,
+                                       size_t numTiles, size_t validInLastTile,
+                                       uint64_t* h0BitsArr, uint64_t* h1BitsArr);
+
+    static void hashMultiTileBatch(int baseIndexStart,
+                                   const U128* tiles,
+                                   size_t numTiles, size_t validInLastTile,
+                                   uint64_t* hBitsArr);
+
     // 128x128 bit matrix transpose (in-place)
     static void transpose128x128_inplace(U128 v[128]);
 
