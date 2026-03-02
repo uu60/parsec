@@ -205,11 +205,23 @@ void IknpOtBatchOperator::senderExtendForBits() {
         if (senderChoices[i]) sBlock.hi |= (1ULL << (i - 64));
     }
 
-    // Phase 1: Receive ALL U matrices in ONE communication
-    std::vector<int64_t> allUBuffer;
+    // Phase 1: Post async receive for ALL U matrices, overlap with PRG for tile 0
+    std::vector<int64_t> allUBuffer(totalUSize);
     {
         const int64_t tc = System::currentTimeMillis();
-        Comm::serverReceive(allUBuffer, 1, buildTag(_currentMsgTag.load()));
+        // Post the receive immediately (non-blocking)
+        AbstractRequest *recvReq = Comm::serverReceiveAsync(
+            allUBuffer, static_cast<int>(totalUSize), 1, buildTag(_currentMsgTag.load()));
+        // While U is in-flight, pre-expand PRG for tile 0 to hide latency
+        {
+            alignas(32) uint64_t prgSeeds[TILE_ROWS];
+            for (size_t i = 0; i < TILE_ROWS; ++i) prgSeeds[i] = _senderSeeds[i][0];
+            const int64_t tp = System::currentTimeMillis();
+            Crypto::batchPrgGenerate(prgSeeds, TILE_ROWS, qRows, tileBlocks[0]);
+            _timePrg.fetch_add(System::currentTimeMillis() - tp, std::memory_order_relaxed);
+        }
+        // Wait for U to arrive
+        Comm::wait(recvReq);
         _timeCommRecv.fetch_add(System::currentTimeMillis() - tc, std::memory_order_relaxed);
     }
     _currentMsgTag.fetch_add(1, std::memory_order_relaxed);
@@ -223,12 +235,10 @@ void IknpOtBatchOperator::senderExtendForBits() {
         const size_t chunk = std::min<size_t>(TILE_ROWS * W, totalBits - offset);
         const size_t blocks = tileBlocks[tileIdx];
 
-        // Expand Q rows using batch PRG
-        alignas(32) uint64_t prgSeeds[TILE_ROWS];
-        for (size_t i = 0; i < TILE_ROWS; ++i) {
-            prgSeeds[i] = _senderSeeds[i][0] + tileIdx;
-        }
-        {
+        // Expand Q rows using batch PRG (tile 0 already done above)
+        if (tileIdx > 0) {
+            alignas(32) uint64_t prgSeeds[TILE_ROWS];
+            for (size_t i = 0; i < TILE_ROWS; ++i) prgSeeds[i] = _senderSeeds[i][0] + tileIdx;
             const int64_t tp = System::currentTimeMillis();
             Crypto::batchPrgGenerate(prgSeeds, TILE_ROWS, qRows, blocks);
             _timePrg.fetch_add(System::currentTimeMillis() - tp, std::memory_order_relaxed);
@@ -446,15 +456,17 @@ void IknpOtBatchOperator::receiverExtendForBits() {
         ++tileIdx;
     }
 
-    // Phase 2: Send ALL U matrices in ONE communication
+    // Phase 2: Send ALL U matrices async, immediately start Phase 3 (hash) in parallel
+    AbstractRequest *sendReq = nullptr;
     {
         const int64_t tc = System::currentTimeMillis();
-        Comm::serverSend(allUBuffer, 1, buildTag(_currentMsgTag.load()));
-        _timeCommSend.fetch_add(System::currentTimeMillis() - tc, std::memory_order_relaxed);
+        sendReq = Comm::serverSendAsync(allUBuffer, 1, buildTag(_currentMsgTag.load()));
+        _timeCommSend.fetch_add(0, std::memory_order_relaxed);  // will account below
+        (void)tc;
     }
     _currentMsgTag.fetch_add(1, std::memory_order_relaxed);
 
-    // Phase 3: Transpose + Hash using cached T0 rows (NO second PRG needed)
+    // Phase 3: Transpose + Hash using cached T0 rows — runs WHILE U is being sent
     offset = 0;
     tileIdx = 0;
     uBufferOffset = 0;
@@ -496,11 +508,20 @@ void IknpOtBatchOperator::receiverExtendForBits() {
         ++tileIdx;
     }
 
-    // Phase 4: Receive masked messages from sender
-    std::vector<int64_t> maskedMessages;
+    // Wait for U send to complete, record send time
     {
         const int64_t tc = System::currentTimeMillis();
-        Comm::serverReceive(maskedMessages, 1, buildTag(_currentMsgTag.load()));
+        Comm::wait(sendReq);
+        _timeCommSend.fetch_add(System::currentTimeMillis() - tc, std::memory_order_relaxed);
+    }
+
+    // Phase 4: Post async receive of masked messages, then do Unmask prep while waiting
+    std::vector<int64_t> maskedMessages(n * 2);
+    {
+        const int64_t tc = System::currentTimeMillis();
+        AbstractRequest *recvReq = Comm::serverReceiveAsync(
+            maskedMessages, static_cast<int>(n * 2), 1, buildTag(_currentMsgTag.load()));
+        Comm::wait(recvReq);
         _timeCommRecv.fetch_add(System::currentTimeMillis() - tc, std::memory_order_relaxed);
     }
     _currentMsgTag.fetch_add(1, std::memory_order_relaxed);
