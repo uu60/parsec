@@ -4,11 +4,14 @@
 #include "comm/Comm.h"
 #include "conf/Conf.h"
 #include "intermediate/IntermediateDataSupport.h"
+#include "parallel/ThreadPoolSupport.h"
 #include "utils/Crypto.h"
 #include "utils/System.h"
 #include <cstring>
 #include <stdexcept>
 #include <algorithm>
+#include <future>
+#include <vector>
 
 // Stack-allocated buffers for better cache performance (aligned to SIMD boundaries)
 constexpr size_t MAX_TILE_WIDTH = 64;      // Maximum tile width for stack allocation
@@ -226,105 +229,123 @@ void IknpOtBatchOperator::senderExtendForBits() {
     }
     _currentMsgTag.fetch_add(1, std::memory_order_relaxed);
 
-    // Phase 2: Process all tiles using the received U matrices
-    size_t offset = 0;
-    size_t tileIdx = 0;
-    size_t uBufferOffset = 0;
+    // Phase 2: Process all tiles in parallel using multiple threads
+    {
+        const size_t nThreads = std::min<size_t>(numTiles,
+                                    std::max<size_t>(1, std::thread::hardware_concurrency()));
 
-    while (offset < totalBits) {
-        const size_t chunk = std::min<size_t>(TILE_ROWS * W, totalBits - offset);
-        const size_t blocks = tileBlocks[tileIdx];
-
-        // Expand Q rows using batch PRG (tile 0 already done above)
-        if (tileIdx > 0) {
-            alignas(32) uint64_t prgSeeds[TILE_ROWS];
-            for (size_t i = 0; i < TILE_ROWS; ++i) prgSeeds[i] = _senderSeeds[i][0] + tileIdx;
-            const int64_t tp = System::currentTimeMillis();
-            Crypto::batchPrgGenerate(prgSeeds, TILE_ROWS, qRows, blocks);
-            _timePrg.fetch_add(System::currentTimeMillis() - tp, std::memory_order_relaxed);
+        // Pre-compute per-tile offsets and uBufferOffsets
+        std::vector<size_t> tileOffset(numTiles), tileUOffset(numTiles);
+        {
+            size_t off = 0, uOff = 0;
+            for (size_t t = 0; t < numTiles; ++t) {
+                tileOffset[t]  = off;
+                tileUOffset[t] = uOff;
+                off  += std::min<size_t>(TILE_ROWS * W, totalBits - off);
+                uOff += TILE_ROWS * tileBlocks[t] * 2;
+            }
         }
 
-        // Get U matrix from batch buffer
-        const U128 *uRows = reinterpret_cast<const U128 *>(&allUBuffer[uBufferOffset]);
+        // Each thread gets its own scratch buffers to avoid false sharing
+        auto workerSender = [&](size_t tStart, size_t tEnd) {
+            alignas(32) U128 qRowsLocal[MAX_TILE_SIZE];
+            alignas(32) U128 tile[TILE_ROWS];
+            alignas(32) U128 tile_xor_s[TILE_ROWS];
 
-        // XOR with U based on sender's choice bits
-        {
-            const int64_t tx = System::currentTimeMillis();
-            if (Conf::ENABLE_SIMD) {
-                for (size_t i = 0; i < TILE_ROWS; ++i) {
-                    if (senderChoices[i]) {
-                        SimdSupport::xorU128Arrays(&qRows[i * blocks], &qRows[i * blocks],
-                                                   &uRows[i * blocks], blocks);
-                    }
+            for (size_t t = tStart; t < tEnd; ++t) {
+                const size_t offset_ = tileOffset[t];
+                const size_t chunk_  = std::min<size_t>(TILE_ROWS * W, totalBits - offset_);
+                const size_t blocks_ = tileBlocks[t];
+                const size_t uOff_   = tileUOffset[t];
+
+                // PRG expand
+                alignas(32) uint64_t prgSeeds[TILE_ROWS];
+                for (size_t i = 0; i < TILE_ROWS; ++i)
+                    prgSeeds[i] = _senderSeeds[i][0] + t;
+                {
+                    const int64_t tp = System::currentTimeMillis();
+                    Crypto::batchPrgGenerate(prgSeeds, TILE_ROWS, qRowsLocal, blocks_);
+                    _timePrg.fetch_add(System::currentTimeMillis() - tp, std::memory_order_relaxed);
                 }
-            } else {
-                for (size_t i = 0; i < TILE_ROWS; ++i) {
-                    if (senderChoices[i]) {
-                        for (size_t b = 0; b < blocks; ++b) {
-                            qRows[i * blocks + b].lo ^= uRows[i * blocks + b].lo;
-                            qRows[i * blocks + b].hi ^= uRows[i * blocks + b].hi;
+
+                // XOR with U
+                const U128 *uRows_ = reinterpret_cast<const U128 *>(&allUBuffer[uOff_]);
+                {
+                    const int64_t tx = System::currentTimeMillis();
+                    if (Conf::ENABLE_SIMD) {
+                        for (size_t i = 0; i < TILE_ROWS; ++i) {
+                            if (senderChoices[i])
+                                SimdSupport::xorU128Arrays(&qRowsLocal[i * blocks_],
+                                                           &qRowsLocal[i * blocks_],
+                                                           &uRows_[i * blocks_], blocks_);
+                        }
+                    } else {
+                        for (size_t i = 0; i < TILE_ROWS; ++i) {
+                            if (senderChoices[i]) {
+                                for (size_t b = 0; b < blocks_; ++b) {
+                                    qRowsLocal[i * blocks_ + b].lo ^= uRows_[i * blocks_ + b].lo;
+                                    qRowsLocal[i * blocks_ + b].hi ^= uRows_[i * blocks_ + b].hi;
+                                }
+                            }
                         }
                     }
-                }
-            }
-            _timeXorU.fetch_add(System::currentTimeMillis() - tx, std::memory_order_relaxed);
-        }
-
-        // Transpose tile-by-tile and hash columns directly
-        alignas(32) U128 tile[TILE_ROWS];
-        alignas(32) U128 tile_xor_s[TILE_ROWS];
-
-        {
-            const int64_t th = System::currentTimeMillis();
-            for (size_t blk = 0; blk < blocks; ++blk) {
-                // Extract one tile (column of blocks)
-                for (size_t r = 0; r < TILE_ROWS; ++r) {
-                    tile[r] = qRows[r * blocks + blk];
+                    _timeXorU.fetch_add(System::currentTimeMillis() - tx, std::memory_order_relaxed);
                 }
 
-                // Transpose 128x128 tile
-                Crypto::transpose128x128_inplace(tile);
+                // Transpose + Hash
+                {
+                    const int64_t th = System::currentTimeMillis();
+                    for (size_t blk = 0; blk < blocks_; ++blk) {
+                        for (size_t r = 0; r < TILE_ROWS; ++r)
+                            tile[r] = qRowsLocal[r * blocks_ + blk];
+                        Crypto::transpose128x128_inplace(tile);
 
-                // Pre-compute XOR'd version for h1
-                if (Conf::ENABLE_SIMD) {
-                    SimdSupport::xorU128ArrayWithConstant(tile_xor_s, tile, sBlock, TILE_ROWS);
-                } else {
-                    for (size_t k = 0; k < TILE_ROWS; ++k) {
-                        tile_xor_s[k].lo = tile[k].lo ^ sBlock.lo;
-                        tile_xor_s[k].hi = tile[k].hi ^ sBlock.hi;
+                        if (Conf::ENABLE_SIMD) {
+                            SimdSupport::xorU128ArrayWithConstant(tile_xor_s, tile, sBlock, TILE_ROWS);
+                        } else {
+                            for (size_t k = 0; k < TILE_ROWS; ++k) {
+                                tile_xor_s[k].lo = tile[k].lo ^ sBlock.lo;
+                                tile_xor_s[k].hi = tile[k].hi ^ sBlock.hi;
+                            }
+                        }
+
+                        uint64_t h0Bits[2], h1Bits[2];
+                        const size_t validInTile = std::min<size_t>(TILE_ROWS, chunk_ - blk * TILE_ROWS);
+                        Crypto::hashTileBatchPair(static_cast<int>(offset_ + blk * TILE_ROWS),
+                                                  tile, tile_xor_s, validInTile, h0Bits, h1Bits);
+
+                        for (size_t k = 0; k < TILE_ROWS && (blk + k * blocks_) < chunk_; ++k) {
+                            const size_t pos    = blk + k * blocks_;
+                            if (offset_ + pos >= totalBits) continue;
+                            const size_t limbIdx = (offset_ + pos) / 64;
+                            const size_t bitPos  = (offset_ + pos) % 64;
+                            const uint64_t m0_bit = ((*_ms0)[limbIdx] >> bitPos) & 1;
+                            const uint64_t m1_bit = ((*_ms1)[limbIdx] >> bitPos) & 1;
+                            const uint64_t h0_bit = (k < 64) ? ((h0Bits[0] >> k) & 1) : ((h0Bits[1] >> (k-64)) & 1);
+                            const uint64_t h1_bit = (k < 64) ? ((h1Bits[0] >> k) & 1) : ((h1Bits[1] >> (k-64)) & 1);
+                            // Atomic OR into _results (different tiles write to different limbs — no overlap)
+                            _results[limbIdx * 2]     |= static_cast<int64_t>((m0_bit ^ h0_bit) << bitPos);
+                            _results[limbIdx * 2 + 1] |= static_cast<int64_t>((m1_bit ^ h1_bit) << bitPos);
+                        }
                     }
-                }
-
-                // Batch hash tile AND tile^sBlock in ONE AES call (2× faster)
-                uint64_t h0Bits[2], h1Bits[2];
-                const size_t validInTile = std::min<size_t>(TILE_ROWS, chunk - blk * TILE_ROWS);
-                Crypto::hashTileBatchPair(static_cast<int>(offset + blk * TILE_ROWS),
-                                         tile, tile_xor_s, validInTile, h0Bits, h1Bits);
-
-                // Process results
-                for (size_t k = 0; k < TILE_ROWS && (blk + k * blocks) < chunk; ++k) {
-                    const size_t pos = blk + k * blocks;
-                    if (offset + pos >= totalBits) continue;
-
-                    const size_t limbIdx = (offset + pos) / 64;
-                    const size_t bitPos = (offset + pos) % 64;
-
-                    const uint64_t m0_bit = ((*_ms0)[limbIdx] >> bitPos) & 1;
-                    const uint64_t m1_bit = ((*_ms1)[limbIdx] >> bitPos) & 1;
-
-                    const uint64_t h0_bit = (k < 64) ? ((h0Bits[0] >> k) & 1) : ((h0Bits[1] >> (k - 64)) & 1);
-                    const uint64_t h1_bit = (k < 64) ? ((h1Bits[0] >> k) & 1) : ((h1Bits[1] >> (k - 64)) & 1);
-
-                    _results[limbIdx * 2] |= ((m0_bit ^ h0_bit) << bitPos);
-                    _results[limbIdx * 2 + 1] |= ((m1_bit ^ h1_bit) << bitPos);
+                    _timeTransposeHash.fetch_add(System::currentTimeMillis() - th, std::memory_order_relaxed);
                 }
             }
-            _timeTransposeHash.fetch_add(System::currentTimeMillis() - th, std::memory_order_relaxed);
-        }
+        };
 
-        uBufferOffset += TILE_ROWS * blocks * 2;
-        offset += chunk;
-        ++tileIdx;
+        // Submit tiles to thread pool
+        const size_t tilesPerThread = (numTiles + nThreads - 1) / nThreads;
+        std::vector<std::future<void>> futures;
+        futures.reserve(nThreads);
+        for (size_t i = 0; i < nThreads; ++i) {
+            const size_t tStart = i * tilesPerThread;
+            const size_t tEnd   = std::min(tStart + tilesPerThread, numTiles);
+            if (tStart >= numTiles) break;
+            futures.push_back(ThreadPoolSupport::submit([=, &workerSender]() {
+                workerSender(tStart, tEnd);
+            }));
+        }
+        for (auto &f : futures) f.get();
     }
 
     // Phase 3: Send masked messages to receiver
@@ -363,17 +384,23 @@ void IknpOtBatchOperator::receiverExtendForBits() {
         }
     }
 
+    // Pre-compute per-tile offsets
+    std::vector<size_t> tileOffset(numTiles), tileUOffset(numTiles);
+    {
+        size_t off = 0, uOff = 0;
+        for (size_t t = 0; t < numTiles; ++t) {
+            tileOffset[t]  = off;
+            tileUOffset[t] = uOff;
+            const size_t chunk = std::min<size_t>(TILE_ROWS * W, totalBits - off);
+            off  += chunk;
+            uOff += TILE_ROWS * tileBlocks[t] * 2;
+        }
+    }
+
     // Single buffer for all U matrices (sent to sender)
     std::vector<int64_t> allUBuffer(totalUSize);
-    // *** Cache all T0 rows so Phase 3 skips the second batchPrgGenerate ***
-    std::vector<U128> allTBuffer(totalUSize / 2);  // same element count as U
-
-    size_t uBufferOffset = 0;
-
-    // Stack-allocated computation buffers
-    alignas(32) U128 tRows[MAX_TILE_SIZE];
-    alignas(32) U128 uRows[MAX_TILE_SIZE];
-    alignas(32) U128 cBlocks[W];
+    // Cache all T0 rows so Phase 3 skips the second batchPrgGenerate
+    std::vector<U128> allTBuffer(totalUSize / 2);
 
     const auto &baseSeeds = (_senderRank == 0)
         ? IntermediateDataSupport::_iknpBaseSeeds0
@@ -388,72 +415,92 @@ void IknpOtBatchOperator::receiverExtendForBits() {
         derivedSeeds1[i] = static_cast<uint64_t>(baseSeeds[i][1]) ^ mix;
     }
 
-    // Phase 1: Compute ALL U matrices; cache T0 rows for Phase 3
-    size_t offset = 0;
-    size_t tileIdx = 0;
-    while (offset < totalBits) {
-        const size_t chunk = std::min<size_t>(TILE_ROWS * W, totalBits - offset);
-        const size_t blocks = tileBlocks[tileIdx];
+    const size_t nThreads = std::min<size_t>(numTiles,
+                                std::max<size_t>(1, std::thread::hardware_concurrency()));
 
-        // Pack choice bits
-        std::memset(cBlocks, 0, sizeof(cBlocks));
-        for (size_t w = 0; w < blocks; ++w) {
-            for (size_t row = 0; row < TILE_ROWS; ++row) {
-                const size_t idx = offset + w + row * blocks;
-                if (idx >= totalBits) break;
-                const size_t limbIdx = idx / 64;
-                const size_t bitPos = idx % 64;
-                const uint64_t choiceBit = ((*_choiceBitsPacked)[limbIdx] >> bitPos) & 1;
-                if (row < 64) cBlocks[w].lo |= (choiceBit << row);
-                else          cBlocks[w].hi |= (choiceBit << (row - 64));
-            }
-        }
+    // Phase 1: Compute ALL U matrices in parallel; cache T0 rows for Phase 3
+    {
+        auto workerPhase1 = [&](size_t tStart, size_t tEnd) {
+            alignas(32) U128 tRowsLocal[MAX_TILE_SIZE];
+            alignas(32) U128 uRowsLocal[MAX_TILE_SIZE];
+            alignas(32) U128 cBlocks[W];
 
-        // PRG expand T0 and T1
-        alignas(32) uint64_t prgSeeds0[TILE_ROWS];
-        alignas(32) uint64_t prgSeeds1[TILE_ROWS];
-        for (size_t i = 0; i < TILE_ROWS; ++i) {
-            prgSeeds0[i] = derivedSeeds0[i] + tileIdx;
-            prgSeeds1[i] = derivedSeeds1[i] + tileIdx;
-        }
-        {
-            const int64_t tp = System::currentTimeMillis();
-            Crypto::batchPrgGenerate(prgSeeds0, TILE_ROWS, tRows, blocks);
-            Crypto::batchPrgGenerate(prgSeeds1, TILE_ROWS, uRows, blocks);
-            _timePrg.fetch_add(System::currentTimeMillis() - tp, std::memory_order_relaxed);
-        }
+            for (size_t t = tStart; t < tEnd; ++t) {
+                const size_t offset_ = tileOffset[t];
+                const size_t uOff_   = tileUOffset[t];
+                const size_t chunk_  = std::min<size_t>(TILE_ROWS * W, totalBits - offset_);
+                const size_t blocks_ = tileBlocks[t];
 
-        // Save T0 for Phase 3 (avoid re-generating PRG)
-        std::memcpy(&allTBuffer[uBufferOffset / 2], tRows, TILE_ROWS * blocks * sizeof(U128));
-
-        // U = T0 XOR T1 XOR c
-        {
-            const int64_t tx = System::currentTimeMillis();
-            if (Conf::ENABLE_SIMD) {
-                for (size_t i = 0; i < TILE_ROWS; ++i) {
-                    SimdSupport::xorU128Arrays(&uRows[i * blocks], &uRows[i * blocks],
-                                               &tRows[i * blocks], blocks);
-                    for (size_t w = 0; w < blocks; ++w) {
-                        uRows[i * blocks + w].lo ^= cBlocks[w].lo;
-                        uRows[i * blocks + w].hi ^= cBlocks[w].hi;
+                // Pack choice bits
+                std::memset(cBlocks, 0, blocks_ * sizeof(U128));
+                for (size_t w = 0; w < blocks_; ++w) {
+                    for (size_t row = 0; row < TILE_ROWS; ++row) {
+                        const size_t idx = offset_ + w + row * blocks_;
+                        if (idx >= totalBits) break;
+                        const size_t limbIdx = idx / 64;
+                        const size_t bitPos  = idx % 64;
+                        const uint64_t choiceBit = ((*_choiceBitsPacked)[limbIdx] >> bitPos) & 1;
+                        if (row < 64) cBlocks[w].lo |= (choiceBit << row);
+                        else          cBlocks[w].hi |= (choiceBit << (row - 64));
                     }
                 }
-            } else {
+
+                // PRG expand T0 and T1
+                alignas(32) uint64_t prgSeeds0[TILE_ROWS];
+                alignas(32) uint64_t prgSeeds1[TILE_ROWS];
                 for (size_t i = 0; i < TILE_ROWS; ++i) {
-                    for (size_t w = 0; w < blocks; ++w) {
-                        uRows[i * blocks + w].lo ^= tRows[i * blocks + w].lo ^ cBlocks[w].lo;
-                        uRows[i * blocks + w].hi ^= tRows[i * blocks + w].hi ^ cBlocks[w].hi;
-                    }
+                    prgSeeds0[i] = derivedSeeds0[i] + t;
+                    prgSeeds1[i] = derivedSeeds1[i] + t;
                 }
+                {
+                    const int64_t tp = System::currentTimeMillis();
+                    Crypto::batchPrgGenerate(prgSeeds0, TILE_ROWS, tRowsLocal, blocks_);
+                    Crypto::batchPrgGenerate(prgSeeds1, TILE_ROWS, uRowsLocal, blocks_);
+                    _timePrg.fetch_add(System::currentTimeMillis() - tp, std::memory_order_relaxed);
+                }
+
+                // Save T0 for Phase 3
+                std::memcpy(&allTBuffer[uOff_ / 2], tRowsLocal, TILE_ROWS * blocks_ * sizeof(U128));
+
+                // U = T0 XOR T1 XOR c
+                {
+                    const int64_t tx = System::currentTimeMillis();
+                    if (Conf::ENABLE_SIMD) {
+                        for (size_t i = 0; i < TILE_ROWS; ++i) {
+                            SimdSupport::xorU128Arrays(&uRowsLocal[i * blocks_], &uRowsLocal[i * blocks_],
+                                                       &tRowsLocal[i * blocks_], blocks_);
+                            for (size_t w = 0; w < blocks_; ++w) {
+                                uRowsLocal[i * blocks_ + w].lo ^= cBlocks[w].lo;
+                                uRowsLocal[i * blocks_ + w].hi ^= cBlocks[w].hi;
+                            }
+                        }
+                    } else {
+                        for (size_t i = 0; i < TILE_ROWS; ++i) {
+                            for (size_t w = 0; w < blocks_; ++w) {
+                                uRowsLocal[i * blocks_ + w].lo ^= tRowsLocal[i * blocks_ + w].lo ^ cBlocks[w].lo;
+                                uRowsLocal[i * blocks_ + w].hi ^= tRowsLocal[i * blocks_ + w].hi ^ cBlocks[w].hi;
+                            }
+                        }
+                    }
+                    _timeXorU.fetch_add(System::currentTimeMillis() - tx, std::memory_order_relaxed);
+                }
+
+                std::memcpy(&allUBuffer[uOff_], uRowsLocal, TILE_ROWS * blocks_ * sizeof(U128));
             }
-            _timeXorU.fetch_add(System::currentTimeMillis() - tx, std::memory_order_relaxed);
+        };
+
+        const size_t tilesPerThread = (numTiles + nThreads - 1) / nThreads;
+        std::vector<std::future<void>> futures;
+        futures.reserve(nThreads);
+        for (size_t i = 0; i < nThreads; ++i) {
+            const size_t tStart = i * tilesPerThread;
+            const size_t tEnd   = std::min(tStart + tilesPerThread, numTiles);
+            if (tStart >= numTiles) break;
+            futures.push_back(ThreadPoolSupport::submit([=, &workerPhase1]() {
+                workerPhase1(tStart, tEnd);
+            }));
         }
-
-        std::memcpy(&allUBuffer[uBufferOffset], uRows, TILE_ROWS * blocks * sizeof(U128));
-        uBufferOffset += TILE_ROWS * blocks * 2;
-
-        offset += chunk;
-        ++tileIdx;
+        for (auto &f : futures) f.get();
     }
 
     // Phase 2: Send ALL U matrices async, immediately start Phase 3 (hash) in parallel
@@ -461,51 +508,56 @@ void IknpOtBatchOperator::receiverExtendForBits() {
     {
         const int64_t tc = System::currentTimeMillis();
         sendReq = Comm::serverSendAsync(allUBuffer, 1, buildTag(_currentMsgTag.load()));
-        _timeCommSend.fetch_add(0, std::memory_order_relaxed);  // will account below
         (void)tc;
     }
     _currentMsgTag.fetch_add(1, std::memory_order_relaxed);
 
-    // Phase 3: Transpose + Hash using cached T0 rows — runs WHILE U is being sent
-    offset = 0;
-    tileIdx = 0;
-    uBufferOffset = 0;
-    while (offset < totalBits) {
-        const size_t chunk = std::min<size_t>(TILE_ROWS * W, totalBits - offset);
-        const size_t blocks = tileBlocks[tileIdx];
+    // Phase 3: Transpose + Hash in parallel — runs WHILE U is being sent
+    {
+        auto workerPhase3 = [&](size_t tStart, size_t tEnd) {
+            alignas(32) U128 tile[TILE_ROWS];
+            for (size_t t = tStart; t < tEnd; ++t) {
+                const size_t offset_ = tileOffset[t];
+                const size_t uOff_   = tileUOffset[t];
+                const size_t chunk_  = std::min<size_t>(TILE_ROWS * W, totalBits - offset_);
+                const size_t blocks_ = tileBlocks[t];
+                const U128 *cachedT  = &allTBuffer[uOff_ / 2];
 
-        // Use cached T0 rows directly
-        const U128* cachedT = &allTBuffer[uBufferOffset / 2];
+                const int64_t th = System::currentTimeMillis();
+                for (size_t blk = 0; blk < blocks_; ++blk) {
+                    for (size_t r = 0; r < TILE_ROWS; ++r)
+                        tile[r] = cachedT[r * blocks_ + blk];
+                    Crypto::transpose128x128_inplace(tile);
 
-        alignas(32) U128 tile[TILE_ROWS];
-        {
-            const int64_t th = System::currentTimeMillis();
-            for (size_t blk = 0; blk < blocks; ++blk) {
-                for (size_t r = 0; r < TILE_ROWS; ++r) {
-                    tile[r] = cachedT[r * blocks + blk];
+                    uint64_t hBits[2];
+                    const size_t validInTile = std::min<size_t>(TILE_ROWS, chunk_ - blk * TILE_ROWS);
+                    Crypto::hashTileBatch(static_cast<int>(offset_ + blk * TILE_ROWS), tile, validInTile, hBits);
+
+                    for (size_t k = 0; k < TILE_ROWS && (blk + k * blocks_) < chunk_; ++k) {
+                        const size_t pos     = blk + k * blocks_;
+                        if (offset_ + pos >= totalBits) continue;
+                        const size_t limbIdx = (offset_ + pos) / 64;
+                        const size_t bitPos  = (offset_ + pos) % 64;
+                        const uint64_t h_bit = (k < 64) ? ((hBits[0] >> k) & 1) : ((hBits[1] >> (k-64)) & 1);
+                        _results[limbIdx] |= (static_cast<int64_t>(h_bit) << bitPos);
+                    }
                 }
-                Crypto::transpose128x128_inplace(tile);
-
-                uint64_t hBits[2];
-                const size_t validInTile = std::min<size_t>(TILE_ROWS, chunk - blk * TILE_ROWS);
-                Crypto::hashTileBatch(static_cast<int>(offset + blk * TILE_ROWS), tile, validInTile, hBits);
-
-                for (size_t k = 0; k < TILE_ROWS && (blk + k * blocks) < chunk; ++k) {
-                    const size_t pos = blk + k * blocks;
-                    if (offset + pos >= totalBits) continue;
-                    const size_t limbIdx = (offset + pos) / 64;
-                    const size_t bitPos = (offset + pos) % 64;
-
-                    const uint64_t h_bit = (k < 64) ? ((hBits[0] >> k) & 1) : ((hBits[1] >> (k - 64)) & 1);
-                    _results[limbIdx] |= (static_cast<int64_t>(h_bit) << bitPos);
-                }
+                _timeTransposeHash.fetch_add(System::currentTimeMillis() - th, std::memory_order_relaxed);
             }
-            _timeTransposeHash.fetch_add(System::currentTimeMillis() - th, std::memory_order_relaxed);
-        }
+        };
 
-        uBufferOffset += TILE_ROWS * blocks * 2;
-        offset += chunk;
-        ++tileIdx;
+        const size_t tilesPerThread = (numTiles + nThreads - 1) / nThreads;
+        std::vector<std::future<void>> futures;
+        futures.reserve(nThreads);
+        for (size_t i = 0; i < nThreads; ++i) {
+            const size_t tStart = i * tilesPerThread;
+            const size_t tEnd   = std::min(tStart + tilesPerThread, numTiles);
+            if (tStart >= numTiles) break;
+            futures.push_back(ThreadPoolSupport::submit([=, &workerPhase3]() {
+                workerPhase3(tStart, tEnd);
+            }));
+        }
+        for (auto &f : futures) f.get();
     }
 
     // Wait for U send to complete, record send time
