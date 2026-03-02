@@ -1,4 +1,3 @@
-
 #include "compute/batch/bool/BoolLessBatchOperator.h"
 #include "compute/single/arith/ArithLessOperator.h"
 #include "secret/Secrets.h"
@@ -173,7 +172,8 @@ bool test(std::vector<std::string> &testPmts, std::string pmt, int width, int ba
                     int endIdx = std::min((b + 1) * batchSize, static_cast<int>(secretsA.size()));
                     std::vector<int64_t> batchN(secretConditions.begin() + startIdx,
                                                 secretConditions.begin() + endIdx);
-                    auto ta = BoolToArithBatchOperator(&batchN, 64, 0, 0,
+                    auto ta = BoolToArithBatchOperator(&batchN, 64, 0,
+                                                       BoolToArithBatchOperator::tagStride() * b,
                                                        SecureOperator::NO_CLIENT_COMPUTE).
                             execute()->_zis;
                     sumShare += std::accumulate(ta.begin(), ta.end(), 0ll);

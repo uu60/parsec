@@ -71,7 +71,5 @@ int main(int argc, char *argv[]) {
         // Views::revealAndPrint(v);
     }
 
-    IknpOtBatchOperator::printTimings();
-
     System::finalize();
 }
