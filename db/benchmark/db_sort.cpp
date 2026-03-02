@@ -10,6 +10,7 @@
 
 #include <string>
 
+#include "ot/IknpOtBatchOperator.h"
 #include "utils/Math.h"
 
 int main(int argc, char *argv[]) {
@@ -69,6 +70,8 @@ int main(int argc, char *argv[]) {
         Log::i("Multi-column sort time (all {} columns): {}ms", cols, System::currentTimeMillis() - start);
         // Views::revealAndPrint(v);
     }
+
+    IknpOtBatchOperator::printTimings();
 
     System::finalize();
 }

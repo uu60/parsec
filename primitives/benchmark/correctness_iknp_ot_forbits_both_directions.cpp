@@ -90,6 +90,8 @@ int main(int argc, char **argv) {
     // Test sender=1
     testDirection(1, System::nextTask(), limbs);
 
+    IknpOtBatchOperator::printTimings();
+
     System::finalize();
     return 0;
 }

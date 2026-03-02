@@ -86,6 +86,8 @@ int main(int argc, char **argv) {
         Log::i(mism == 0 ? "[IKNP OT correctness] PASS" : "[IKNP OT correctness] FAIL mismatches={}", mism);
     }
 
+    IknpOtBatchOperator::printTimings();
+
     System::finalize();
     return 0;
 }

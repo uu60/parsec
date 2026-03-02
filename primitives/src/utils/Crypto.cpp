@@ -250,43 +250,76 @@ void Crypto::batchPrgGenerate(const uint64_t* seeds, size_t numSeeds,
                                U128* out, size_t blocksPerSeed) {
     if (numSeeds == 0 || blocksPerSeed == 0) return;
 
-    // Thread-local EVP_CIPHER_CTX to avoid repeated allocation
-    thread_local struct CtxHolder {
-        EVP_CIPHER_CTX *ctx;
-        CtxHolder() { ctx = EVP_CIPHER_CTX_new(); }
-        ~CtxHolder() { if (ctx) EVP_CIPHER_CTX_free(ctx); }
+    // ---------------------------------------------------------------
+    // Fixed-key AES-ECB PRG:
+    //   out[seed * blocksPerSeed + blk] = AES_K(seed || blk) XOR (seed || blk)
+    //
+    // Benefits over per-seed AES-CTR:
+    //  1. Only ONE EVP_EncryptInit_ex call per batchPrgGenerate invocation
+    //     (key schedule loaded once, not once-per-seed).
+    //  2. All (numSeeds * blocksPerSeed) blocks are encrypted in a single
+    //     EVP_EncryptUpdate call, maximising AES-NI pipeline utilisation.
+    //  3. Davies-Meyer XOR gives correlation-robustness for OT security.
+    // ---------------------------------------------------------------
+
+    // Fixed PRG key (domain-separated from hash key)
+    static const unsigned char PRG_KEY[16] = {
+        0x50, 0x52, 0x47, 0x5F,  // "PRG_"
+        0x49, 0x4B, 0x4E, 0x50,  // "IKNP"
+        0x4B, 0x45, 0x59, 0x32,  // "KEY2"
+        0x00, 0x00, 0x00, 0x00
+    };
+
+    // Thread-local context initialised once with the fixed key
+    thread_local struct PrgCtxHolder {
+        EVP_CIPHER_CTX *ctx = nullptr;
+        PrgCtxHolder() {
+            ctx = EVP_CIPHER_CTX_new();
+            if (ctx) {
+                EVP_EncryptInit_ex(ctx, EVP_aes_128_ecb(), nullptr, PRG_KEY, nullptr);
+                EVP_CIPHER_CTX_set_padding(ctx, 0);
+            }
+        }
+        ~PrgCtxHolder() { if (ctx) EVP_CIPHER_CTX_free(ctx); }
     } holder;
 
     EVP_CIPHER_CTX *ctx = holder.ctx;
-    if (!ctx) {
-        throw std::runtime_error("EVP_CIPHER_CTX_new failed");
+    if (!ctx) throw std::runtime_error("EVP_CIPHER_CTX_new failed");
+
+    const size_t total = numSeeds * blocksPerSeed;
+
+    // Build plaintext buffer: each block = (seed XOR derived_lo) || (block_idx XOR derived_hi)
+    // We write directly into out[] then XOR in-place after encryption.
+    unsigned char* buf = reinterpret_cast<unsigned char*>(out);
+    for (size_t i = 0; i < numSeeds; ++i) {
+        // Derive two 64-bit words from the seed for key mixing
+        const uint64_t s0 = seeds[i] ^ 0x9e3779b97f4a7c15ULL;
+        const uint64_t s1 = seeds[i] ^ 0xbf58476d1ce4e5b9ULL;
+        for (size_t b = 0; b < blocksPerSeed; ++b) {
+            const size_t off = (i * blocksPerSeed + b) * 16;
+            const uint64_t lo = s0 + b;
+            const uint64_t hi = s1 ^ (b * 0x6c62272e07bb0142ULL);
+            std::memcpy(buf + off,     &lo, 8);
+            std::memcpy(buf + off + 8, &hi, 8);
+        }
     }
 
-    alignas(16) unsigned char key[16];
-    alignas(16) unsigned char iv[16] = {0};
+    // Encrypt all blocks in one call (maximises AES-NI throughput)
+    int outLen = 0;
+    if (EVP_EncryptUpdate(ctx, buf, &outLen, buf,
+                          static_cast<int>(total * 16)) != 1) {
+        throw std::runtime_error("EVP_EncryptUpdate failed in batchPrgGenerate");
+    }
 
+    // Davies-Meyer XOR: out[i] ^= plaintext[i]  (already in buf before encrypt)
+    // We must re-derive the plaintext since we encrypted in-place.
     for (size_t i = 0; i < numSeeds; ++i) {
-        // Derive key from seed (same as AesCtrPrg constructor)
-        uint64_t k0 = h(seeds[i] ^ 0x9e3779b97f4a7c15ULL);
-        uint64_t k1 = h(seeds[i] ^ 0xbf58476d1ce4e5b9ULL);
-        std::memcpy(key, &k0, 8);
-        std::memcpy(key + 8, &k1, 8);
-
-        // Initialize cipher with this key
-        if (EVP_EncryptInit_ex(ctx, EVP_aes_128_ctr(), nullptr, key, iv) != 1) {
-            throw std::runtime_error("EVP_EncryptInit_ex failed");
-        }
-
-        // Generate output for this seed
-        U128* seedOut = &out[i * blocksPerSeed];
-        unsigned char* bytes = reinterpret_cast<unsigned char*>(seedOut);
-        const size_t nbytes = blocksPerSeed * 16;
-
-        std::memset(bytes, 0, nbytes);
-
-        int outLen = 0;
-        if (EVP_EncryptUpdate(ctx, bytes, &outLen, bytes, static_cast<int>(nbytes)) != 1) {
-            throw std::runtime_error("EVP_EncryptUpdate failed");
+        const uint64_t s0 = seeds[i] ^ 0x9e3779b97f4a7c15ULL;
+        const uint64_t s1 = seeds[i] ^ 0xbf58476d1ce4e5b9ULL;
+        for (size_t b = 0; b < blocksPerSeed; ++b) {
+            U128& blk = out[i * blocksPerSeed + b];
+            blk.lo ^= s0 + b;
+            blk.hi ^= s1 ^ (b * 0x6c62272e07bb0142ULL);
         }
     }
 }
@@ -479,16 +512,18 @@ uint64_t Crypto::hashBatchForBitsFast(int baseIndex, const U128* columns, const 
 }
 
 void Crypto::hashTileBatch(int baseIndex, const U128* tile, size_t validCount, uint64_t* hashBits) {
-    // Ultra-fast batch hash for entire tile
-    // Processes up to 128 columns and packs LSB of each hash into hashBits array
-    // hashBits[0] contains bits for columns 0-63, hashBits[1] for columns 64-127
+    // Ultra-fast batch hash for entire tile.
+    // Processes up to 128 columns; packs LSB of each hash into hashBits[0..1].
+    //
+    // Key optimisation: build all 128 (or validCount) input blocks in one
+    // aligned buffer, then encrypt them all in a SINGLE EVP_EncryptUpdate call.
+    // This lets AES-NI pipeline all blocks simultaneously instead of making
+    // 128 individual calls.
 
     hashBits[0] = 0;
     hashBits[1] = 0;
-
     if (validCount == 0) return;
 
-    // Fixed key for IKNP hashing
     static const unsigned char FIXED_KEY[16] = {
         0x49, 0x4B, 0x4E, 0x50,  // "IKNP"
         0x48, 0x41, 0x53, 0x48,  // "HASH"
@@ -496,7 +531,6 @@ void Crypto::hashTileBatch(int baseIndex, const U128* tile, size_t validCount, u
         0x00, 0x00, 0x00, 0x00
     };
 
-    // Thread-local AES context
     thread_local struct AesCtxHolder {
         EVP_CIPHER_CTX *ctx;
         AesCtxHolder() {
@@ -504,42 +538,38 @@ void Crypto::hashTileBatch(int baseIndex, const U128* tile, size_t validCount, u
             EVP_EncryptInit_ex(ctx, EVP_aes_128_ecb(), nullptr, FIXED_KEY, nullptr);
             EVP_CIPHER_CTX_set_padding(ctx, 0);
         }
-        ~AesCtxHolder() {
-            if (ctx) EVP_CIPHER_CTX_free(ctx);
-        }
+        ~AesCtxHolder() { if (ctx) EVP_CIPHER_CTX_free(ctx); }
     } holder;
-
-    alignas(16) unsigned char input[16];
-    alignas(16) unsigned char output[16];
 
     const size_t count = std::min(validCount, static_cast<size_t>(128));
 
+    // Pack all inputs into a contiguous aligned buffer
+    alignas(16) unsigned char inputs[128 * 16];
     for (size_t k = 0; k < count; ++k) {
         const U128& col = tile[k];
-        const int index = baseIndex + static_cast<int>(k);
+        const uint64_t idx64 = static_cast<uint64_t>(static_cast<uint32_t>(baseIndex + static_cast<int>(k)));
+        const uint64_t lo_mixed = col.lo ^ idx64;
+        const uint64_t hi_mixed = col.hi ^ (idx64 * 0x9e3779b97f4a7c15ULL);
+        std::memcpy(inputs + k * 16,     &lo_mixed, 8);
+        std::memcpy(inputs + k * 16 + 8, &hi_mixed, 8);
+    }
 
-        // Mix index into input
-        const uint64_t index64 = static_cast<uint64_t>(static_cast<uint32_t>(index));
-        const uint64_t lo_mixed = col.lo ^ index64;
-        const uint64_t hi_mixed = col.hi ^ (index64 * 0x9e3779b97f4a7c15ULL);
+    // Encrypt all blocks in ONE call
+    alignas(16) unsigned char outputs[128 * 16];
+    int outlen = 0;
+    EVP_EncryptUpdate(holder.ctx, outputs, &outlen, inputs,
+                      static_cast<int>(count * 16));
 
-        store_u64_le(lo_mixed, input);
-        store_u64_le(hi_mixed, input + 8);
-
-        int outlen;
-        EVP_EncryptUpdate(holder.ctx, output, &outlen, input, 16);
-
-        // XOR with original and extract LSB
+    // Davies-Meyer XOR and extract LSB into hashBits
+    for (size_t k = 0; k < count; ++k) {
         uint64_t h;
-        std::memcpy(&h, output, sizeof(uint64_t));
-        h ^= col.lo;
+        std::memcpy(&h, outputs + k * 16, sizeof(uint64_t));
+        const U128& col = tile[k];
+        h ^= col.lo;  // Davies-Meyer
 
         if (h & 1) {
-            if (k < 64) {
-                hashBits[0] |= (1ULL << k);
-            } else {
-                hashBits[1] |= (1ULL << (k - 64));
-            }
+            if (k < 64) hashBits[0] |= (1ULL << k);
+            else        hashBits[1] |= (1ULL << (k - 64));
         }
     }
 }
