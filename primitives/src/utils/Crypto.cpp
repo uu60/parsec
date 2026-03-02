@@ -288,39 +288,35 @@ void Crypto::batchPrgGenerate(const uint64_t* seeds, size_t numSeeds,
 
     const size_t total = numSeeds * blocksPerSeed;
 
-    // Build plaintext buffer: each block = (seed XOR derived_lo) || (block_idx XOR derived_hi)
-    // We write directly into out[] then XOR in-place after encryption.
-    unsigned char* buf = reinterpret_cast<unsigned char*>(out);
+    // Use a separate plaintext buffer so we keep the original values for Davies-Meyer XOR.
+    // thread_local avoids heap allocation on the hot path (max 128*64 = 8192 blocks).
+    static thread_local std::vector<U128> ptBuf;
+    ptBuf.resize(total);
+
     for (size_t i = 0; i < numSeeds; ++i) {
-        // Derive two 64-bit words from the seed for key mixing
         const uint64_t s0 = seeds[i] ^ 0x9e3779b97f4a7c15ULL;
         const uint64_t s1 = seeds[i] ^ 0xbf58476d1ce4e5b9ULL;
         for (size_t b = 0; b < blocksPerSeed; ++b) {
-            const size_t off = (i * blocksPerSeed + b) * 16;
-            const uint64_t lo = s0 + b;
-            const uint64_t hi = s1 ^ (b * 0x6c62272e07bb0142ULL);
-            std::memcpy(buf + off,     &lo, 8);
-            std::memcpy(buf + off + 8, &hi, 8);
+            const size_t idx = i * blocksPerSeed + b;
+            ptBuf[idx].lo = s0 + b;
+            ptBuf[idx].hi = s1 ^ (b * 0x6c62272e07bb0142ULL);
         }
     }
 
-    // Encrypt all blocks in one call (maximises AES-NI throughput)
+    // Encrypt plaintext → out (separate src/dst, no in-place)
     int outLen = 0;
-    if (EVP_EncryptUpdate(ctx, buf, &outLen, buf,
+    if (EVP_EncryptUpdate(ctx,
+                          reinterpret_cast<unsigned char*>(out),
+                          &outLen,
+                          reinterpret_cast<const unsigned char*>(ptBuf.data()),
                           static_cast<int>(total * 16)) != 1) {
         throw std::runtime_error("EVP_EncryptUpdate failed in batchPrgGenerate");
     }
 
-    // Davies-Meyer XOR: out[i] ^= plaintext[i]  (already in buf before encrypt)
-    // We must re-derive the plaintext since we encrypted in-place.
-    for (size_t i = 0; i < numSeeds; ++i) {
-        const uint64_t s0 = seeds[i] ^ 0x9e3779b97f4a7c15ULL;
-        const uint64_t s1 = seeds[i] ^ 0xbf58476d1ce4e5b9ULL;
-        for (size_t b = 0; b < blocksPerSeed; ++b) {
-            U128& blk = out[i * blocksPerSeed + b];
-            blk.lo ^= s0 + b;
-            blk.hi ^= s1 ^ (b * 0x6c62272e07bb0142ULL);
-        }
+    // Davies-Meyer XOR: out[i] ^= pt[i]  — use saved ptBuf, zero re-derivation
+    for (size_t idx = 0; idx < total; ++idx) {
+        out[idx].lo ^= ptBuf[idx].lo;
+        out[idx].hi ^= ptBuf[idx].hi;
     }
 }
 

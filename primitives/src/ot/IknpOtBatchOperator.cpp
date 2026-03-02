@@ -214,7 +214,7 @@ void IknpOtBatchOperator::senderExtendForBits() {
         const int64_t tc = System::currentTimeMillis();
         // Post the receive immediately (non-blocking)
         AbstractRequest *recvReq = Comm::serverReceiveAsync(
-            allUBuffer, static_cast<int>(totalUSize), 1, buildTag(_currentMsgTag.load()));
+            allUBuffer, static_cast<int>(totalUSize), 64, buildTag(_currentMsgTag.load()));
         // While U is in-flight, pre-expand PRG for tile 0 to hide latency
         {
             alignas(32) uint64_t prgSeeds[TILE_ROWS];
@@ -314,18 +314,42 @@ void IknpOtBatchOperator::senderExtendForBits() {
                         Crypto::hashTileBatchPair(static_cast<int>(offset_ + blk * TILE_ROWS),
                                                   tile, tile_xor_s, validInTile, h0Bits, h1Bits);
 
-                        for (size_t k = 0; k < TILE_ROWS && (blk + k * blocks_) < chunk_; ++k) {
-                            const size_t pos    = blk + k * blocks_;
-                            if (offset_ + pos >= totalBits) continue;
-                            const size_t limbIdx = (offset_ + pos) / 64;
-                            const size_t bitPos  = (offset_ + pos) % 64;
-                            const uint64_t m0_bit = ((*_ms0)[limbIdx] >> bitPos) & 1;
-                            const uint64_t m1_bit = ((*_ms1)[limbIdx] >> bitPos) & 1;
-                            const uint64_t h0_bit = (k < 64) ? ((h0Bits[0] >> k) & 1) : ((h0Bits[1] >> (k-64)) & 1);
-                            const uint64_t h1_bit = (k < 64) ? ((h1Bits[0] >> k) & 1) : ((h1Bits[1] >> (k-64)) & 1);
-                            // Atomic OR into _results (different tiles write to different limbs — no overlap)
-                            _results[limbIdx * 2]     |= static_cast<int64_t>((m0_bit ^ h0_bit) << bitPos);
-                            _results[limbIdx * 2 + 1] |= static_cast<int64_t>((m1_bit ^ h1_bit) << bitPos);
+                        // h0Bits/h1Bits: bit k = LSB of hash of column k (packed, k=0..127)
+                        // pos = blk + k*blocks_  →  global bit = offset_ + blk + k*blocks_
+                        // limbIdx = (offset_ + blk + k*blocks_) / 64
+                        // bitPos  = (offset_ + blk + k*blocks_) % 64
+                        //
+                        // Fast path: when blocks_==1 AND (offset_+blk) is 64-aligned,
+                        // k maps exactly to bitPos → direct word XOR (2 words cover all 128 bits).
+                        // General path: still process word-by-word using 64-bit chunks from h0Bits.
+                        if (blocks_ == 1 && ((offset_ + blk) % 64) == 0) {
+                            // Perfect alignment: k=0..63 → limb lo, k=64..127 → limb hi
+                            const size_t limb0 = (offset_ + blk) / 64;
+                            // limb0 covers k=0..63, limb0+1 covers k=64..127
+                            _results[limb0 * 2]     = static_cast<int64_t>(
+                                static_cast<uint64_t>((*_ms0)[limb0]) ^ h0Bits[0]);
+                            _results[limb0 * 2 + 1] = static_cast<int64_t>(
+                                static_cast<uint64_t>((*_ms1)[limb0]) ^ h1Bits[0]);
+                            if (limb0 + 1 < n && validInTile > 64) {
+                                _results[(limb0+1) * 2]     = static_cast<int64_t>(
+                                    static_cast<uint64_t>((*_ms0)[limb0+1]) ^ h0Bits[1]);
+                                _results[(limb0+1) * 2 + 1] = static_cast<int64_t>(
+                                    static_cast<uint64_t>((*_ms1)[limb0+1]) ^ h1Bits[1]);
+                            }
+                        } else {
+                            // General path: scatter bits individually
+                            for (size_t k = 0; k < validInTile; ++k) {
+                                const size_t pos    = blk + k * blocks_;
+                                if (offset_ + pos >= totalBits) continue;
+                                const size_t limbIdx = (offset_ + pos) / 64;
+                                const size_t bitPos  = (offset_ + pos) % 64;
+                                const uint64_t m0_bit = (static_cast<uint64_t>((*_ms0)[limbIdx]) >> bitPos) & 1;
+                                const uint64_t m1_bit = (static_cast<uint64_t>((*_ms1)[limbIdx]) >> bitPos) & 1;
+                                const uint64_t h0_bit = (k < 64) ? ((h0Bits[0] >> k) & 1) : ((h0Bits[1] >> (k-64)) & 1);
+                                const uint64_t h1_bit = (k < 64) ? ((h1Bits[0] >> k) & 1) : ((h1Bits[1] >> (k-64)) & 1);
+                                _results[limbIdx * 2]     |= static_cast<int64_t>((m0_bit ^ h0_bit) << bitPos);
+                                _results[limbIdx * 2 + 1] |= static_cast<int64_t>((m1_bit ^ h1_bit) << bitPos);
+                            }
                         }
                     }
                     _timeTransposeHash.fetch_add(System::currentTimeMillis() - th, std::memory_order_relaxed);
@@ -351,7 +375,7 @@ void IknpOtBatchOperator::senderExtendForBits() {
     // Phase 3: Send masked messages to receiver
     {
         const int64_t tc = System::currentTimeMillis();
-        Comm::serverSend(_results, 1, buildTag(_currentMsgTag.load()));
+        Comm::serverSend(_results, 64, buildTag(_currentMsgTag.load()));
         _timeCommSend.fetch_add(System::currentTimeMillis() - tc, std::memory_order_relaxed);
     }
     _currentMsgTag.fetch_add(1, std::memory_order_relaxed);
@@ -507,7 +531,7 @@ void IknpOtBatchOperator::receiverExtendForBits() {
     AbstractRequest *sendReq = nullptr;
     {
         const int64_t tc = System::currentTimeMillis();
-        sendReq = Comm::serverSendAsync(allUBuffer, 1, buildTag(_currentMsgTag.load()));
+        sendReq = Comm::serverSendAsync(allUBuffer, 64, buildTag(_currentMsgTag.load()));
         (void)tc;
     }
     _currentMsgTag.fetch_add(1, std::memory_order_relaxed);
@@ -533,13 +557,20 @@ void IknpOtBatchOperator::receiverExtendForBits() {
                     const size_t validInTile = std::min<size_t>(TILE_ROWS, chunk_ - blk * TILE_ROWS);
                     Crypto::hashTileBatch(static_cast<int>(offset_ + blk * TILE_ROWS), tile, validInTile, hBits);
 
-                    for (size_t k = 0; k < TILE_ROWS && (blk + k * blocks_) < chunk_; ++k) {
-                        const size_t pos     = blk + k * blocks_;
-                        if (offset_ + pos >= totalBits) continue;
-                        const size_t limbIdx = (offset_ + pos) / 64;
-                        const size_t bitPos  = (offset_ + pos) % 64;
-                        const uint64_t h_bit = (k < 64) ? ((hBits[0] >> k) & 1) : ((hBits[1] >> (k-64)) & 1);
-                        _results[limbIdx] |= (static_cast<int64_t>(h_bit) << bitPos);
+                    if (blocks_ == 1 && ((offset_ + blk) % 64) == 0) {
+                        const size_t limb0 = (offset_ + blk) / 64;
+                        _results[limb0] = static_cast<int64_t>(hBits[0]);
+                        if (limb0 + 1 < n && validInTile > 64)
+                            _results[limb0 + 1] = static_cast<int64_t>(hBits[1]);
+                    } else {
+                        for (size_t k = 0; k < validInTile; ++k) {
+                            const size_t pos     = blk + k * blocks_;
+                            if (offset_ + pos >= totalBits) continue;
+                            const size_t limbIdx = (offset_ + pos) / 64;
+                            const size_t bitPos  = (offset_ + pos) % 64;
+                            const uint64_t h_bit = (k < 64) ? ((hBits[0] >> k) & 1) : ((hBits[1] >> (k-64)) & 1);
+                            _results[limbIdx] |= (static_cast<int64_t>(h_bit) << bitPos);
+                        }
                     }
                 }
                 _timeTransposeHash.fetch_add(System::currentTimeMillis() - th, std::memory_order_relaxed);
@@ -572,7 +603,7 @@ void IknpOtBatchOperator::receiverExtendForBits() {
     {
         const int64_t tc = System::currentTimeMillis();
         AbstractRequest *recvReq = Comm::serverReceiveAsync(
-            maskedMessages, static_cast<int>(n * 2), 1, buildTag(_currentMsgTag.load()));
+            maskedMessages, static_cast<int>(n * 2), 64, buildTag(_currentMsgTag.load()));
         Comm::wait(recvReq);
         _timeCommRecv.fetch_add(System::currentTimeMillis() - tc, std::memory_order_relaxed);
     }
@@ -630,7 +661,7 @@ void IknpOtBatchOperator::senderExtend() {
     std::vector<int64_t> allUBuffer;
     {
         const int64_t tc = System::currentTimeMillis();
-        Comm::serverReceive(allUBuffer, 1, buildTag(_currentMsgTag.load()));
+        Comm::serverReceive(allUBuffer, 64, buildTag(_currentMsgTag.load()));
         _timeCommRecv.fetch_add(System::currentTimeMillis() - tc, std::memory_order_relaxed);
     }
     _currentMsgTag.fetch_add(1, std::memory_order_relaxed);
@@ -703,7 +734,7 @@ void IknpOtBatchOperator::senderExtend() {
     // Phase 3: Send masked messages to receiver
     {
         const int64_t tc = System::currentTimeMillis();
-        Comm::serverSend(_results, 1, buildTag(_currentMsgTag.load()));
+        Comm::serverSend(_results, 64, buildTag(_currentMsgTag.load()));
         _timeCommSend.fetch_add(System::currentTimeMillis() - tc, std::memory_order_relaxed);
     }
     _currentMsgTag.fetch_add(1, std::memory_order_relaxed);
@@ -789,7 +820,7 @@ void IknpOtBatchOperator::receiverExtend() {
     // Phase 2: Send U matrices
     {
         const int64_t tc = System::currentTimeMillis();
-        Comm::serverSend(allUBuffer, 1, buildTag(_currentMsgTag.load()));
+        Comm::serverSend(allUBuffer, 64, buildTag(_currentMsgTag.load()));
         _timeCommSend.fetch_add(System::currentTimeMillis() - tc, std::memory_order_relaxed);
     }
     _currentMsgTag.fetch_add(1, std::memory_order_relaxed);
@@ -824,7 +855,7 @@ void IknpOtBatchOperator::receiverExtend() {
     std::vector<int64_t> maskedMessages;
     {
         const int64_t tc = System::currentTimeMillis();
-        Comm::serverReceive(maskedMessages, 1, buildTag(_currentMsgTag.load()));
+        Comm::serverReceive(maskedMessages, 64, buildTag(_currentMsgTag.load()));
         _timeCommRecv.fetch_add(System::currentTimeMillis() - tc, std::memory_order_relaxed);
     }
     _currentMsgTag.fetch_add(1, std::memory_order_relaxed);
