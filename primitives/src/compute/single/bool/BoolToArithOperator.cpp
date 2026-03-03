@@ -1,4 +1,3 @@
-
 #include "compute/single/bool/BoolToArithOperator.h"
 
 #include "intermediate/IntermediateDataSupport.h"
@@ -17,7 +16,8 @@ BoolToArithOperator *BoolToArithOperator::execute() {
     }
 
     std::atomic_int64_t temp = 0;
-    bool isSender = Comm::rank() == 0;
+    const int sender = (_startMsgTag / IknpOtBatchOperator::tagStride()) & 1;
+    const bool isSender = Comm::rank() == sender;
 
     std::vector<int64_t> ss0, ss1;
     std::vector<int> choices;
@@ -46,7 +46,7 @@ BoolToArithOperator *BoolToArithOperator::execute() {
     }
 
     // RandOtBatchOperator e(0, &ss0, &ss1, &choices, _width, _taskTag, _currentMsgTag);
-    IknpOtBatchOperator e(0, &ss0, &ss1, &choices, _width, _taskTag, _currentMsgTag);
+    IknpOtBatchOperator e(sender, &ss0, &ss1, &choices, _width, _taskTag, _currentMsgTag);
     e.execute();
 
     if (isSender) {
@@ -76,5 +76,4 @@ BoolToArithOperator *BoolToArithOperator::reconstruct(int clientRank) {
     }
     return this;
 }
-
 

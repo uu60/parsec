@@ -1,4 +1,3 @@
-
 #include "compute/batch/bool/BoolToArithBatchOperator.h"
 
 #include "ot/IknpOtBatchOperator.h"
@@ -12,7 +11,8 @@ BoolToArithBatchOperator *BoolToArithBatchOperator::execute() {
         return this;
     }
 
-    bool isSender = Comm::rank() == 0;
+    const int sender = (_startMsgTag / IknpOtBatchOperator::tagStride()) & 1;
+    const bool isSender = Comm::rank() == sender;
 
     std::vector<int64_t> ss0, ss1;
     std::vector<int> choices;
@@ -43,7 +43,7 @@ BoolToArithBatchOperator *BoolToArithBatchOperator::execute() {
         }
     }
     // RandOtBatchOperator e(0, &ss0, &ss1, &choices, _width, _taskTag, _currentMsgTag);
-    IknpOtBatchOperator e(0, &ss0, &ss1, &choices, _width, _taskTag, _currentMsgTag);
+    IknpOtBatchOperator e(sender, &ss0, &ss1, &choices, _width, _taskTag, _currentMsgTag);
     e.execute();
 
     _zis.resize(_xis->size(), 0);
