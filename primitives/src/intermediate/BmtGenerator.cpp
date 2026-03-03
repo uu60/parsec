@@ -1,4 +1,3 @@
-
 #include "intermediate/BmtGenerator.h"
 
 #include "utils/Math.h"

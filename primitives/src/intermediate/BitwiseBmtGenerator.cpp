@@ -1,4 +1,3 @@
-
 #include "../../include/intermediate/BitwiseBmtGenerator.h"
 #include "../../include/utils/Math.h"
 #include "conf/Conf.h"

@@ -1,4 +1,3 @@
-
 #include "intermediate/BmtBatchGenerator.h"
 
 #include "conf/Conf.h"

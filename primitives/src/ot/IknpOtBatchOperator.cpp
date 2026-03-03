@@ -555,53 +555,52 @@ void IknpOtBatchOperator::receiverExtendForBits() {
 }
 
 // ============== Scalar (per-OT) Sender ==============
+// Communication pattern (matches tagStride() == 2):
+//   Tag +0: receive ALL U matrices from receiver (numTiles * TILE_ROWS U128 blocks, concatenated)
+//   Tag +1: send ALL masked messages (y0,y1 pairs) to receiver
 
 void IknpOtBatchOperator::senderExtend() {
     const size_t n = _ms0->size();
-    _results.resize(n * 2); // Store y0, y1 pairs for each OT
+    _results.resize(n * 2); // y0, y1 pairs
+    std::fill(_results.begin(), _results.end(), 0);
 
-    size_t offset = 0;
-    size_t tileIdx = 0;
-    // For scalar OT: each 128x128 tile provides 128 OTs (one per column after transpose)
-    constexpr size_t OTS_PER_TILE = TILE_ROWS; // 128 OTs per tile
+    constexpr size_t OTS_PER_TILE = TILE_ROWS;
+    const size_t numTiles   = (n + OTS_PER_TILE - 1) / OTS_PER_TILE;
+    // Each tile: TILE_ROWS rows × 1 U128 per row = TILE_ROWS×2 int64s
+    const size_t totalUSize = numTiles * TILE_ROWS * 2;
 
-    alignas(32) U128 qRows[TILE_ROWS]; // One 128-bit block per row
-
-    // Pipeline: post first receive ahead
-    std::vector<int64_t> uBuffer;
-    AbstractRequest *recvReq = Comm::serverReceiveAsync(uBuffer, TILE_ROWS * 2, 1, buildTag(_currentMsgTag.load()));
-
-    // Construct sender's choice bit vector as a 128-bit block (delta)
+    // Build sender's delta block from base-OT choice bits
     const auto &senderChoices = (_senderRank == 0)
                                     ? IntermediateDataSupport::_iknpSenderChoices0
                                     : IntermediateDataSupport::_iknpSenderChoices1;
     U128 sBlock{0, 0};
-    for (size_t i = 0; i < 64; ++i) {
+    for (size_t i = 0; i < 64; ++i)
         if (senderChoices[i]) sBlock.lo |= (1ULL << i);
-    }
-    for (size_t i = 64; i < TILE_ROWS; ++i) {
+    for (size_t i = 64; i < TILE_ROWS; ++i)
         if (senderChoices[i]) sBlock.hi |= (1ULL << (i - 64));
+
+    // Phase 1: post async receive for ALL U matrices at once (tag +0)
+    std::vector<int64_t> allUBuffer(totalUSize);
+    {
+        AbstractRequest *recvReq = Comm::serverReceiveAsync(
+            allUBuffer, static_cast<int>(totalUSize), 1, buildTag(_currentMsgTag.load()));
+        Comm::wait(recvReq);
     }
+    _currentMsgTag.fetch_add(1, std::memory_order_relaxed);
 
-    while (offset < n) {
-        const size_t chunk = std::min<size_t>(OTS_PER_TILE, n - offset);
+    // Phase 2: process all tiles — PRG expand, XOR U, transpose, hash, mask
+    for (size_t tileIdx = 0; tileIdx < numTiles; ++tileIdx) {
+        const size_t offset = tileIdx * OTS_PER_TILE;
+        const size_t chunk  = std::min<size_t>(OTS_PER_TILE, n - offset);
+        const size_t uOff   = tileIdx * TILE_ROWS * 2;
 
-        // Expand Q rows - one 128-bit block per row
+        alignas(32) U128 qRows[TILE_ROWS];
         for (size_t i = 0; i < TILE_ROWS; ++i) {
             Crypto::AesCtrPrg prg(_senderSeeds[i][0] + tileIdx);
             prg.generateBlocks(&qRows[i], 1);
         }
 
-        // Wait for U matrix
-        Comm::wait(recvReq);
-        const U128 *uRows = reinterpret_cast<const U128 *>(uBuffer.data());
-
-        // Post next receive
-        if (offset + chunk < n) {
-            recvReq = Comm::serverReceiveAsync(uBuffer, TILE_ROWS * 2, 1, buildTag(_currentMsgTag.load() + 1));
-        }
-
-        // XOR with U based on sender's choice bits
+        const U128 *uRows = reinterpret_cast<const U128 *>(&allUBuffer[uOff]);
         for (size_t i = 0; i < TILE_ROWS; ++i) {
             if (senderChoices[i]) {
                 qRows[i].lo ^= uRows[i].lo;
@@ -609,59 +608,43 @@ void IknpOtBatchOperator::senderExtend() {
             }
         }
 
-        // Transpose the 128x128 tile
         alignas(32) U128 tile[TILE_ROWS];
         std::memcpy(tile, qRows, sizeof(tile));
         Crypto::transpose128x128_inplace(tile);
 
-        // Each column k (0..127) provides OT output for offset+k
         for (size_t k = 0; k < chunk; ++k) {
-            const size_t idx = offset + k;
-
-            // Column k is tile[k] (after transpose)
-            const U128 col = tile[k];
-            const U128 col_xor_s = {col.lo ^ sBlock.lo, col.hi ^ sBlock.hi};
-
+            const size_t idx         = offset + k;
+            const U128   col         = tile[k];
+            const U128   col_xor_s   = {col.lo ^ sBlock.lo, col.hi ^ sBlock.hi};
             const uint64_t h0 = Crypto::hash64(static_cast<int>(idx), col);
             const uint64_t h1 = Crypto::hash64(static_cast<int>(idx), col_xor_s);
-
-            // Compute y0 = m0 XOR h0, y1 = m1 XOR h1
-            _results[idx * 2] = ring((*_ms0)[idx]) ^ ring(static_cast<int64_t>(h0));
+            _results[idx * 2]     = ring((*_ms0)[idx]) ^ ring(static_cast<int64_t>(h0));
             _results[idx * 2 + 1] = ring((*_ms1)[idx]) ^ ring(static_cast<int64_t>(h1));
         }
-
-        offset += chunk;
-        ++tileIdx;
-        _currentMsgTag.fetch_add(1, std::memory_order_relaxed);
     }
 
-    // Send masked messages to receiver (y0, y1 pairs)
+    // Phase 3: send ALL masked messages at once (tag +1)
     Comm::serverSend(_results, 1, buildTag(_currentMsgTag.load()));
     _currentMsgTag.fetch_add(1, std::memory_order_relaxed);
 }
 
 // ============== Scalar (per-OT) Receiver ==============
+// Communication pattern (matches tagStride() == 2):
+//   Tag +0: send ALL U matrices to sender (numTiles * TILE_ROWS U128 blocks, concatenated)
+//   Tag +1: receive ALL masked messages (y0,y1 pairs) from sender
 
 void IknpOtBatchOperator::receiverExtend() {
     const size_t n = _choices->size();
     _results.resize(n);
 
-    // Temporary storage for hash values
-    std::vector<uint64_t> hashValues(n);
-
-    size_t offset = 0;
-    size_t tileIdx = 0;
-    // For scalar OT: each 128x128 tile provides 128 OTs (one per column after transpose)
-    constexpr size_t OTS_PER_TILE = TILE_ROWS; // 128 OTs per tile
-
-    alignas(32) U128 tRows[TILE_ROWS]; // One 128-bit block per row
-    alignas(32) U128 uRows[TILE_ROWS];
+    constexpr size_t OTS_PER_TILE = TILE_ROWS;
+    const size_t numTiles   = (n + OTS_PER_TILE - 1) / OTS_PER_TILE;
+    const size_t totalUSize = numTiles * TILE_ROWS * 2;
 
     const auto &baseSeeds = (_senderRank == 0)
                                 ? IntermediateDataSupport::_iknpBaseSeeds0
                                 : IntermediateDataSupport::_iknpBaseSeeds1;
 
-    // Apply same derivation salt as sender for consistency
     const uint64_t derivationSalt = static_cast<uint64_t>(_taskTag) << 32 | static_cast<uint64_t>(_startMsgTag);
     std::vector<uint64_t> derivedSeeds0(TILE_ROWS);
     std::vector<uint64_t> derivedSeeds1(TILE_ROWS);
@@ -671,67 +654,75 @@ void IknpOtBatchOperator::receiverExtend() {
         derivedSeeds1[i] = static_cast<uint64_t>(baseSeeds[i][1]) ^ mix;
     }
 
-    while (offset < n) {
-        const size_t chunk = std::min<size_t>(OTS_PER_TILE, n - offset);
+    // Phase 1: compute all U matrices; cache T0 rows for hashing
+    std::vector<int64_t> allUBuffer(totalUSize);
+    // One U128 per row per tile — cached so we can hash after the send is posted
+    std::vector<U128> allTBuffer(numTiles * TILE_ROWS);
 
-        // Pack choice bits into a single 128-bit block (column vector)
-        // Choice bit j goes into bit position j of this block
-        // This will be XORed into EVERY row of U (same column across all rows)
+    for (size_t tileIdx = 0; tileIdx < numTiles; ++tileIdx) {
+        const size_t offset = tileIdx * OTS_PER_TILE;
+        const size_t chunk  = std::min<size_t>(OTS_PER_TILE, n - offset);
+        const size_t uOff   = tileIdx * TILE_ROWS * 2;
+
+        // Pack choice bits for this tile into one 128-bit column block
         U128 cBlock{0, 0};
         for (size_t j = 0; j < chunk; ++j) {
-            const uint64_t choiceBit = (*_choices)[offset + j] & 1;
-            if (j < 64) {
-                cBlock.lo |= (choiceBit << j);
-            } else {
-                cBlock.hi |= (choiceBit << (j - 64));
-            }
+            const uint64_t cb = (*_choices)[offset + j] & 1;
+            if (j < 64) cBlock.lo |= (cb << j);
+            else        cBlock.hi |= (cb << (j - 64));
         }
 
-        // Expand T and U rows using derived seeds - one 128-bit block per row
+        alignas(32) U128 tRows[TILE_ROWS];
+        alignas(32) U128 uRows[TILE_ROWS];
         for (size_t i = 0; i < TILE_ROWS; ++i) {
             Crypto::AesCtrPrg prg0(derivedSeeds0[i] + tileIdx);
             Crypto::AesCtrPrg prg1(derivedSeeds1[i] + tileIdx);
-
             prg0.generateBlocks(&tRows[i], 1);
             prg1.generateBlocks(&uRows[i], 1);
-
-            // U[i] = T0[i] XOR T1[i] XOR c (c is the same for all rows - it's the choice column)
+            // U[i] = T0[i] XOR T1[i] XOR c
             uRows[i].lo = tRows[i].lo ^ uRows[i].lo ^ cBlock.lo;
             uRows[i].hi = tRows[i].hi ^ uRows[i].hi ^ cBlock.hi;
         }
 
-        // Send U matrix
-        std::vector<int64_t> uBuffer(TILE_ROWS * 2);
-        std::memcpy(uBuffer.data(), uRows, TILE_ROWS * sizeof(U128));
-        Comm::serverSend(uBuffer, 1, buildTag(_currentMsgTag.load()));
-
-        // Transpose T tile
-        alignas(32) U128 tile[TILE_ROWS];
-        std::memcpy(tile, tRows, sizeof(tile));
-        Crypto::transpose128x128_inplace(tile);
-
-        // Each column k provides OT output for offset+k
-        for (size_t k = 0; k < chunk; ++k) {
-            const size_t idx = offset + k;
-            const U128 col = tile[k];
-            const uint64_t h = Crypto::hash64(static_cast<int>(idx), col);
-            hashValues[idx] = h;
-        }
-
-        offset += chunk;
-        ++tileIdx;
-        _currentMsgTag.fetch_add(1, std::memory_order_relaxed);
+        std::memcpy(&allUBuffer[uOff],              uRows, TILE_ROWS * sizeof(U128));
+        std::memcpy(&allTBuffer[tileIdx * TILE_ROWS], tRows, TILE_ROWS * sizeof(U128));
     }
 
-    // Receive masked messages from sender (y0, y1 pairs)
-    std::vector<int64_t> maskedMessages;
-    Comm::serverReceive(maskedMessages, 1, buildTag(_currentMsgTag.load()));
+    // Phase 2: send ALL U matrices at once (tag +0), async so hashing can overlap
+    AbstractRequest *sendReq = Comm::serverSendAsync(allUBuffer, 1, buildTag(_currentMsgTag.load()));
     _currentMsgTag.fetch_add(1, std::memory_order_relaxed);
 
-    // Unmask using choice: result[i] = y_{choice[i]} XOR H(T[i])
+    // Phase 3: transpose + hash all tiles while U send is in-flight
+    std::vector<uint64_t> hashValues(n);
+    for (size_t tileIdx = 0; tileIdx < numTiles; ++tileIdx) {
+        const size_t offset = tileIdx * OTS_PER_TILE;
+        const size_t chunk  = std::min<size_t>(OTS_PER_TILE, n - offset);
+
+        alignas(32) U128 tile[TILE_ROWS];
+        std::memcpy(tile, &allTBuffer[tileIdx * TILE_ROWS], TILE_ROWS * sizeof(U128));
+        Crypto::transpose128x128_inplace(tile);
+
+        for (size_t k = 0; k < chunk; ++k) {
+            hashValues[offset + k] = Crypto::hash64(static_cast<int>(offset + k), tile[k]);
+        }
+    }
+
+    // Wait for the U send to finish
+    Comm::wait(sendReq);
+
+    // Phase 4: receive ALL masked messages at once (tag +1)
+    std::vector<int64_t> maskedMessages(n * 2);
+    {
+        AbstractRequest *recvReq = Comm::serverReceiveAsync(
+            maskedMessages, static_cast<int>(n * 2), 1, buildTag(_currentMsgTag.load()));
+        Comm::wait(recvReq);
+    }
+    _currentMsgTag.fetch_add(1, std::memory_order_relaxed);
+
+    // Unmask: result[i] = y_{choice[i]} XOR H(T[i])
     for (size_t i = 0; i < n; ++i) {
-        const int choice = (*_choices)[i] & 1;
-        const int64_t y_c = maskedMessages[i * 2 + choice];
+        const int    choice = (*_choices)[i] & 1;
+        const int64_t y_c   = maskedMessages[i * 2 + choice];
         _results[i] = ring(y_c) ^ ring(static_cast<int64_t>(hashValues[i]));
     }
 }
