@@ -284,19 +284,23 @@ void IknpOtBatchOperator::senderExtendForBits() {
             }
         };
 
-        // Submit tiles to thread pool
-        const size_t tilesPerThread = (numTiles + nThreads - 1) / nThreads;
-        std::vector<std::future<void> > futures;
-        futures.reserve(nThreads);
-        for (size_t i = 0; i < nThreads; ++i) {
-            const size_t tStart = i * tilesPerThread;
-            const size_t tEnd = std::min(tStart + tilesPerThread, numTiles);
-            if (tStart >= numTiles) break;
-            futures.push_back(ThreadPoolSupport::submit([=, &workerSender]() {
-                workerSender(tStart, tEnd);
-            }));
+        if (!Conf::ENABLE_IKNP_MULTITHREAD || numTiles <= 1) {
+            workerSender(0, numTiles);
+        } else {
+            // Submit tiles to thread pool
+            const size_t tilesPerThread = (numTiles + nThreads - 1) / nThreads;
+            std::vector<std::future<void> > futures;
+            futures.reserve(nThreads);
+            for (size_t i = 0; i < nThreads; ++i) {
+                const size_t tStart = i * tilesPerThread;
+                const size_t tEnd = std::min(tStart + tilesPerThread, numTiles);
+                if (tStart >= numTiles) break;
+                futures.push_back(ThreadPoolSupport::submit([=, &workerSender]() {
+                    workerSender(tStart, tEnd);
+                }));
+            }
+            for (auto &f: futures) f.get();
         }
-        for (auto &f: futures) f.get();
     }
 
     // Phase 3: Send masked messages to receiver
@@ -434,18 +438,22 @@ void IknpOtBatchOperator::receiverExtendForBits() {
             }
         };
 
-        const size_t tilesPerThread = (numTiles + nThreads - 1) / nThreads;
-        std::vector<std::future<void> > futures;
-        futures.reserve(nThreads);
-        for (size_t i = 0; i < nThreads; ++i) {
-            const size_t tStart = i * tilesPerThread;
-            const size_t tEnd = std::min(tStart + tilesPerThread, numTiles);
-            if (tStart >= numTiles) break;
-            futures.push_back(ThreadPoolSupport::submit([=, &workerPhase1]() {
-                workerPhase1(tStart, tEnd);
-            }));
+        if (!Conf::ENABLE_IKNP_MULTITHREAD || numTiles <= 1) {
+            workerPhase1(0, numTiles);
+        } else {
+            const size_t tilesPerThread = (numTiles + nThreads - 1) / nThreads;
+            std::vector<std::future<void> > futures;
+            futures.reserve(nThreads);
+            for (size_t i = 0; i < nThreads; ++i) {
+                const size_t tStart = i * tilesPerThread;
+                const size_t tEnd = std::min(tStart + tilesPerThread, numTiles);
+                if (tStart >= numTiles) break;
+                futures.push_back(ThreadPoolSupport::submit([=, &workerPhase1]() {
+                    workerPhase1(tStart, tEnd);
+                }));
+            }
+            for (auto &f: futures) f.get();
         }
-        for (auto &f: futures) f.get();
     }
 
     // Phase 2: Send ALL U matrices async, immediately start Phase 3 (hash) in parallel
@@ -489,18 +497,22 @@ void IknpOtBatchOperator::receiverExtendForBits() {
             }
         };
 
-        const size_t tilesPerThread = (numTiles + nThreads - 1) / nThreads;
-        std::vector<std::future<void> > futures;
-        futures.reserve(nThreads);
-        for (size_t i = 0; i < nThreads; ++i) {
-            const size_t tStart = i * tilesPerThread;
-            const size_t tEnd = std::min(tStart + tilesPerThread, numTiles);
-            if (tStart >= numTiles) break;
-            futures.push_back(ThreadPoolSupport::submit([=, &workerPhase3]() {
-                workerPhase3(tStart, tEnd);
-            }));
+        if (!Conf::ENABLE_IKNP_MULTITHREAD || numTiles <= 1) {
+            workerPhase3(0, numTiles);
+        } else {
+            const size_t tilesPerThread = (numTiles + nThreads - 1) / nThreads;
+            std::vector<std::future<void> > futures;
+            futures.reserve(nThreads);
+            for (size_t i = 0; i < nThreads; ++i) {
+                const size_t tStart = i * tilesPerThread;
+                const size_t tEnd = std::min(tStart + tilesPerThread, numTiles);
+                if (tStart >= numTiles) break;
+                futures.push_back(ThreadPoolSupport::submit([=, &workerPhase3]() {
+                    workerPhase3(tStart, tEnd);
+                }));
+            }
+            for (auto &f: futures) f.get();
         }
-        for (auto &f: futures) f.get();
     }
 
     // Wait for U send to complete, record send time

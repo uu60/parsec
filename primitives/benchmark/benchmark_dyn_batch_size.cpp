@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cfloat>
 #include <string>
+#include <unordered_set>
 
 #include "compute/batch/bool/BoolEqualBatchOperator.h"
 #include "compute/batch/bool/BoolMutexBatchOperator.h"
@@ -219,6 +220,21 @@ std::vector<int> parseCommaSeparatedInts(const std::string &str) {
     return result;
 }
 
+std::vector<std::string> parseCommaSeparatedStrings(const std::string &str) {
+    std::vector<std::string> result;
+    std::stringstream ss(str);
+    std::string item;
+
+    while (std::getline(ss, item, ',')) {
+        item.erase(0, item.find_first_not_of(" \t"));
+        item.erase(item.find_last_not_of(" \t") + 1);
+        if (!item.empty()) {
+            result.push_back(item);
+        }
+    }
+    return result;
+}
+
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
 
@@ -298,6 +314,35 @@ int main(int argc, char *argv[]) {
             System::finalize();
             return 1;
         }
+    }
+
+    if (Conf::_userParams.count("pmts")) {
+        std::string pmtsStr = Conf::_userParams["pmts"];
+        auto requestedPmts = parseCommaSeparatedStrings(pmtsStr);
+        if (requestedPmts.empty()) {
+            if (Comm::isClient()) {
+                Log::e("Invalid or empty pmts parameter: {}", pmtsStr);
+            }
+            System::finalize();
+            return 1;
+        }
+        std::unordered_set<std::string> allowedPmts(testPmts.begin(), testPmts.end());
+        std::unordered_set<std::string> seen;
+        std::vector<std::string> filtered;
+        for (const auto &pmt : requestedPmts) {
+            if (!allowedPmts.count(pmt)) {
+                if (Comm::isClient()) {
+                    Log::e("Unknown primitive in pmts: {}", pmt);
+                }
+                System::finalize();
+                return 1;
+            }
+            if (!seen.count(pmt)) {
+                filtered.push_back(pmt);
+                seen.insert(pmt);
+            }
+        }
+        testPmts = std::move(filtered);
     }
 
     if (Comm::isClient()) {

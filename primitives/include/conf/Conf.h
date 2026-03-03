@@ -1,4 +1,3 @@
-
 #ifndef CONF_H
 #define CONF_H
 #include <thread>
@@ -62,6 +61,7 @@ public:
     inline static bool ENABLE_CLASS_WISE_TIMING = false;
 
     inline static bool ENABLE_SIMD = true;
+    inline static bool ENABLE_IKNP_MULTITHREAD = true;
 };
 
 

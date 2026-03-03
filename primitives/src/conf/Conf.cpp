@@ -1,4 +1,3 @@
-
 #include "conf/Conf.h"
 #include <iostream>
 #include <regex>
@@ -88,7 +87,10 @@ void Conf::init(int argc, char **argv) {
                  po::value<bool>(&ENABLE_CLASS_WISE_TIMING)->default_value(ENABLE_CLASS_WISE_TIMING),
                  "Set enable_class_wise_timing (true/false)")
                 ("enable_simd", po::value<bool>(&ENABLE_SIMD)->default_value(ENABLE_SIMD),
-                 "Set enable_simd (true/false)");
+                 "Set enable_simd (true/false)")
+                ("enable_iknp_multithread",
+                 po::value<bool>(&ENABLE_IKNP_MULTITHREAD)->default_value(ENABLE_IKNP_MULTITHREAD),
+                 "Set enable_iknp_multithread (true/false)");
 
         po::parsed_options parsed = po::command_line_parser(argc, argv)
                 .options(desc)
