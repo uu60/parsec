@@ -40,6 +40,7 @@ int main(int argc, char *argv[]) {
     System::init(argc, argv);
     DbConf::init();
     auto tid = System::nextTask() << (32 - Conf::TASK_TAG_BITS);
+    bool check_mode = Conf::_userParams.count("check") && Conf::_userParams["check"] == "true";
 
     int rows = 1000;
     if (Conf::_userParams.count("rows")) {
@@ -52,6 +53,10 @@ int main(int argc, char *argv[]) {
 
     std::vector<int64_t> id_plain, pwd_plain;
     generateTestData(rows, id_plain, pwd_plain);
+    if (check_mode && Comm::isClient()) {
+        id_plain = {1, 1, 1, 2, 2, 3, 3, 3};
+        pwd_plain = {10, 10, 11, 20, 20, 30, 31, 31};
+    }
 
     auto id_shares = Secrets::boolShare(id_plain, 2, 64, tid);
     auto pwd_shares = Secrets::boolShare(pwd_plain, 2, 64, tid);
@@ -71,6 +76,14 @@ int main(int argc, char *argv[]) {
 
         auto t1 = System::currentTimeMillis();
         Log::i("Execution time: {}ms", (t1 - t0));
+        if (check_mode) {
+            auto check_view = result;
+            check_view.clearInvalidEntries(tid + 1000);
+            check_view.sort("ID", true, tid + 2000);
+            if (Comm::rank() == 0) Log::i("CORRECTNESS_BEGIN");
+            Views::revealAndPrint(check_view);
+            if (Comm::rank() == 0) Log::i("CORRECTNESS_END");
+        }
     }
 
     System::finalize();

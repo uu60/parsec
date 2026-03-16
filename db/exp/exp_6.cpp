@@ -59,6 +59,7 @@ int main(int argc, char *argv[]) {
     System::init(argc, argv);
     DbConf::init();
     auto tid = System::nextTask() << (32 - Conf::TASK_TAG_BITS);
+    bool check_mode = Conf::_userParams.count("check") && Conf::_userParams["check"] == "true";
 
     int orders_rows = 1000;
     int lineitem_rows = 1000;
@@ -78,6 +79,14 @@ int main(int argc, char *argv[]) {
     std::vector<int64_t> l_orderkey_data, l_commitdate_data, l_receiptdate_data;
     generateTestData(orders_rows, lineitem_rows, o_orderkey_data, o_orderpriority_data, o_orderdate_data,
                      l_orderkey_data, l_commitdate_data, l_receiptdate_data);
+    if (check_mode && Comm::isClient()) {
+        o_orderkey_data = {1, 2, 3, 4};
+        o_orderpriority_data = {5, 5, 7, 7};
+        o_orderdate_data = {100, 102, 101, 105};
+        l_orderkey_data = {1, 1, 2, 3, 4};
+        l_commitdate_data = {1, 5, 3, 1, 1};
+        l_receiptdate_data = {2, 4, 3, 5, 9};
+    }
 
     auto o_orderkey_shares = Secrets::boolShare(o_orderkey_data, 2, 64, tid);
     auto o_orderpriority_shares = Secrets::boolShare(o_orderpriority_data, 2, 64, tid);
@@ -87,12 +96,14 @@ int main(int argc, char *argv[]) {
     auto l_receiptdate_shares = Secrets::boolShare(l_receiptdate_data, 2, 64, tid);
 
     int64_t start_date, end_date;
+    int64_t plain_start = check_mode ? 100 : PLAIN_START_DATE;
+    int64_t plain_end = check_mode ? 103 : PLAIN_END_DATE;
     if (Comm::isClient()) {
         int64_t rand_int0 = Math::randInt();
-        int64_t start_date0 = PLAIN_START_DATE ^ rand_int0;
+        int64_t start_date0 = plain_start ^ rand_int0;
         int64_t start_date1 = rand_int0;
         int64_t rand_int1 = Math::randInt();
-        int64_t end_date0 = PLAIN_END_DATE ^ rand_int1;
+        int64_t end_date0 = plain_end ^ rand_int1;
         int64_t end_date1 = rand_int1;
         Comm::send(start_date0, 64, 0, tid);
         Comm::send(end_date0, 64, 0, tid);
@@ -130,6 +141,23 @@ int main(int argc, char *argv[]) {
 
         auto query_end = System::currentTimeMillis();
         Log::i("Total query execution time: {}ms", query_end - query_start);
+        if (check_mode) {
+            std::vector<std::string> fields = {"o_orderpriority", "order_count"};
+            std::vector<int> widths = {64, 64};
+            View out(fields, widths);
+            int pidx = result_view.colIndex("o_orderpriority");
+            int cidx = result_view.colIndex("order_count");
+            out._dataCols[0] = result_view._dataCols[pidx];
+            out._dataCols[1] = result_view._dataCols[cidx];
+            out._dataCols[out.colNum() + View::VALID_COL_OFFSET] =
+                    result_view._dataCols[result_view.colNum() + View::VALID_COL_OFFSET];
+            out._dataCols[out.colNum() + View::PADDING_COL_OFFSET] = std::vector<int64_t>(out._dataCols[0].size(), 0);
+            out.clearInvalidEntries(tid + 7000);
+            out.sort("o_orderpriority", true, tid + 8000);
+            if (Comm::rank() == 0) Log::i("CORRECTNESS_BEGIN");
+            Views::revealAndPrint(out);
+            if (Comm::rank() == 0) Log::i("CORRECTNESS_END");
+        }
     }
 
     System::finalize();

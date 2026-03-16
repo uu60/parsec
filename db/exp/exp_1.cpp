@@ -54,6 +54,7 @@ int main(int argc, char *argv[]) {
     System::init(argc, argv);
     DbConf::init();
     auto tid = System::nextTask() << (32 - Conf::TASK_TAG_BITS);
+    bool check_mode = Conf::_userParams.count("check") && Conf::_userParams["check"] == "true";
 
     int rows1 = 1000, rows2 = 1000;
     if (Conf::_userParams.count("rows1")) {
@@ -71,6 +72,12 @@ int main(int argc, char *argv[]) {
     std::vector<int64_t> cdiff_cohort_pid_data;
     generateTestData(rows1, rows2, diagnosis_pid_data, diagnosis_diag_data,
                      diagnosis_extra_data, cdiff_cohort_pid_data);
+    if (check_mode && Comm::isClient()) {
+        diagnosis_pid_data = {1, 2, 3, 4, 5};
+        diagnosis_diag_data = {10, 10, 20, 20, 30};
+        diagnosis_extra_data = {0, 0, 0, 0, 0};
+        cdiff_cohort_pid_data = {2, 4, 4, 6};
+    }
 
     auto diagnosis_pid_shares = Secrets::boolShare(diagnosis_pid_data, 2, 64, tid);
     auto diagnosis_diag_shares = Secrets::boolShare(diagnosis_diag_data, 2, 64, tid);
@@ -94,6 +101,14 @@ int main(int argc, char *argv[]) {
 
         auto query_end = System::currentTimeMillis();
         Log::i("Total query execution time: {}ms", query_end - query_start);
+        if (check_mode) {
+            auto check_view = result_view;
+            check_view.clearInvalidEntries(tid + 1000);
+            check_view.sort("diag", true, tid + 2000);
+            if (Comm::rank() == 0) Log::i("CORRECTNESS_BEGIN");
+            Views::revealAndPrint(check_view);
+            if (Comm::rank() == 0) Log::i("CORRECTNESS_END");
+        }
     }
 
     System::finalize();

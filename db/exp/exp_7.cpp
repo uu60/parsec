@@ -55,6 +55,7 @@ int main(int argc, char *argv[]) {
     System::init(argc, argv);
     DbConf::init();
     const int tid = (System::nextTask() << (32 - Conf::TASK_TAG_BITS));
+    bool check_mode = Conf::_userParams.count("check") && Conf::_userParams["check"] == "true";
 
     int lineitem_rows = 1000;
     if (Conf::_userParams.count("rows")) {
@@ -66,6 +67,16 @@ int main(int argc, char *argv[]) {
 
     std::vector<int64_t> l_shipdate_p, l_discount_p, l_quantity_p, l_extendedprice_p, l_revenue_p;
     generateTestData(lineitem_rows, l_shipdate_p, l_discount_p, l_quantity_p, l_extendedprice_p, l_revenue_p);
+    if (check_mode && Comm::isClient()) {
+        l_shipdate_p = {110, 150, 150, 90, 120};
+        l_discount_p = {3, 2, 5, 3, 3};
+        l_quantity_p = {5, 9, 9, 5, 11};
+        l_extendedprice_p = {10, 7, 8, 6, 9};
+        l_revenue_p.clear();
+        for (size_t i = 0; i < l_extendedprice_p.size(); ++i) {
+            l_revenue_p.push_back(l_extendedprice_p[i] * l_discount_p[i]);
+        }
+    }
 
 
     auto l_shipdate_b = Secrets::boolShare(l_shipdate_p, 2, 64, tid);
@@ -75,6 +86,11 @@ int main(int argc, char *argv[]) {
     auto l_revenue_b = Secrets::boolShare(l_revenue_p, 2, 64, tid);
 
     int64_t start_b, end_b, dmin_b, dmax_b, q_b;
+    int64_t start_plain = check_mode ? 100 : START_DATE;
+    int64_t end_plain = check_mode ? 200 : END_DATE_EX;
+    int64_t dmin_plain = check_mode ? 2 : DISCOUNT_MIN;
+    int64_t dmax_plain = check_mode ? 4 : DISCOUNT_MAX;
+    int64_t q_plain = check_mode ? 10 : QUANTITY_TH;
     if (Comm::isClient()) {
         auto splitXor = [&](int64_t plain, int dst0, int dst1, int tag) {
             int64_t s0 = Math::randInt();
@@ -82,11 +98,11 @@ int main(int argc, char *argv[]) {
             Comm::send(s0, 64, dst0, tag);
             Comm::send(s1, 64, dst1, tag);
         };
-        splitXor(START_DATE, 0, 1, tid + 100);
-        splitXor(END_DATE_EX, 0, 1, tid + 101);
-        splitXor(DISCOUNT_MIN, 0, 1, tid + 102);
-        splitXor(DISCOUNT_MAX, 0, 1, tid + 103);
-        splitXor(QUANTITY_TH, 0, 1, tid + 104);
+        splitXor(start_plain, 0, 1, tid + 100);
+        splitXor(end_plain, 0, 1, tid + 101);
+        splitXor(dmin_plain, 0, 1, tid + 102);
+        splitXor(dmax_plain, 0, 1, tid + 103);
+        splitXor(q_plain, 0, 1, tid + 104);
     } else {
         Comm::receive(start_b, 64, 2, tid + 100);
         Comm::receive(end_b, 64, 2, tid + 101);
@@ -95,6 +111,7 @@ int main(int argc, char *argv[]) {
         Comm::receive(q_b, 64, 2, tid + 104);
     }
 
+    int64_t sum_share = 0;
     if (Comm::isServer()) {
         auto v = createLineitemTable(l_shipdate_b, l_discount_b, l_quantity_b, l_extendedprice_b, l_revenue_b);
 
@@ -102,10 +119,22 @@ int main(int argc, char *argv[]) {
 
         auto vf = filterAllConditions(v, start_b, end_b, dmin_b, dmax_b, q_b, tid + 200);
 
-        int64_t sum_share = calculateRevenue(vf, tid + 300);
+        sum_share = calculateRevenue(vf, tid + 300);
 
         auto t1 = System::currentTimeMillis();
         Log::i("Validation query (server {}) time: {}ms", Comm::rank(), (t1 - t0));
+    }
+
+    if (check_mode) {
+        std::vector<int64_t> sum_vec;
+        if (Comm::isServer()) {
+            sum_vec = {sum_share};
+        }
+        auto plain = Secrets::arithReconstruct(sum_vec, 2, 64, tid + 400);
+        if (Comm::isClient()) {
+            int64_t revenue = plain.empty() ? 0 : plain[0];
+            Log::i("CORRECTNESS_SCALAR {}", revenue);
+        }
     }
 
     System::finalize();

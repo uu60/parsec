@@ -21,7 +21,6 @@
 #include <vector>
 #include <algorithm>
 
-
 static int64_t kHD = Math::randInt();
 static int64_t kASP = Math::randInt();
 
@@ -55,25 +54,48 @@ std::vector<int64_t> build_leq_bits(std::vector<int64_t> &lhs,
 
 void find_time_cols(View &joined, int &left_time_idx, int &right_time_idx);
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     System::init(argc, argv);
     DbConf::init();
     auto tid = System::nextTask() << (32 - Conf::TASK_TAG_BITS);
+    bool check_mode = Conf::_userParams.count("check") && Conf::_userParams["check"] == "true";
 
     int diagRows = 1000, medRows = 1000;
-    if (Conf::_userParams.count("rows1")) {
+    if (Conf::_userParams.count("rows1"))
+    {
         diagRows = std::stoi(Conf::_userParams["rows1"]);
     }
-    if (Conf::_userParams.count("rows2")) {
+    if (Conf::_userParams.count("rows2"))
+    {
         medRows = std::stoi(Conf::_userParams["rows2"]);
     }
-    if (Comm::isClient()) {
+    if (Comm::isClient())
+    {
         Log::i("Data size: diagnosis: {} medication: {}", diagRows, medRows);
     }
 
     std::vector<int64_t> d_pid, d_diag, d_time, d_tag;
     std::vector<int64_t> m_pid, m_med, m_time, m_tag;
     generateTestData(diagRows, medRows, d_pid, d_diag, d_time, d_tag, m_pid, m_med, m_time, m_tag);
+    if (check_mode && Comm::isClient())
+    {
+        const int64_t hd = 111;
+        const int64_t asp = 222;
+        d_pid = {1, 1, 2, 3};
+        d_diag = {hd, hd, hd, 333};
+        d_time = {5, 9, 20, 7};
+        d_tag.clear();
+        for (auto p : d_pid)
+            d_tag.push_back(Views::hash(p));
+
+        m_pid = {1, 1, 2, 3};
+        m_med = {asp, asp, asp, asp};
+        m_time = {8, 6, 10, 30};
+        m_tag.clear();
+        for (auto p : m_pid)
+            m_tag.push_back(Views::hash(p));
+    }
 
     auto d_pid_s = Secrets::boolShare(d_pid, 2, 64, tid);
     auto d_diag_s = Secrets::boolShare(d_diag, 2, 64, tid);
@@ -86,45 +108,42 @@ int main(int argc, char *argv[]) {
     auto m_tag_s = Secrets::boolShare(m_tag, 2, 64, tid);
 
     int64_t hd_share, asp_share;
-    if (Comm::isClient()) {
+    int64_t hd_plain = check_mode ? 111 : kHD;
+    int64_t asp_plain = check_mode ? 222 : kASP;
+    if (Comm::isClient())
+    {
         int64_t r0 = Math::randInt();
         int64_t r1 = Math::randInt();
         Comm::send(r0, 64, 0, tid);
-        Comm::send(r0 ^ kHD, 64, 1, tid);
+        Comm::send(r0 ^ hd_plain, 64, 1, tid);
         Comm::send(r1, 64, 0, tid);
-        Comm::send(r1 ^ kASP, 64, 1, tid);
-    } else {
+        Comm::send(r1 ^ asp_plain, 64, 1, tid);
+    }
+    else
+    {
         Comm::receive(hd_share, 64, 2, tid);
         Comm::receive(asp_share, 64, 2, tid);
     }
 
-    if (Comm::isServer()) {
+    if (Comm::isServer())
+    {
         auto diagnosis_view = createDiagnosisTable(d_pid_s, d_diag_s, d_time_s, d_tag_s);
         auto medication_view = createMedicationTable(m_pid_s, m_med_s, m_time_s, m_tag_s);
+        const int tid_diag = tid;
+        const int tid_med = tid + 100;
+        const int tid_cmp = tid + 200;
+        const int tid_and = tid + 300;
 
         std::string col_diag = "diag";
         std::string col_med = "med";
 
         View d_min, m_max;
         auto t0 = System::currentTimeMillis();
-        if (DbConf::BASELINE_MODE) {
-            auto dv = filterEquals(diagnosis_view, col_diag, hd_share, tid);
-            auto mv = filterEquals(medication_view, col_med, asp_share, tid);
+        auto dv = filterEquals(diagnosis_view, col_diag, hd_share, tid_diag);
+        auto mv = filterEquals(medication_view, col_med, asp_share, tid_med);
 
-            d_min = perPidMinOrMax(dv, true, tid);
-            m_max = perPidMinOrMax(mv, false, tid);
-        } else {
-            auto f = ThreadPoolSupport::submit([&] {
-                auto dv = filterEquals(diagnosis_view, col_diag, hd_share, tid);
-                auto d_min = perPidMinOrMax(dv, true, tid);
-                return d_min;
-            });
-            auto mv = filterEquals(medication_view, col_med, asp_share, tid + 1000);
-            m_max = perPidMinOrMax(mv, false, tid + 1000);
-
-            d_min = f.get();
-        }
-
+        d_min = perPidMinOrMax(dv, true, tid_diag);
+        m_max = perPidMinOrMax(mv, false, tid_med);
 
         std::string field0 = "pid";
         auto joined = Views::nestedLoopJoin(d_min, m_max, field0, field0, false);
@@ -134,16 +153,43 @@ int main(int argc, char *argv[]) {
 
         auto &d_time_col = joined._dataCols[d_time_idx];
         auto &m_time_col = joined._dataCols[m_time_idx];
-        auto le_bits = build_leq_bits(d_time_col, m_time_col, tid);
+        auto le_bits = build_leq_bits(d_time_col, m_time_col, tid_cmp);
 
         auto valids = BoolAndBatchOperator(&le_bits, &joined._dataCols[joined.colNum() + View::VALID_COL_OFFSET],
-                                           1, 0, tid,
-                                           SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                           1, 0, tid_and,
+                                           SecureOperator::NO_CLIENT_COMPUTE)
+                          .execute()
+                          ->_zis;
 
         int valid_idx = joined.colNum() + View::VALID_COL_OFFSET;
         joined._dataCols[valid_idx] = std::move(valids);
 
         Log::i("Total query execution time: {}ms", System::currentTimeMillis() - t0);
+        if (check_mode)
+        {
+            int pid_idx = -1;
+            for (int i = 0; i < (int)joined._fieldNames.size(); ++i)
+            {
+                if (joined._fieldNames[i].find("pid") != std::string::npos)
+                {
+                    pid_idx = i;
+                    break;
+                }
+            }
+            std::vector<std::string> fields = {"pid"};
+            std::vector<int> widths = {64};
+            View out(fields, widths);
+            out._dataCols[0] = joined._dataCols[pid_idx >= 0 ? pid_idx : 0];
+            out._dataCols[out.colNum() + View::VALID_COL_OFFSET] = joined._dataCols[valid_idx];
+            out._dataCols[out.colNum() + View::PADDING_COL_OFFSET] = std::vector<int64_t>(out._dataCols[0].size(), 0);
+            out.clearInvalidEntries(tid + 5000);
+            out.sort("pid", true, tid + 6000);
+            if (Comm::rank() == 0)
+                Log::i("CORRECTNESS_BEGIN");
+            Views::revealAndPrint(out);
+            if (Comm::rank() == 0)
+                Log::i("CORRECTNESS_END");
+        }
     }
 
     System::finalize();
@@ -158,14 +204,17 @@ void generateTestData(int diagRows, int medRows,
                       std::vector<int64_t> &medication_pid_data,
                       std::vector<int64_t> &medication_med_data,
                       std::vector<int64_t> &medication_time_data,
-                      std::vector<int64_t> &medication_tag_data) {
-    if (Comm::rank() == 2) {
+                      std::vector<int64_t> &medication_tag_data)
+{
+    if (Comm::rank() == 2)
+    {
         diagnosis_pid_data.reserve(diagRows);
         diagnosis_diag_data.reserve(diagRows);
         diagnosis_time_data.reserve(diagRows);
         diagnosis_tag_data.reserve(diagRows);
 
-        for (int i = 0; i < diagRows; i++) {
+        for (int i = 0; i < diagRows; i++)
+        {
             int64_t pid = Math::randInt();
             int64_t diag = Math::randInt();
             int64_t time = Math::randInt();
@@ -182,7 +231,8 @@ void generateTestData(int diagRows, int medRows,
         medication_time_data.reserve(medRows);
         medication_tag_data.reserve(medRows);
 
-        for (int i = 0; i < medRows; i++) {
+        for (int i = 0; i < medRows; i++)
+        {
             int64_t pid = Math::randInt();
             int64_t med = Math::randInt();
             int64_t time = Math::randInt();
@@ -199,12 +249,14 @@ void generateTestData(int diagRows, int medRows,
 View createDiagnosisTable(std::vector<int64_t> &pid,
                           std::vector<int64_t> &diag,
                           std::vector<int64_t> &time,
-                          std::vector<int64_t> &tag) {
+                          std::vector<int64_t> &tag)
+{
     std::string name = "diagnosis";
     std::vector<std::string> fields = {"pid", "diag", "time"};
     std::vector<int> widths = {64, 64, 64};
     Table t(name, fields, widths, "pid");
-    for (size_t i = 0; i < pid.size(); ++i) {
+    for (size_t i = 0; i < pid.size(); ++i)
+    {
         t.insert({pid[i], diag[i], time[i], tag[i]});
     }
     return Views::selectAll(t);
@@ -213,18 +265,21 @@ View createDiagnosisTable(std::vector<int64_t> &pid,
 View createMedicationTable(std::vector<int64_t> &pid,
                            std::vector<int64_t> &med,
                            std::vector<int64_t> &time,
-                           std::vector<int64_t> &tag) {
+                           std::vector<int64_t> &tag)
+{
     std::string name = "medication";
     std::vector<std::string> fields = {"pid", "med", "time"};
     std::vector<int> widths = {64, 64, 64};
     Table t(name, fields, widths, "pid");
-    for (size_t i = 0; i < pid.size(); ++i) {
+    for (size_t i = 0; i < pid.size(); ++i)
+    {
         t.insert({pid[i], med[i], time[i], tag[i]});
     }
     return Views::selectAll(t);
 }
 
-View filterEquals(View v, std::string &col, int64_t secret_share, int tid) {
+View filterEquals(View v, std::string &col, int64_t secret_share, int tid)
+{
     std::vector<std::string> field_names = {col};
     std::vector<View::ComparatorType> comparator_types = {View::EQUALS};
     std::vector<int64_t> const_shares = {secret_share};
@@ -232,7 +287,8 @@ View filterEquals(View v, std::string &col, int64_t secret_share, int tid) {
     return v;
 }
 
-View perPidMinOrMax(View v, bool keepMinTime, int tid) {
+View perPidMinOrMax(View v, bool keepMinTime, int tid)
+{
     std::vector<std::string> order = {"pid", "$valid", "time"};
     std::vector<bool> asc = {true, false, keepMinTime ? true : false};
     v.sort(order, asc, tid);
@@ -242,30 +298,58 @@ View perPidMinOrMax(View v, bool keepMinTime, int tid) {
 
     int vidx = v.colNum() + View::VALID_COL_OFFSET;
     auto hv = BoolAndBatchOperator(&heads, &v._dataCols[vidx], 1, 0, tid,
-                                   SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                   SecureOperator::NO_CLIENT_COMPUTE)
+                  .execute()
+                  ->_zis;
     v._dataCols[vidx] = std::move(hv);
     return v;
 }
 
 std::vector<int64_t> build_leq_bits(std::vector<int64_t> &lhs,
                                     std::vector<int64_t> &rhs,
-                                    int baseTid) {
+                                    int baseTid)
+{
     auto rltl = BoolLessBatchOperator(&rhs, &lhs, 64, 0, baseTid,
-                                      SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-    if (Comm::rank() == 0) for (auto &b: rltl) b ^= 1;
+                                      SecureOperator::NO_CLIENT_COMPUTE)
+                    .execute()
+                    ->_zis;
+    if (Comm::rank() == 0)
+        for (auto &b : rltl)
+            b ^= 1;
     return rltl;
 }
 
-void find_time_cols(View &joined, int &left_time_idx, int &right_time_idx) {
+void find_time_cols(View &joined, int &left_time_idx, int &right_time_idx)
+{
     left_time_idx = right_time_idx = -1;
-    for (int i = 0; i < (int) joined._fieldNames.size(); ++i) {
+    std::vector<int> time_like;
+    for (int i = 0; i < (int)joined._fieldNames.size(); ++i)
+    {
         auto &nm = joined._fieldNames[i];
-        if (nm == "diagnosis.time" || (nm.find("diagnosis.") == 0 && nm.find(".time") != std::string::npos)) {
+        const bool is_time_like = (nm == "time") ||
+                                  (nm.size() >= 5 && nm.rfind(".time") == nm.size() - 5);
+        if (is_time_like)
+        {
+            time_like.push_back(i);
+        }
+        if (nm == "diagnosis.time" || (nm.find("diagnosis.") == 0 && nm.find(".time") != std::string::npos))
+        {
             left_time_idx = i;
-        } else if (nm == "medication.time" || (nm.find("medication.") == 0 && nm.find(".time") != std::string::npos)) {
+        }
+        else if (nm == "medication.time" || (nm.find("medication.") == 0 && nm.find(".time") != std::string::npos))
+        {
             right_time_idx = i;
         }
     }
-    if (left_time_idx < 0) left_time_idx = std::min(2, (int) joined._dataCols.size() - 1);
-    if (right_time_idx < 0) right_time_idx = std::min(6, (int) joined._dataCols.size() - 1);
+    if ((left_time_idx < 0 || right_time_idx < 0) && time_like.size() >= 2)
+    {
+        if (left_time_idx < 0)
+            left_time_idx = time_like[0];
+        if (right_time_idx < 0)
+            right_time_idx = time_like[1];
+    }
+    if (left_time_idx < 0)
+        left_time_idx = std::min(2, (int)joined._dataCols.size() - 1);
+    if (right_time_idx < 0)
+        right_time_idx = std::min(6, (int)joined._dataCols.size() - 1);
 }

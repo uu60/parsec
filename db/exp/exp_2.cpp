@@ -53,6 +53,7 @@ int main(int argc, char *argv[]) {
     System::init(argc, argv);
     DbConf::init();
     auto tid = System::nextTask() << (32 - Conf::TASK_TAG_BITS);
+    bool check_mode = Conf::_userParams.count("check") && Conf::_userParams["check"] == "true";
 
     int num_records = 1000;
     if (Conf::_userParams.count("rows")) {
@@ -68,6 +69,22 @@ int main(int argc, char *argv[]) {
 
     generateRandomData(num_records, pid_data, pid_hash_data, time_data, time_plus_15_data,
                        time_plus_56_data, row_no_data, row_no_plus_1_data, diag_data);
+    if (check_mode && Comm::isClient()) {
+        const int64_t code = 999;
+        pid_data = {1, 1, 1, 2, 2, 3, 3};
+        time_data = {10, 30, 100, 5, 25, 7, 40};
+        diag_data = {code, code, code, code, 123, code, code};
+        row_no_data = {1, 2, 3, 4, 5, 6, 7};
+        row_no_plus_1_data = {2, 3, 4, 5, 6, 7, 8};
+        time_plus_15_data.clear();
+        time_plus_56_data.clear();
+        for (auto t: time_data) {
+            time_plus_15_data.push_back(t + 15);
+            time_plus_56_data.push_back(t + 56);
+        }
+        pid_hash_data.clear();
+        for (auto p: pid_data) pid_hash_data.push_back(Views::hash(p));
+    }
 
     auto pid_shares = Secrets::boolShare(pid_data, 2, 64, tid);
     auto pid_hash_shares = Secrets::boolShare(pid_hash_data, 2, 64, tid);
@@ -79,9 +96,10 @@ int main(int argc, char *argv[]) {
     auto diag_shares = Secrets::boolShare(diag_data, 2, 64, tid);
 
     int64_t cdiff_code;
+    int64_t cdiff_plain = check_mode ? 999 : CDIFF_CODE;
     if (Comm::isClient()) {
         int64_t s0 = Math::randInt();
-        int64_t s1 = s0 ^ CDIFF_CODE;
+        int64_t s1 = s0 ^ cdiff_plain;
         Comm::send(s0, 64, 0, tid);
         Comm::send(s1, 64, 1, tid);
     } else {
@@ -102,6 +120,21 @@ int main(int argc, char *argv[]) {
 
         auto query_end = System::currentTimeMillis();
         Log::i("Total query execution time: {}ms", query_end - query_start);
+        if (check_mode) {
+            std::vector<std::string> fields = {"pid"};
+            std::vector<int> widths = {64};
+            View check_view(fields, widths);
+            check_view._dataCols[0] = result_view._dataCols[result_view.colIndex("pid")];
+            check_view._dataCols[check_view.colNum() + View::VALID_COL_OFFSET] =
+                    result_view._dataCols[result_view.colNum() + View::VALID_COL_OFFSET];
+            check_view._dataCols[check_view.colNum() + View::PADDING_COL_OFFSET] =
+                    std::vector<int64_t>(check_view._dataCols[0].size(), 0);
+            check_view.clearInvalidEntries(tid + 3000);
+            check_view.sort("pid", true, tid + 4000);
+            if (Comm::rank() == 0) Log::i("CORRECTNESS_BEGIN");
+            Views::revealAndPrint(check_view);
+            if (Comm::rank() == 0) Log::i("CORRECTNESS_END");
+        }
     }
 
     System::finalize();

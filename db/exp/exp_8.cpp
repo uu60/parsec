@@ -216,6 +216,7 @@ int main(int argc, char *argv[]) {
     System::init(argc, argv);
     DbConf::init();
     auto tid = System::nextTask() << (32 - Conf::TASK_TAG_BITS);
+    bool check_mode = Conf::_userParams.count("check") && Conf::_userParams["check"] == "true";
 
     int customer_rows = 14;
     int orders_rows = 24;
@@ -228,6 +229,12 @@ int main(int argc, char *argv[]) {
 
     std::vector<int64_t> c_keys, o_cust, o_okey, o_flag;
     generateTestData(customer_rows, orders_rows, c_keys, o_cust, o_okey, o_flag);
+    if (check_mode && Comm::isClient()) {
+        c_keys = {1, 2, 3, 4};
+        o_cust = {1, 1, 2, 2, 5};
+        o_okey = {11, 12, 21, 22, 51};
+        o_flag = {1, 1, 1, 0, 1};
+    }
 
     auto c_key_b = Secrets::boolShare(c_keys, 2, 64, tid);
     auto o_cust_b = Secrets::boolShare(o_cust, 2, 64, tid);
@@ -236,7 +243,7 @@ int main(int argc, char *argv[]) {
 
     int64_t word;
     if (Comm::isClient()) {
-        word = Math::randInt();
+        word = check_mode ? 1 : Math::randInt();
         int64_t s = Math::randInt();
         Comm::send(s, 64, 0, tid);
         Comm::send(word ^ s, 64, 1, tid);
@@ -270,6 +277,13 @@ int main(int argc, char *argv[]) {
 
         auto vResult = sortFinalResults(vUnion, tid);
         Log::i("Execution time: {}ms", (System::currentTimeMillis() - t0));
+        if (check_mode) {
+            auto check_view = vResult;
+            check_view.clearInvalidEntries(tid + 6000);
+            if (Comm::rank() == 0) Log::i("CORRECTNESS_BEGIN");
+            Views::revealAndPrint(check_view);
+            if (Comm::rank() == 0) Log::i("CORRECTNESS_END");
+        }
     }
 
     System::finalize();

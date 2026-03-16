@@ -45,6 +45,7 @@ int main(int argc, char *argv[]) {
     System::init(argc, argv);
     DbConf::init();
     auto tid = (System::nextTask() << (32 - Conf::TASK_TAG_BITS));
+    bool check_mode = Conf::_userParams.count("check") && Conf::_userParams["check"] == "true";
 
     int rows = 1000;
     if (Conf::_userParams.count("rows")) {
@@ -59,6 +60,13 @@ int main(int argc, char *argv[]) {
     int64_t c_plain = 0;
     generateRandomData(rows, id_plain, cs_plain, year_plain, cs_plus_plain,
                        target_year_plain, c_plain);
+    if (check_mode && Comm::isClient()) {
+        id_plain = {1, 1, 2, 2, 3};
+        cs_plain = {10, 30, 8, 9, 50};
+        year_plain = {2019, 2019, 2019, 2019, 2018};
+        cs_plus_plain = {15, 35, 13, 14, 55};
+        target_year_plain = 2019;
+    }
 
     auto id_b = Secrets::boolShare(id_plain, 2, 64, tid);
     auto cs_b = Secrets::boolShare(cs_plain, 2, 64, tid);
@@ -85,6 +93,14 @@ int main(int argc, char *argv[]) {
 
         auto t1 = System::currentTimeMillis();
         Log::i("Query time: {}ms", (t1 - t0));
+        if (check_mode) {
+            auto check_view = out;
+            check_view.clearInvalidEntries(tid + 4000);
+            check_view.sort("ID", true, tid + 5000);
+            if (Comm::rank() == 0) Log::i("CORRECTNESS_BEGIN");
+            Views::revealAndPrint(check_view);
+            if (Comm::rank() == 0) Log::i("CORRECTNESS_END");
+        }
     }
 
     System::finalize();

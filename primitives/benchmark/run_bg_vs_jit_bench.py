@@ -148,7 +148,9 @@ def run_single_test(executable: str, primitive: str, num: int, width: int, build
 
 def main():
     # Configuration
-    build_dir = "../../build"  # Relative to script location
+    # Always resolve build_dir relative to this script's location, not CWD
+    _script_dir = os.path.dirname(os.path.abspath(__file__))
+    build_dir = os.path.normpath(os.path.join(_script_dir, "../../build"))
 
     # Test parameters
     primitives = ["<", "<=", "==", "!=", "mux", "sort"]
