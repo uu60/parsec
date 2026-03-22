@@ -11,27 +11,32 @@
 
 ArithMultiplyBatchOperator::ArithMultiplyBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys,
                                                        int width, int taskTag, int msgTagOffset, int clientRank)
-    : ArithBatchOperator(xs, ys, width, taskTag, msgTagOffset, clientRank) {
+    : ArithBatchOperator(xs, ys, width, taskTag, msgTagOffset, clientRank)
+{
 }
 
-ArithMultiplyBatchOperator *ArithMultiplyBatchOperator::execute() {
+ArithMultiplyBatchOperator *ArithMultiplyBatchOperator::execute()
+{
     _currentMsgTag = _startMsgTag;
 
-    if (Comm::isClient()) {
+    if (Comm::isClient())
+    {
         return this;
     }
 
-    if (Conf::BMT_METHOD != Conf::BMT_JIT) {
-        throw std::runtime_error("Temporarily only support BMT JIT generation for experiment.");
+    if (Conf::BMT_METHOD != Conf::BMT_JIT && Conf::BMT_METHOD != Conf::BMT_FIXED)
+    {
+        throw std::runtime_error("ArithMultiplyBatchOperator: Temporarily only support BMT JIT or FIXED generation for experiment.");
     }
 
     int num = static_cast<int>(_xis->size());
     _zis.resize(num);
 
-    std::vector<Bmt> bmts = BmtBatchGenerator(num, _width, _taskTag, _currentMsgTag).execute()->_bmts;
+    std::vector<Bmt> bmts = Conf::BMT_METHOD == Conf::BMT_JIT ? BmtBatchGenerator(num, _width, _taskTag, _currentMsgTag).execute()->_bmts : std::vector<Bmt>(num, IntermediateDataSupport::_fixedBmt);
 
     std::vector<int64_t> eis(num), fis(num);
-    for (int i = 0; i < num; i++) {
+    for (int i = 0; i < num; i++)
+    {
         const Bmt &bmt = bmts[i];
         eis[i] = ring((*_xis)[i] - bmt._a);
         fis[i] = ring((*_yis)[i] - bmt._b);
@@ -39,7 +44,8 @@ ArithMultiplyBatchOperator *ArithMultiplyBatchOperator::execute() {
 
     std::vector<int64_t> batchEFI;
     batchEFI.reserve(num * 2);
-    for (int i = 0; i < num; i++) {
+    for (int i = 0; i < num; i++)
+    {
         batchEFI.push_back(eis[i]);
         batchEFI.push_back(fis[i]);
     }
@@ -53,7 +59,8 @@ ArithMultiplyBatchOperator *ArithMultiplyBatchOperator::execute() {
     Comm::wait(r0);
     Comm::wait(r1);
 
-    for (int i = 0; i < num; i++) {
+    for (int i = 0; i < num; i++)
+    {
         int64_t e_sum = ring(eis[i] + batchEFO[2 * i]);
         int64_t f_sum = ring(fis[i] + batchEFO[2 * i + 1]);
 
@@ -64,11 +71,13 @@ ArithMultiplyBatchOperator *ArithMultiplyBatchOperator::execute() {
     return this;
 }
 
-ArithMultiplyBatchOperator *ArithMultiplyBatchOperator::reconstruct(int clientRank) {
+ArithMultiplyBatchOperator *ArithMultiplyBatchOperator::reconstruct(int clientRank)
+{
     ArithBatchOperator::reconstruct(clientRank);
     return this;
 }
 
-int ArithMultiplyBatchOperator::tagStride(int width) {
+int ArithMultiplyBatchOperator::tagStride(int width)
+{
     return BmtBatchGenerator::tagStride();
 }

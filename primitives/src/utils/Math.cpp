@@ -14,8 +14,6 @@
 #include <openssl/core_names.h>
 #include <openssl/param_build.h>
 
-// ========== RsaKeyContext Implementation ==========
-
 RsaKeyContext::~RsaKeyContext() {
     if (pkey != nullptr) {
         EVP_PKEY_free(pkey);
@@ -71,8 +69,6 @@ RsaKeyContext& RsaKeyContext::operator=(RsaKeyContext&& other) noexcept {
     }
     return *this;
 }
-
-// ========== Internal Helper Functions ==========
 
 BIGNUM *bignum(const std::string &str, const bool positive) {
     std::vector<uint8_t> binaryData = std::vector<uint8_t>(str.begin(), str.end());
@@ -198,7 +194,6 @@ int64_t Math::pow(int64_t base, int64_t exponent) {
     return result;
 }
 
-// ========== RSA-OT Helper Functions Implementation ==========
 
 RsaKeyContext Math::loadRsaPublicKey(const std::string& pem_str) {
     BIO* bio = BIO_new_mem_buf(pem_str.data(), static_cast<int>(pem_str.size()));
@@ -206,14 +201,12 @@ RsaKeyContext Math::loadRsaPublicKey(const std::string& pem_str) {
         throw std::runtime_error("loadRsaPublicKey: BIO_new_mem_buf failed");
     }
 
-    // Use EVP API (OpenSSL 3.0+)
     EVP_PKEY* pkey = PEM_read_bio_PUBKEY(bio, nullptr, nullptr, nullptr);
     BIO_free(bio);
     if (pkey == nullptr) {
         throw std::runtime_error("loadRsaPublicKey: PEM_read_bio_PUBKEY failed");
     }
 
-    // Verify it's an RSA key
     if (EVP_PKEY_base_id(pkey) != EVP_PKEY_RSA) {
         EVP_PKEY_free(pkey);
         throw std::runtime_error("loadRsaPublicKey: not an RSA key");
@@ -222,7 +215,6 @@ RsaKeyContext Math::loadRsaPublicKey(const std::string& pem_str) {
     RsaKeyContext ctx;
     ctx.pkey = pkey;
 
-    // Extract n and e using EVP_PKEY_get_bn_param (returns copies we own)
     if (!EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_N, &ctx.n)) {
         EVP_PKEY_free(pkey);
         throw std::runtime_error("loadRsaPublicKey: failed to get RSA n");
@@ -243,14 +235,12 @@ RsaKeyContext Math::loadRsaPrivateKey(const std::string& pem_str) {
         throw std::runtime_error("loadRsaPrivateKey: BIO_new_mem_buf failed");
     }
 
-    // Use EVP API (OpenSSL 3.0+)
     EVP_PKEY* pkey = PEM_read_bio_PrivateKey(bio, nullptr, nullptr, nullptr);
     BIO_free(bio);
     if (pkey == nullptr) {
         throw std::runtime_error("loadRsaPrivateKey: PEM_read_bio_PrivateKey failed");
     }
 
-    // Verify it's an RSA key
     if (EVP_PKEY_base_id(pkey) != EVP_PKEY_RSA) {
         EVP_PKEY_free(pkey);
         throw std::runtime_error("loadRsaPrivateKey: not an RSA key");
@@ -259,7 +249,6 @@ RsaKeyContext Math::loadRsaPrivateKey(const std::string& pem_str) {
     RsaKeyContext ctx;
     ctx.pkey = pkey;
 
-    // Extract n, e, d using EVP_PKEY_get_bn_param (returns copies we own)
     if (!EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_N, &ctx.n)) {
         EVP_PKEY_free(pkey);
         throw std::runtime_error("loadRsaPrivateKey: failed to get RSA n");
@@ -287,11 +276,9 @@ std::string Math::toFixedBytes(const std::string& bytes, int nbytes) {
         return bytes;
     }
     if (static_cast<int>(bytes.size()) > nbytes) {
-        // Truncate leading zeros if oversized
         size_t start = bytes.size() - nbytes;
         return bytes.substr(start, nbytes);
     }
-    // Pad with leading zeros
     std::string result(nbytes - bytes.size(), '\0');
     result.append(bytes);
     return result;
@@ -499,7 +486,6 @@ std::string Math::rsaDecrypt(const std::string& v_bytes, const RsaKeyContext& ct
         throw std::runtime_error("rsaDecrypt: allocation failed");
     }
 
-    // Compute v^d mod n
     if (!BN_mod_exp(result, v, ctx.d, ctx.n, bn_ctx)) {
         BN_free(v);
         BN_free(result);

@@ -20,8 +20,8 @@ ArithLessBatchOperator *ArithLessBatchOperator::execute() {
         return this;
     }
 
-    if (Conf::BMT_METHOD != Conf::BMT_JIT) {
-        throw std::runtime_error("Temporarily only support BMT JIT generation for experiment.");
+    if (Conf::BMT_METHOD != Conf::BMT_JIT && Conf::BMT_METHOD != Conf::BMT_FIXED) {
+        throw std::runtime_error("ArithLessBatchOperator: Temporarily only support BMT JIT or FIXED generation for experiment.");
     }
 
     int64_t start;
