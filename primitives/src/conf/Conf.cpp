@@ -45,6 +45,8 @@ void Conf::init(int argc, char **argv) {
 
         if (COMM_TYPE == MPI) {
             comm_type = "mpi";
+        } else if (COMM_TYPE == TCP) {
+            comm_type = "tcp";
         }
 
         desc.add_options()
@@ -75,7 +77,7 @@ void Conf::init(int argc, char **argv) {
                 ("thread_pool", po::value<std::string>(&thread_pool)->default_value(thread_pool),
                  "Set thread_pool (ctpl_pool, tbb_pool)")
                 ("comm_type", po::value<std::string>(&comm_type)->default_value(comm_type),
-                 "Set comm_type (mpi)")
+                 "Set comm_type (mpi, tcp)")
                 ("batch_size", po::value<int>(&BATCH_SIZE)->default_value(BATCH_SIZE),
                  "Set batch_size")
                 ("enable_transfer_compression",
@@ -151,6 +153,8 @@ void Conf::init(int argc, char **argv) {
         if (vm.count("comm_type")) {
             if (comm_type == "mpi") {
                 COMM_TYPE = MPI;
+            } else if (comm_type == "tcp") {
+                COMM_TYPE = TCP;
             } else {
                 throw std::runtime_error("Unknown comm_type value.");
             }

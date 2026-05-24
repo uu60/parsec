@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "comm/MpiComm.h"
+#include "comm/TcpComm.h"
 #include "conf/Conf.h"
 #include "utils/System.h"
 
@@ -27,6 +28,8 @@ int Comm::rank() {
 void Comm::init(int argc, char **argv) {
     if (Conf::COMM_TYPE == Conf::MPI) {
         impl = new MpiComm();
+    } else if (Conf::COMM_TYPE == Conf::TCP) {
+        impl = new TcpComm();
     }
     impl->init_(argc, argv);
 }

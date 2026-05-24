@@ -25,7 +25,8 @@ public:
     };
 
     enum CommT {
-        MPI
+        MPI,
+        TCP
     };
 
     enum BmtT {
