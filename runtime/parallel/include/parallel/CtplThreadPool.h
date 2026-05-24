@@ -1,8 +1,8 @@
 
 #ifndef CTPLTHREADPOOL_H
 #define CTPLTHREADPOOL_H
-#include "../third_party/ctpl_stl.h"
-#include "../utils/Log.h"
+#include "third_party/ctpl_stl.h"
+#include "utils/Log.h"
 
 class CtplThreadPool {
 private:

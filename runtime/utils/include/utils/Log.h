@@ -9,7 +9,7 @@
 #include <iomanip>
 #include <unistd.h>
 #include <mutex>
-#include "../comm/Comm.h"
+#include "comm/Comm.h"
 
 class Log {
 private:

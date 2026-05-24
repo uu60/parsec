@@ -2,6 +2,7 @@
 #ifndef DBCONF_H
 #define DBCONF_H
 
+#include "conf/AppConfig.h"
 #include "conf/Conf.h"
 #include "utils/Log.h"
 
@@ -14,21 +15,12 @@ public:
     inline static bool NO_COMPACTION = false;
 
     static void init() {
-        if (Conf::_userParams.count("enable_hash_join")) {
-            ENABLE_HASH_JOIN = Conf::_userParams["enable_hash_join"] == "true";
-        }
-        if (Conf::_userParams.count("shuffle_bucket_num")) {
-            SHUFFLE_BUCKET_NUM = std::stoi(Conf::_userParams["shuffle_bucket_num"]);
-        }
-        if (Conf::_userParams.count("baseline_mode")) {
-            BASELINE_MODE = Conf::_userParams["baseline_mode"] == "true";
-        }
-        if (Conf::_userParams.count("no_compaction")) {
-            NO_COMPACTION = Conf::_userParams["no_compaction"] == "true";
-        }
-        if (Conf::_userParams.count("disable_precise_compaction")) {
-            DISABLE_PRECISE_COMPACTION = Conf::_userParams["disable_precise_compaction"] == "true";
-        }
+        ENABLE_HASH_JOIN = AppConfig::getBool("enable_hash_join", ENABLE_HASH_JOIN);
+        SHUFFLE_BUCKET_NUM = AppConfig::getInt("shuffle_bucket_num", SHUFFLE_BUCKET_NUM);
+        BASELINE_MODE = AppConfig::getBool("baseline_mode", BASELINE_MODE);
+        NO_COMPACTION = AppConfig::getBool("no_compaction", NO_COMPACTION);
+        DISABLE_PRECISE_COMPACTION =
+                AppConfig::getBool("disable_precise_compaction", DISABLE_PRECISE_COMPACTION);
 
         if (BASELINE_MODE) {
             NO_COMPACTION = true;

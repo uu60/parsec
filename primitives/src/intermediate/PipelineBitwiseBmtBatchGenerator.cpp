@@ -1,7 +1,7 @@
 
-#include "../../include/intermediate/PipelineBitwiseBmtBatchGenerator.h"
+#include "intermediate/PipelineBitwiseBmtBatchGenerator.h"
 
-#include "../../include/intermediate/IntermediateDataSupport.h"
+#include "intermediate/IntermediateDataSupport.h"
 #include "parallel/ThreadPoolSupport.h"
 
 PipelineBitwiseBmtBatchGenerator *PipelineBitwiseBmtBatchGenerator::execute() {

@@ -1,4 +1,4 @@
-#include "../../include/ot/BaseOtBatchOperator.h"
+#include "ot/BaseOtBatchOperator.h"
 
 #include <string>
 #include <cstring>
@@ -260,4 +260,3 @@ void BaseOtBatchOperator::process() {
 int BaseOtBatchOperator::tagStride() {
     return 1;
 }
-

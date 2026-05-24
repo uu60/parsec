@@ -8,7 +8,7 @@
 #include "./item/Bmt.h"
 #include "./item/SRot.h"
 #include "./item/RRot.h"
-#include "../conf/Conf.h"
+#include "conf/Conf.h"
 #include "./item/BitwiseBmt.h"
 #include "sync/AbstractBlockingQueue.h"
 

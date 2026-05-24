@@ -7,7 +7,7 @@
 #include "./CtplThreadPool.h"
 #include "./TbbThreadPool.h"
 #include "Async.h"
-#include "../conf/Conf.h"
+#include "conf/Conf.h"
 
 
 class ThreadPoolSupport {

@@ -2,7 +2,7 @@
 #ifndef BITWISEBMT_H
 #define BITWISEBMT_H
 #include "./Bmt.h"
-#include "../../utils/Math.h"
+#include "utils/Math.h"
 #include "utils/Log.h"
 
 class BitwiseBmt : public Bmt {

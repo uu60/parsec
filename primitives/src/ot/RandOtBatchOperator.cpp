@@ -1,7 +1,7 @@
 
-#include "../../include/ot/RandOtBatchOperator.h"
+#include "ot/RandOtBatchOperator.h"
 
-#include "../../include/intermediate/IntermediateDataSupport.h"
+#include "intermediate/IntermediateDataSupport.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Log.h"
 

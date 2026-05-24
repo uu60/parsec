@@ -8,17 +8,26 @@
 #include "comm/MpiComm.h"
 #include "comm/TcpComm.h"
 #include "conf/Conf.h"
-#include "utils/System.h"
 
+#include <chrono>
 #include <string>
+
+namespace {
+int64_t currentTimeMillis() {
+    auto now = std::chrono::system_clock::now();
+    auto duration = now.time_since_epoch();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+}
+}
+
 #define MEASURE_EXECUTION_TIME(statement) \
 int64_t start = 0; \
 if (Conf::ENABLE_CLASS_WISE_TIMING) { \
-start = System::currentTimeMillis(); \
+start = currentTimeMillis(); \
 } \
 statement; \
 if (Conf::ENABLE_CLASS_WISE_TIMING) { \
-_totalTime += System::currentTimeMillis() - start; \
+_totalTime += currentTimeMillis() - start; \
 }
 
 int Comm::rank() {

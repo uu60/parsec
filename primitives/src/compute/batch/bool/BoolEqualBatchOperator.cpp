@@ -1,4 +1,4 @@
-#include "../../../../include/compute/batch/bool/BoolEqualBatchOperator.h"
+#include "compute/batch/bool/BoolEqualBatchOperator.h"
 
 #include "compute/batch/bool/BoolAndBatchOperator.h"
 #include "compute/batch/bool/BoolLessBatchOperator.h"

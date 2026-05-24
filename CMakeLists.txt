@@ -25,7 +25,7 @@
      endif ()
  endif ()
 
- find_package(Boost REQUIRED CONFIG COMPONENTS program_options)
+ find_package(Boost REQUIRED CONFIG)
 
  # Define TBB availability for the code
  if (TBB_FOUND)
@@ -35,29 +35,7 @@
      message(STATUS "TBB not found - TBB thread pool will be disabled")
  endif ()
 
- file(GLOB_RECURSE LIB_SOURCES
-         "primitives/include/*.h"
-         "primitives/include/*.cpp"
-         "primitives/src/*.cpp"
- )
-
- add_library(${PROJECT_NAME} STATIC ${LIB_SOURCES})
-
- target_include_directories(${PROJECT_NAME} PUBLIC
-         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/primitives/include>
-         $<INSTALL_INTERFACE:include>)
-
- # Link libraries conditionally based on TBB availability
- if (TBB_FOUND)
-     target_link_libraries(
-             ${PROJECT_NAME} PUBLIC MPI::MPI_CXX OpenSSL::SSL OpenSSL::Crypto ${TBB_LIBRARIES} Boost::boost Boost::program_options
-     )
- else ()
-     target_link_libraries(
-             ${PROJECT_NAME} PUBLIC MPI::MPI_CXX OpenSSL::SSL OpenSSL::Crypto Boost::boost Boost::program_options
-     )
- endif ()
-
+ add_subdirectory(runtime)
  add_subdirectory(primitives)
  add_subdirectory(db)
  add_subdirectory(db/benchmark)

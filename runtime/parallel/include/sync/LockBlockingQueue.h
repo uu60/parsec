@@ -7,7 +7,7 @@
 #include <condition_variable>
 
 #include "AbstractBlockingQueue.h"
-#include "../utils/Log.h"
+#include "utils/Log.h"
 
 template<typename T>
 class LockBlockingQueue : public AbstractBlockingQueue<T> {

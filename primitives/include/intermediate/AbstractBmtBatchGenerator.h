@@ -2,7 +2,7 @@
 #ifndef ABSTRACTBMTBATCHGENERATOR_H
 #define ABSTRACTBMTBATCHGENERATOR_H
 #include "../base/AbstractBatchOperator.h"
-#include "../conf/Conf.h"
+#include "conf/Conf.h"
 #include "../ot/RandOtBatchOperator.h"
 #include "../ot/RandOtOperator.h"
 

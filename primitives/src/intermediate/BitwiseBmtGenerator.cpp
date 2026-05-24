@@ -1,5 +1,5 @@
-#include "../../include/intermediate/BitwiseBmtGenerator.h"
-#include "../../include/utils/Math.h"
+#include "intermediate/BitwiseBmtGenerator.h"
+#include "utils/Math.h"
 #include "conf/Conf.h"
 #include "ot/IknpOtBatchOperator.h"
 #include "parallel/ThreadPoolSupport.h"

@@ -6,7 +6,6 @@
 
 #include "comm/item/MpiRequestWrapper.h"
 #include "conf/Conf.h"
-#include "intermediate/IntermediateDataSupport.h"
 #include "utils/Log.h"
 
 #include <string>

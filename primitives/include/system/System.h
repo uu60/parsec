@@ -1,9 +1,9 @@
 
 #ifndef MPC_PACKAGE_SYSTEM_H
 #define MPC_PACKAGE_SYSTEM_H
-#include "../third_party/ctpl_stl.h"
-#include "../comm/Comm.h"
-#include "../conf/Conf.h"
+#include "comm/Comm.h"
+#include "conf/Conf.h"
+#include "third_party/ctpl_stl.h"
 
 class System {
 private:

@@ -4,7 +4,7 @@
 #include <cstdint>
 
 #include "../base/AbstractSingleOperator.h"
-#include "../conf/Conf.h"
+#include "conf/Conf.h"
 
 
 template<class BmtT>
