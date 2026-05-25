@@ -1,5 +1,6 @@
 #include "comm/TcpComm.h"
 
+#include "conf/AppConfig.h"
 #include "conf/Conf.h"
 
 #include <arpa/inet.h>
@@ -21,19 +22,19 @@ struct MessageHeader {
 };
 
 int64_t parseIntParam(const std::string &name, int64_t defaultValue) {
-    auto it = Conf::_userParams.find(name);
-    if (it == Conf::_userParams.end()) {
+    if (!AppConfig::has(name)) {
         return defaultValue;
     }
-    return std::stoll(it->second);
+    auto value = AppConfig::getString(name, "");
+    try {
+        return std::stoll(value);
+    } catch (const std::exception &ex) {
+        throw std::runtime_error("Invalid integer for " + name + ": " + value);
+    }
 }
 
 std::string parseStringParam(const std::string &name, const std::string &defaultValue) {
-    auto it = Conf::_userParams.find(name);
-    if (it == Conf::_userParams.end()) {
-        return defaultValue;
-    }
-    return it->second;
+    return AppConfig::getString(name, defaultValue);
 }
 
 std::runtime_error socketError(const std::string &message) {
@@ -41,7 +42,7 @@ std::runtime_error socketError(const std::string &message) {
 }
 }
 
-TcpComm::TcpComm() : _peerFds(3, -1), _sendMutexes(3), _recvMutexes(3) {}
+TcpComm::TcpComm() : _peerFds(3, -1), _sendMutexes(3), _readerThreads(3) {}
 
 TcpComm::~TcpComm() {
     finalize_();
@@ -56,13 +57,31 @@ void TcpComm::init_(int argc, char **argv) {
     if (_size != 3) {
         throw std::runtime_error("3 parties restricted.");
     }
+    _peerFds.assign(_size, -1);
+    _sendMutexes = std::vector<std::mutex>(_size);
+    _readerThreads = std::vector<std::thread>(_size);
     establishConnections();
+    startReaderThreads();
 }
 
 void TcpComm::finalize_() {
+    {
+        std::lock_guard<std::mutex> lock(_messageMutex);
+        if (_shuttingDown) {
+            return;
+        }
+        _shuttingDown = true;
+    }
+    _messageCv.notify_all();
+
     closeFd(_listenFd);
     for (auto &fd: _peerFds) {
         closeFd(fd);
+    }
+    for (auto &reader: _readerThreads) {
+        if (reader.joinable()) {
+            reader.join();
+        }
     }
 }
 
@@ -175,6 +194,44 @@ void TcpComm::establishConnections() {
     }
 }
 
+void TcpComm::startReaderThreads() {
+    for (int peer = 0; peer < _size; ++peer) {
+        if (peer == _rank || _peerFds[peer] < 0) {
+            continue;
+        }
+        _readerThreads[peer] = std::thread([this, peer]() {
+            readerLoop(peer);
+        });
+    }
+}
+
+void TcpComm::readerLoop(int senderRank) {
+    try {
+        while (true) {
+            int tag = 0;
+            std::vector<char> payload;
+            if (!readNextMessage(senderRank, tag, payload)) {
+                break;
+            }
+
+            {
+                std::lock_guard<std::mutex> lock(_messageMutex);
+                if (_shuttingDown) {
+                    break;
+                }
+                _pendingMessages[std::make_pair(senderRank, tag)].push_back(PendingMessage{std::move(payload)});
+            }
+            _messageCv.notify_all();
+        }
+    } catch (...) {
+        std::lock_guard<std::mutex> lock(_messageMutex);
+        if (!_shuttingDown && !_readerError) {
+            _readerError = std::current_exception();
+        }
+    }
+    _messageCv.notify_all();
+}
+
 int TcpComm::createListenSocket(int port) {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0) {
@@ -266,46 +323,49 @@ std::vector<char> TcpComm::receivePayload(int senderRank, int tag) {
         throw std::runtime_error("Invalid sender rank.");
     }
 
-    {
-        std::lock_guard<std::mutex> pendingLock(_pendingMutex);
-        auto key = std::make_pair(senderRank, tag);
+    auto key = std::make_pair(senderRank, tag);
+    std::unique_lock<std::mutex> lock(_messageMutex);
+    _messageCv.wait(lock, [this, &key]() {
         auto it = _pendingMessages.find(key);
         if (it != _pendingMessages.end() && !it->second.empty()) {
-            auto payload = std::move(it->second.back().payload);
-            it->second.pop_back();
-            if (it->second.empty()) {
-                _pendingMessages.erase(it);
-            }
-            return payload;
+            return true;
         }
+        return _readerError || _shuttingDown;
+    });
+
+    auto it = _pendingMessages.find(key);
+    if (it != _pendingMessages.end() && !it->second.empty()) {
+        auto payload = std::move(it->second.front().payload);
+        it->second.pop_front();
+        if (it->second.empty()) {
+            _pendingMessages.erase(it);
+        }
+        return payload;
     }
 
-    std::lock_guard<std::mutex> recvLock(_recvMutexes[senderRank]);
-    while (true) {
-        int incomingTag = 0;
-        auto payload = readNextMessage(senderRank, incomingTag);
-        if (incomingTag == tag) {
-            return payload;
-        }
-
-        std::lock_guard<std::mutex> pendingLock(_pendingMutex);
-        _pendingMessages[std::make_pair(senderRank, incomingTag)].push_back(PendingMessage{std::move(payload)});
+    if (_readerError) {
+        std::rethrow_exception(_readerError);
     }
+    throw std::runtime_error("TCP receive interrupted.");
 }
 
-std::vector<char> TcpComm::readNextMessage(int senderRank, int &tag) {
+bool TcpComm::readNextMessage(int senderRank, int &tag, std::vector<char> &payload) {
     MessageHeader header{};
-    readAll(_peerFds[senderRank], &header, sizeof(header));
+    if (!readAll(_peerFds[senderRank], &header, sizeof(header))) {
+        return false;
+    }
     if (header.senderRank != senderRank) {
         throw std::runtime_error("Unexpected TCP sender rank.");
     }
     tag = header.tag;
 
-    std::vector<char> payload(header.payloadSize);
+    payload.resize(header.payloadSize);
     if (!payload.empty()) {
-        readAll(_peerFds[senderRank], payload.data(), payload.size());
+        if (!readAll(_peerFds[senderRank], payload.data(), payload.size())) {
+            return false;
+        }
     }
-    return payload;
+    return true;
 }
 
 void TcpComm::writeAll(int fd, const void *data, size_t length) {
@@ -326,7 +386,7 @@ void TcpComm::writeAll(int fd, const void *data, size_t length) {
     }
 }
 
-void TcpComm::readAll(int fd, void *data, size_t length) {
+bool TcpComm::readAll(int fd, void *data, size_t length) {
     auto *cursor = static_cast<char *>(data);
     while (length > 0) {
         ssize_t received = recv(fd, cursor, length, 0);
@@ -337,11 +397,12 @@ void TcpComm::readAll(int fd, void *data, size_t length) {
             throw socketError("recv failed");
         }
         if (received == 0) {
-            throw std::runtime_error("socket closed while receiving");
+            return false;
         }
         cursor += received;
         length -= static_cast<size_t>(received);
     }
+    return true;
 }
 
 std::vector<char> TcpComm::encodeInt(int64_t value, int width) {

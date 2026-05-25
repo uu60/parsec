@@ -5,9 +5,13 @@
 #include "item/TcpRequestWrapper.h"
 
 #include <cstdint>
+#include <condition_variable>
+#include <deque>
+#include <exception>
 #include <map>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 class TcpComm : public Comm {
@@ -23,9 +27,12 @@ private:
     int _listenFd{-1};
     std::vector<int> _peerFds;
     std::vector<std::mutex> _sendMutexes;
-    std::vector<std::mutex> _recvMutexes;
-    std::mutex _pendingMutex;
-    std::map<std::pair<int, int>, std::vector<PendingMessage>> _pendingMessages;
+    std::vector<std::thread> _readerThreads;
+    std::mutex _messageMutex;
+    std::condition_variable _messageCv;
+    bool _shuttingDown{false};
+    std::exception_ptr _readerError;
+    std::map<std::pair<int, int>, std::deque<PendingMessage>> _pendingMessages;
 
 public:
     TcpComm();
@@ -71,6 +78,10 @@ private:
 
     void establishConnections();
 
+    void startReaderThreads();
+
+    void readerLoop(int senderRank);
+
     int createListenSocket(int port);
 
     int connectToPeer(int peerRank);
@@ -83,11 +94,11 @@ private:
 
     std::vector<char> receivePayload(int senderRank, int tag);
 
-    std::vector<char> readNextMessage(int senderRank, int &tag);
+    bool readNextMessage(int senderRank, int &tag, std::vector<char> &payload);
 
     static void writeAll(int fd, const void *data, size_t length);
 
-    static void readAll(int fd, void *data, size_t length);
+    static bool readAll(int fd, void *data, size_t length);
 
     static std::vector<char> encodeInt(int64_t value, int width);
 

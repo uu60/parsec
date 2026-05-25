@@ -25,4 +25,21 @@ db/exp/correctness/verify_all.sh
 
 Optional argument:
 
+- `--comm=mpi|tcp` to select the communication backend. Default is `mpi`.
 - `--mpirun=<cmd>` to specify MPI launcher command.
+- `--tcp-base-port=<port>` to specify the first TCP port used by TCP mode.
+- `--timeout=<seconds>` to set per-process timeout in TCP mode.
+
+MPI mode runs:
+
+```bash
+mpirun -np 3 build/db/exp/exp_X --check=true
+```
+
+TCP mode starts three local ranks:
+
+```bash
+build/db/exp/exp_X --check=true --comm_type=tcp --tcp_rank=0 --tcp_base_port=PORT
+build/db/exp/exp_X --check=true --comm_type=tcp --tcp_rank=1 --tcp_base_port=PORT
+build/db/exp/exp_X --check=true --comm_type=tcp --tcp_rank=2 --tcp_base_port=PORT
+```
