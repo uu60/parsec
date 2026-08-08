@@ -19,6 +19,20 @@
     #define NO_SIMD
 #endif
 
+const char *SimdSupport::backend() {
+#ifdef SIMD_AVX512
+    return "avx512";
+#elif defined(SIMD_AVX2)
+    return "avx2";
+#elif defined(SIMD_SSE2)
+    return "sse2";
+#elif defined(SIMD_NEON)
+    return "neon";
+#else
+    return "scalar";
+#endif
+}
+
 std::vector<int64_t> SimdSupport::xorV(const std::vector<int64_t> &arr0,
                                        const std::vector<int64_t> &arr1) {
     int num = static_cast<int>(arr0.size());
@@ -1024,4 +1038,3 @@ void SimdSupport::selectBits(int64_t* result, const int64_t* y0, const int64_t* 
     }
 #endif
 }
-

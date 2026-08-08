@@ -1542,7 +1542,6 @@ void View::filterSingleBatch(std::vector<std::string> &fieldNames,
         }
     } else {
         std::vector<std::vector<int64_t> > andCols = std::move(collected);
-        int level = 0;
         while (andCols.size() > 1) {
             const int m = static_cast<int>(andCols.size());
             const int pairs = m / 2;
@@ -1553,11 +1552,11 @@ void View::filterSingleBatch(std::vector<std::string> &fieldNames,
 
             for (int p = 0; p < pairs; ++p) {
                 futures1.emplace_back(
-                    ThreadPoolSupport::submit([&, p, level]() {
+                    ThreadPoolSupport::submit([&, p]() {
                         auto &L = andCols[2 * p];
                         auto &R = andCols[2 * p + 1];
                         return BoolAndBatchOperator(&L, &R, 1, 0,
-                                                    msgTagBase + level * msgStride + p,
+                                                    msgTagBase + p * msgStride,
                                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
                     })
                 );
@@ -1570,7 +1569,6 @@ void View::filterSingleBatch(std::vector<std::string> &fieldNames,
             if (m % 2) nextCols.push_back(std::move(andCols.back()));
 
             andCols.swap(nextCols);
-            ++level;
         }
         result = std::move(andCols.front());
     }
@@ -1693,7 +1691,6 @@ void View::filterMultiBatches(std::vector<std::string> &fieldNames,
         result = std::move(collected[0]);
     } else {
         std::vector<std::vector<int64_t> > andCols = std::move(collected);
-        int level = 0;
         while (andCols.size() > 1) {
             const int m = static_cast<int>(andCols.size());
             const int pairs = m / 2;
@@ -1704,11 +1701,11 @@ void View::filterMultiBatches(std::vector<std::string> &fieldNames,
 
             for (int p = 0; p < pairs; ++p) {
                 futures1.emplace_back(
-                    ThreadPoolSupport::submit([&, p, level]() {
+                    ThreadPoolSupport::submit([&, p]() {
                         auto &L = andCols[2 * p];
                         auto &R = andCols[2 * p + 1];
                         return BoolAndBatchOperator(&L, &R, 1, 0,
-                                                    msgTagBase + level * msgStride + p,
+                                                    msgTagBase + p * msgStride,
                                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
                     })
                 );
@@ -1721,7 +1718,6 @@ void View::filterMultiBatches(std::vector<std::string> &fieldNames,
             if (m % 2) nextCols.push_back(std::move(andCols.back()));
 
             andCols.swap(nextCols);
-            ++level;
         }
         result = std::move(andCols.front());
     }

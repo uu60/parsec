@@ -1,0 +1,395 @@
+schema_version: 1
+
+artifact:
+  name: ParsecDB
+  paper_id: nsdi27spring-paper76
+  paper_title: "ParsecDB: Unlocking Efficient Parallelism in Two-party Secret-shared Databases"
+  development_commit: AUTO_CAPTURE_AT_RUN_TIME
+  # Expanded to the archived commit by `git archive` via .gitattributes.
+  release_commit: "$Format:%H$"
+
+execution_model:
+  logical_ranks: 3
+  server_ranks: [0, 1]
+  client_rank: 2
+  default_launcher: mpi
+  local_smoke_launcher: mpi
+  paper_host_sequence: [parsec0, parsec1, parsec0]
+  paper_rank_placement:
+    rank_0: parsec0
+    rank_1: parsec1
+    rank_2: parsec0
+  paper_mpi_args: [--bind-to, none, --map-by, seq, --host, "parsec0,parsec1,parsec0"]
+
+measurement:
+  scope: performance_experiments_only
+  repetitions: 1
+  fixed_data_scale: 1.0
+  warmup_runs: 0
+  reported_statistic: arithmetic_mean
+  per_run_wall_clock: max_server_elapsed_time
+  time_unit: seconds
+  workload_seed: 20270276
+  output_formats: [json, csv]
+  plot_formats: [png, svg, pdf]
+  plot_implementation: artifact/plotting.py
+  required_metadata:
+    - git_commit
+    - experiment_id
+    - workload
+    - configuration
+    - repetition
+    - workload_seed
+    - host
+    - operating_system
+    - cpu_model
+    - compiler
+    - mpi_version
+    - simd_backend
+    - command_line
+    - elapsed_seconds
+    - output_rows
+
+configurations:
+  parsec:
+    description: Default ParsecDB configuration with optimizations enabled.
+    params:
+      baseline_mode: false
+      no_compaction: false
+      batch_size: 256
+
+  parsec_base:
+    description: ParsecDB system-level optimization baseline.
+    params:
+      baseline_mode: true
+      no_compaction: true
+      batch_size: 0
+    code_effects:
+      disable_multi_thread: true
+      enable_intra_operator_parallelism: false
+      enable_simd: false
+      batch_size: 0
+
+  parsec_noncompact:
+    description: Optimized ParsecDB with compaction disabled.
+    params:
+      baseline_mode: false
+      no_compaction: true
+      batch_size: 256
+
+  orq_2pc_real_bmt:
+    description: ORQ in two-party mode with real BMT generation.
+    external_artifact:
+      status: not_included
+      supported_claims: false
+      reason: The exact ORQ revision and paper-specific patches were not archived with this repository.
+
+  secrecy:
+    description: SECRECY honest-majority reference configuration.
+    external_artifact:
+      status: not_included
+      supported_claims: false
+      reason: The exact SECRECY revision and paper-specific patches were not archived with this repository.
+
+workloads:
+  q6:
+    paper_label: Q6
+    source: db/exp/exp_7.cpp
+    cmake_target: exp_7
+    executable: build/db/exp/exp_7
+    paper_args:
+      rows: 630
+    quick_args:
+      rows: 32
+    correctness_id: 7
+
+  q4:
+    paper_label: Q4
+    source: db/exp/exp_6.cpp
+    cmake_target: exp_6
+    executable: build/db/exp/exp_6
+    paper_args:
+      rows1: 150
+      rows2: 623
+    argument_meaning:
+      rows1: orders
+      rows2: lineitem
+    quick_args:
+      rows1: 16
+      rows2: 32
+    correctness_id: 6
+
+  q13:
+    paper_label: Q13
+    source: db/exp/exp_8.cpp
+    cmake_target: exp_8
+    executable: build/db/exp/exp_8
+    paper_args:
+      rows1: 15
+      rows2: 150
+    argument_meaning:
+      rows1: customer
+      rows2: orders
+    quick_args:
+      rows1: 8
+      rows2: 16
+    correctness_id: 8
+
+  password_reuse:
+    paper_label: pwd
+    source: db/exp/exp_4.cpp
+    cmake_target: exp_4
+    executable: build/db/exp/exp_4
+    paper_args:
+      rows: 499
+    quick_args:
+      rows: 32
+    correctness_id: 4
+
+  credit_score:
+    paper_label: credit
+    source: db/exp/exp_5.cpp
+    cmake_target: exp_5
+    executable: build/db/exp/exp_5
+    paper_args:
+      rows: 499
+    quick_args:
+      rows: 32
+    correctness_id: 5
+
+  comorbidity:
+    paper_label: comorb.
+    source: db/exp/exp_1.cpp
+    cmake_target: exp_1
+    executable: build/db/exp/exp_1
+    paper_args:
+      rows1: 500
+      rows2: 50
+    argument_meaning:
+      rows1: diagnosis
+      rows2: cdiff_cohort
+    quick_args:
+      rows1: 32
+      rows2: 8
+    correctness_id: 1
+
+  recurrent_c_diff:
+    paper_label: rcdiff
+    source: db/exp/exp_2.cpp
+    cmake_target: exp_2
+    executable: build/db/exp/exp_2
+    paper_args:
+      rows: 299
+    quick_args:
+      rows: 32
+    correctness_id: 2
+
+  aspirin_count:
+    paper_label: aspirin
+    source: db/exp/exp_3.cpp
+    cmake_target: exp_3
+    executable: build/db/exp/exp_3
+    paper_args:
+      rows1: 299
+      rows2: 199
+    argument_meaning:
+      rows1: diagnosis
+      rows2: medication
+    quick_args:
+      rows1: 32
+      rows2: 24
+    correctness_id: 3
+
+experiments:
+  smoke:
+    paper_result: kick-the-tires functionality check
+    evaluation_mode: functional_correctness_only
+    performance_metrics: none
+    reported_fields: [experiment, status, comm, checks]
+    command: ./artifact/run.sh smoke
+    underlying_command: db/exp/correctness/verify_all.sh --comm=mpi
+    expected: all eight correctness checks report PASS
+    target_duration_minutes: 30
+
+  figure_2:
+    paper_result: arithmetic-sharing versus boolean-sharing microbenchmarks
+    source: primitives/benchmark/benchmark_arith_vs_bool.cpp
+    cmake_target: benchmark_arith_vs_bool
+    executable: build/primitives/benchmark/benchmark_arith_vs_bool
+    panels:
+      a: fixed 1x data scale and 64-bit width, comparing arithmetic and boolean time
+      b: arithmetic-over-boolean slowdown at 0.2x, 1x, and 2x data scales
+      c: boolean-sharing time at 16-, 32-, and 64-bit communication widths
+    profiles:
+      paper:
+        nums: [100000, 500000, 1000000]
+        sort_nums: [10000, 50000, 100000]
+        base_elements: 500000
+        sort_base_elements: 50000
+        widths: [16, 32, 64]
+        primitives: ["<", "==", ar, mux, sort]
+        batch_size: 256
+    repetitions: 1
+    command: ./artifact/run.sh figure2
+    plot_command: ./artifact/run.sh plot --result-dir=artifact/results/RESULT_DIR
+    normalized_plot_fields: [primitive, elements, data_scale, width, mean_arithmetic_ms, mean_boolean_ms]
+    matrix_provenance: >-
+      Panel labels and the 0.2x/1x/2x relationship come from Figure 2. The author confirmed
+      a 500000-element 1x anchor for non-sort primitives and a 50000-element 1x sort anchor.
+
+  figure_4:
+    paper_result: background BMT generation versus worker-level JIT
+    sources:
+      - primitives/benchmark/benchmark_jit_single.cpp
+      - primitives/benchmark/benchmark_background_single.cpp
+    cmake_targets: [benchmark_jit_single, benchmark_background_single]
+    executables:
+      - build/primitives/benchmark/benchmark_jit_single
+      - build/primitives/benchmark/benchmark_background_single
+    panels:
+      a: fixed 1x data scale and 64-bit width, comparing JIT and background time
+      b: background-over-JIT slowdown at 0.2x, 1x, and 2x data scales
+      c: background-over-JIT slowdown at 16-, 32-, and 64-bit widths
+    profiles:
+      paper:
+        nums: [100000, 500000, 1000000]
+        sort_nums: [10000, 50000, 100000]
+        base_elements: 500000
+        sort_base_elements: 50000
+        widths: [16, 32, 64]
+        primitives: ["!=", "<", "==", mux, sort]
+        batch_size: 256
+    repetitions: 1
+    command: ./artifact/run.sh figure4
+    plot_command: ./artifact/run.sh plot --result-dir=artifact/results/RESULT_DIR
+    normalized_plot_fields: [primitive, elements, data_scale, width, mean_background_ms, mean_jit_ms]
+    matrix_provenance: >-
+      Panel labels and scale/width dimensions come from Figure 4. The author confirmed
+      a 500000-element 1x anchor for non-sort primitives and a 50000-element 1x sort anchor.
+
+  figure_5:
+    paper_result: performance impact of message batch size
+    source: primitives/benchmark/benchmark_dyn_batch_size.cpp
+    cmake_target: benchmark_dyn_batch_size
+    executable: build/primitives/benchmark/benchmark_dyn_batch_size
+    panels:
+      a: primitive runtime over batch sizes 2^4 through 2^16
+      b: sort runtime over batch size at 0.2x, 1x, and 2x data scales
+      c: sort runtime over batch size at 16-, 32-, and 64-bit widths
+    profiles:
+      paper:
+        nums: [500000]
+        sort_nums: [10000, 50000, 100000]
+        base_elements: 500000
+        sort_base_elements: 50000
+        widths: [16, 32, 64]
+        primitives: ["<", "==", ar, mux, sort]
+        batch_sizes: [16, 64, 256, 1024, 4096, 16384, 65536]
+    repetitions: 1
+    command: ./artifact/run.sh figure5
+    plot_command: ./artifact/run.sh plot --result-dir=artifact/results/RESULT_DIR
+    normalized_plot_fields: [primitive, elements, data_scale, width, batch_size, mean_execution_ms]
+    matrix_provenance: >-
+      Batch sizes and panel dimensions are read directly from Figure 5. The author confirmed
+      a 500000-element 1x anchor for non-sort primitives and a 50000-element 1x sort anchor.
+
+  figure_7:
+    paper_result: end-to-end query performance comparison
+    workloads:
+      - q6
+      - q4
+      - q13
+      - password_reuse
+      - credit_score
+      - comorbidity
+      - recurrent_c_diff
+      - aspirin_count
+    repository_configurations:
+      - parsec
+      - parsec_base
+    external_baselines_not_included:
+      - orq_2pc_real_bmt
+      - secrecy
+    repetitions: 1
+    command: ./artifact/run.sh figure7
+    plot_command: ./artifact/run.sh plot --result-dir=artifact/results/RESULT_DIR
+    normalized_plot_fields: [workload, configuration, mean_elapsed_seconds]
+    naming_resolution: >-
+      The automated paper series uses parsec_base, matching the Figure 7 legend and Section 9.3.
+      parsec_noncompact remains available only as an explicitly requested ablation.
+
+  figure_8:
+    paper_result: oblivious sort performance
+    parsec:
+      source: db/benchmark/db_sort.cpp
+      cmake_target: db_sort
+      executable: build/db/benchmark/db_sort
+      args:
+        cols: 1
+      maximum_rows: 131072
+    baselines:
+      - orq_bitonic
+      - orq_quick
+      - orq_radix
+    baseline_status: not_included
+    rows_grid: [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072]
+    grid_provenance: "All powers of two through 2^17, recovered from the plotted points and Section 9.4."
+    repetitions: 1
+    command: ./artifact/run.sh figure8
+    plot_command: ./artifact/run.sh plot --result-dir=artifact/results/RESULT_DIR
+    normalized_plot_fields: [rows, series, mean_elapsed_seconds]
+
+  table_1:
+    paper_result: multi-way join performance and materialized output size
+    source: db/benchmark/db_join.cpp
+    cmake_target: db_join
+    executable: build/db/benchmark/db_join
+    cases:
+      - table_num: 2
+        rows: 3163
+      - table_num: 3
+        rows: 216
+      - table_num: 4
+        rows: 57
+      - table_num: 5
+        rows: 26
+    join_modes:
+      hash:
+        hash: true
+      nested:
+        hash: false
+    repetitions: 1
+    command: ./artifact/run.sh table1
+    plot_command: ./artifact/run.sh plot --result-dir=artifact/results/RESULT_DIR
+
+paper_environments:
+  aws:
+    delivery: author_provisioned_live_instances
+    entry_node: parsec0
+    peer_node: parsec1
+    credentials: private_evaluation_channel
+    availability: entire_evaluation_period
+    nodes: 2
+    instance_type: c5n.4xlarge
+    vcpus_per_node: 16
+    memory_gib_per_node: 42
+    operating_system: Ubuntu 22.04
+    regions: [us-east-1, us-east-2]
+    compiler: g++ 11.4.0
+    mpi: OpenMPI 4.1.2
+    simd: AVX-512
+
+  hpc:
+    nodes: 2
+    cpu: "2 x AMD EPYC 7742 per node"
+    cores_per_node: 128
+    memory_gib_per_node: 256
+    interconnect: "200 Gbps Mellanox ConnectX-6 HDR InfiniBand"
+
+provenance_notes:
+  - id: exact_scaling_grids
+    status: reconstructed_from_paper
+    note: Figure 8/9 point grids were recovered from the plotted points and stated limits; retain original logs if later found.
+  - id: baseline_versions
+    status: out_of_scope
+    note: ORQ and SECRECY revisions are not included, so cross-system reproduction is not claimed.

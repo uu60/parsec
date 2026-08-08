@@ -10,6 +10,7 @@
 #include "utils/Log.h"
 #include "utils/StringUtils.h"
 #include "utils/Math.h"
+#include "artifact/Artifact.h"
 
 #include "compute/batch/bool/BoolToArithBatchOperator.h"
 
@@ -19,12 +20,6 @@
 #include <cstdint>
 
 #include "compute/batch/arith/ArithMultiplyBatchOperator.h"
-
-static int64_t START_DATE = Math::randInt();
-static int64_t END_DATE_EX = Math::randInt();
-static int64_t DISCOUNT_MIN = Math::randInt();
-static int64_t DISCOUNT_MAX = Math::randInt();
-static int64_t QUANTITY_TH = Math::randInt();
 
 void generateTestData(int lineitem_rows,
                       std::vector<int64_t> &l_shipdate_data,
@@ -86,11 +81,11 @@ int main(int argc, char *argv[]) {
     auto l_revenue_b = Secrets::boolShare(l_revenue_p, 2, 64, tid);
 
     int64_t start_b, end_b, dmin_b, dmax_b, q_b;
-    int64_t start_plain = check_mode ? 100 : START_DATE;
-    int64_t end_plain = check_mode ? 200 : END_DATE_EX;
-    int64_t dmin_plain = check_mode ? 2 : DISCOUNT_MIN;
-    int64_t dmax_plain = check_mode ? 4 : DISCOUNT_MAX;
-    int64_t q_plain = check_mode ? 10 : QUANTITY_TH;
+    int64_t start_plain = check_mode ? 100 : Artifact::workloadRandInt();
+    int64_t end_plain = check_mode ? 200 : Artifact::workloadRandInt();
+    int64_t dmin_plain = check_mode ? 2 : Artifact::workloadRandInt();
+    int64_t dmax_plain = check_mode ? 4 : Artifact::workloadRandInt();
+    int64_t q_plain = check_mode ? 10 : Artifact::workloadRandInt();
     if (Comm::isClient()) {
         auto splitXor = [&](int64_t plain, int dst0, int dst1, int tag) {
             int64_t s0 = Math::randInt();
@@ -112,18 +107,18 @@ int main(int argc, char *argv[]) {
     }
 
     int64_t sum_share = 0;
+    View v;
     if (Comm::isServer()) {
-        auto v = createLineitemTable(l_shipdate_b, l_discount_b, l_quantity_b, l_extendedprice_b, l_revenue_b);
+        v = createLineitemTable(l_shipdate_b, l_discount_b, l_quantity_b, l_extendedprice_b, l_revenue_b);
+    }
 
-        auto t0 = System::currentTimeMillis();
-
+    Artifact::Timer artifact_timer("q6");
+    if (Comm::isServer()) {
         auto vf = filterAllConditions(v, start_b, end_b, dmin_b, dmax_b, q_b, tid + 200);
 
         sum_share = calculateRevenue(vf, tid + 300);
-
-        auto t1 = System::currentTimeMillis();
-        Log::i("Validation query (server {}) time: {}ms", Comm::rank(), (t1 - t0));
     }
+    artifact_timer.finish(Comm::isServer() ? 1 : -1);
 
     if (check_mode) {
         std::vector<int64_t> sum_vec;
@@ -155,10 +150,10 @@ void generateTestData(int lineitem_rows,
         l_revenue_data.reserve(lineitem_rows);
 
         for (int i = 0; i < lineitem_rows; i++) {
-            l_shipdate_data.push_back(Math::randInt());
-            l_discount_data.push_back(Math::randInt());
-            l_quantity_data.push_back(Math::randInt());
-            l_extendedprice_data.push_back(Math::randInt());
+            l_shipdate_data.push_back(Artifact::workloadRandInt());
+            l_discount_data.push_back(Artifact::workloadRandInt());
+            l_quantity_data.push_back(Artifact::workloadRandInt());
+            l_extendedprice_data.push_back(Artifact::workloadRandInt());
             l_revenue_data.push_back(l_extendedprice_data[i] * l_discount_data[i]);
         }
     }

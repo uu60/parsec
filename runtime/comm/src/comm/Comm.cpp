@@ -55,6 +55,10 @@ bool Comm::isClient() {
     return impl->isClient_();
 }
 
+void Comm::barrier() {
+    impl->barrier_();
+}
+
 void Comm::serverSend(const int64_t &source, int width, int tag) {
     try {
         MEASURE_EXECUTION_TIME(send(source, width, 1 - rank(), tag));

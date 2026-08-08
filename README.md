@@ -10,6 +10,7 @@ The name stands for **PARallel SEcure Computing/database**.
 - [Features](#features)
 - [Project Layout](#project-layout)
 - [Dependencies](#dependencies)
+- [Artifact Evaluation](#artifact-evaluation)
 - [Build](#build)
 - [Run](#run)
 - [Database Demo](#database-demo)
@@ -82,6 +83,24 @@ brew install cmake ninja openmpi openssl boost readline tbb
 
 Linux package names vary by distribution. Install the equivalent development packages, for example OpenMPI, OpenSSL headers, Boost, Readline, CMake, and Ninja.
 
+## Artifact Evaluation
+
+The NSDI artifact runner, paper experiment matrices, reproducibility instructions, and result
+formats are documented in [`artifact/README.md`](artifact/README.md). The primary evaluation path
+uses the author-provisioned two-node AWS environment; SSH details are supplied privately. On its
+`parsec0` entry node, start with:
+
+```bash
+./artifact/run.sh doctor
+./artifact/run.sh smoke --skip-build
+```
+
+Artifact commands default to MPI with the provisioned AWS placement
+`--bind-to none --map-by seq --host parsec0,parsec1,parsec0`; reviewers do not need to supply
+launcher arguments. Performance commands use one repetition at a locked 0.5× paper input scale for
+trend validation; this does not claim paper-scale absolute-value reproduction. TCP is available only
+as an explicit local fallback with `--comm=tcp`.
+
 ## Build
 
 From the repository root:
@@ -130,10 +149,14 @@ mpirun -np 3 ./build/db/benchmark/db_sort
 mpirun -np 3 ./build/db/benchmark/db_join
 ```
 
-Run on multiple machines with an MPI hostfile:
+Run on the two-machine paper deployment without a rankfile. The repeated
+`parsec0` entry is intentional: rank 0 is placed on `parsec0`, rank 1 on
+`parsec1`, and the rank-2 client on `parsec0`:
 
 ```bash
-mpirun -np 3 -hostfile hosts ./build/primitives/benchmark/correctness_ot
+mpirun --bind-to none --map-by seq \
+  --host parsec0,parsec1,parsec0 \
+  -np 3 ./build/primitives/benchmark/correctness_ot
 ```
 
 MPI ranks map directly to Parsec ranks: rank `0` and `1` are servers, rank `2` is the client.

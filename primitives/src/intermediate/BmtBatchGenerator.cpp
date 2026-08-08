@@ -5,6 +5,7 @@
 #include "ot/IknpOtBatchOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Math.h"
+#include "utils/System.h"
 
 BmtBatchGenerator::BmtBatchGenerator(int count, int l, int taskTag, int msgTagOffset) : AbstractBmtBatchGenerator(
     count, l, taskTag, msgTagOffset) {
@@ -103,6 +104,11 @@ BmtBatchGenerator *BmtBatchGenerator::execute() {
         return this;
     }
 
+    int64_t start = 0;
+    if (Conf::ENABLE_CLASS_WISE_TIMING) {
+        start = System::currentTimeMillis();
+    }
+
     generateRandomAB();
     if (Conf::ENABLE_INTRA_OPERATOR_PARALLELISM) {
         auto f = ThreadPoolSupport::submit([&] {
@@ -115,5 +121,8 @@ BmtBatchGenerator *BmtBatchGenerator::execute() {
         computeMix(1);
     }
     computeC();
+    if (Conf::ENABLE_CLASS_WISE_TIMING) {
+        _totalTime += System::currentTimeMillis() - start;
+    }
     return this;
 }

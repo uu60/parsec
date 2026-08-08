@@ -263,6 +263,17 @@ int main(int argc, char *argv[]) {
         // Output result in a format that Python can easily parse
         std::cout << "RESULT:" << primitive << "," << num << "," << width << "," 
                   << backgroundTime0 << "," << backgroundTime1 << "," << avgBackgroundTime << std::endl;
+        if (Conf::_userParams.count("artifact_mode") && Conf::_userParams["artifact_mode"] == "true") {
+            std::cout << "ARTIFACT_MICRO_METRIC {"
+                      << "\"schema_version\":1,"
+                      << "\"experiment\":\"figure4\","
+                      << "\"variant\":\"background\","
+                      << "\"primitive\":\"" << primitive << "\","
+                      << "\"elements\":" << num << ','
+                      << "\"width\":" << width << ','
+                      << "\"background_ms\":" << avgBackgroundTime
+                      << "}" << std::endl;
+        }
         
         Log::i("Background - Primitive: {}, Num: {}, Width: {} - Server0: {}ms, Server1: {}ms, Average: {}ms",
                primitive, num, width, backgroundTime0, backgroundTime1, avgBackgroundTime);

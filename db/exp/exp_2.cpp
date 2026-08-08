@@ -14,6 +14,7 @@
 #include <tuple>
 
 #include "utils/Math.h"
+#include "artifact/Artifact.h"
 #include "compute/batch/bool/BoolAndBatchOperator.h"
 #include "compute/batch/bool/BoolLessBatchOperator.h"
 #include "compute/batch/bool/BoolEqualBatchOperator.h"
@@ -46,8 +47,6 @@ View buildRcdNoJoin(View diagnosis_view, int64_t cdiff_code, int tid);
 View markAdjacentPairsWithinPid(View rcd_view, int tid);
 
 View selectDistinctPid(View &filtered_view, int tid);
-
-static int64_t CDIFF_CODE = Math::randInt();
 
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
@@ -96,7 +95,7 @@ int main(int argc, char *argv[]) {
     auto diag_shares = Secrets::boolShare(diag_data, 2, 64, tid);
 
     int64_t cdiff_code;
-    int64_t cdiff_plain = check_mode ? 999 : CDIFF_CODE;
+    int64_t cdiff_plain = check_mode ? 999 : Artifact::workloadRandInt();
     if (Comm::isClient()) {
         int64_t s0 = Math::randInt();
         int64_t s1 = s0 ^ cdiff_plain;
@@ -106,20 +105,21 @@ int main(int argc, char *argv[]) {
         Comm::receive(cdiff_code, 64, 2, tid);
     }
 
+    View diagnosis_view;
     if (Comm::isServer()) {
-        auto diagnosis_view = createDiagnosisTable(pid_shares, pid_hash_shares, time_shares,
-                                                   time_plus_15_shares, time_plus_56_shares,
-                                                   row_no_shares, row_no_plus_1_shares, diag_shares);
-        auto query_start = System::currentTimeMillis();
+        diagnosis_view = createDiagnosisTable(pid_shares, pid_hash_shares, time_shares,
+                                              time_plus_15_shares, time_plus_56_shares,
+                                              row_no_shares, row_no_plus_1_shares, diag_shares);
+    }
+    View result_view;
+    Artifact::Timer artifact_timer("recurrent_c_diff");
+    if (Comm::isServer()) {
 
         auto rcd_view = buildRcdNoJoin(diagnosis_view, cdiff_code, tid);
 
         auto paired_view = markAdjacentPairsWithinPid(rcd_view, tid);
 
-        auto result_view = selectDistinctPid(paired_view, tid);
-
-        auto query_end = System::currentTimeMillis();
-        Log::i("Total query execution time: {}ms", query_end - query_start);
+        result_view = selectDistinctPid(paired_view, tid);
         if (check_mode) {
             std::vector<std::string> fields = {"pid"};
             std::vector<int> widths = {64};
@@ -136,6 +136,7 @@ int main(int argc, char *argv[]) {
             if (Comm::rank() == 0) Log::i("CORRECTNESS_END");
         }
     }
+    artifact_timer.finish(Comm::isServer() ? static_cast<int64_t>(result_view.rowNum()) : -1);
 
     System::finalize();
     return 0;
@@ -162,10 +163,10 @@ void generateRandomData(int num_records,
         time_plus_56_data.reserve(num_records);
 
         for (int i = 0; i < num_records; i++) {
-            int64_t pid = Math::randInt();
-            int64_t t = Math::randInt();
-            bool is_cd = Math::randInt();
-            int64_t d = Math::randInt();
+            int64_t pid = Artifact::workloadRandInt();
+            int64_t t = Artifact::workloadRandInt();
+            bool is_cd = Artifact::workloadRandInt(0, 1) != 0;
+            int64_t d = Artifact::workloadRandInt();
 
             pid_data.push_back(pid);
             time_data.push_back(t);

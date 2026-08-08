@@ -1,0 +1,6 @@
+.git
+.venv-artifact
+artifact/results
+build
+cmake-build-*
+db/third_party/sql-parser/build

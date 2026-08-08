@@ -7,6 +7,7 @@
 #include "comm/Comm.h"
 #include <fstream>
 #include <iomanip>
+#include <iostream>
 #include <sstream>
 #include <chrono>
 #include <numeric>
@@ -263,6 +264,8 @@ int main(int argc, char *argv[]) {
     std::vector<int> testWidths = {1, 2, 4, 8, 16, 32, 64};
     std::vector<std::string> testPmts = {"<", /*"<=",*/ "==", /*"!=",*/ "mux", "ar", "sort"};
     std::vector<int> testBatchSizes = {10, 100, 1000, 10000, 100000, 1000000, 10000000};
+    const bool artifactMode = Conf::_userParams.count("artifact_mode")
+                              && Conf::_userParams["artifact_mode"] == "true";
 
     if (Conf::_userParams.count("nums")) {
         std::string numsStr = Conf::_userParams["nums"];
@@ -444,7 +447,20 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if (Comm::isClient() && !results.empty()) {
+    if (Comm::isClient() && artifactMode) {
+        for (const auto &result: results) {
+            std::cout << "ARTIFACT_MICRO_METRIC {"
+                      << "\"schema_version\":1,"
+                      << "\"experiment\":\"figure5\","
+                      << "\"primitive\":\"" << result.primitive << "\","
+                      << "\"elements\":" << result.num << ','
+                      << "\"width\":" << result.width << ','
+                      << "\"batch_size\":" << result.batchSize << ','
+                      << "\"execution_ms\":" << std::fixed << std::setprecision(6)
+                      << result.avgExecutionTime
+                      << "}" << std::endl;
+        }
+    } else if (Comm::isClient() && !results.empty()) {
         std::string filename = "benchmark_dyn_batch_size_" + timestamp + ".csv";
         std::ofstream csvFile(filename);
 

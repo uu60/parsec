@@ -15,6 +15,7 @@
 #include <set>
 
 #include "utils/Math.h"
+#include "artifact/Artifact.h"
 #include "compute/batch/bool/BoolToArithBatchOperator.h"
 #include "compute/batch/arith/ArithMultiplyBatchOperator.h"
 #include "compute/batch/arith/ArithAddBatchOperator.h"
@@ -86,11 +87,15 @@ int main(int argc, char *argv[]) {
     auto cdiff_cohort_pid_shares = Secrets::boolShare(cdiff_cohort_pid_data, 2, 64, tid);
 
     View result_view;
+    View diagnosis_view;
+    View cdiff_cohort_view;
     if (Comm::isServer()) {
-        auto diagnosis_view = createDiagnosisTable(diagnosis_pid_shares, diagnosis_diag_shares, diagnosis_extra_shares);
-        auto cdiff_cohort_view = createCohortTable(cdiff_cohort_pid_shares);
+        diagnosis_view = createDiagnosisTable(diagnosis_pid_shares, diagnosis_diag_shares, diagnosis_extra_shares);
+        cdiff_cohort_view = createCohortTable(cdiff_cohort_pid_shares);
+    }
 
-        auto query_start = System::currentTimeMillis();
+    Artifact::Timer artifact_timer("comorbidity");
+    if (Comm::isServer()) {
 
         auto in_results = executeWhereInClause(diagnosis_view, cdiff_cohort_view);
         auto filtered_diagnosis = filterDiagnosisTable(diagnosis_view, in_results, tid);
@@ -99,8 +104,6 @@ int main(int argc, char *argv[]) {
 
         result_view = executeTopKByCount(std::move(diag_cnt_view), 10, tid);
 
-        auto query_end = System::currentTimeMillis();
-        Log::i("Total query execution time: {}ms", query_end - query_start);
         if (check_mode) {
             auto check_view = result_view;
             check_view.clearInvalidEntries(tid + 1000);
@@ -110,6 +113,7 @@ int main(int argc, char *argv[]) {
             if (Comm::rank() == 0) Log::i("CORRECTNESS_END");
         }
     }
+    artifact_timer.finish(Comm::isServer() ? static_cast<int64_t>(result_view.rowNum()) : -1);
 
     System::finalize();
     return 0;
@@ -127,14 +131,14 @@ void generateTestData(int rows1, int rows2,
         diagnosis_extra_data.reserve(rows1);
 
         for (int i = 0; i < rows1; i++) {
-            diagnosis_pid_data.push_back(Math::randInt());
-            diagnosis_diag_data.push_back(Math::randInt());
-            diagnosis_extra_data.push_back(Math::randInt());
+            diagnosis_pid_data.push_back(Artifact::workloadRandInt());
+            diagnosis_diag_data.push_back(Artifact::workloadRandInt());
+            diagnosis_extra_data.push_back(Artifact::workloadRandInt());
         }
 
         cdiff_cohort_pid_data.reserve(rows2);
         for (int i = 0; i < rows2; i++) {
-            cdiff_cohort_pid_data.push_back(Math::randInt());
+            cdiff_cohort_pid_data.push_back(Artifact::workloadRandInt());
         }
     }
 }

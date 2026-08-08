@@ -8,6 +8,8 @@
 
 class SimdSupport {
 public:
+    static const char *backend();
+
     static std::vector<int64_t> xorV(const std::vector<int64_t> &arr0, const std::vector<int64_t> &arr1);
 
     static std::vector<int64_t> andV(const std::vector<int64_t> &arr0, const std::vector<int64_t> &arr1);

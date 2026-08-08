@@ -4,6 +4,7 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd -P)
 # Parse command line arguments
 USE_ASAN=false
 OPT_LEVEL=O3
+SIMD_TARGET=native
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --asan)
@@ -18,8 +19,12 @@ while [ "$#" -gt 0 ]; do
       OPT_LEVEL=O3
       shift
       ;;
+    --simd=portable|--simd=native|--simd=avx512)
+      SIMD_TARGET=${1#--simd=}
+      shift
+      ;;
     -h|--help)
-      echo "Usage: $0 [--asan] [--O2|--O3] [--help]"
+      echo "Usage: $0 [--asan] [--O2|--O3] [--simd=portable|native|avx512] [--help]"
       echo "  --asan    Enable AddressSanitizer build"
       echo "  --O2      Use -O2 for Release build"
       echo "  --O3      Use -O3 for Release build (default)"
@@ -79,6 +84,7 @@ if [ "$USE_ASAN" = true ]; then
   echo "Building with AddressSanitizer enabled (O1)…"
   cmake .. -G Ninja \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+    -DPARSEC_SIMD_TARGET="$SIMD_TARGET" \
     -DCMAKE_C_FLAGS_RELWITHDEBINFO="-O1 -g -fno-omit-frame-pointer -fsanitize=address" \
     -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="-O1 -g -fno-omit-frame-pointer -fsanitize=address" \
     -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address" \
@@ -88,6 +94,7 @@ else
   echo "Building without AddressSanitizer (Using ${OPT_LEVEL})…"
   cmake .. -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
+    -DPARSEC_SIMD_TARGET="$SIMD_TARGET" \
     -DCMAKE_C_FLAGS_RELEASE="-${OPT_LEVEL} -DNDEBUG" \
     -DCMAKE_CXX_FLAGS_RELEASE="-${OPT_LEVEL} -DNDEBUG"
 fi

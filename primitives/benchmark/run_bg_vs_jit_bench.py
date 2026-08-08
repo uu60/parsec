@@ -63,7 +63,7 @@ def run_single_test(executable: str, primitive: str, num: int, width: int, build
         f"--primitive={primitive}",
         f"--num={num}",
         f"--width={width}",
-        "--batch_size", str(batch_size)
+        f"--batch_size={batch_size}"
     ])
 
     process = None

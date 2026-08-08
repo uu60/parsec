@@ -2,6 +2,7 @@
 #ifndef MPC_PACKAGE_RSAOTTRIPLEGENERATOR_H
 #define MPC_PACKAGE_RSAOTTRIPLEGENERATOR_H
 #include <iostream>
+#include <atomic>
 
 #include "AbstractBmtSingleGenerator.h"
 #include "./item/Bmt.h"
@@ -9,6 +10,7 @@
 
 class BmtGenerator : public AbstractBmtSingleGenerator<Bmt> {
 public:
+    inline static std::atomic_int64_t _totalTime = 0;
     explicit BmtGenerator(int width, int taskTag, int msgTagOffset) : AbstractBmtSingleGenerator(
         width, taskTag, msgTagOffset) {
     };

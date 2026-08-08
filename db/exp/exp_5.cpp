@@ -10,6 +10,7 @@
 #include "utils/Log.h"
 #include "utils/StringUtils.h"
 #include "utils/Math.h"
+#include "artifact/Artifact.h"
 
 #include "compute/batch/bool/BoolLessBatchOperator.h"
 #include "compute/batch/bool/BoolAndBatchOperator.h"
@@ -83,16 +84,17 @@ int main(int argc, char *argv[]) {
         Comm::receive(year_share, 64, 2, tid);
     }
 
+    View v;
     if (Comm::isServer()) {
-        auto v = createR(id_b, cs_b, year_b, cs_plus_b);
-
-        auto t0 = System::currentTimeMillis();
+        v = createR(id_b, cs_b, year_b, cs_plus_b);
+    }
+    View out;
+    Artifact::Timer artifact_timer("credit_score");
+    if (Comm::isServer()) {
         auto vf = filterByYear(v, year_share, tid + 100);
         auto va = groupMinCsPlusMaxCs(vf, tid + 200);
-        auto out = finalizeByLess(va, tid + 300);
+        out = finalizeByLess(va, tid + 300);
 
-        auto t1 = System::currentTimeMillis();
-        Log::i("Query time: {}ms", (t1 - t0));
         if (check_mode) {
             auto check_view = out;
             check_view.clearInvalidEntries(tid + 4000);
@@ -102,6 +104,7 @@ int main(int argc, char *argv[]) {
             if (Comm::rank() == 0) Log::i("CORRECTNESS_END");
         }
     }
+    artifact_timer.finish(Comm::isServer() ? static_cast<int64_t>(out.rowNum()) : -1);
 
     System::finalize();
     return 0;
@@ -124,12 +127,12 @@ void generateRandomData(
     year.reserve(rows);
     cs_plus.reserve(rows);
 
-    chosen_c = Math::randInt();
+    chosen_c = Artifact::workloadRandInt();
 
     for (int i = 0; i < rows; ++i) {
-        int64_t rid = Math::randInt();
-        int64_t rcs = Math::randInt();
-        int64_t ryr = Math::randInt();
+        int64_t rid = Artifact::workloadRandInt();
+        int64_t rcs = Artifact::workloadRandInt();
+        int64_t ryr = Artifact::workloadRandInt();
 
         id.push_back(rid);
         cs.push_back(rcs);
