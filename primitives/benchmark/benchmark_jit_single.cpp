@@ -244,6 +244,17 @@ int main(int argc, char *argv[]) {
         // Output result in a format that Python can easily parse
         std::cout << "RESULT:" << primitive << "," << num << "," << width << "," 
                   << jitTime0 << "," << jitTime1 << "," << avgJitTime << std::endl;
+        if (Conf::_userParams.count("artifact_mode") && Conf::_userParams["artifact_mode"] == "true") {
+            std::cout << "ARTIFACT_MICRO_METRIC {"
+                      << "\"schema_version\":1,"
+                      << "\"experiment\":\"figure4\","
+                      << "\"variant\":\"jit\","
+                      << "\"primitive\":\"" << primitive << "\","
+                      << "\"elements\":" << num << ','
+                      << "\"width\":" << width << ','
+                      << "\"jit_ms\":" << avgJitTime
+                      << "}" << std::endl;
+        }
         
         Log::i("JIT - Primitive: {}, Num: {}, Width: {} - Server0: {}ms, Server1: {}ms, Average: {}ms",
                primitive, num, width, jitTime0, jitTime1, avgJitTime);

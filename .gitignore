@@ -131,3 +131,10 @@ install
 
 benchmark*.csv
 secrecy/
+
+# Artifact evaluator environments and generated local output
+.venv-artifact/
+**/__pycache__/
+*.py[cod]
+/tmp/
+/dist/

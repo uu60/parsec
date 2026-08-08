@@ -12,9 +12,12 @@
 
 #include "ot/IknpOtBatchOperator.h"
 #include "utils/Math.h"
+#include "artifact/Artifact.h"
+#include "conf/DbConf.h"
 
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
+    DbConf::init();
 
     int rows = 100;
     int cols = 2;
@@ -32,13 +35,15 @@ int main(int argc, char *argv[]) {
     std::vector<int64_t> shares(rows);
     if (Comm::rank() == 2) {
         for (int i = 0; i < rows; i++) {
-            shares[i] = Math::randInt(0, 100);
+            shares[i] = Artifact::workloadRandInt(0, 100);
         }
     }
 
     shares = Secrets::boolShare(shares, 2, 64, System::nextTask());
 
     View v;
+    std::vector<std::string> sortColumns;
+    std::vector<bool> ascendingOrders;
     if (Comm::isServer()) {
         std::string name = "demo";
         std::vector<std::string> fn(cols);
@@ -58,18 +63,18 @@ int main(int argc, char *argv[]) {
 
         v = Views::selectAll(t);
 
-        std::vector<std::string> sortColumns;
-        std::vector<bool> ascendingOrders;
         for (int i = 0; i < cols; i++) {
             sortColumns.push_back(v._fieldNames[i]);
             ascendingOrders.push_back(true);
         }
+    }
 
-        auto start = System::currentTimeMillis();
+    Artifact::Timer artifact_timer("sort");
+    if (Comm::isServer()) {
         v.sort(sortColumns, ascendingOrders, 0);
-        Log::i("Multi-column sort time (all {} columns): {}ms", cols, System::currentTimeMillis() - start);
         // Views::revealAndPrint(v);
     }
+    artifact_timer.finish(Comm::isServer() ? static_cast<int64_t>(v.rowNum()) : -1);
 
     System::finalize();
 }

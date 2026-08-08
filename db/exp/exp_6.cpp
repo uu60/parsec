@@ -10,6 +10,7 @@
 #include "../include/operator/SelectSupport.h"
 #include "utils/Log.h"
 #include "utils/Math.h"
+#include "artifact/Artifact.h"
 #include "compute/batch/bool/BoolLessBatchOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 
@@ -23,9 +24,6 @@
 #include "compute/batch/bool/BoolAndBatchOperator.h"
 #include "conf/DbConf.h"
 #include "utils/StringUtils.h"
-
-static int64_t PLAIN_START_DATE = Math::randInt();
-static int64_t PLAIN_END_DATE   = PLAIN_START_DATE + 3;
 
 void generateTestData(int orders_rows, int lineitem_rows,
                       std::vector<int64_t> &o_orderkey_data,
@@ -96,8 +94,8 @@ int main(int argc, char *argv[]) {
     auto l_receiptdate_shares = Secrets::boolShare(l_receiptdate_data, 2, 64, tid);
 
     int64_t start_date, end_date;
-    int64_t plain_start = check_mode ? 100 : PLAIN_START_DATE;
-    int64_t plain_end = check_mode ? 103 : PLAIN_END_DATE;
+    int64_t plain_start = check_mode ? 100 : Artifact::workloadRandInt(0, 1000000);
+    int64_t plain_end = check_mode ? 103 : plain_start + 3;
     if (Comm::isClient()) {
         int64_t rand_int0 = Math::randInt();
         int64_t start_date0 = plain_start ^ rand_int0;
@@ -115,12 +113,15 @@ int main(int argc, char *argv[]) {
     }
 
     View result_view;
+    View orders_view;
+    View lineitem_view;
     if (Comm::isServer()) {
-        auto orders_view = createOrdersTable(o_orderkey_shares, o_orderpriority_shares, o_orderdate_shares);
-        auto lineitem_view = createLineitemTable(l_orderkey_shares, l_commitdate_shares, l_receiptdate_shares);
+        orders_view = createOrdersTable(o_orderkey_shares, o_orderpriority_shares, o_orderdate_shares);
+        lineitem_view = createLineitemTable(l_orderkey_shares, l_commitdate_shares, l_receiptdate_shares);
+    }
 
-        auto query_start = System::currentTimeMillis();
-
+    Artifact::Timer artifact_timer("q4");
+    if (Comm::isServer()) {
         View filtered_orders, filtered_lineitem;
         if (DbConf::BASELINE_MODE) {
             filtered_orders = filterOrdersByDate(orders_view, start_date, end_date, tid);
@@ -138,9 +139,6 @@ int main(int argc, char *argv[]) {
 
         result_view = executeGroupByCount(final_orders, tid);
 
-
-        auto query_end = System::currentTimeMillis();
-        Log::i("Total query execution time: {}ms", query_end - query_start);
         if (check_mode) {
             std::vector<std::string> fields = {"o_orderpriority", "order_count"};
             std::vector<int> widths = {64, 64};
@@ -159,6 +157,7 @@ int main(int argc, char *argv[]) {
             if (Comm::rank() == 0) Log::i("CORRECTNESS_END");
         }
     }
+    artifact_timer.finish(Comm::isServer() ? static_cast<int64_t>(result_view.rowNum()) : -1);
 
     System::finalize();
     return 0;
@@ -182,9 +181,9 @@ void generateTestData(int orders_rows, int lineitem_rows,
 
 
         for (int i = 0; i < orders_rows; i++) {
-            int64_t orderkey = Math::randInt();
-            int64_t priority = Math::randInt();
-            int64_t orderdate = Math::randInt();
+            int64_t orderkey = Artifact::workloadRandInt();
+            int64_t priority = Artifact::workloadRandInt();
+            int64_t orderdate = Artifact::workloadRandInt();
 
             o_orderkey_data.push_back(orderkey);
             o_orderpriority_data.push_back(priority);
@@ -192,9 +191,9 @@ void generateTestData(int orders_rows, int lineitem_rows,
         }
 
         for (int i = 0; i < lineitem_rows; i++) {
-            int64_t orderkey = Math::randInt();
-            int64_t commitdate = Math::randInt();
-            int64_t receiptdate = Math::randInt();
+            int64_t orderkey = Artifact::workloadRandInt();
+            int64_t commitdate = Artifact::workloadRandInt();
+            int64_t receiptdate = Artifact::workloadRandInt();
 
             l_orderkey_data.push_back(orderkey);
             l_commitdate_data.push_back(commitdate);

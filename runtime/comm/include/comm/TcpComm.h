@@ -49,6 +49,8 @@ public:
 
     bool isClient_() override;
 
+    void barrier_() override;
+
     void send_(int64_t source, int width, int receiverRank, int tag) override;
 
     void send_(const std::vector<int64_t> &source, int width, int receiverRank, int tag) override;

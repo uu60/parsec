@@ -11,6 +11,7 @@
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Log.h"
 #include "utils/Math.h"
+#include "artifact/Artifact.h"
 #include "utils/StringUtils.h"
 
 #include <vector>
@@ -38,7 +39,7 @@ void generateTestData(int customer_rows, int orders_rows,
         c_custkey_data.reserve(customer_rows);
 
         for (int i = 0; i < customer_rows; i++) {
-            int64_t custkey = Math::randInt();
+            int64_t custkey = Artifact::workloadRandInt();
             c_custkey_data.push_back(custkey);
         }
 
@@ -47,9 +48,9 @@ void generateTestData(int customer_rows, int orders_rows,
         o_comment_flag_data.reserve(orders_rows);
 
         for (int i = 0; i < orders_rows; i++) {
-            int64_t custkey = Math::randInt();
-            int64_t orderkey = Math::randInt();
-            int64_t comment_flag = Math::randInt();
+            int64_t custkey = Artifact::workloadRandInt();
+            int64_t orderkey = Artifact::workloadRandInt();
+            int64_t comment_flag = Artifact::workloadRandInt();
 
             o_custkey_data.push_back(custkey);
             o_orderkey_data.push_back(orderkey);
@@ -243,7 +244,7 @@ int main(int argc, char *argv[]) {
 
     int64_t word;
     if (Comm::isClient()) {
-        word = check_mode ? 1 : Math::randInt();
+        word = check_mode ? 1 : Artifact::workloadRandInt();
         int64_t s = Math::randInt();
         Comm::send(s, 64, 0, tid);
         Comm::send(word ^ s, 64, 1, tid);
@@ -251,11 +252,15 @@ int main(int argc, char *argv[]) {
         Comm::receive(word, 64, 2, tid);
     }
 
+    View vCustomer;
+    View vOrders;
     if (Comm::isServer()) {
-        auto vCustomer = createCustomerTable(c_key_b);
-        auto vOrders = createOrdersTable(o_cust_b, o_okey_b, o_flag_b);
-
-        auto t0 = System::currentTimeMillis();
+        vCustomer = createCustomerTable(c_key_b);
+        vOrders = createOrdersTable(o_cust_b, o_okey_b, o_flag_b);
+    }
+    View vResult;
+    Artifact::Timer artifact_timer("q13");
+    if (Comm::isServer()) {
 
         auto vCnt = createCntCTE(vOrders, word, tid);
         auto vCnt_copy = vCnt;
@@ -275,8 +280,7 @@ int main(int argc, char *argv[]) {
 
         auto vUnion = unionHistAndZeros(vHist, vZeros, tid);
 
-        auto vResult = sortFinalResults(vUnion, tid);
-        Log::i("Execution time: {}ms", (System::currentTimeMillis() - t0));
+        vResult = sortFinalResults(vUnion, tid);
         if (check_mode) {
             auto check_view = vResult;
             check_view.clearInvalidEntries(tid + 6000);
@@ -285,6 +289,7 @@ int main(int argc, char *argv[]) {
             if (Comm::rank() == 0) Log::i("CORRECTNESS_END");
         }
     }
+    artifact_timer.finish(Comm::isServer() ? static_cast<int64_t>(vResult.rowNum()) : -1);
 
     System::finalize();
     return 0;

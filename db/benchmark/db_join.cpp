@@ -13,6 +13,7 @@
 #include <string>
 
 #include "utils/Math.h"
+#include "artifact/Artifact.h"
 
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
@@ -51,9 +52,10 @@ int main(int argc, char *argv[]) {
 
         if (Comm::rank() == 2) {
             for (int i = 0; i < rows_per_table; i++) {
-                allShares[table_idx][i] = Math::randInt();
-                int64_t keyValue = allShares[table_idx][i];
-                allTagShares[table_idx][i] = (keyValue * 31 + 17) % DbConf::SHUFFLE_BUCKET_NUM;
+                allShares[table_idx][i] = Artifact::workloadRandInt();
+                const auto keyValue = static_cast<uint64_t>(allShares[table_idx][i]);
+                allTagShares[table_idx][i] = static_cast<int64_t>(
+                        (keyValue * 31ULL + 17ULL) % static_cast<uint64_t>(DbConf::SHUFFLE_BUCKET_NUM));
             }
         }
 
@@ -63,9 +65,9 @@ int main(int argc, char *argv[]) {
 
     View joinResult;
 
+    std::vector<Table> tables;
+    std::vector<View> views;
     if (Comm::isServer()) {
-        std::vector<Table> tables;
-        std::vector<View> views;
 
         for (int table_idx = 0; table_idx < table_num; table_idx++) {
             std::vector<std::string> fieldNames = {"id"};
@@ -85,8 +87,11 @@ int main(int argc, char *argv[]) {
         }
 
         joinResult = views[0];
+    }
+
+    Artifact::Timer artifact_timer("join");
+    if (Comm::isServer()) {
         std::string joinField = "id";
-        auto start = System::currentTimeMillis();
 
         for (int i = 1; i < table_num; i++) {
             if (hash) {
@@ -113,10 +118,12 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        auto elapsed = System::currentTimeMillis() - start;
-        Log::i("Multi-table join completed in {}ms", elapsed);
         Log::i("Final result has {} records", joinResult._dataCols.empty() ? 0 : joinResult._dataCols[0].size());
     }
+    artifact_timer.finish(
+            Comm::isServer() && !joinResult._dataCols.empty()
+                    ? static_cast<int64_t>(joinResult._dataCols[0].size())
+                    : -1);
 
     std::vector<int64_t> allSecrets;
     int numCols = 8;

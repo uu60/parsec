@@ -4,10 +4,12 @@
 #include "AbstractBmtBatchGenerator.h"
 #include "base/AbstractBatchOperator.h"
 #include "item/Bmt.h"
+#include <atomic>
 
 
 class BmtBatchGenerator : public AbstractBmtBatchGenerator<Bmt> {
 public:
+    inline static std::atomic_int64_t _totalTime = 0;
     BmtBatchGenerator(int count, int l, int taskTag, int msgTagOffset);
 
     BmtBatchGenerator *execute() override;

@@ -6,6 +6,7 @@
 #include "ot/IknpOtBatchOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Log.h"
+#include "utils/System.h"
 
 void BmtGenerator::generateRandomAB() {
     _bmt._a = ring(Math::randInt());
@@ -81,6 +82,11 @@ BmtGenerator *BmtGenerator::execute() {
         return this;
     }
 
+    int64_t start = 0;
+    if (Conf::ENABLE_CLASS_WISE_TIMING) {
+        start = System::currentTimeMillis();
+    }
+
     generateRandomAB();
 
     if (!Conf::DISABLE_MULTI_THREAD && Conf::ENABLE_INTRA_OPERATOR_PARALLELISM) {
@@ -94,6 +100,10 @@ BmtGenerator *BmtGenerator::execute() {
         computeMix(1);
     }
     computeC();
+
+    if (Conf::ENABLE_CLASS_WISE_TIMING) {
+        _totalTime += System::currentTimeMillis() - start;
+    }
 
     return this;
 }

@@ -367,3 +367,10 @@ bool MpiComm::isServer_() {
 bool MpiComm::isClient_() {
     return !isServer_();
 }
+
+void MpiComm::barrier_() {
+    const int rc = MPI_Barrier(MPI_COMM_WORLD);
+    if (rc != MPI_SUCCESS) {
+        throw std::runtime_error("MPI_Barrier failed.");
+    }
+}

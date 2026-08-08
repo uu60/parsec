@@ -9,6 +9,7 @@
 
 #include "utils/Log.h"
 #include "utils/Math.h"
+#include "artifact/Artifact.h"
 
 #include "compute/batch/bool/BoolLessBatchOperator.h"
 #include "compute/batch/bool/BoolEqualBatchOperator.h"
@@ -20,9 +21,6 @@
 #include <string>
 #include <vector>
 #include <algorithm>
-
-static int64_t kHD = Math::randInt();
-static int64_t kASP = Math::randInt();
 
 void generateTestData(int diagRows, int medRows,
                       std::vector<int64_t> &diagnosis_pid_data,
@@ -108,8 +106,8 @@ int main(int argc, char *argv[])
     auto m_tag_s = Secrets::boolShare(m_tag, 2, 64, tid);
 
     int64_t hd_share, asp_share;
-    int64_t hd_plain = check_mode ? 111 : kHD;
-    int64_t asp_plain = check_mode ? 222 : kASP;
+    int64_t hd_plain = check_mode ? 111 : Artifact::workloadRandInt();
+    int64_t asp_plain = check_mode ? 222 : Artifact::workloadRandInt();
     if (Comm::isClient())
     {
         int64_t r0 = Math::randInt();
@@ -125,10 +123,17 @@ int main(int argc, char *argv[])
         Comm::receive(asp_share, 64, 2, tid);
     }
 
+    View diagnosis_view;
+    View medication_view;
     if (Comm::isServer())
     {
-        auto diagnosis_view = createDiagnosisTable(d_pid_s, d_diag_s, d_time_s, d_tag_s);
-        auto medication_view = createMedicationTable(m_pid_s, m_med_s, m_time_s, m_tag_s);
+        diagnosis_view = createDiagnosisTable(d_pid_s, d_diag_s, d_time_s, d_tag_s);
+        medication_view = createMedicationTable(m_pid_s, m_med_s, m_time_s, m_tag_s);
+    }
+    View joined;
+    Artifact::Timer artifact_timer("aspirin_count");
+    if (Comm::isServer())
+    {
         const int tid_diag = tid;
         const int tid_med = tid + 100;
         const int tid_cmp = tid + 200;
@@ -138,7 +143,6 @@ int main(int argc, char *argv[])
         std::string col_med = "med";
 
         View d_min, m_max;
-        auto t0 = System::currentTimeMillis();
         auto dv = filterEquals(diagnosis_view, col_diag, hd_share, tid_diag);
         auto mv = filterEquals(medication_view, col_med, asp_share, tid_med);
 
@@ -146,7 +150,7 @@ int main(int argc, char *argv[])
         m_max = perPidMinOrMax(mv, false, tid_med);
 
         std::string field0 = "pid";
-        auto joined = Views::nestedLoopJoin(d_min, m_max, field0, field0, false);
+        joined = Views::nestedLoopJoin(d_min, m_max, field0, field0, false);
 
         int d_time_idx = -1, m_time_idx = -1;
         find_time_cols(joined, d_time_idx, m_time_idx);
@@ -164,7 +168,6 @@ int main(int argc, char *argv[])
         int valid_idx = joined.colNum() + View::VALID_COL_OFFSET;
         joined._dataCols[valid_idx] = std::move(valids);
 
-        Log::i("Total query execution time: {}ms", System::currentTimeMillis() - t0);
         if (check_mode)
         {
             int pid_idx = -1;
@@ -191,6 +194,7 @@ int main(int argc, char *argv[])
                 Log::i("CORRECTNESS_END");
         }
     }
+    artifact_timer.finish(Comm::isServer() ? static_cast<int64_t>(joined.rowNum()) : -1);
 
     System::finalize();
     return 0;
@@ -215,9 +219,9 @@ void generateTestData(int diagRows, int medRows,
 
         for (int i = 0; i < diagRows; i++)
         {
-            int64_t pid = Math::randInt();
-            int64_t diag = Math::randInt();
-            int64_t time = Math::randInt();
+            int64_t pid = Artifact::workloadRandInt();
+            int64_t diag = Artifact::workloadRandInt();
+            int64_t time = Artifact::workloadRandInt();
 
             diagnosis_pid_data.push_back(pid);
             diagnosis_diag_data.push_back(diag);
@@ -233,9 +237,9 @@ void generateTestData(int diagRows, int medRows,
 
         for (int i = 0; i < medRows; i++)
         {
-            int64_t pid = Math::randInt();
-            int64_t med = Math::randInt();
-            int64_t time = Math::randInt();
+            int64_t pid = Artifact::workloadRandInt();
+            int64_t med = Artifact::workloadRandInt();
+            int64_t time = Artifact::workloadRandInt();
 
             medication_pid_data.push_back(pid);
             medication_med_data.push_back(med);

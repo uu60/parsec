@@ -62,7 +62,7 @@ public:
     inline static bool ENABLE_CLASS_WISE_TIMING = false;
 
     inline static bool ENABLE_SIMD = true;
-    inline static bool ENABLE_IKNP_MULTITHREAD = true;
+    inline static bool ENABLE_IKNP_MULTITHREAD = false;
 };
 
 

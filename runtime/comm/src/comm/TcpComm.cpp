@@ -93,6 +93,26 @@ bool TcpComm::isClient_() {
     return !isServer_();
 }
 
+void TcpComm::barrier_() {
+    // Negative tags are reserved for runtime control messages.  Application
+    // task tags are non-negative, so these cannot collide with MPC traffic.
+    constexpr int arriveTag = -10001;
+    constexpr int releaseTag = -10002;
+    int64_t token = 1;
+    if (_rank == 0) {
+        for (int peer = 1; peer < _size; ++peer) {
+            int64_t received = 0;
+            receive_(received, 1, peer, arriveTag);
+        }
+        for (int peer = 1; peer < _size; ++peer) {
+            send_(token, 1, peer, releaseTag);
+        }
+    } else {
+        send_(token, 1, 0, arriveTag);
+        receive_(token, 1, 0, releaseTag);
+    }
+}
+
 void TcpComm::send_(int64_t source, int width, int receiverRank, int tag) {
     sendPayload(receiverRank, tag, encodeInt(source, width));
 }

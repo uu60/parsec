@@ -9,9 +9,11 @@
 #include "comm/Comm.h"
 #include <fstream>
 #include <iomanip>
+#include <iostream>
 #include <sstream>
 #include <chrono>
 #include <numeric>
+#include <unordered_set>
 
 #include "compute/batch/arith/ArithEqualBatchOperator.h"
 #include "compute/batch/arith/ArithMutexBatchOperator.h"
@@ -356,6 +358,23 @@ std::vector<int> parseCommaSeparatedInts(const std::string &str) {
     return result;
 }
 
+std::vector<std::string> parseCommaSeparatedStrings(const std::string &str) {
+    std::vector<std::string> result;
+    std::stringstream stream(str);
+    std::string item;
+    while (std::getline(stream, item, ',')) {
+        item.erase(0, item.find_first_not_of(" \t"));
+        const auto last = item.find_last_not_of(" \t");
+        if (last != std::string::npos) {
+            item.erase(last + 1);
+        }
+        if (!item.empty()) {
+            result.push_back(item);
+        }
+    }
+    return result;
+}
+
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
 
@@ -380,6 +399,8 @@ int main(int argc, char *argv[]) {
     std::vector<int> testSortNums = {1000, 10000, 100000};
     std::vector<int> testWidths = {1, 2, 4, 8, 16, 32, 64};
     std::vector<std::string> testPmts = {"<", /*"<=",*/ "==", /*"!=",*/ "mux", "ar", "sort"};
+    const bool artifactMode = Conf::_userParams.count("artifact_mode")
+                              && Conf::_userParams["artifact_mode"] == "true";
 
     if (Conf::_userParams.count("nums")) {
         std::string numsStr = Conf::_userParams["nums"];
@@ -418,6 +439,27 @@ int main(int argc, char *argv[]) {
             System::finalize();
             return 1;
         }
+    }
+
+    if (Conf::_userParams.count("pmts")) {
+        const auto requested = parseCommaSeparatedStrings(Conf::_userParams["pmts"]);
+        const std::unordered_set<std::string> allowed(testPmts.begin(), testPmts.end());
+        std::unordered_set<std::string> seen;
+        std::vector<std::string> filtered;
+        for (const auto &primitive: requested) {
+            if (!allowed.count(primitive)) {
+                if (Comm::isClient()) Log::e("Unknown primitive in pmts: {}", primitive);
+                System::finalize();
+                return 1;
+            }
+            if (seen.insert(primitive).second) filtered.push_back(primitive);
+        }
+        if (filtered.empty()) {
+            if (Comm::isClient()) Log::e("pmts must contain at least one primitive");
+            System::finalize();
+            return 1;
+        }
+        testPmts = std::move(filtered);
     }
 
     if (Comm::isClient()) {
@@ -504,7 +546,20 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if (Comm::isClient() && !results.empty()) {
+    if (Comm::isClient() && artifactMode) {
+        for (const auto &result: results) {
+            std::cout << "ARTIFACT_MICRO_METRIC {"
+                      << "\"schema_version\":1,"
+                      << "\"experiment\":\"figure2\","
+                      << "\"primitive\":\"" << result.primitive << "\","
+                      << "\"elements\":" << result.num << ','
+                      << "\"width\":" << result.width << ','
+                      << "\"arithmetic_ms\":" << std::fixed << std::setprecision(6)
+                      << result.avgArithTime << ','
+                      << "\"boolean_ms\":" << result.avgBoolTime
+                      << "}" << std::endl;
+        }
+    } else if (Comm::isClient() && !results.empty()) {
         std::string filename = "benchmark_arith_vs_bool_" + timestamp + ".csv";
         std::ofstream csvFile(filename);
 

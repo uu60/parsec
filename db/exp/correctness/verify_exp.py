@@ -16,7 +16,7 @@ def run_cmd(cmd: List[str]) -> str:
 
 
 def run_mpi(args: argparse.Namespace, exe: str) -> str:
-    return run_cmd([args.mpirun, "-np", "3", exe, "--check=true"])
+    return run_cmd([args.mpirun, *args.mpi_arg, "-np", "3", exe, "--check=true"])
 
 
 def run_tcp(args: argparse.Namespace, exe: str) -> str:
@@ -134,6 +134,7 @@ def main() -> int:
     ap.add_argument("--bin-dir", default="build/db/exp")
     ap.add_argument("--comm", choices=["mpi", "tcp"], default="mpi")
     ap.add_argument("--mpirun", default="mpirun")
+    ap.add_argument("--mpi-arg", action="append", default=[])
     ap.add_argument("--tcp-base-port", type=int, default=21000)
     ap.add_argument("--timeout", type=float, default=60.0)
     args = ap.parse_args()

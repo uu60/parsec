@@ -9,6 +9,7 @@
 
 #include "utils/Log.h"
 #include "utils/Math.h"
+#include "artifact/Artifact.h"
 #include "conf/DbConf.h"
 
 #include "compute/batch/bool/BoolEqualBatchOperator.h"
@@ -61,10 +62,13 @@ int main(int argc, char *argv[]) {
     auto id_shares = Secrets::boolShare(id_plain, 2, 64, tid);
     auto pwd_shares = Secrets::boolShare(pwd_plain, 2, 64, tid);
 
+    View r_view;
     if (Comm::isServer()) {
-        auto r_view = createRTable(id_shares, pwd_shares);
-
-        auto t0 = System::currentTimeMillis();
+        r_view = createRTable(id_shares, pwd_shares);
+    }
+    View result;
+    Artifact::Timer artifact_timer("password_reuse");
+    if (Comm::isServer()) {
 
         std::vector<std::string> order = {"ID", "PWD"};
         std::vector<bool> asc = {true, true};
@@ -72,10 +76,7 @@ int main(int argc, char *argv[]) {
 
         auto having_bits = markGroupsCountGT1(r_view, tid);
 
-        auto result = projectIdAndKeepGroupHeads(r_view, having_bits, tid);
-
-        auto t1 = System::currentTimeMillis();
-        Log::i("Execution time: {}ms", (t1 - t0));
+        result = projectIdAndKeepGroupHeads(r_view, having_bits, tid);
         if (check_mode) {
             auto check_view = result;
             check_view.clearInvalidEntries(tid + 1000);
@@ -85,6 +86,7 @@ int main(int argc, char *argv[]) {
             if (Comm::rank() == 0) Log::i("CORRECTNESS_END");
         }
     }
+    artifact_timer.finish(Comm::isServer() ? static_cast<int64_t>(result.rowNum()) : -1);
 
     System::finalize();
     return 0;
@@ -98,8 +100,8 @@ void generateTestData(int rows,
         pwd_data.reserve(rows);
 
         for (int i = 0; i < rows; i++) {
-            id_data.push_back(Math::randInt());
-            pwd_data.push_back(Math::randInt());
+            id_data.push_back(Artifact::workloadRandInt());
+            pwd_data.push_back(Artifact::workloadRandInt());
         }
     }
 }

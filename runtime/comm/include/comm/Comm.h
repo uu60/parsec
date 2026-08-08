@@ -27,6 +27,9 @@ public:
 
     static bool isClient();
 
+    /** Synchronize all logical ranks. */
+    static void barrier();
+
 
     static void serverSend(const int64_t &source, int width, int tag);
 
@@ -88,6 +91,8 @@ protected:
     virtual bool isServer_() = 0;
 
     virtual bool isClient_() = 0;
+
+    virtual void barrier_() = 0;
 
     virtual void send_(const std::vector<int64_t> &source, int width, int receiverRank, int tag) = 0;
 
