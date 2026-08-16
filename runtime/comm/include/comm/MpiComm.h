@@ -4,7 +4,9 @@
 #include "./Comm.h"
 #include "item/MpiRequestWrapper.h"
 
+#include <mpi.h>
 #include <string>
+#include <vector>
 
 class MpiComm : public Comm {
 public:
@@ -13,6 +15,26 @@ public:
 private:
     int _mpiSize{};
     int _mpiRank{};
+
+    // ---- packed-tag decoding (added 2026-08-13) --------------------------
+    // Operators build tags as (taskTag << (32 - Conf::TASK_TAG_BITS)) | msgTag
+    // (SecureOperator::buildTag). Handing that value to MPI as-is exceeds
+    // MPI_TAG_UB on PMLs with a small tag field (OpenMPI ucx: 2^23-1) and, for
+    // taskTag >= 2^(TASK_TAG_BITS-1), sets bit 31 (negative tag, invalid on
+    // every PML). Streams that differ only in taskTag then silently collide.
+    //
+    // Fix: the packed value is a *logical* stream id. MpiComm decodes it into
+    // (per-task communicator, msgTag) right before every MPI call, so task
+    // isolation rides on communicators (an unbounded, standard matching
+    // dimension) and only msgTag reaches MPI as the tag.
+    int _tagUb{};                        // MPI_TAG_UB of MPI_COMM_WORLD
+    std::vector<MPI_Comm> _taskComms;    // one MPI_Comm_dup per taskTag value
+
+    // Splits `packedTag` in place into the raw MPI tag (written back to
+    // `packedTag`) and returns the communicator for its taskTag. Aborts if the
+    // resulting tag exceeds MPI_TAG_UB — a loud failure instead of silent
+    // stream corruption.
+    MPI_Comm resolveTag(int &packedTag);
 
 public:
     int rank_() override;
