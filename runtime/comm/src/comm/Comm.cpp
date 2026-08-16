@@ -34,6 +34,47 @@ int Comm::rank() {
     return impl->rank_();
 }
 
+// Mirrors the narrowing ladder in MpiComm::send_(const std::vector<int64_t>&, ...):
+// width==1 -> bool (1 B), <=8 -> int8, <=16 -> int16, <=32 -> int32, else int64.
+// Without ENABLE_TRANSFER_COMPRESSION every value travels as int64 (8 B).
+int Comm::wireBytesPerElem(int width) {
+    if (!Conf::ENABLE_TRANSFER_COMPRESSION) {
+        return 8;
+    }
+    if (width == 1) {
+        return 1;
+    }
+    if (width <= 8) {
+        return 1;
+    }
+    if (width <= 16) {
+        return 2;
+    }
+    if (width <= 32) {
+        return 4;
+    }
+    return 8;
+}
+
+void Comm::resetCounters() {
+    _sentMessages = 0;
+    _sentBytes = 0;
+    _recvMessages = 0;
+    _recvBytes = 0;
+}
+
+namespace {
+inline void countSend(int64_t bytes) {
+    Comm::_sentMessages.fetch_add(1, std::memory_order_relaxed);
+    Comm::_sentBytes.fetch_add(bytes, std::memory_order_relaxed);
+}
+
+inline void countRecv(int64_t bytes) {
+    Comm::_recvMessages.fetch_add(1, std::memory_order_relaxed);
+    Comm::_recvBytes.fetch_add(bytes, std::memory_order_relaxed);
+}
+}
+
 void Comm::init(int argc, char **argv) {
     if (Conf::COMM_TYPE == Conf::MPI) {
         impl = new MpiComm();
@@ -92,18 +133,21 @@ void Comm::serverReceive(std::string &target, int tag) {
 }
 
 void Comm::send(const int64_t &source, int width, int receiverRank, int tag) {
+    countSend(wireBytesPerElem(width));
     try {
         MEASURE_EXECUTION_TIME(impl->send_(source, width, receiverRank, tag));
     } catch (...) {}
 }
 
 void Comm::send(const std::vector<int64_t> &source, int width, int receiverRank, int tag) {
+    countSend(static_cast<int64_t>(source.size()) * wireBytesPerElem(width));
     try {
         MEASURE_EXECUTION_TIME(impl->send_(source, width, receiverRank, tag));
     } catch (...) {}
 }
 
 void Comm::send(const std::string &source, int receiverRank, int tag) {
+    countSend(static_cast<int64_t>(source.length()));
     try {
         MEASURE_EXECUTION_TIME(impl->send_(source, receiverRank, tag));
     } catch (...) {}
@@ -113,21 +157,25 @@ void Comm::receive(int64_t &source, int width, int senderRank, int tag) {
     try {
         MEASURE_EXECUTION_TIME(impl->receive_(source, width, senderRank, tag));
     } catch (...) {}
+    countRecv(wireBytesPerElem(width));
 }
 
 void Comm::receive(std::vector<int64_t> &source, int width, int senderRank, int tag) {
     try {
         MEASURE_EXECUTION_TIME(impl->receive_(source, width, senderRank, tag));
     } catch (...) {}
+    countRecv(static_cast<int64_t>(source.size()) * wireBytesPerElem(width));
 }
 
 void Comm::receive(std::string &target, int senderRank, int tag) {
     try {
         MEASURE_EXECUTION_TIME(impl->receive_(target, senderRank, tag));
     } catch (...) {}
+    countRecv(static_cast<int64_t>(target.length()));
 }
 
 AbstractRequest *Comm::receiveAsync(int64_t &source, int width, int senderRank, int tag) {
+    countRecv(wireBytesPerElem(width));
     try {
         return impl->receiveAsync_(source, width, senderRank, tag);
     } catch (...) {
@@ -136,6 +184,7 @@ AbstractRequest *Comm::receiveAsync(int64_t &source, int width, int senderRank, 
 }
 
 AbstractRequest *Comm::receiveAsync(std::vector<int64_t> &source, int count, int width, int senderRank, int tag) {
+    countRecv(static_cast<int64_t>(count) * wireBytesPerElem(width));
     try {
         return impl->receiveAsync_(source, count, width, senderRank, tag);
     } catch (...) {
@@ -144,6 +193,7 @@ AbstractRequest *Comm::receiveAsync(std::vector<int64_t> &source, int count, int
 }
 
 AbstractRequest *Comm::receiveAsync(std::string &target, int length, int senderRank, int tag) {
+    countRecv(static_cast<int64_t>(length));
     try {
         return impl->receiveAsync_(target, length, senderRank, tag);
     } catch (...) {
@@ -152,6 +202,7 @@ AbstractRequest *Comm::receiveAsync(std::string &target, int length, int senderR
 }
 
 AbstractRequest *Comm::sendAsync(const std::vector<int64_t> &source, int width, int receiverRank, int tag) {
+    countSend(static_cast<int64_t>(source.size()) * wireBytesPerElem(width));
     try {
         return impl->sendAsync_(source, width, receiverRank, tag);
     } catch (...) {
@@ -160,6 +211,7 @@ AbstractRequest *Comm::sendAsync(const std::vector<int64_t> &source, int width, 
 }
 
 AbstractRequest *Comm::sendAsync(const int64_t &source, int width, int receiverRank, int tag) {
+    countSend(wireBytesPerElem(width));
     try {
         return impl->sendAsync_(source, width, receiverRank, tag);
     } catch (...) {
@@ -168,6 +220,7 @@ AbstractRequest *Comm::sendAsync(const int64_t &source, int width, int receiverR
 }
 
 AbstractRequest *Comm::sendAsync(const std::string &source, int receiverRank, int tag) {
+    countSend(static_cast<int64_t>(source.length()));
     try {
         return impl->sendAsync_(source, receiverRank, tag);
     } catch (...) {

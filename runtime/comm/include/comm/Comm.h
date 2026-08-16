@@ -12,6 +12,27 @@ class Comm {
 public:
     inline static std::atomic_int64_t _totalTime = 0;
 
+    // ---- traffic counters (feat/comm-counters, 2026-08-16) ---------------------
+    // Process-wide, monotonically increasing, incremented in the static wrappers
+    // below (the single funnel every operator's serverSend/serverReceive/... goes
+    // through), so they are backend-independent (MpiComm and TcpComm alike).
+    //   _sentMessages / _recvMessages : number of send / receive API calls
+    //   _sentBytes / _recvBytes       : payload bytes as they go on the wire, i.e.
+    //     count * wireBytesPerElem(width) for int64 payloads (honours
+    //     Conf::ENABLE_TRANSFER_COMPRESSION exactly as MpiComm::send_ narrows) and
+    //     string length for string payloads. MPI/TCP framing is NOT included.
+    // Async sends/receives are counted when posted (sendAsync/receiveAsync).
+    // Readers take deltas around the region of interest; resetCounters() is
+    // provided for convenience. Zero cost when nobody reads them (relaxed atomics).
+    inline static std::atomic_int64_t _sentMessages = 0;
+    inline static std::atomic_int64_t _sentBytes = 0;
+    inline static std::atomic_int64_t _recvMessages = 0;
+    inline static std::atomic_int64_t _recvBytes = 0;
+
+    static int wireBytesPerElem(int width);
+
+    static void resetCounters();
+
 public:
     inline static Comm *impl = nullptr;
 
