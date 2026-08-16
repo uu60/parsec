@@ -35,6 +35,7 @@ void MpiRequestWrapper::wait() {
                     (*_targetIntVec)[i] = _vec1[i];
                 }
                 delete[] _vec1;
+                _vec1 = nullptr;   // same double-free hazard as the send side
                 break;
             case VEC8:
                 _targetIntVec->resize(_vec8.size());
@@ -58,30 +59,43 @@ void MpiRequestWrapper::wait() {
                 break;
         }
     } else {
+        // Free the narrowed send buffer once the Isend completed. The pointers
+        // MUST be nulled: ~MpiRequestWrapper() frees whatever is still non-null,
+        // and Comm::wait() deletes the wrapper right after wait() — without the
+        // reset every compressed async send was a double free (heap corruption /
+        // SIGSEGV on the first sendAsync with ENABLE_TRANSFER_COMPRESSION=true).
         switch (_mode) {
             case INT1:
                 delete _si1;
+                _si1 = nullptr;
                 break;
             case INT8:
                 delete _si8;
+                _si8 = nullptr;
                 break;
             case INT16:
                 delete _si16;
+                _si16 = nullptr;
                 break;
             case INT32:
                 delete _si32;
+                _si32 = nullptr;
                 break;
             case VEC1:
                 delete[] _sv1;
+                _sv1 = nullptr;
                 break;
             case VEC8:
                 delete _sv8;
+                _sv8 = nullptr;
                 break;
             case VEC16:
                 delete _sv16;
+                _sv16 = nullptr;
                 break;
             case VEC32:
                 delete _sv32;
+                _sv32 = nullptr;
                 break;
             default:
                 break;
