@@ -684,13 +684,21 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
 
         tagCursorBase += numBatches * taskStride;
 
+        // Wait for ALL batches of this level before writing any results back: the
+        // workers read counts_arith/bs_bool/bs_arith[start, end + delta) through the
+        // by-reference captures, and a batch's write range [start + delta, end + delta)
+        // overlaps the next batch's read range, so writing while later batches may
+        // still be running is a data race.
+        std::vector<Triple> results(numBatches);
+        for (int b = 0; b < numBatches; ++b) results[b] = futs[b].get();
+
         for (int b = 0; b < numBatches; ++b) {
             const int start = b * batchSize;
             const int end = std::min(start + batchSize, totalPairs);
             const int len = end - start;
             if (len <= 0) continue;
 
-            auto triple = futs[b].get();
+            auto &triple = results[b];
             auto &increments = std::get<0>(triple);
             auto &new_b_bool = std::get<1>(triple);
             auto &new_b_arith = std::get<2>(triple);
@@ -1059,13 +1067,21 @@ void View::maxMultiBatches(std::vector<int64_t> &heads,
 
         tagCursorBase += numBatches * taskStride;
 
+        // Wait for ALL batches of this level before writing any results back: the
+        // workers read vs/bs_bool[start, end + delta) through the by-reference
+        // captures, and a batch's write range [start + delta, end + delta) overlaps
+        // the next batch's read range, so writing while later batches may still be
+        // running is a data race.
+        std::vector<Pair> results(numBatches);
+        for (int b = 0; b < numBatches; ++b) results[b] = futs[b].get();
+
         for (int b = 0; b < numBatches; ++b) {
             const int start = b * batchSize;
             const int end = std::min(start + batchSize, totalPairs);
             const int len = end - start;
             if (len <= 0) continue;
 
-            auto pr = futs[b].get();
+            auto &pr = results[b];
             auto &new_right = pr.first;
             auto &new_b = pr.second;
 
@@ -1395,13 +1411,21 @@ void View::minMultiBatches(std::vector<int64_t> &heads,
 
         tagCursorBase += numBatches * taskStride;
 
+        // Wait for ALL batches of this level before writing any results back: the
+        // workers read vs/bs_bool[start, end + delta) through the by-reference
+        // captures, and a batch's write range [start + delta, end + delta) overlaps
+        // the next batch's read range, so writing while later batches may still be
+        // running is a data race.
+        std::vector<Pair> results(numBatches);
+        for (int b = 0; b < numBatches; ++b) results[b] = futs[b].get();
+
         for (int b = 0; b < numBatches; ++b) {
             const int start = b * batchSize;
             const int end = std::min(start + batchSize, totalPairs);
             const int len = end - start;
             if (len <= 0) continue;
 
-            auto pr = futs[b].get();
+            auto &pr = results[b];
             auto &new_right = pr.first;
             auto &new_b = pr.second;
 
