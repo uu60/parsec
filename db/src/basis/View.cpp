@@ -2450,13 +2450,21 @@ void View::minAndMaxMultiBatches(std::vector<int64_t> &heads,
 
         tagCursorBase += numBatches * taskStride;
 
+        // Wait for ALL batches of this level before writing any results back: the
+        // workers read min_vs/max_vs/bs_bool[start, end + delta) through the
+        // by-reference captures, and a batch's write range [start + delta, end + delta)
+        // overlaps the next batch's read range, so writing while later batches may
+        // still be running is a data race.
+        std::vector<Triple> results(numBatches);
+        for (int b = 0; b < numBatches; ++b) results[b] = futs[b].get();
+
         for (int b = 0; b < numBatches; ++b) {
             const int start = b * batchSize;
             const int end = std::min(start + batchSize, totalPairs);
             const int len = end - start;
             if (len <= 0) continue;
 
-            auto triple = futs[b].get();
+            auto &triple = results[b];
             auto &min_new_right = std::get<0>(triple);
             auto &max_new_right = std::get<1>(triple);
             auto &new_b = std::get<2>(triple);
