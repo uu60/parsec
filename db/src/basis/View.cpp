@@ -955,7 +955,7 @@ void View::maxMultiBatches(std::vector<int64_t> &heads,
 
     const bool APPROX_COMPACT = DbConf::DISABLE_PRECISE_COMPACTION;
     const int64_t rank = Comm::rank();
-    const int validIdx = colNum() + VALID_COL_OFFSET;
+    int validIdx = colNum() + VALID_COL_OFFSET;
 
     std::vector<int64_t> bs_bool = heads;
     std::vector<int64_t> vs = src;
@@ -1115,6 +1115,7 @@ void View::maxMultiBatches(std::vector<int64_t> &heads,
     _fieldWidths.insert(_fieldWidths.begin() + insertPos, bitlen);
     _dataCols.insert(_dataCols.begin() + insertPos, std::move(vs));
 
+    validIdx = colNum() + VALID_COL_OFFSET;
     if (APPROX_COMPACT) {
         auto new_valid = BoolAndBatchOperator(&_dataCols[validIdx], &group_tails, 1, 0, msgTagBase,
                                               SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
