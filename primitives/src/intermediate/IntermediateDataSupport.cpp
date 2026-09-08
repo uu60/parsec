@@ -3,6 +3,7 @@
 #include "comm/Comm.h"
 #include "intermediate/BitwiseBmtBatchGenerator.h"
 #include "intermediate/BitwiseBmtGenerator.h"
+#include "intermediate/BmtBatchGenerator.h"
 #include "intermediate/BmtGenerator.h"
 #include "ot/BaseOtOperator.h"
 #include "parallel/ThreadPoolSupport.h"
@@ -11,12 +12,31 @@
 #include "sync/LockBlockingQueue.h"
 #include "utils/Log.h"
 #include "utils/Math.h"
+#include <algorithm>
 #include <climits>
+#include <cstdint>
 #include <stdexcept>
+#include <utility>
 
 #include "intermediate/PipelineBitwiseBmtBatchGenerator.h"
 #include "ot/BaseOtBatchOperator.h"
 #include "utils/Crypto.h"
+
+namespace {
+bool backgroundGeneratorShouldStop(int taskTag) {
+    const int messageBits = 32 - Conf::TASK_TAG_BITS;
+    const auto messageMask = (uint32_t{1} << messageBits) - 1;
+    const int controlTag = static_cast<int>((static_cast<uint32_t>(taskTag) << messageBits) | messageMask);
+
+    int64_t localStop = System::_shutdown.load() ? 1 : 0;
+    int64_t peerStop = 0;
+    auto send = Comm::serverSendAsync(localStop, 1, controlTag);
+    auto receive = Comm::serverReceiveAsync(peerStop, 1, controlTag);
+    Comm::wait(send);
+    Comm::wait(receive);
+    return localStop != 0 || peerStop != 0;
+}
+}
 
 void IntermediateDataSupport::prepareBmt() {
     if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
@@ -263,8 +283,13 @@ void IntermediateDataSupport::startGenerateBmtsAsync() {
             _generatorFutures.emplace_back(ThreadPoolSupport::submit([i] {
                 try {
                     auto q = _bmtQs[i];
-                    while (!System::_shutdown.load()) {
-                        q->offer(BmtGenerator(64, Conf::BMT_QUEUE_NUM + i, 0).execute()->_bmt);
+                    const int taskTag = Conf::BMT_QUEUE_NUM + i;
+                    const int batchSize = std::min(Conf::BMT_GEN_BATCH_SIZE, 1024);
+                    while (!backgroundGeneratorShouldStop(taskTag)) {
+                        auto bmts = BmtBatchGenerator(batchSize, 64, taskTag, 0).execute()->_bmts;
+                        for (auto &bmt: bmts) {
+                            q->offer(std::move(bmt));
+                        }
                     }
                 } catch (...) {}
             }));
@@ -278,10 +303,10 @@ void IntermediateDataSupport::startGenerateBitwiseBmtsAsync() {
             _generatorFutures.emplace_back(ThreadPoolSupport::submit([i] {
                 try {
                     auto q = _bitwiseBmtQs[i];
-                    while (!System::_shutdown.load()) {
+                    while (!backgroundGeneratorShouldStop(i)) {
                         auto bitwiseBmts = BitwiseBmtBatchGenerator(Conf::BMT_GEN_BATCH_SIZE, 64, i, 0).execute()->_bmts;
-                        for (auto b: bitwiseBmts) {
-                            q->offer(b);
+                        for (auto &bmt: bitwiseBmts) {
+                            q->offer(std::move(bmt));
                         }
                     }
                 } catch (...) {}
