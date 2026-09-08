@@ -14,6 +14,9 @@
 #include "utils/Math.h"
 #include "utils/System.h"
 
+#include <iterator>
+#include <stdexcept>
+
 ArithToBoolBatchOperator::ArithToBoolBatchOperator(std::vector<int64_t> *xs, int width, int taskTag, int msgTagOffset,
                                                    int clientRank)
     : ArithBatchOperator(*xs, width, taskTag, msgTagOffset, clientRank) {
@@ -32,10 +35,6 @@ ArithToBoolBatchOperator *ArithToBoolBatchOperator::execute() {
         return this;
     }
 
-    if (Conf::BMT_METHOD != Conf::BMT_JIT && Conf::BMT_METHOD != Conf::BMT_FIXED) {
-        throw std::runtime_error("ArithToBoolBatchOperator: Temporarily only support BMT JIT or FIXED generation for experiment.");
-    }
-
     int64_t start;
     if (Conf::ENABLE_CLASS_WISE_TIMING) {
         start = System::currentTimeMillis();
@@ -43,6 +42,34 @@ ArithToBoolBatchOperator *ArithToBoolBatchOperator::execute() {
 
     int num = static_cast<int>(_xis->size());
     _zis.resize(num, 0);
+
+    std::vector<BitwiseBmt> backgroundBmts;
+    size_t backgroundBmtOffset = 0;
+    if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND || Conf::BMT_METHOD == Conf::BMT_PIPELINE) {
+        if (_bmts != nullptr) {
+            backgroundBmts = std::move(*_bmts);
+        } else {
+            backgroundBmts = IntermediateDataSupport::pollBitwiseBmts(bmtCount(num, _width), 64);
+        }
+        if (backgroundBmts.size() != static_cast<size_t>(bmtCount(num, _width))) {
+            throw std::runtime_error("ArithToBoolBatchOperator: Mismatch BMT size.");
+        }
+    }
+
+    auto nextBackgroundBmts = [&](int count) {
+        std::vector<BitwiseBmt> result;
+        if (Conf::BMT_METHOD != Conf::BMT_BACKGROUND && Conf::BMT_METHOD != Conf::BMT_PIPELINE) {
+            return result;
+        }
+        const size_t end = backgroundBmtOffset + static_cast<size_t>(count);
+        if (end > backgroundBmts.size()) {
+            throw std::runtime_error("ArithToBoolBatchOperator: Exhausted assigned BMTs.");
+        }
+        result.assign(std::make_move_iterator(backgroundBmts.begin() + backgroundBmtOffset),
+                      std::make_move_iterator(backgroundBmts.begin() + end));
+        backgroundBmtOffset = end;
+        return result;
+    };
 
     std::vector<int64_t> xi_i_vec(num), xi_o_vec(num);
     for (int i = 0; i < num; i++) {
@@ -105,6 +132,8 @@ ArithToBoolBatchOperator *ArithToBoolBatchOperator::execute() {
             }
 
             BoolAndBatchOperator generateOp(&ai_int, &bi_int, 1, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
+            auto generateBmts = nextBackgroundBmts(BoolAndBatchOperator::bmtCount(num, 1));
+            if (!generateBmts.empty()) generateOp.setBmts(&generateBmts);
             generateOp.execute();
 
             std::vector<int64_t> propagate_int(num), carry_int(num);
@@ -115,6 +144,8 @@ ArithToBoolBatchOperator *ArithToBoolBatchOperator::execute() {
 
             BoolAndBatchOperator propagateOp(&propagate_int, &carry_int, 1, _taskTag, _currentMsgTag,
                                              NO_CLIENT_COMPUTE);
+            auto propagateBmts = nextBackgroundBmts(BoolAndBatchOperator::bmtCount(num, 1));
+            if (!propagateBmts.empty()) propagateOp.setBmts(&propagateBmts);
             propagateOp.execute();
 
             std::vector<int64_t> generate_results = generateOp._zis;
@@ -129,6 +160,8 @@ ArithToBoolBatchOperator *ArithToBoolBatchOperator::execute() {
 
             BoolAndBatchOperator finalOp(&generate_results, &tempCarry_results, 1, _taskTag, _currentMsgTag,
                                          NO_CLIENT_COMPUTE);
+            auto finalBmts = nextBackgroundBmts(BoolAndBatchOperator::bmtCount(num, 1));
+            if (!finalBmts.empty()) finalOp.setBmts(&finalBmts);
             finalOp.execute();
 
             for (int i = 0; i < num; i++) {
@@ -139,6 +172,11 @@ ArithToBoolBatchOperator *ArithToBoolBatchOperator::execute() {
 
     for (int i = 0; i < num; i++) {
         _zis[i] = ring(_zis[i]);
+    }
+
+    if ((Conf::BMT_METHOD == Conf::BMT_BACKGROUND || Conf::BMT_METHOD == Conf::BMT_PIPELINE) &&
+        backgroundBmtOffset != backgroundBmts.size()) {
+        throw std::runtime_error("ArithToBoolBatchOperator: Unused assigned BMTs.");
     }
 
     if (Conf::ENABLE_CLASS_WISE_TIMING) {
@@ -160,4 +198,19 @@ ArithToBoolBatchOperator *ArithToBoolBatchOperator::reconstruct(int clientRank) 
 
 int ArithToBoolBatchOperator::tagStride(int width) {
     return BoolAndBatchOperator::tagStride();
+}
+
+ArithToBoolBatchOperator *ArithToBoolBatchOperator::setBmts(std::vector<BitwiseBmt> *bmts) {
+    if (bmts != nullptr && bmts->size() != static_cast<size_t>(bmtCount(static_cast<int>(_xis->size()), _width))) {
+        throw std::runtime_error("ArithToBoolBatchOperator: Mismatch BMT size.");
+    }
+    _bmts = bmts;
+    return this;
+}
+
+int ArithToBoolBatchOperator::bmtCount(int num, int width) {
+    if (width <= 1) {
+        return 0;
+    }
+    return 3 * (width - 1) * BoolAndBatchOperator::bmtCount(num, 1);
 }

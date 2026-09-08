@@ -2,6 +2,7 @@
 #include "../../include/basis/View.h"
 
 #include <numeric>
+#include <memory>
 
 #include "compute/batch/bool/BoolAndBatchOperator.h"
 #include "compute/batch/bool/BoolEqualBatchOperator.h"
@@ -19,7 +20,47 @@
 
 #include "compute/batch/arith/ArithToBoolBatchOperator.h"
 #include "conf/DbConf.h"
+#include "intermediate/IntermediateDataSupport.h"
 #include "utils/StringUtils.h"
+
+namespace {
+using BitwiseBmtPtr = std::shared_ptr<std::vector<BitwiseBmt> >;
+using ArithBmtPtr = std::shared_ptr<std::vector<Bmt> >;
+
+bool usesQueuedBmts() {
+    return Conf::BMT_METHOD == Conf::BMT_BACKGROUND || Conf::BMT_METHOD == Conf::BMT_PIPELINE;
+}
+
+BitwiseBmtPtr takeBitwiseBmts(int count) {
+    if (!usesQueuedBmts() || count <= 0) return {};
+    return std::make_shared<std::vector<BitwiseBmt> >(
+        IntermediateDataSupport::pollBitwiseBmts(count, 64));
+}
+
+ArithBmtPtr takeArithBmts(int count, int width) {
+    if (Conf::BMT_METHOD != Conf::BMT_BACKGROUND || count <= 0) return {};
+    return std::make_shared<std::vector<Bmt> >(
+        IntermediateDataSupport::pollBmts(count, width));
+}
+
+struct SingleKeySortBmtPlan {
+    BitwiseBmtPtr less;
+    std::vector<BitwiseBmtPtr> mutexes;
+};
+
+struct MultiKeySortBmtPlan {
+    std::vector<BitwiseBmtPtr> less;
+    std::vector<BitwiseBmtPtr> equal;
+    std::vector<BitwiseBmtPtr> combineMutex;
+    std::vector<BitwiseBmtPtr> combineAnd;
+    std::vector<BitwiseBmtPtr> outputMutex;
+};
+
+struct CountBmtPlan {
+    ArithBmtPtr multiply;
+    BitwiseBmtPtr booleanAnd;
+};
+}
 
 View::View(std::vector<std::string> &fieldNames,
            std::vector<int> &fieldWidths) : Table(
@@ -195,6 +236,15 @@ std::vector<int64_t> View::groupByMultiBatches(const std::string &groupField, in
         const int tagOffset = BoolEqualBatchOperator::tagStride();
 
         std::vector<std::future<std::vector<int64_t> > > batchFuts(batchNum);
+        std::vector<BitwiseBmtPtr> batchBmts(batchNum);
+        if (usesQueuedBmts()) {
+            for (int b = 0; b < batchNum; ++b) {
+                const int start = b * batchSize + 1;
+                const int end = std::min(start + batchSize, static_cast<int>(n));
+                const int curN = end - start;
+                batchBmts[b] = takeBitwiseBmts(BoolEqualBatchOperator::bmtCount(curN, bw));
+            }
+        }
         for (int b = 0; b < batchNum; ++b) {
             batchFuts[b] = ThreadPoolSupport::submit([&, b]() {
                 const int start = b * batchSize + 1;
@@ -211,7 +261,8 @@ std::vector<int64_t> View::groupByMultiBatches(const std::string &groupField, in
                 }
                 const int batchTag = msgTagBase + b * tagOffset;
                 return BoolEqualBatchOperator(&curr, &prev, bw, 0, batchTag,
-                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                              SecureOperator::NO_CLIENT_COMPUTE)
+                        .setBmts(batchBmts[b].get())->execute()->_zis;
             });
         }
         for (auto &f: batchFuts) {
@@ -632,6 +683,16 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
         >;
 
         std::vector<std::future<Triple> > futs(numBatches);
+        std::vector<CountBmtPlan> bmtPlans(numBatches);
+        if (usesQueuedBmts()) {
+            for (int b = 0; b < numBatches; ++b) {
+                const int start = b * batchSize;
+                const int end = std::min(start + batchSize, totalPairs);
+                const int len = end - start;
+                bmtPlans[b].multiply = takeArithBmts(ArithMultiplyBatchOperator::bmtCount(len), 64);
+                bmtPlans[b].booleanAnd = takeBitwiseBmts(BoolAndBatchOperator::bmtCount(len, 1));
+            }
+        }
 
         for (int b = 0; b < numBatches; ++b) {
             const int start = b * batchSize;
@@ -659,7 +720,8 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
                 }
 
                 auto increments = ArithMultiplyBatchOperator(&propagate_mask, &add_values, 64, 0, mulTag,
-                                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                             SecureOperator::NO_CLIENT_COMPUTE)
+                        .setBmts(bmtPlans[b].multiply.get())->execute()->_zis;
 
                 std::vector<int64_t> not_left(len), not_right(len);
                 for (int i = 0; i < len; ++i) {
@@ -668,7 +730,8 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
                     not_right[i] = bs_bool[idx + delta] ^ rank;
                 }
                 auto and_res = BoolAndBatchOperator(&not_left, &not_right, 1, 0, andTag,
-                                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                    SecureOperator::NO_CLIENT_COMPUTE)
+                        .setBmts(bmtPlans[b].booleanAnd.get())->execute()->_zis;
 
                 std::vector<int64_t> new_bs_bool(len);
                 for (int i = 0; i < len; ++i) {
@@ -706,6 +769,15 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
     std::vector<int64_t> counts_bool; {
         const int numBatches = (static_cast<int>(n) + batchSize - 1) / batchSize;
         std::vector<std::future<std::vector<int64_t> > > futs(numBatches);
+        std::vector<BitwiseBmtPtr> batchBmts(numBatches);
+        if (usesQueuedBmts()) {
+            for (int b = 0; b < numBatches; ++b) {
+                const int start = b * batchSize;
+                const int end = std::min(start + batchSize, static_cast<int>(n));
+                const int len = end - start;
+                batchBmts[b] = takeBitwiseBmts(ArithToBoolBatchOperator::bmtCount(len, 64));
+            }
+        }
         for (int b = 0; b < numBatches; ++b) {
             const int start = b * batchSize;
             const int end = std::min(start + batchSize, static_cast<int>(n));
@@ -718,9 +790,10 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
             auto slice = std::make_shared<std::vector<int64_t> >(counts_arith.begin() + start,
                                                                  counts_arith.begin() + end);
             const int tg = tagCursorBase + b * a2bStride;
-            futs[b] = ThreadPoolSupport::submit([slice, tg]() {
+            futs[b] = ThreadPoolSupport::submit([slice, tg, bmts = batchBmts[b]]() {
                 return ArithToBoolBatchOperator(slice.get(), 64, 0, tg,
-                                                SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                SecureOperator::NO_CLIENT_COMPUTE)
+                        .setBmts(bmts.get())->execute()->_zis;
             });
         }
         tagCursorBase += numBatches * a2bStride;
@@ -1994,6 +2067,21 @@ void View::bitonicSortMultiBatches(const std::string &orderField, bool ascending
 
             const int numBatches = (comparingCount + batchSize - 1) / batchSize;
             const int tagStride = static_cast<int>(BoolMutexBatchOperator::tagStride() * (colNum() - 1));
+            std::vector<SingleKeySortBmtPlan> bmtPlans(numBatches);
+            if (usesQueuedBmts()) {
+                for (int b = 0; b < numBatches; ++b) {
+                    const int start = b * batchSize;
+                    const int end = std::min(start + batchSize, comparingCount);
+                    const int cnt = end - start;
+                    auto &plan = bmtPlans[b];
+                    plan.less = takeBitwiseBmts(BoolLessBatchOperator::bmtCount(cnt, _fieldWidths[ofi]));
+                    plan.mutexes.resize(colNum() - 1);
+                    for (int c = 0; c < colNum() - 1; ++c) {
+                        plan.mutexes[c] = takeBitwiseBmts(
+                            BoolMutexBatchOperator::bmtCount(cnt, _fieldWidths[c]));
+                    }
+                }
+            }
             std::vector<std::future<void> > futures;
             futures.reserve(numBatches);
             for (int b = 0; b < numBatches; ++b) {
@@ -2013,7 +2101,8 @@ void View::bitonicSortMultiBatches(const std::string &orderField, bool ascending
                     }
                     auto zs = BoolLessBatchOperator(&xs, &ys, _fieldWidths[ofi], 0,
                                                     msgTagBase + tagStride * b,
-                                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->
+                                                    SecureOperator::NO_CLIENT_COMPUTE)
+                            .setBmts(bmtPlans[b].less.get())->execute()->
                             _zis;
                     for (int t = 0; t < cnt; ++t) {
                         if (!ascs2[t]) {
@@ -2042,7 +2131,10 @@ void View::bitonicSortMultiBatches(const std::string &orderField, bool ascending
                             auto copy = zs;
                             auto zs2 = BoolMutexBatchOperator(&subXs, &subYs, &copy, _fieldWidths[c], 0,
                                                               msgTagBase + tagStride * b +
-                                                              BoolMutexBatchOperator::tagStride() * c).execute()->
+                                                              BoolMutexBatchOperator::tagStride() * c)
+                                    .setBmts(bmtPlans[b].mutexes.empty()
+                                                 ? nullptr
+                                                 : bmtPlans[b].mutexes[c].get())->execute()->
                                     _zis;
 
                             int64_t time = System::currentTimeMillis();
@@ -2974,6 +3066,36 @@ void View::bitonicSortMultiBatches(const std::vector<std::string> &orderFields,
             const int maxOperatorTagStride = std::max({baseTagStride, eqTagStride, andTagStride, mutexTagStride});
             const int tagsPerBatch = maxOperatorTagStride + (colNum() - 1) * mutexTagStride;
 
+            std::vector<MultiKeySortBmtPlan> bmtPlans(numBatches);
+            if (usesQueuedBmts()) {
+                for (int b = 0; b < numBatches; ++b) {
+                    const int start = b * batchSize;
+                    const int end = std::min(start + batchSize, comparingCount);
+                    const int cnt = end - start;
+                    auto &plan = bmtPlans[b];
+                    plan.less.resize(orderFields.size());
+                    plan.equal.resize(orderFields.size());
+                    plan.combineMutex.resize(orderFields.size() - 1);
+                    plan.combineAnd.resize(orderFields.size() - 1);
+                    plan.outputMutex.resize(colNum() - 1);
+                    for (size_t col = 0; col < orderFields.size(); ++col) {
+                        const int width = _fieldWidths[orderFieldIndices[col]];
+                        plan.less[col] = takeBitwiseBmts(BoolLessBatchOperator::bmtCount(cnt, width));
+                        plan.equal[col] = takeBitwiseBmts(BoolEqualBatchOperator::bmtCount(cnt, width));
+                        if (col > 0) {
+                            plan.combineMutex[col - 1] = takeBitwiseBmts(
+                                BoolMutexBatchOperator::bmtCount(cnt, 1));
+                            plan.combineAnd[col - 1] = takeBitwiseBmts(
+                                BoolAndBatchOperator::bmtCount(cnt, 1));
+                        }
+                    }
+                    for (int c = 0; c < colNum() - 1; ++c) {
+                        plan.outputMutex[c] = takeBitwiseBmts(
+                            BoolMutexBatchOperator::bmtCount(cnt, _fieldWidths[c]));
+                    }
+                }
+            }
+
             std::vector<std::future<void> > futures;
             futures.reserve(numBatches);
 
@@ -2998,15 +3120,24 @@ void View::bitonicSortMultiBatches(const std::vector<std::string> &orderFields,
                                                    ? BoolLessBatchOperator(
                                                        &xs, &ys, _fieldWidths[orderFieldIndices[0]], 0,
                                                        batchTagBase,
-                                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis
+                                                       SecureOperator::NO_CLIENT_COMPUTE)
+                                                       .setBmts(bmtPlans[b].less.empty()
+                                                                    ? nullptr
+                                                                    : bmtPlans[b].less[0].get())->execute()->_zis
                                                    : BoolLessBatchOperator(
                                                        &ys, &xs, _fieldWidths[orderFieldIndices[0]], 0,
                                                        batchTagBase,
-                                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                       SecureOperator::NO_CLIENT_COMPUTE)
+                                                       .setBmts(bmtPlans[b].less.empty()
+                                                                    ? nullptr
+                                                                    : bmtPlans[b].less[0].get())->execute()->_zis;
 
                     std::vector<int64_t> eqs = BoolEqualBatchOperator(&xs, &ys, _fieldWidths[orderFieldIndices[0]], 0,
                                                                       batchTagBase,
-                                                                      SecureOperator::NO_CLIENT_COMPUTE).execute()->
+                                                                      SecureOperator::NO_CLIENT_COMPUTE)
+                            .setBmts(bmtPlans[b].equal.empty()
+                                         ? nullptr
+                                         : bmtPlans[b].equal[0].get())->execute()->
                             _zis;
 
                     for (int col = 1; col < orderFields.size(); col++) {
@@ -3021,22 +3152,37 @@ void View::bitonicSortMultiBatches(const std::vector<std::string> &orderFields,
                                                          ? BoolLessBatchOperator(
                                                              &xs, &ys, _fieldWidths[orderFieldIndices[col]], 0,
                                                              batchTagBase,
-                                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis
+                                                             SecureOperator::NO_CLIENT_COMPUTE)
+                                                             .setBmts(bmtPlans[b].less.empty()
+                                                                          ? nullptr
+                                                                          : bmtPlans[b].less[col].get())->execute()->_zis
                                                          : BoolLessBatchOperator(
                                                              &ys, &xs, _fieldWidths[orderFieldIndices[col]], 0,
                                                              batchTagBase,
-                                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                             SecureOperator::NO_CLIENT_COMPUTE)
+                                                             .setBmts(bmtPlans[b].less.empty()
+                                                                          ? nullptr
+                                                                          : bmtPlans[b].less[col].get())->execute()->_zis;
 
                         lts = BoolMutexBatchOperator(&lts_i, &lts, &eqs, 1, 0, batchTagBase,
-                                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                     SecureOperator::NO_CLIENT_COMPUTE)
+                                .setBmts(bmtPlans[b].combineMutex.empty()
+                                             ? nullptr
+                                             : bmtPlans[b].combineMutex[col - 1].get())->execute()->_zis;
 
                         std::vector<int64_t> eqs_i = BoolEqualBatchOperator(
                             &xs, &ys, _fieldWidths[orderFieldIndices[col]], 0,
                             batchTagBase,
-                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                            SecureOperator::NO_CLIENT_COMPUTE)
+                                .setBmts(bmtPlans[b].equal.empty()
+                                             ? nullptr
+                                             : bmtPlans[b].equal[col].get())->execute()->_zis;
 
                         eqs = BoolAndBatchOperator(&eqs, &eqs_i, 1, 0, batchTagBase,
-                                                   SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                   SecureOperator::NO_CLIENT_COMPUTE)
+                                .setBmts(bmtPlans[b].combineAnd.empty()
+                                             ? nullptr
+                                             : bmtPlans[b].combineAnd[col - 1].get())->execute()->_zis;
                     }
 
                     for (int t = 0; t < cnt; ++t) {
@@ -3062,7 +3208,10 @@ void View::bitonicSortMultiBatches(const std::vector<std::string> &orderFields,
 
                             auto copy = lts;
                             auto zs2 = BoolMutexBatchOperator(&subXs, &subYs, &copy, _fieldWidths[c], 0,
-                                                              currentTag + mutexTagStride * c).execute()->_zis;
+                                                              currentTag + mutexTagStride * c)
+                                    .setBmts(bmtPlans[b].outputMutex.empty()
+                                                 ? nullptr
+                                                 : bmtPlans[b].outputMutex[c].get())->execute()->_zis;
 
                             for (int t = 0; t < cnt; ++t) {
                                 col[xIdx[start + t]] = zs2[t];

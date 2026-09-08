@@ -4,6 +4,7 @@
 #include <vector>
 #include <array>
 #include <cstdint>
+#include <future>
 
 #include "./item/Bmt.h"
 #include "./item/SRot.h"
@@ -26,6 +27,7 @@ private:
 public:
     inline static std::vector<AbstractBlockingQueue<Bmt> *> _bmtQs;
     inline static std::vector<AbstractBlockingQueue<BitwiseBmt> *> _bitwiseBmtQs;
+    inline static std::vector<std::future<void> > _generatorFutures;
 
     inline static Bmt _fixedBmt;
     inline static BitwiseBmt _fixedBitwiseBmt;

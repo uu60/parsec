@@ -14,12 +14,34 @@
 #include "secret/Secrets.h"
 #include "utils/StringUtils.h"
 #include "utils/Log.h"
+#include "utils/System.h"
 #include <cmath>
+#include <memory>
 #include <numeric>
 
 #include <string>
 
 #include "compute/batch/bool/BoolAndBatchOperator.h"
+#include "intermediate/IntermediateDataSupport.h"
+
+namespace {
+using BitwiseBmtPtr = std::shared_ptr<std::vector<BitwiseBmt> >;
+
+bool usesQueuedBmts() {
+    return Conf::BMT_METHOD == Conf::BMT_BACKGROUND || Conf::BMT_METHOD == Conf::BMT_PIPELINE;
+}
+
+BitwiseBmtPtr takeBitwiseBmts(int count) {
+    if (!usesQueuedBmts() || count <= 0) return {};
+    return std::make_shared<std::vector<BitwiseBmt> >(
+        IntermediateDataSupport::pollBitwiseBmts(count, 64));
+}
+
+struct InBmtPlan {
+    BitwiseBmtPtr equal;
+    BitwiseBmtPtr validAnd;
+};
+}
 
 View Views::selectAll(Table &t) {
     View v(t._tableName, t._fieldNames, t._fieldWidths);
@@ -726,16 +748,20 @@ void Views::revealAndPrint(View &v) {
     }
 
     const bool isSender = (Comm::rank() == 1);
+    // Direct Comm calls do not pass through SecureOperator::buildTag().  Keep
+    // result reconstruction out of the task tags reserved by background BMT
+    // generators, otherwise a print can consume generator traffic on tag 0.
+    const int revealTagBase = System::nextTask() << (32 - Conf::TASK_TAG_BITS);
 
     std::vector<std::vector<int64_t> > plainCols(C);
     size_t nRows = 0;
 
     for (int i = 0; i < C; i++) {
         if (isSender) {
-            Comm::serverSend(v._dataCols[i], 64, 0);
+            Comm::serverSend(v._dataCols[i], 64, revealTagBase + i);
         } else {
             std::vector<int64_t> other;
-            Comm::serverReceive(other, 64, 0);
+            Comm::serverReceive(other, 64, revealTagBase + i);
             const auto &mine = v._dataCols[i];
             std::vector<int64_t> merged;
             merged.resize(mine.size());
@@ -796,6 +822,10 @@ std::vector<int64_t> Views::inSingleBatch(std::vector<int64_t> &col1,
     if (n == 0 || m == 0) return result;
 
     const int64_t rankShare = Comm::rank();
+    // Background BMT producers own the low task-tag range. IN historically
+    // hard-coded task 0, allowing its online messages and generator traffic
+    // to consume one another. Keep this evaluation in the foreground task.
+    const int taskTag = System::nextTask();
 
     const bool PRECISE = (!DbConf::BASELINE_MODE) && (!DbConf::DISABLE_PRECISE_COMPACTION);
 
@@ -816,7 +846,7 @@ std::vector<int64_t> Views::inSingleBatch(std::vector<int64_t> &col1,
         std::copy(col2.begin(), col2.end(), bigRight.begin() + i * m);
     }
     auto equal_all = BoolEqualBatchOperator(&bigLeft, &bigRight,
-                                            64, 0,
+                                            64, taskTag,
                                             0,
                                             SecureOperator::NO_CLIENT_COMPUTE)
             .execute()->_zis;
@@ -831,7 +861,7 @@ std::vector<int64_t> Views::inSingleBatch(std::vector<int64_t> &col1,
                           bigRightValid.begin() + i * m);
             }
             equal_all = BoolAndBatchOperator(&equal_all, &bigRightValid,
-                                             1, 0,
+                                             1, taskTag,
                                              (L + 1) * tagStride,
                                              SecureOperator::NO_CLIENT_COMPUTE)
                     .execute()->_zis;
@@ -864,7 +894,7 @@ std::vector<int64_t> Views::inSingleBatch(std::vector<int64_t> &col1,
         }
 
         auto andOut = BoolAndBatchOperator(&andLeft, &andRight,
-                                           1, 0,
+                                           1, taskTag,
                                            (round + 1) * tagStride,
                                            SecureOperator::NO_CLIENT_COMPUTE)
                 .execute()->_zis;
@@ -891,7 +921,7 @@ std::vector<int64_t> Views::inSingleBatch(std::vector<int64_t> &col1,
             Log::e("inSingleBatch: left_valid size mismatch: got {}, expect {}", left_valid.size(), n);
         } else {
             result = BoolAndBatchOperator(&result, &left_valid,
-                                          1, 0,
+                                          1, taskTag,
                                           (L + 2) * tagStride,
                                           SecureOperator::NO_CLIENT_COMPUTE)
                     .execute()->_zis;
@@ -911,6 +941,7 @@ std::vector<int64_t> Views::inMultiBatches(std::vector<int64_t> &col1,
     if (n == 0 || m == 0) return result;
 
     const int64_t rankShare = Comm::rank();
+    const int taskTag = System::nextTask();
     const size_t totalSize = n * m;
     const int batchSize = Conf::BATCH_SIZE;
     const int numBatches = (totalSize + batchSize - 1) / batchSize;
@@ -928,6 +959,18 @@ std::vector<int64_t> Views::inMultiBatches(std::vector<int64_t> &col1,
     const int andTagStride = BoolAndBatchOperator::tagStride();
 
     std::vector<std::future<std::vector<int64_t> > > equalFutures(numBatches);
+    std::vector<InBmtPlan> equalBmtPlans(numBatches);
+    if (usesQueuedBmts()) {
+        for (int b = 0; b < numBatches; ++b) {
+            const size_t start = static_cast<size_t>(b) * batchSize;
+            const size_t end = std::min(totalSize, start + batchSize);
+            const int cnt = static_cast<int>(end - start);
+            equalBmtPlans[b].equal = takeBitwiseBmts(BoolEqualBatchOperator::bmtCount(cnt, 64));
+            if (!PRECISE) {
+                equalBmtPlans[b].validAnd = takeBitwiseBmts(BoolAndBatchOperator::bmtCount(cnt, 1));
+            }
+        }
+    }
 
     for (int b = 0; b < numBatches; ++b) {
         equalFutures[b] = ThreadPoolSupport::submit([&, b]() {
@@ -946,10 +989,11 @@ std::vector<int64_t> Views::inMultiBatches(std::vector<int64_t> &col1,
 
             const int eqTag = b * (equalTagStride + (PRECISE ? 0 : andTagStride));
             auto eqRes = BoolEqualBatchOperator(&batchLeft, &batchRight,
-                                                64, 0,
+                                                64, taskTag,
                                                 eqTag,
                                                 SecureOperator::NO_CLIENT_COMPUTE)
-                    .execute()->_zis;
+                    .setBmts(equalBmtPlans[b].equal.get())
+                    ->execute()->_zis;
 
             if (!PRECISE) {
                 if (right_valid.size() == m) {
@@ -960,10 +1004,11 @@ std::vector<int64_t> Views::inMultiBatches(std::vector<int64_t> &col1,
                     }
                     const int andTag = eqTag + equalTagStride;
                     eqRes = BoolAndBatchOperator(&eqRes, &rv,
-                                                 1, 0,
+                                                 1, taskTag,
                                                  andTag,
                                                  SecureOperator::NO_CLIENT_COMPUTE)
-                            .execute()->_zis;
+                            .setBmts(equalBmtPlans[b].validAnd.get())
+                            ->execute()->_zis;
                 } else {
                     Log::e("inMultiBatches: right_valid size mismatch: got {}, expect {}", right_valid.size(), m);
                 }
@@ -1007,7 +1052,7 @@ std::vector<int64_t> Views::inMultiBatches(std::vector<int64_t> &col1,
             const int andBaseTag = numBatches * (equalTagStride + (PRECISE ? 0 : andTagStride))
                                    + round * andTagStride;
             auto andOut = BoolAndBatchOperator(&andLeft, &andRight,
-                                               1, 0,
+                                               1, taskTag,
                                                andBaseTag,
                                                SecureOperator::NO_CLIENT_COMPUTE)
                     .execute()->_zis;
@@ -1027,6 +1072,15 @@ std::vector<int64_t> Views::inMultiBatches(std::vector<int64_t> &col1,
         } else {
             const int andBatches = (totalPairs + batchSize - 1) / batchSize;
             std::vector<std::future<std::vector<int64_t> > > andFuts(andBatches);
+            std::vector<BitwiseBmtPtr> andBmts(andBatches);
+            if (usesQueuedBmts()) {
+                for (int b = 0; b < andBatches; ++b) {
+                    const size_t start = static_cast<size_t>(b) * batchSize;
+                    const size_t end = std::min(totalPairs, start + batchSize);
+                    andBmts[b] = takeBitwiseBmts(
+                        BoolAndBatchOperator::bmtCount(static_cast<int>(end - start), 1));
+                }
+            }
 
             for (int b = 0; b < andBatches; ++b) {
                 andFuts[b] = ThreadPoolSupport::submit([&, b, round]() {
@@ -1049,10 +1103,11 @@ std::vector<int64_t> Views::inMultiBatches(std::vector<int64_t> &col1,
                                        + round * andTagStride
                                        + b * andTagStride;
                     return BoolAndBatchOperator(&andLeft, &andRight,
-                                                1, 0,
+                                                1, taskTag,
                                                 andTag,
                                                 SecureOperator::NO_CLIENT_COMPUTE)
-                            .execute()->_zis;
+                            .setBmts(andBmts[b].get())
+                            ->execute()->_zis;
                 });
             }
 
@@ -1090,7 +1145,7 @@ std::vector<int64_t> Views::inMultiBatches(std::vector<int64_t> &col1,
                     numBatches * (equalTagStride + andTagStride)
                     + reduceRounds * andTagStride;
             result = BoolAndBatchOperator(&result, &left_valid,
-                                          1, 0,
+                                          1, taskTag,
                                           finalMaskTag,
                                           SecureOperator::NO_CLIENT_COMPUTE)
                     .execute()->_zis;
