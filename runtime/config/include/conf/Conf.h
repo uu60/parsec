@@ -41,7 +41,7 @@ public:
 
     inline static BmtT BMT_METHOD = BMT_JIT;
     inline static int BMT_PRE_GEN_SECONDS = 0;
-    inline static int MAX_BMTS = INT_MAX;
+    inline static int MAX_BMTS = 10000000;
     inline static int BMT_USAGE_LIMIT = 1;
     inline static QueueT BMT_QUEUE_TYPE = SPSC_QUEUE;
     inline static int BMT_QUEUE_NUM = 1;

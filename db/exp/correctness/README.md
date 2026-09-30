@@ -30,6 +30,8 @@ Optional argument:
 - `--mpi-arg=<arg>` to pass a repeatable host, mapping, or binding argument to MPI.
 - `--tcp-base-port=<port>` to specify the first TCP port used by TCP mode.
 - `--timeout=<seconds>` to set per-process timeout in TCP mode.
+- `--bmt-method=bmt_jit|bmt_background` to run the same expected-result checks with JIT or Background BMTs.
+- `--max-bmts=<count>` to override the per-queue capacity, for example with a small correctness-test capacity.
 
 MPI mode runs:
 

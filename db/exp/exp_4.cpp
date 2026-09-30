@@ -14,13 +14,25 @@
 
 #include "compute/batch/bool/BoolEqualBatchOperator.h"
 #include "compute/batch/bool/BoolAndBatchOperator.h"
+#include "intermediate/IntermediateDataSupport.h"
 
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <memory>
 
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/StringUtils.h"
+
+namespace {
+std::shared_ptr<std::vector<BitwiseBmt> > takeBackgroundEqualBmts(size_t count, int width) {
+    if (Conf::BMT_METHOD != Conf::BMT_BACKGROUND && Conf::BMT_METHOD != Conf::BMT_PIPELINE) {
+        return {};
+    }
+    return std::make_shared<std::vector<BitwiseBmt> >(
+        IntermediateDataSupport::pollBitwiseBmts(BoolEqualBatchOperator::bmtCount(count, width), 64));
+}
+}
 
 void generateTestData(int rows,
                       std::vector<int64_t> &id_data,
@@ -73,7 +85,6 @@ int main(int argc, char *argv[]) {
         std::vector<std::string> order = {"ID", "PWD"};
         std::vector<bool> asc = {true, true};
         r_view.sort(order, asc, tid);
-
         auto having_bits = markGroupsCountGT1(r_view, tid);
 
         result = projectIdAndKeepGroupHeads(r_view, having_bits, tid);
@@ -141,15 +152,19 @@ std::vector<int64_t> markGroupsCountGT1(View &v, int tid) {
         eq_pwd_prev = BoolEqualBatchOperator(&pwd_prev, &pwd_prev2, 64, 0,
                                              tid, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
     } else {
-        auto f = ThreadPoolSupport::submit([&] {
+        auto idBmts = takeBackgroundEqualBmts(id_prev.size(), 64);
+        auto pwdBmts = takeBackgroundEqualBmts(pwd_col.size() - 1, 64);
+        auto f = ThreadPoolSupport::submit([&, idBmts] {
             return BoolEqualBatchOperator(&id_prev, &id_prev2, 64, 0,
                                           tid + BoolEqualBatchOperator::tagStride(),
-                                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                          SecureOperator::NO_CLIENT_COMPUTE)
+                    .setBmts(idBmts.get())->execute()->_zis;
         });
         std::vector<int64_t> pwd_prev(pwd_col.begin() + 1, pwd_col.end());
         std::vector<int64_t> pwd_prev2(pwd_col.begin(), pwd_col.end() - 1);
         eq_pwd_prev = BoolEqualBatchOperator(&pwd_prev, &pwd_prev2, 64, 0,
-                                             tid, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                             tid, SecureOperator::NO_CLIENT_COMPUTE)
+                .setBmts(pwdBmts.get())->execute()->_zis;
         eq_id_prev = std::move(f.get());
     }
 
@@ -170,15 +185,19 @@ std::vector<int64_t> markGroupsCountGT1(View &v, int tid) {
         eq_pwd_next = BoolEqualBatchOperator(&pwd_next, &pwd_next2, 64, 0,
                                              tid, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
     } else {
-        auto f = ThreadPoolSupport::submit([&] {
+        auto idBmts = takeBackgroundEqualBmts(id_next.size(), 64);
+        auto pwdBmts = takeBackgroundEqualBmts(pwd_col.size() - 1, 64);
+        auto f = ThreadPoolSupport::submit([&, idBmts] {
             return BoolEqualBatchOperator(&id_next, &id_next2, 64, 0,
                                           tid + BoolEqualBatchOperator::tagStride(),
-                                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                          SecureOperator::NO_CLIENT_COMPUTE)
+                    .setBmts(idBmts.get())->execute()->_zis;
         });
         std::vector<int64_t> pwd_next(pwd_col.begin(), pwd_col.end() - 1);
         std::vector<int64_t> pwd_next2(pwd_col.begin() + 1, pwd_col.end());
         eq_pwd_next = BoolEqualBatchOperator(&pwd_next, &pwd_next2, 64, 0,
-                                             tid, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                             tid, SecureOperator::NO_CLIENT_COMPUTE)
+                .setBmts(pwdBmts.get())->execute()->_zis;
         eq_id_next = std::move(f.get());
     }
 
@@ -217,17 +236,21 @@ std::vector<int64_t> buildGroupHeads(View &v, int tid) {
         eq_pwd_prev = BoolEqualBatchOperator(&pwd_prev, &pwd_prev2, 64, 0,
                                              tid, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
     } else {
-        auto f = ThreadPoolSupport::submit([&] {
+        auto idBmts = takeBackgroundEqualBmts(id_col.size() - 1, 64);
+        auto pwdBmts = takeBackgroundEqualBmts(pwd_col.size() - 1, 64);
+        auto f = ThreadPoolSupport::submit([&, idBmts] {
             std::vector<int64_t> id_prev(id_col.begin() + 1, id_col.end());
             std::vector<int64_t> id_prev2(id_col.begin(), id_col.end() - 1);
             return BoolEqualBatchOperator(&id_prev, &id_prev2, 64, 0,
                                           tid + BoolEqualBatchOperator::tagStride(),
-                                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                          SecureOperator::NO_CLIENT_COMPUTE)
+                    .setBmts(idBmts.get())->execute()->_zis;
         });
         std::vector<int64_t> pwd_prev(pwd_col.begin() + 1, pwd_col.end());
         std::vector<int64_t> pwd_prev2(pwd_col.begin(), pwd_col.end() - 1);
         eq_pwd_prev = BoolEqualBatchOperator(&pwd_prev, &pwd_prev2, 64, 0,
-                                             tid, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                             tid, SecureOperator::NO_CLIENT_COMPUTE)
+                .setBmts(pwdBmts.get())->execute()->_zis;
         eq_id_prev = std::move(f.get());
     }
 

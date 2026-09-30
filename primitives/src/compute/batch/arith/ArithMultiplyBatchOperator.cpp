@@ -9,6 +9,8 @@
 #include "utils/Log.h"
 #include "utils/Math.h"
 
+#include <stdexcept>
+
 ArithMultiplyBatchOperator::ArithMultiplyBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys,
                                                        int width, int taskTag, int msgTagOffset, int clientRank)
     : ArithBatchOperator(xs, ys, width, taskTag, msgTagOffset, clientRank)
@@ -24,15 +26,25 @@ ArithMultiplyBatchOperator *ArithMultiplyBatchOperator::execute()
         return this;
     }
 
-    if (Conf::BMT_METHOD != Conf::BMT_JIT && Conf::BMT_METHOD != Conf::BMT_FIXED)
-    {
-        throw std::runtime_error("ArithMultiplyBatchOperator: Temporarily only support BMT JIT or FIXED generation for experiment.");
-    }
-
     int num = static_cast<int>(_xis->size());
     _zis.resize(num);
 
-    std::vector<Bmt> bmts = Conf::BMT_METHOD == Conf::BMT_JIT ? BmtBatchGenerator(num, _width, _taskTag, _currentMsgTag).execute()->_bmts : std::vector<Bmt>(num, IntermediateDataSupport::_fixedBmt);
+    std::vector<Bmt> bmts;
+    if (_bmts != nullptr) {
+        bmts = std::move(*_bmts);
+    } else if (Conf::BMT_METHOD == Conf::BMT_JIT) {
+        bmts = BmtBatchGenerator(num, _width, _taskTag, _currentMsgTag).execute()->_bmts;
+    } else if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
+        bmts = std::vector<Bmt>(num, IntermediateDataSupport::_fixedBmt);
+    } else if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
+        bmts = IntermediateDataSupport::pollBmts(num, _width);
+    } else {
+        throw std::runtime_error("ArithMultiplyBatchOperator: Unsupported BMT generation mode.");
+    }
+
+    if (bmts.size() != static_cast<size_t>(num)) {
+        throw std::runtime_error("ArithMultiplyBatchOperator: Mismatch BMT size.");
+    }
 
     std::vector<int64_t> eis(num), fis(num);
     for (int i = 0; i < num; i++)
@@ -80,4 +92,16 @@ ArithMultiplyBatchOperator *ArithMultiplyBatchOperator::reconstruct(int clientRa
 int ArithMultiplyBatchOperator::tagStride(int width)
 {
     return BmtBatchGenerator::tagStride();
+}
+
+ArithMultiplyBatchOperator *ArithMultiplyBatchOperator::setBmts(std::vector<Bmt> *bmts) {
+    if (bmts != nullptr && bmts->size() != static_cast<size_t>(bmtCount(static_cast<int>(_xis->size())))) {
+        throw std::runtime_error("ArithMultiplyBatchOperator: Mismatch BMT size.");
+    }
+    _bmts = bmts;
+    return this;
+}
+
+int ArithMultiplyBatchOperator::bmtCount(int num) {
+    return num;
 }

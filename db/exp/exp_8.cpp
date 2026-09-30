@@ -266,7 +266,11 @@ int main(int argc, char *argv[]) {
         auto vCnt_copy = vCnt;
 
         View vHist, vZeros;
-        if (DbConf::BASELINE_MODE || DbConf::NO_COMPACTION) {
+        if (DbConf::BASELINE_MODE || DbConf::NO_COMPACTION ||
+            Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
+            // Background BMT queues are single-consumer. Keep both CTEs on
+            // the query thread so that their internal operators receive BMTs
+            // in the same deterministic order on both server ranks.
             vHist = createHistCTE(vCnt, tid);
 
             vZeros = createZerosCTE(vCustomer, vCnt_copy, tid);

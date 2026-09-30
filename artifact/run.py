@@ -697,6 +697,19 @@ def paper_micro_points(profile: dict[str, Any]) -> list[tuple[str, int, int]]:
     return points
 
 
+def paper_micro_batch_points(profile: dict[str, Any]) -> list[tuple[str, int, int, int | None]]:
+    """Expand paper micro points while omitting impossible batch/input pairs."""
+    batch_grid: list[int | None] = [
+        int(value) for value in profile.get("batch_sizes", [profile.get("batch_size")])
+    ]
+    return [
+        (primitive, elements, width, batch_size)
+        for primitive, elements, width in paper_micro_points(profile)
+        for batch_size in batch_grid
+        if batch_size is None or batch_size <= elements
+    ]
+
+
 def run_matrix(
     cases: list[dict[str, Any]], args: argparse.Namespace, output_dir: Path,
     manifest: dict[str, Any], targets: list[str], collect_bmt: bool = False,
@@ -708,7 +721,26 @@ def run_matrix(
         manifest["environment_after_build"] = environment_metadata()
         write_json(output_dir / "manifest.json", manifest)
     records = []
+    manifest["progress"] = {
+        "completed_cases": 0, "total_cases": len(cases), "current_case": None,
+    }
+    write_json(output_dir / "manifest.json", manifest)
     for index, case in enumerate(cases):
+        current_case = {
+            key: value for key, value in case.items()
+            if key not in {"target"}
+        }
+        manifest["progress"] = {
+            "completed_cases": len(records),
+            "total_cases": len(cases),
+            "current_case": current_case,
+        }
+        write_json(output_dir / "manifest.json", manifest)
+        print(
+            f"[progress] case {index + 1}/{len(cases)}: {case['label']} "
+            f"repetition={case['repetition']}",
+            flush=True,
+        )
         params = configuration_params(case["configuration"], args.seed, collect_bmt)
         params.extend(arg_params(case["params"]))
         run_name = f"{index:04d}-{case['label']}-r{case['repetition']}"
@@ -724,6 +756,10 @@ def run_matrix(
         })
         records.append(record)
         write_json(output_dir / "summary" / "checkpoint.json", records)
+    manifest["progress"] = {
+        "completed_cases": len(records), "total_cases": len(cases), "current_case": None,
+    }
+    write_json(output_dir / "manifest.json", manifest)
     return records
 
 
@@ -742,13 +778,11 @@ def run_micro_figure(
         manifest["environment_after_build"] = environment_metadata()
         write_json(output_dir / "manifest.json", manifest)
 
-    points: list[tuple[str, int, int, int | None]] = []
-    batch_grid: list[int | None] = [
-        int(value) for value in profile.get("batch_sizes", [profile.get("batch_size")])
-    ]
-    for primitive, elements, width in paper_micro_points(profile):
-        for batch_size in batch_grid:
-            points.append((primitive, elements, width, batch_size))
+    # The benchmark intentionally skips a batch that is larger than its
+    # input.  Do not launch such a point and then mistake the expected absence
+    # of a metric for a failed run.  Figure 5's smaller sort inputs therefore
+    # end before the largest x-axis ticks, matching the plotted paper series.
+    points = paper_micro_batch_points(profile)
     manifest["experiment_matrix"] = profile
     manifest["paper_experiment_matrix"] = original_profile
     manifest["input_scale_locked"] = True
@@ -1110,15 +1144,20 @@ def run_figure8(args: argparse.Namespace) -> int:
 
 def run_table1(args: argparse.Namespace) -> int:
     output_dir, manifest, spec = performance_context("table1", args)
-    paper_cases = spec["experiments"]["table_1"]["cases"]
+    table_spec = spec["experiments"]["table_1"]
+    paper_cases = table_spec["cases"]
     sizes = [dict(size) for size in paper_cases]
     cases = []
-    for size in sizes:
+    for case_spec in sizes:
+        mode_overrides = case_spec.pop("mode_overrides", {})
+        size = case_spec
         for mode in ("hash", "nested"):
+            mode_params = dict(table_spec["join_modes"][mode])
+            mode_params.update(mode_overrides.get(mode, {}))
             for repetition in range(1, repetitions(args) + 1):
                 cases.append({
                     **size, "join_mode": mode, "configuration": "parsec", "repetition": repetition,
-                    "params": {**size, "hash": mode == "hash"}, "target": "db_join",
+                    "params": {**size, **mode_params}, "target": "db_join",
                     "label": f"{size['table_num']}-way-{mode}",
                 })
     records = run_matrix(cases, args, output_dir, manifest, ["db_join"])
@@ -1159,7 +1198,10 @@ def run_smoke(args: argparse.Namespace) -> int:
     verify_command = [
         str(REPO_ROOT / "db" / "exp" / "correctness" / "verify_all.sh"),
         f"--comm={args.comm}", f"--timeout={args.timeout}",
+        f"--bmt-method={args.bmt_method}",
     ]
+    if args.max_bmts is not None:
+        verify_command.append(f"--max-bmts={args.max_bmts}")
     if args.comm == "mpi":
         verify_command.append(f"--mpirun={args.mpirun}")
         verify_command.extend(f"--mpi-arg={value}" for value in args.mpi_arg)
@@ -1171,7 +1213,7 @@ def run_smoke(args: argparse.Namespace) -> int:
     passed = sorted({int(value) for value in re.findall(r"^PASS exp_(\d+) \[(?:tcp|mpi)\]$", verify["output"], re.MULTILINE)})
     missing = sorted(set(EXPECTED_SMOKE_IDS) - set(passed))
     succeeded = verify["return_code"] == 0 and not missing
-    summary = correctness_summary(passed, missing, args.comm)
+    summary = correctness_summary(passed, missing, args.comm, args.bmt_method, args.max_bmts)
     write_json(output_dir / "summary" / "smoke.json", summary)
     manifest.update({"status": summary["status"], "completed_at": utc_now(), "summary": "summary/smoke.json"})
     write_json(output_dir / "manifest.json", manifest)
@@ -1179,7 +1221,10 @@ def run_smoke(args: argparse.Namespace) -> int:
     return 0 if succeeded else 1
 
 
-def correctness_summary(passed: list[int], missing: list[int], comm: str) -> dict[str, Any]:
+def correctness_summary(
+    passed: list[int], missing: list[int], comm: str,
+    bmt_method: str = "bmt_jit", max_bmts: int | None = None,
+) -> dict[str, Any]:
     """Return pass/fail evidence without exposing correctness runs as benchmarks."""
     passed_set = set(passed)
     return {
@@ -1188,6 +1233,8 @@ def correctness_summary(passed: list[int], missing: list[int], comm: str) -> dic
         "evaluation_mode": "functional_correctness_only",
         "status": "passed" if not missing and len(passed_set) == len(EXPECTED_SMOKE_IDS) else "failed",
         "comm": comm,
+        "bmt_method": bmt_method,
+        "max_bmts": max_bmts,
         "passed_count": len(passed_set),
         "total_checks": len(EXPECTED_SMOKE_IDS),
         "checks": [
@@ -1347,6 +1394,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Repeat to replace the default AWS MPI host, mapping, and binding arguments.",
     )
     smoke.add_argument("--timeout", type=float, default=90)
+    smoke.add_argument(
+        "--bmt-method", choices=("bmt_jit", "bmt_background"), default="bmt_jit",
+        help="BMT acquisition strategy used by all eight correctness checks.",
+    )
+    smoke.add_argument(
+        "--max-bmts", type=int,
+        help="Optional per-queue BMT capacity; the configured default is used when omitted.",
+    )
     smoke.add_argument("--build-mode", choices=("O2", "O3"), default="O3")
     smoke.add_argument("--simd-target", choices=("portable", "native", "avx512"), default="native")
     smoke.add_argument("--output-dir")
@@ -1405,6 +1460,8 @@ def validate_args(args: argparse.Namespace) -> None:
         args.timeout = PAPER_TIMEOUT_SECONDS
     if getattr(args, "timeout", 1) <= 0:
         raise ValueError("--timeout must be positive")
+    if getattr(args, "max_bmts", None) is not None and args.max_bmts <= 0:
+        raise ValueError("--max-bmts must be positive")
     if hasattr(args, "mpi_arg") and args.comm == "mpi" and not args.mpi_arg:
         args.mpi_arg = list(DEFAULT_MPI_ARGS)
 

@@ -9,8 +9,8 @@ class PipelineBitwiseBmtBatchGenerator : public AbstractBatchOperator {
 private:
     int64_t _totalBits{};
     int _index{};
-    BoostSPSCQueue<std::vector<BitwiseBmt>, INT16_MAX> _bmts{};
-    BoostSPSCQueue<std::vector<int64_t>, INT16_MAX> _ssis{};
+    BoostSPSCQueue<std::vector<BitwiseBmt>> _bmts{INT16_MAX};
+    BoostSPSCQueue<std::vector<int64_t>> _ssis{INT16_MAX};
 
     class HandleData {
     public:
@@ -19,7 +19,7 @@ private:
         AbstractRequest *_r{};
     };
 
-    BoostSPSCQueue<HandleData, INT16_MAX> _handle{};
+    BoostSPSCQueue<HandleData> _handle{INT16_MAX};
 
 public:
     PipelineBitwiseBmtBatchGenerator(int index, int taskTag, int msgTagOffset) : AbstractBatchOperator(64, taskTag,

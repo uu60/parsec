@@ -19,8 +19,10 @@ from artifact.run import (
     parse_micro_metrics,
     is_known_background_teardown_failure,
     micro_base_elements,
+    paper_micro_batch_points,
     paper_micro_points,
     DEFAULT_MPI_ARGS,
+    run_table1,
     validate_args,
 )
 
@@ -71,6 +73,53 @@ class ArtifactTests(unittest.TestCase):
             self.assertIn("--batch_size=256", configuration_params(configuration, 1, False))
         self.assertIn("--batch_size=0", configuration_params("parsec_base", 1, False))
 
+    def test_table1_join_modes_use_paper_parameters(self) -> None:
+        modes = load_spec()["experiments"]["table_1"]["join_modes"]
+        for mode, use_hash in (("hash", True), ("nested", False)):
+            self.assertEqual(modes[mode]["hash"], use_hash)
+            self.assertEqual(modes[mode]["shuffle_bucket_num"], 4)
+        self.assertEqual(modes["hash"]["thread_pool"], "async")
+        self.assertEqual(modes["hash"]["batch_size"], 256)
+        self.assertNotIn("local_threads", modes["hash"])
+        self.assertEqual(modes["nested"]["thread_pool"], "ctpl_pool")
+        self.assertEqual(modes["nested"]["local_threads"], 18000)
+        self.assertEqual(modes["nested"]["batch_size"], 1024)
+        five_way = load_spec()["experiments"]["table_1"]["cases"][-1]
+        self.assertNotIn("mode_overrides", five_way)
+        for mode in ("hash", "nested"):
+            self.assertFalse(modes[mode]["enable_iknp_multithread"])
+            self.assertTrue(modes[mode]["enable_intra_operator_parallelism"])
+
+    def test_table1_runner_forwards_paper_parameters(self) -> None:
+        args = build_parser().parse_args(["table1", "--skip-build"])
+        manifest = {"arguments": {"profile": "paper"}}
+        spec = load_spec()
+        with (
+            patch("artifact.run.performance_context", return_value=(Path("/tmp/result"), manifest, spec)),
+            patch("artifact.run.run_matrix", return_value=[]) as run_matrix_mock,
+            patch("artifact.run.finalize_performance", return_value=0),
+        ):
+            self.assertEqual(run_table1(args), 0)
+        cases = run_matrix_mock.call_args.args[0]
+        self.assertEqual(len(cases), 8)
+        self.assertTrue(all(case["params"]["shuffle_bucket_num"] == 4 for case in cases))
+        hash_cases = [case for case in cases if case["join_mode"] == "hash"]
+        nested_cases = [case for case in cases if case["join_mode"] == "nested"]
+        self.assertTrue(all(case["params"]["thread_pool"] == "async" for case in hash_cases))
+        self.assertTrue(all(case["params"]["batch_size"] == 256 for case in hash_cases))
+        self.assertTrue(all("local_threads" not in case["params"] for case in hash_cases))
+        self.assertTrue(all(case["params"]["thread_pool"] == "ctpl_pool" for case in nested_cases))
+        self.assertEqual(
+            [case["params"]["local_threads"] for case in nested_cases],
+            [18000, 18000, 18000, 18000],
+        )
+        self.assertEqual(
+            [case["params"]["batch_size"] for case in nested_cases],
+            [1024, 1024, 1024, 1024],
+        )
+        self.assertTrue(all(not case["params"]["enable_iknp_multithread"] for case in cases))
+        self.assertTrue(all(case["params"]["enable_intra_operator_parallelism"] for case in cases))
+
     def test_metric_parser_tolerates_log_prefix(self) -> None:
         text = 'host log ARTIFACT_METRIC {"rank":0,"elapsed_seconds":1.25}\n'
         self.assertEqual(parse_metrics(text)[0]["rank"], 0)
@@ -117,6 +166,14 @@ class ArtifactTests(unittest.TestCase):
             "--bind-to", "none", "--map-by", "seq",
             "--host", "parsec0,parsec1,parsec0",
         ])
+
+    def test_smoke_accepts_background_bmt_correctness_mode(self) -> None:
+        args = build_parser().parse_args([
+            "smoke", "--skip-build", "--bmt-method=bmt_background", "--max-bmts=10000",
+        ])
+        validate_args(args)
+        self.assertEqual(args.bmt_method, "bmt_background")
+        self.assertEqual(args.max_bmts, 10000)
 
     def test_mpi_is_the_default_for_all_executable_workflows(self) -> None:
         parser = build_parser()
@@ -176,6 +233,21 @@ class ArtifactTests(unittest.TestCase):
              ("<", 250000, 64), ("<", 500000, 64)],
         )
         self.assertNotIn(("sort", 50000, 32), points)
+
+    def test_figure5_skips_batches_larger_than_the_input(self) -> None:
+        profile = {
+            "primitives": ["<", "sort"],
+            "nums": [500000],
+            "sort_nums": [10000, 50000, 100000],
+            "widths": [16, 32, 64],
+            "batch_sizes": [16, 16384, 65536],
+        }
+        points = paper_micro_batch_points(profile)
+        self.assertNotIn(("sort", 10000, 64, 16384), points)
+        self.assertNotIn(("sort", 10000, 64, 65536), points)
+        self.assertNotIn(("sort", 50000, 16, 65536), points)
+        self.assertIn(("sort", 100000, 64, 65536), points)
+        self.assertTrue(all(batch_size <= elements for _, elements, _, batch_size in points))
 
     def test_input_scale_and_other_matrix_overrides_are_rejected(self) -> None:
         parser = build_parser()

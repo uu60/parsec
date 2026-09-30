@@ -11,6 +11,10 @@ public:
 
     virtual T poll() = 0;
 
+    // Unblock producers/consumers during shutdown. Calls after close either
+    // return without enqueueing or throw when no queued item remains.
+    virtual void close() = 0;
+
     [[nodiscard]] virtual size_t size() const = 0;
 
     [[nodiscard]] virtual size_t capacity() const = 0;

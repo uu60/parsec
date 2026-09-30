@@ -141,7 +141,7 @@ void bitonicSortBoolSplittedBatches(std::vector<BoolSecret> &secrets, bool asc, 
                     bmtLessB = std::make_shared<std::vector<BitwiseBmt>>(IntermediateDataSupport::pollBitwiseBmts(
                         BoolLessBatchOperator::bmtCount(xsBatches[b].size(), secrets[0]._width), 64));
                     bmtMuxB = std::make_shared<std::vector<BitwiseBmt>>(IntermediateDataSupport::pollBitwiseBmts(
-                        2 * BoolMutexBatchOperator::bmtCount(xsBatches[b].size(), secrets[0]._width), 64));
+                        BoolMutexBatchOperator::bmtCount(xsBatches[b].size(), secrets[0]._width), 64));
                 }
 
                 futures.emplace_back(

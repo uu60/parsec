@@ -11,6 +11,7 @@
 #include "utils/Math.h"
 
 void System::init(int argc, char **argv) {
+    _shutdown = false;
     Conf::init(argc, argv);
 
     if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
@@ -20,9 +21,11 @@ void System::init(int argc, char **argv) {
         }
     }
 
-    ThreadPoolSupport::init();
-
     Comm::init(argc, argv);
+
+    // The communication rank must be known before pool initialization so the
+    // input-only client rank can avoid allocating server worker threads.
+    ThreadPoolSupport::init();
 
     IntermediateDataSupport::init();
     Log::i("System initialized.");
@@ -31,10 +34,9 @@ void System::init(int argc, char **argv) {
 void System::finalize() {
     Log::i("Prepare to shutdown... (if not finalized please press Ctrl + C)");
     _shutdown = true;
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    Comm::finalize();
-    ThreadPoolSupport::finalize();
     IntermediateDataSupport::finalize();
+    ThreadPoolSupport::finalize();
+    Comm::finalize();
     if (Comm::rank() == 0) {
         std::cout << "System shut down." << std::endl;
     }

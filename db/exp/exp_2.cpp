@@ -11,11 +11,13 @@
 #include <vector>
 #include <algorithm>
 #include <future>
+#include <memory>
 #include <tuple>
 
 #include "utils/Math.h"
 #include "artifact/Artifact.h"
 #include "compute/batch/bool/BoolAndBatchOperator.h"
+#include "intermediate/IntermediateDataSupport.h"
 #include "compute/batch/bool/BoolLessBatchOperator.h"
 #include "compute/batch/bool/BoolEqualBatchOperator.h"
 
@@ -259,7 +261,51 @@ View markAdjacentPairsWithinPid(View rcd_view, int tid) {
     const int strideLess64 = BoolLessBatchOperator::tagStride();
     const int strideEq64 = BoolEqualBatchOperator::tagStride();
     const int strideAnd1 = BoolAndBatchOperator::tagStride();
-    const int stridePerBatch = 2 * strideLess64 + 3 * strideEq64 + 5 * strideAnd1;
+    const int stridePerBatch = 2 * strideLess64 + 3 * strideEq64 + 6 * strideAnd1;
+
+    using BitwiseBmtPtr = std::shared_ptr<std::vector<BitwiseBmt> >;
+    struct BatchBmtPlan {
+        BitwiseBmtPtr lessT15;
+        BitwiseBmtPtr equalT15;
+        BitwiseBmtPtr andT15;
+        BitwiseBmtPtr lessT56;
+        BitwiseBmtPtr equalT56;
+        BitwiseBmtPtr andT56;
+        BitwiseBmtPtr andRange;
+        BitwiseBmtPtr equalPid;
+        BitwiseBmtPtr andValid;
+        BitwiseBmtPtr andHit1;
+        BitwiseBmtPtr andHit2;
+    };
+
+    auto takeBmts = [](int count) -> BitwiseBmtPtr {
+        if (Conf::BMT_METHOD != Conf::BMT_BACKGROUND || count <= 0) return {};
+        return std::make_shared<std::vector<BitwiseBmt> >(
+            IntermediateDataSupport::pollBitwiseBmts(count, 64));
+    };
+
+    // The Background queue is SPSC.  Reserve each worker's BMTs on the main
+    // query thread, then hand the disjoint vectors to the workers.
+    std::vector<BatchBmtPlan> bmtPlans(batches);
+    if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
+        for (int b = 0; b < batches; ++b) {
+            const int start = b * B;
+            const int endExclusive = std::min(start + B, (int) n - 1);
+            const int len = std::max(0, endExclusive - start);
+            auto &plan = bmtPlans[b];
+            plan.lessT15 = takeBmts(BoolLessBatchOperator::bmtCount(len, 64));
+            plan.equalT15 = takeBmts(BoolEqualBatchOperator::bmtCount(len, 64));
+            plan.andT15 = takeBmts(BoolAndBatchOperator::bmtCount(len, 1));
+            plan.lessT56 = takeBmts(BoolLessBatchOperator::bmtCount(len, 64));
+            plan.equalT56 = takeBmts(BoolEqualBatchOperator::bmtCount(len, 64));
+            plan.andT56 = takeBmts(BoolAndBatchOperator::bmtCount(len, 1));
+            plan.andRange = takeBmts(BoolAndBatchOperator::bmtCount(len, 1));
+            plan.equalPid = takeBmts(BoolEqualBatchOperator::bmtCount(len, 64));
+            plan.andValid = takeBmts(BoolAndBatchOperator::bmtCount(len, 1));
+            plan.andHit1 = takeBmts(BoolAndBatchOperator::bmtCount(len, 1));
+            plan.andHit2 = takeBmts(BoolAndBatchOperator::bmtCount(len, 1));
+        }
+    }
 
     auto workBatch = [&](int b) -> std::pair<int, std::vector<int64_t> > {
         const int start = b * B;
@@ -279,49 +325,61 @@ View markAdjacentPairsWithinPid(View rcd_view, int tid) {
 
         int bt = tid + b * stridePerBatch;
 
+        auto &plan = bmtPlans[b];
         auto lt_t15 = BoolLessBatchOperator(&t15_i, &t_j, 64, 0, bt,
-                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                            SecureOperator::NO_CLIENT_COMPUTE)
+                          .setBmts(plan.lessT15.get())->execute()->_zis;
         bt += strideLess64;
         auto eq_t15 = BoolEqualBatchOperator(&t15_i, &t_j, 64, 0, bt,
-                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                             SecureOperator::NO_CLIENT_COMPUTE)
+                           .setBmts(plan.equalT15.get())->execute()->_zis;
         bt += strideEq64;
         auto ltANDt15 = BoolAndBatchOperator(&lt_t15, &eq_t15, 1, 0, bt,
-                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                             SecureOperator::NO_CLIENT_COMPUTE)
+                            .setBmts(plan.andT15.get())->execute()->_zis;
         bt += strideAnd1;
         std::vector<int64_t> ge15 = lt_t15;
         for (int k = 0; k < L; ++k) ge15[k] ^= eq_t15[k];
         for (int k = 0; k < L; ++k) ge15[k] ^= ltANDt15[k];
 
         auto lt_56 = BoolLessBatchOperator(&t_j, &t56_i, 64, 0, bt,
-                                           SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                           SecureOperator::NO_CLIENT_COMPUTE)
+                         .setBmts(plan.lessT56.get())->execute()->_zis;
         bt += strideLess64;
         auto eq_56 = BoolEqualBatchOperator(&t_j, &t56_i, 64, 0, bt,
-                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                            SecureOperator::NO_CLIENT_COMPUTE)
+                         .setBmts(plan.equalT56.get())->execute()->_zis;
         bt += strideEq64;
         auto ltAND56 = BoolAndBatchOperator(&lt_56, &eq_56, 1, 0, bt,
-                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                            SecureOperator::NO_CLIENT_COMPUTE)
+                           .setBmts(plan.andT56.get())->execute()->_zis;
         bt += strideAnd1;
         std::vector<int64_t> le56 = lt_56;
         for (int k = 0; k < L; ++k) le56[k] ^= eq_56[k];
         for (int k = 0; k < L; ++k) le56[k] ^= ltAND56[k];
 
         auto inrng = BoolAndBatchOperator(&ge15, &le56, 1, 0, bt,
-                                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                          SecureOperator::NO_CLIENT_COMPUTE)
+                         .setBmts(plan.andRange.get())->execute()->_zis;
         bt += strideAnd1;
 
         auto samepid = BoolEqualBatchOperator(&pid_i, &pid_j, 64, 0, bt,
-                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                              SecureOperator::NO_CLIENT_COMPUTE)
+                           .setBmts(plan.equalPid.get())->execute()->_zis;
         bt += strideEq64;
 
         auto bothv = BoolAndBatchOperator(&v_i, &v_j, 1, 0, bt,
-                                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                          SecureOperator::NO_CLIENT_COMPUTE)
+                         .setBmts(plan.andValid.get())->execute()->_zis;
         bt += strideAnd1;
 
         auto hit1 = BoolAndBatchOperator(&inrng, &samepid, 1, 0, bt,
-                                         SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                         SecureOperator::NO_CLIENT_COMPUTE)
+                        .setBmts(plan.andHit1.get())->execute()->_zis;
         bt += strideAnd1;
         auto hit = BoolAndBatchOperator(&hit1, &bothv, 1, 0, bt,
-                                        SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                        SecureOperator::NO_CLIENT_COMPUTE)
+                       .setBmts(plan.andHit2.get())->execute()->_zis;
 
         return {start, hit};
     };

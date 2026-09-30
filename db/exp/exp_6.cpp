@@ -12,6 +12,7 @@
 #include "utils/Math.h"
 #include "artifact/Artifact.h"
 #include "compute/batch/bool/BoolLessBatchOperator.h"
+#include "intermediate/IntermediateDataSupport.h"
 #include "parallel/ThreadPoolSupport.h"
 
 #include <string>
@@ -19,6 +20,7 @@
 #include <random>
 #include <algorithm>
 #include <map>
+#include <memory>
 #include <set>
 
 #include "compute/batch/bool/BoolAndBatchOperator.h"
@@ -123,7 +125,10 @@ int main(int argc, char *argv[]) {
     Artifact::Timer artifact_timer("q4");
     if (Comm::isServer()) {
         View filtered_orders, filtered_lineitem;
-        if (DbConf::BASELINE_MODE) {
+        if (DbConf::BASELINE_MODE || Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
+            // A Background BMT queue has a single query-side consumer. Keep
+            // the two independent filters in a deterministic reservation
+            // order; their internal batch work remains parallel.
             filtered_orders = filterOrdersByDate(orders_view, start_date, end_date, tid);
             filtered_lineitem = filterLineitemByCommitDate(lineitem_view, tid);
         } else {
@@ -277,6 +282,16 @@ View filterLineitemByCommitDate(View &lineitem_view, int tid) {
         int batchNum = (data_size + batchSize - 1) / batchSize;
 
         std::vector<std::future<std::vector<int64_t> > > batch_futures(batchNum);
+        std::vector<std::shared_ptr<std::vector<BitwiseBmt> > > batchBmts(batchNum);
+        if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
+            for (int b = 0; b < batchNum; ++b) {
+                const int start = b * batchSize;
+                const int end = std::min(start + batchSize, static_cast<int>(data_size));
+                batchBmts[b] = std::make_shared<std::vector<BitwiseBmt> >(
+                    IntermediateDataSupport::pollBitwiseBmts(
+                        BoolLessBatchOperator::bmtCount(end - start, 64), 64));
+            }
+        }
 
         for (int b = 0; b < batchNum; ++b) {
             batch_futures[b] = ThreadPoolSupport::submit([&, b]() -> std::vector<int64_t> {
@@ -286,10 +301,15 @@ View filterLineitemByCommitDate(View &lineitem_view, int tid) {
                 std::vector<int64_t> batch_commitdate(commitdate_col.begin() + start, commitdate_col.begin() + end);
                 std::vector<int64_t> batch_receiptdate(receiptdate_col.begin() + start, receiptdate_col.begin() + end);
 
-                int batch_tid = tid + b * BoolLessBatchOperator::tagStride();
-
-                return BoolLessBatchOperator(&batch_commitdate, &batch_receiptdate, 64, batch_tid, 0,
-                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                // Keep each concurrently executing batch on a distinct
+                // message range. Encoding the offset in taskTag discarded it
+                // in SecureOperator::buildTag and made all batches collide.
+                const int lineitemTaskTag = 5;
+                const int batchTag = b * BoolLessBatchOperator::tagStride();
+                return BoolLessBatchOperator(&batch_commitdate, &batch_receiptdate, 64,
+                                             lineitemTaskTag, batchTag,
+                                             SecureOperator::NO_CLIENT_COMPUTE)
+                    .setBmts(batchBmts[b].get())->execute()->_zis;
             });
         }
 

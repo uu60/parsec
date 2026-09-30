@@ -217,7 +217,7 @@ BMT options:
 | --- | --- | --- |
 | `--bmt_method=bmt_background|bmt_jit|bmt_fixed|bmt_pipeline` | `bmt_jit` | BMT acquisition strategy |
 | `--bmt_pre_gen_seconds=N` | `0` | Background pre-generation time |
-| `--max_bmts=N` | `INT_MAX` | Maximum BMT storage |
+| `--max_bmts=N` | `10000000` | Maximum BMT storage per queue |
 | `--bmt_usage_limit=N` | `1` | Reuse limit |
 | `--bmt_queue_type=cas_queue|lock_free_queue|lock_queue|spsc_queue` | `spsc_queue` | Queue implementation |
 | `--bmt_queue_num=N` | `1` | Number of BMT queues |

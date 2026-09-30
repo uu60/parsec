@@ -17,11 +17,31 @@ int main(int argc, char **argv) {
     }
 
     const int task = System::nextTask();
-    const int count = 100;
+    const int count = Conf::_userParams.count("count")
+                          ? std::stoi(Conf::_userParams["count"])
+                          : 100;
     const int width = 64;
 
-    BitwiseBmtBatchGenerator gen(count, width, task, 0);
-    gen.execute();
+    std::vector<BitwiseBmt> bmts;
+    if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND || Conf::BMT_METHOD == Conf::BMT_PIPELINE) {
+        if (Conf::_userParams.count("chunked") && Conf::_userParams["chunked"] == "true") {
+            int remaining = count;
+            int chunk = 1;
+            while (remaining > 0) {
+                const int take = std::min(remaining, chunk);
+                auto part = IntermediateDataSupport::pollBitwiseBmts(take, width);
+                bmts.insert(bmts.end(), part.begin(), part.end());
+                remaining -= take;
+                chunk = chunk % 17 + 1;
+            }
+        } else {
+            bmts = IntermediateDataSupport::pollBitwiseBmts(count, width);
+        }
+    } else {
+        BitwiseBmtBatchGenerator gen(count, width, task, 0);
+        gen.execute();
+        bmts = std::move(gen._bmts);
+    }
 
     // Verify BMT correctness: a & b = c (XOR with shares from both parties)
     // For verification, we need to reconstruct a, b, c
@@ -29,10 +49,10 @@ int main(int argc, char **argv) {
     // Send shares to rank 0 for verification
     if (Comm::rank() == 1) {
         std::vector<int64_t> as, bs, cs;
-        as.reserve(gen._bmts.size());
-        bs.reserve(gen._bmts.size());
-        cs.reserve(gen._bmts.size());
-        for (const auto& bmt : gen._bmts) {
+        as.reserve(bmts.size());
+        bs.reserve(bmts.size());
+        cs.reserve(bmts.size());
+        for (const auto& bmt : bmts) {
             as.push_back(bmt._a);
             bs.push_back(bmt._b);
             cs.push_back(bmt._c);
@@ -47,11 +67,11 @@ int main(int argc, char **argv) {
         Comm::receive(cs1, 64, 1, task * 1000 + 3);
 
         int mismatch = 0;
-        for (size_t i = 0; i < gen._bmts.size(); ++i) {
+        for (size_t i = 0; i < bmts.size(); ++i) {
             // Reconstruct by XOR
-            int64_t a = gen._bmts[i]._a ^ as1[i];
-            int64_t b = gen._bmts[i]._b ^ bs1[i];
-            int64_t c = gen._bmts[i]._c ^ cs1[i];
+            int64_t a = bmts[i]._a ^ as1[i];
+            int64_t b = bmts[i]._b ^ bs1[i];
+            int64_t c = bmts[i]._c ^ cs1[i];
 
             // Check: a & b == c
             int64_t expected = a & b;
@@ -71,4 +91,3 @@ int main(int argc, char **argv) {
     System::finalize();
     return 0;
 }
-

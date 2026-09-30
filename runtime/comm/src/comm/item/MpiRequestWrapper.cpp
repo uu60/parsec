@@ -2,7 +2,6 @@
 #include "comm/item/MpiRequestWrapper.h"
 
 #include "conf/Conf.h"
-#include "utils/Log.h"
 
 MpiRequestWrapper::MpiRequestWrapper(bool recv) {
     _recv = recv;
@@ -87,6 +86,4 @@ void MpiRequestWrapper::wait() {
                 break;
         }
     }
-    if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND)
-        Log::i("3");
 }

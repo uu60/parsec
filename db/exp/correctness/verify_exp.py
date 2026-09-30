@@ -15,8 +15,17 @@ def run_cmd(cmd: List[str]) -> str:
     return p.stdout
 
 
+def executable_args(args: argparse.Namespace) -> List[str]:
+    params = ["--check=true", f"--bmt_method={args.bmt_method}"]
+    if args.bmt_method == "bmt_background":
+        params.append("--disable_arith=false")
+    if args.max_bmts is not None:
+        params.append(f"--max_bmts={args.max_bmts}")
+    return params
+
+
 def run_mpi(args: argparse.Namespace, exe: str) -> str:
-    return run_cmd([args.mpirun, *args.mpi_arg, "-np", "3", exe, "--check=true"])
+    return run_cmd([args.mpirun, *args.mpi_arg, "-np", "3", exe, *executable_args(args)])
 
 
 def run_tcp(args: argparse.Namespace, exe: str) -> str:
@@ -28,7 +37,7 @@ def run_tcp(args: argparse.Namespace, exe: str) -> str:
         for rank in range(3):
             cmd = [
                 exe,
-                "--check=true",
+                *executable_args(args),
                 "--comm_type=tcp",
                 f"--tcp_rank={rank}",
                 f"--tcp_base_port={base_port}",
@@ -137,7 +146,16 @@ def main() -> int:
     ap.add_argument("--mpi-arg", action="append", default=[])
     ap.add_argument("--tcp-base-port", type=int, default=21000)
     ap.add_argument("--timeout", type=float, default=60.0)
+    ap.add_argument(
+        "--bmt-method",
+        choices=["bmt_jit", "bmt_background"],
+        default="bmt_jit",
+    )
+    ap.add_argument("--max-bmts", type=int)
     args = ap.parse_args()
+
+    if args.max_bmts is not None and args.max_bmts <= 0:
+        ap.error("--max-bmts must be positive")
 
     exe = os.path.join(args.bin_dir, f"exp_{args.exp}")
     if not os.path.exists(exe):

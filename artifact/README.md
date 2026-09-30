@@ -70,6 +70,14 @@ pgrep -af '[m]pirun|[b]enchmark_|artifact/run.py|/exp_[1-8] ' || true
 ./artifact/run.sh smoke --skip-build
 ```
 
+To apply the same eight expected-result checks to Background BMT generation, use a small bounded
+queue suitable for correctness testing:
+
+```bash
+./artifact/run.sh smoke --skip-build \
+  --bmt-method=bmt_background --max-bmts=10000
+```
+
 For a clean end-to-end evaluation, `run_all.sh` includes doctor and smoke before the fixed
 paper-scale performance workflows:
 
@@ -88,6 +96,18 @@ running the performance workflows individually:
 ./artifact/run.sh figure8 --skip-build
 ./artifact/run.sh table1 --skip-build
 ```
+
+Table 1 is the longest workflow. Each secure join prints its metric only after
+the whole case completes, so a quiet terminal by itself does not indicate a
+hang. The runner records the active case in `manifest.json`. Both join modes
+pass `--shuffle_bucket_num=4` explicitly rather than inheriting the source
+default. Hash joins use asynchronous task execution with batch size 256.
+Nested joins use batch size 1024 with a bounded 18,000-worker CTPL pool for
+all four cases, which avoids exceeding the provided AWS node's memory limit.
+Both modes disable IKNP-internal
+multithreading and enable intra-operator parallelism. These parameters are
+fixed in `artifact/experiments.yaml`; the reviewer does not need to pass them
+on the command line.
 
 Figures 2, 4, and 5 print every point before launching it and checkpoint every successful point.
 To inspect a running experiment from another SSH session:
@@ -148,9 +168,9 @@ hostname is intentional and no rankfile or hostfile is required. Missing ORQ/SEC
 scope warning, not an environment failure.
 
 Smoke is a functional-correctness check, not a benchmark. Its summary contains only per-experiment
-pass/fail status and the communication backend. It does not report elapsed time, throughput, output
-size, or any other performance measurement. Wall-clock measurements are collected only by the
-Figure/Table performance commands below.
+pass/fail status, the communication backend, and the selected BMT method/capacity. It does not report
+elapsed time, throughput, output size, or any other performance measurement. Wall-clock measurements
+are collected only by the Figure/Table performance commands below.
 
 ### 4. Run one paper-scale two-node workload
 
@@ -337,6 +357,10 @@ The baseline CSV uses the same aggregate schema: `rows`, `series`, and
 
 The fixed matrix runs hash and nested-loop joins for `(tables, rows per table)` equal to `(2,3163)`,
 `(3,216)`, `(4,57)`, and `(5,26)`.
+
+The command automatically applies the validated AWS parameters described above, including the
+5-way nested-loop worker-count override; no additional join, batch-size, thread-pool, IKNP, or
+shuffle arguments are required.
 
 ### Regenerating and merging plots
 

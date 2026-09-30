@@ -356,11 +356,29 @@ experiments:
     join_modes:
       hash:
         hash: true
+        batch_size: 256
+        thread_pool: async
+        enable_iknp_multithread: false
+        enable_intra_operator_parallelism: true
+        shuffle_bucket_num: 4
       nested:
         hash: false
+        batch_size: 1024
+        thread_pool: ctpl_pool
+        local_threads: 18000
+        enable_iknp_multithread: false
+        enable_intra_operator_parallelism: true
+        shuffle_bucket_num: 4
     repetitions: 1
     command: ./artifact/run.sh table1
     plot_command: ./artifact/run.sh plot --result-dir=artifact/results/RESULT_DIR
+    runtime_note: >-
+      Each join case emits its metric only after the complete secure join. The
+      hash cases use asynchronous task execution with batch size 256. Nested
+      cases use batch size 1024 with a bounded 18000-worker CTPL pool to stay
+      within the AWS node's memory limit. Both modes disable IKNP-internal multithreading,
+      enable intra-operator parallelism, and fix the shuffle bucket count to
+      the paper's value of 4.
 
 paper_environments:
   aws:

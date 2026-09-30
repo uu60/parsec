@@ -7,6 +7,7 @@
 #include "./CtplThreadPool.h"
 #include "./TbbThreadPool.h"
 #include "Async.h"
+#include "comm/Comm.h"
 #include "conf/Conf.h"
 
 
@@ -18,7 +19,10 @@ public:
 
 public:
     static void init() {
-        if (Conf::DISABLE_MULTI_THREAD) {
+        // Rank 2 only supplies/reconstructs inputs and never executes the
+        // server-side operators.  Do not allocate a potentially very large
+        // worker pool for that client rank.
+        if (Conf::DISABLE_MULTI_THREAD || Comm::isClient()) {
             return;
         }
         if (Conf::THREAD_POOL_TYPE == Conf::CTPL_POOL) {
@@ -57,15 +61,15 @@ public:
             return callerRun(f);
         }
         if (Conf::THREAD_POOL_TYPE == Conf::CTPL_POOL) {
-            return _ctplPool->submit(f);
+            return _ctplPool == nullptr ? callerRun(std::forward<F>(f)) : _ctplPool->submit(f);
         }
 #ifdef PARSEC_HAS_TBB
         if (Conf::THREAD_POOL_TYPE == Conf::TBB_POOL) {
-            return _tbbPool->submit(f);
+            return _tbbPool == nullptr ? callerRun(std::forward<F>(f)) : _tbbPool->submit(f);
         }
 #endif
         if (Conf::THREAD_POOL_TYPE == Conf::ASYNC) {
-            return _async->submit(f);
+            return _async == nullptr ? callerRun(std::forward<F>(f)) : _async->submit(f);
         }
         return callerRun(f);
     }
