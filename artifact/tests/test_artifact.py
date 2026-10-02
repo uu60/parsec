@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -8,12 +9,15 @@ from unittest.mock import patch
 import yaml
 
 from artifact.plotting import generate_plots
+from artifact.orq_runner import OVERALL_RE, SORT_RE, configure_hostname
 from artifact.run import (
     aggregate,
     build_parser,
     configuration_params,
     correctness_summary,
+    evaluation_micro_points,
     finalize_performance,
+    load_checkpoint_prefix,
     load_spec,
     parse_metrics,
     parse_micro_metrics,
@@ -22,12 +26,43 @@ from artifact.run import (
     paper_micro_batch_points,
     paper_micro_points,
     DEFAULT_MPI_ARGS,
+    run_logged,
     run_table1,
     validate_args,
 )
 
 
 class ArtifactTests(unittest.TestCase):
+    def test_orq_hostname_patch_is_idempotent(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            header = root / "include/debug/orq_debug.h"
+            header.parent.mkdir(parents=True)
+            header.write_text(
+                '#ifndef LIBOTE_SERVER_HOSTNAME\n'
+                '#define LIBOTE_SERVER_HOSTNAME "localhost"\n'
+                '#endif\n',
+                encoding="utf-8",
+            )
+            self.assertTrue(configure_hostname(root, "parsec0"))
+            self.assertFalse(configure_hostname(root, "parsec0"))
+            self.assertIn(
+                '#define LIBOTE_SERVER_HOSTNAME "parsec0"',
+                header.read_text(encoding="utf-8"),
+            )
+
+    def test_orq_metric_parsers_match_paper_output(self) -> None:
+        self.assertEqual(OVERALL_RE.findall("[=SW]          Overall 8.288    sec"), ["8.288"])
+        output = (
+            "[ SW] Table Bitonic Sort 1.25 sec\n"
+            "[ SW] Table Quicksort 2.5 sec\n"
+            "[ SW] Table Radix Sort 3.75 sec\n"
+        )
+        self.assertEqual(
+            SORT_RE.findall(output),
+            [("Bitonic Sort", "1.25"), ("Quicksort", "2.5"), ("Radix Sort", "3.75")],
+        )
+
     def test_experiment_spec_has_all_workloads(self) -> None:
         spec = load_spec()
         self.assertEqual(spec["schema_version"], 1)
@@ -248,6 +283,81 @@ class ArtifactTests(unittest.TestCase):
         self.assertNotIn(("sort", 50000, 16, 65536), points)
         self.assertIn(("sort", 100000, 64, 65536), points)
         self.assertTrue(all(batch_size <= elements for _, elements, _, batch_size in points))
+
+    def test_stable_micro_matrices_omit_only_largest_sort_stress_points(self) -> None:
+        spec = load_spec()
+        figure2_profile = spec["experiments"]["figure_2"]["profiles"]["paper"]
+        figure2, figure2_optional = evaluation_micro_points(
+            figure2_profile, "figure2", full_matrix=False
+        )
+        self.assertEqual(len(figure2), 24)
+        self.assertEqual(figure2_optional, [("sort", 100000, 64)])
+
+        figure5_profile = spec["experiments"]["figure_5"]["profiles"]["paper"]
+        figure5, figure5_optional = evaluation_micro_points(
+            figure5_profile, "figure5", full_matrix=False
+        )
+        self.assertEqual(len(figure5), 107)
+        self.assertEqual(len(figure5_optional), 7)
+        self.assertTrue(all(point[0:3] == ("sort", 100000, 64) for point in figure5_optional))
+
+        figure5_full, optional = evaluation_micro_points(
+            figure5_profile, "figure5", full_matrix=True
+        )
+        self.assertEqual(len(figure5_full), 114)
+        self.assertEqual(optional, [])
+
+    def test_resume_checkpoint_must_be_an_exact_matrix_prefix(self) -> None:
+        points = [("<", 100, 64), ("sort", 20, 64)]
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "summary").mkdir()
+            checkpoint = root / "summary" / "checkpoint.json"
+            checkpoint.write_text(
+                '[{"primitive":"<","elements":100,"width":64}]', encoding="utf-8"
+            )
+            records = load_checkpoint_prefix(
+                root, points, ("primitive", "elements", "width")
+            )
+            self.assertEqual(len(records), 1)
+            checkpoint.write_text(
+                '[{"primitive":"sort","elements":20,"width":64}]', encoding="utf-8"
+            )
+            with self.assertRaisesRegex(ValueError, "not a prefix"):
+                load_checkpoint_prefix(root, points, ("primitive", "elements", "width"))
+
+    def test_micro_resilience_cli_defaults_and_resume_exclusion(self) -> None:
+        args = build_parser().parse_args(["figure5"])
+        validate_args(args)
+        self.assertEqual(args.retries, 1)
+        self.assertFalse(args.full_matrix)
+        self.assertTrue(args.timeout_is_default)
+        with self.assertRaisesRegex(ValueError, "cannot be used together"):
+            conflicting = build_parser().parse_args([
+                "figure5", "--resume=old", "--output-dir=new",
+            ])
+            validate_args(conflicting)
+
+    def test_run_logged_times_out_and_terminates_its_process_group(self) -> None:
+        with TemporaryDirectory() as directory:
+            log = Path(directory) / "timeout.log"
+            result = run_logged(
+                [
+                    sys.executable,
+                    "-c",
+                    (
+                        "import subprocess,time; "
+                        "subprocess.Popen(['sleep','30']); "
+                        "print('started', flush=True); time.sleep(30)"
+                    ),
+                ],
+                log,
+                timeout=0.2,
+            )
+            self.assertEqual(result["return_code"], 124)
+            self.assertTrue(result["timed_out"])
+            self.assertTrue(result["process_group_terminated"])
+            self.assertIn("started", log.read_text(encoding="utf-8"))
 
     def test_input_scale_and_other_matrix_overrides_are_rejected(self) -> None:
         parser = build_parser()

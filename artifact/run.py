@@ -7,9 +7,11 @@ import argparse
 import csv
 import hashlib
 import json
+import math
 import os
 import platform
 import re
+import signal
 import shlex
 import socket
 import statistics
@@ -28,6 +30,11 @@ EXPERIMENT_SPEC = ARTIFACT_DIR / "experiments.yaml"
 EXPECTED_SMOKE_IDS = list(range(1, 9))
 DEFAULT_SEED = 20270276
 PAPER_TIMEOUT_SECONDS = 86400
+FIGURE2_DEFAULT_TIMEOUT_SECONDS = 3600
+FIGURE2_SORT_TIMEOUT_SECONDS = 14400
+FIGURE2_LARGE_SORT_TIMEOUT_SECONDS = 21600
+FIGURE5_DEFAULT_TIMEOUT_SECONDS = 2700
+MICRO_RETRY_GRACE_SECONDS = 10
 FIXED_REPETITIONS = 1
 DEFAULT_MPI_ARGS = [
     "--bind-to", "none",
@@ -159,13 +166,24 @@ def load_spec() -> dict[str, Any]:
     return value
 
 
-def prepare_result_directory(experiment: str, explicit: str | None) -> Path:
+def prepare_result_directory(
+    experiment: str, explicit: str | None, *, resume: bool = False,
+) -> Path:
     if explicit:
         requested = Path(explicit)
         path = requested if requested.is_absolute() else REPO_ROOT / requested
     else:
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         path = ARTIFACT_DIR / "results" / f"{stamp}-{experiment}"
+    if resume:
+        if not path.is_dir():
+            raise ValueError(f"resume result directory does not exist: {path}")
+        for child in ("raw", "summary", "figures"):
+            if not (path / child).is_dir():
+                raise ValueError(f"resume result directory is incomplete: missing {path / child}")
+        if not (path / "manifest.json").is_file():
+            raise ValueError(f"resume result directory has no manifest: {path}")
+        return path
     if path.exists() and any(path.iterdir()):
         raise ValueError(f"result directory is not empty: {path}")
     for child in ("raw", "summary", "figures"):
@@ -194,23 +212,59 @@ def manifest_base(experiment: str, output_dir: Path, args: argparse.Namespace) -
     }
 
 
+def terminate_process_group(process: subprocess.Popen[str], grace_seconds: float = 30) -> str:
+    """Terminate a launcher and every local child in its dedicated process group."""
+    try:
+        if os.name == "posix":
+            os.killpg(process.pid, signal.SIGTERM)
+        else:
+            process.terminate()
+    except ProcessLookupError:
+        pass
+    try:
+        output, _ = process.communicate(timeout=grace_seconds)
+    except subprocess.TimeoutExpired:
+        try:
+            if os.name == "posix":
+                os.killpg(process.pid, signal.SIGKILL)
+            else:
+                process.kill()
+        except ProcessLookupError:
+            pass
+        output, _ = process.communicate()
+    return output or ""
+
+
 def run_logged(command: Sequence[str], log_path: Path, timeout: float | None = None) -> dict[str, Any]:
     printable = command_text(command)
     print(f"$ {printable}", flush=True)
     started = time.monotonic()
+    process: subprocess.Popen[str] | None = None
+    process_group_terminated = False
     try:
-        completed = subprocess.run(
+        process = subprocess.Popen(
             [str(part) for part in command], cwd=REPO_ROOT,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            text=True, timeout=timeout, check=False,
+            text=True, start_new_session=(os.name == "posix"),
         )
-        output = completed.stdout
-        code = completed.returncode
+        output, _ = process.communicate(timeout=timeout)
+        code = process.returncode
         timed_out = False
     except subprocess.TimeoutExpired as exc:
-        output = (exc.stdout or "") + (exc.stderr or "")
+        output = exc.stdout or ""
+        if isinstance(output, bytes):
+            output = output.decode(errors="replace")
         code = 124
         timed_out = True
+        if process is not None:
+            process_group_terminated = True
+            completed_output = terminate_process_group(process)
+            if completed_output:
+                output = completed_output
+    except KeyboardInterrupt:
+        if process is not None and process.poll() is None:
+            terminate_process_group(process)
+        raise
     except OSError as exc:
         output = f"failed to start command: {exc}\n"
         code = 127
@@ -223,6 +277,7 @@ def run_logged(command: Sequence[str], log_path: Path, timeout: float | None = N
         "return_code": code,
         "elapsed_seconds": round(time.monotonic() - started, 3),
         "timed_out": timed_out,
+        "process_group_terminated": process_group_terminated,
         "log": str(log_path),
         "output": output,
     }
@@ -416,22 +471,41 @@ def run_mpc(
 
 def run_microbenchmark(
     *, experiment: str, executable: Path, params: list[str], args: argparse.Namespace,
-    output_dir: Path, run_name: str, port_offset: int,
+    output_dir: Path, run_name: str, port_offset: int, timeout: float | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Run a three-rank primitive benchmark and collect client-emitted records."""
     print(f"[run] {run_name}", flush=True)
+    effective_timeout = float(args.timeout if timeout is None else timeout)
+    mpi_timeout_args: list[str] = []
     if args.comm == "tcp":
         code, output, command, elapsed = run_tcp(
             executable, params, args.tcp_base_port + port_offset * 10,
-            args.timeout, output_dir / "raw" / run_name,
+            effective_timeout, output_dir / "raw" / run_name,
         )
         log_reference = f"raw/{run_name}-rank{{0,1,2}}.log"
+        timed_out = code == 124
+        process_group_terminated = False
     else:
-        command_parts = [args.mpirun, *args.mpi_arg, "-np", "3", str(executable), *params]
-        result = run_logged(command_parts, output_dir / "raw" / f"{run_name}.log", args.timeout)
+        if "--timeout" not in args.mpi_arg and "-timeout" not in args.mpi_arg:
+            mpi_timeout_args = [
+                "--timeout", str(max(1, math.ceil(effective_timeout))),
+                "--report-state-on-timeout",
+            ]
+        command_parts = [
+            args.mpirun, *args.mpi_arg, *mpi_timeout_args,
+            "-np", "3", str(executable), *params,
+        ]
+        # Give Open MPI time to tear down remote ranks itself. The outer process-group
+        # timeout is a final safety net if mpirun does not return after its job timeout.
+        launcher_timeout = effective_timeout + 60 if mpi_timeout_args else effective_timeout
+        result = run_logged(
+            command_parts, output_dir / "raw" / f"{run_name}.log", launcher_timeout
+        )
         code, output, command, elapsed = (
             result["return_code"], result["output"], result["command"], result["elapsed_seconds"]
         )
+        timed_out = bool(result["timed_out"])
+        process_group_terminated = bool(result["process_group_terminated"])
         log_reference = f"raw/{run_name}.log"
     metrics = parse_micro_metrics(output)
     ignored_teardown = is_known_background_teardown_failure(executable, code, output, metrics)
@@ -453,9 +527,63 @@ def run_microbenchmark(
         "return_code": code,
         "teardown_failure_ignored": ignored_teardown,
         "launcher_elapsed_seconds": round(float(elapsed), 6),
+        "timeout_seconds": effective_timeout,
+        "timed_out": timed_out,
+        "process_group_terminated": process_group_terminated,
+        "mpi_job_timeout_enabled": bool(args.comm == "mpi" and mpi_timeout_args),
         "log": log_reference,
     }
     return metrics, launch
+
+
+def run_microbenchmark_resilient(
+    *, experiment: str, executable: Path, params: list[str], args: argparse.Namespace,
+    output_dir: Path, run_name: str, port_offset: int, timeout: float,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    attempts: list[dict[str, Any]] = []
+    max_attempts = int(args.retries) + 1
+    for attempt in range(1, max_attempts + 1):
+        attempt_name = run_name if attempt == 1 else f"{run_name}-retry{attempt - 1}"
+        try:
+            metrics, launch = run_microbenchmark(
+                experiment=experiment,
+                executable=executable,
+                params=params,
+                args=args,
+                output_dir=output_dir,
+                run_name=attempt_name,
+                port_offset=port_offset + (attempt - 1) * 1000,
+                timeout=timeout,
+            )
+            attempts.append({
+                "attempt": attempt,
+                "status": "passed",
+                "log": launch["log"],
+                "return_code": launch["return_code"],
+                "timed_out": launch["timed_out"],
+            })
+            launch["attempt_count"] = attempt
+            launch["attempts"] = attempts
+            return metrics, launch
+        except RuntimeError as exc:
+            log_suffix = "-rank{0,1,2}.log" if args.comm == "tcp" else ".log"
+            attempts.append({
+                "attempt": attempt,
+                "status": "failed",
+                "log": f"raw/{attempt_name}{log_suffix}",
+                "error": str(exc),
+            })
+            if attempt == max_attempts:
+                raise RuntimeError(
+                    f"{run_name} failed after {max_attempts} attempt(s): {exc}"
+                ) from exc
+            print(
+                f"warning: {run_name} attempt {attempt}/{max_attempts} failed: {exc}; "
+                f"waiting {MICRO_RETRY_GRACE_SECONDS}s before a fresh MPI retry",
+                flush=True,
+            )
+            time.sleep(MICRO_RETRY_GRACE_SECONDS)
+    raise AssertionError("unreachable")
 
 
 def configuration_params(name: str, seed: int, collect_bmt: bool) -> list[str]:
@@ -657,8 +785,48 @@ def finalize_microbenchmark(
 
 def performance_context(experiment: str, args: argparse.Namespace) -> tuple[Path, dict[str, Any], dict[str, Any]]:
     global ACTIVE_OUTPUT_DIR, ACTIVE_MANIFEST
-    output_dir = prepare_result_directory(experiment, args.output_dir)
-    manifest = manifest_base(experiment, output_dir, args)
+    resume_path = getattr(args, "resume", None)
+    explicit_path = resume_path or args.output_dir
+    output_dir = prepare_result_directory(experiment, explicit_path, resume=bool(resume_path))
+    if resume_path:
+        manifest_path = output_dir / "manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if manifest.get("artifact") != "ParsecDB" or manifest.get("experiment") != experiment:
+            raise ValueError(f"resume manifest does not describe ParsecDB {experiment}")
+        expected_spec_hash = sha256(EXPERIMENT_SPEC)
+        observed_spec_hash = manifest.get("experiment_spec", {}).get("sha256")
+        previous_commit = manifest.get("source", {}).get("commit")
+        current_commit = git_metadata().get("commit")
+        prior_arguments = manifest.get("arguments", {})
+        for key in ("seed", "comm", "mpi_arg"):
+            if prior_arguments.get(key) != getattr(args, key, None):
+                raise ValueError(
+                    f"resume argument mismatch for {key}: "
+                    f"expected {prior_arguments.get(key)!r}, observed {getattr(args, key, None)!r}"
+                )
+        manifest.setdefault("resume_history", []).append({
+            "resumed_at": utc_now(),
+            "previous_status": manifest.get("status"),
+            "previous_error": manifest.get("error"),
+            "previous_commit": previous_commit,
+            "resume_commit": current_commit,
+            "previous_spec_sha256": observed_spec_hash,
+            "resume_spec_sha256": expected_spec_hash,
+        })
+        manifest.setdefault("initial_source", manifest.get("source"))
+        manifest.update({
+            "status": "running",
+            "completed_at": None,
+            "error": None,
+            "source": git_metadata(),
+            "experiment_spec": {
+                "path": str(EXPERIMENT_SPEC.relative_to(REPO_ROOT)),
+                "sha256": expected_spec_hash,
+            },
+            "arguments": {key: value for key, value in vars(args).items() if key != "handler"},
+        })
+    else:
+        manifest = manifest_base(experiment, output_dir, args)
     ACTIVE_OUTPUT_DIR, ACTIVE_MANIFEST = output_dir, manifest
     write_json(output_dir / "manifest.json", manifest)
     return output_dir, manifest, load_spec()
@@ -708,6 +876,67 @@ def paper_micro_batch_points(profile: dict[str, Any]) -> list[tuple[str, int, in
         for batch_size in batch_grid
         if batch_size is None or batch_size <= elements
     ]
+
+
+def evaluation_micro_points(
+    profile: dict[str, Any], experiment: str, *, full_matrix: bool,
+) -> tuple[list[tuple[Any, ...]], list[tuple[Any, ...]]]:
+    """Return the stable AE matrix and separately list optional stress points."""
+    if experiment == "figure2":
+        all_points: list[tuple[Any, ...]] = list(paper_micro_points(profile))
+    elif experiment == "figure5":
+        all_points = list(paper_micro_batch_points(profile))
+    else:
+        raise ValueError(f"no evaluation micro matrix for {experiment}")
+    if full_matrix:
+        return all_points, []
+    largest_sort = max(int(value) for value in profile["sort_nums"])
+    optional = [
+        point for point in all_points
+        if str(point[0]) == "sort" and int(point[1]) == largest_sort and int(point[2]) == 64
+    ]
+    optional_set = set(optional)
+    return [point for point in all_points if point not in optional_set], optional
+
+
+def load_checkpoint_prefix(
+    output_dir: Path, points: Sequence[tuple[Any, ...]], dimensions: Sequence[str],
+) -> list[dict[str, Any]]:
+    checkpoint = output_dir / "summary" / "checkpoint.json"
+    if not checkpoint.exists():
+        return []
+    value = json.loads(checkpoint.read_text(encoding="utf-8"))
+    if not isinstance(value, list) or not all(isinstance(record, dict) for record in value):
+        raise ValueError(f"invalid checkpoint record list: {checkpoint}")
+    if len(value) > len(points):
+        raise ValueError(
+            f"checkpoint has {len(value)} records but the selected matrix has only {len(points)} points"
+        )
+    for index, (record, point) in enumerate(zip(value, points), start=1):
+        observed = tuple(record.get(name) for name in dimensions)
+        expected = tuple(point)
+        if observed != expected:
+            raise ValueError(
+                f"checkpoint is not a prefix of the selected matrix at point {index}: "
+                f"expected={expected!r}, observed={observed!r}"
+            )
+    return list(value)
+
+
+def micro_point_timeout(
+    args: argparse.Namespace, experiment: str, primitive: str, elements: int,
+    profile: dict[str, Any],
+) -> float:
+    if not getattr(args, "timeout_is_default", False):
+        return float(args.timeout)
+    if experiment == "figure5":
+        return float(FIGURE5_DEFAULT_TIMEOUT_SECONDS)
+    if experiment == "figure2" and primitive == "sort":
+        largest_sort = max(int(value) for value in profile["sort_nums"])
+        if elements == largest_sort:
+            return float(FIGURE2_LARGE_SORT_TIMEOUT_SECONDS)
+        return float(FIGURE2_SORT_TIMEOUT_SECONDS)
+    return float(FIGURE2_DEFAULT_TIMEOUT_SECONDS)
 
 
 def run_matrix(
@@ -771,6 +1000,10 @@ def run_micro_figure(
     experiment_spec = spec["experiments"][spec_key]
     original_profile = experiment_spec["profiles"]["paper"]
     profile = dict(original_profile)
+    if getattr(args, "resume", None):
+        previous_profile = manifest.get("paper_experiment_matrix") or manifest.get("experiment_matrix")
+        if previous_profile != original_profile:
+            raise ValueError("resume manifest uses a different paper microbenchmark matrix")
     step = build_targets([target], output_dir, args)
     if step:
         step["name"] = "build"
@@ -782,21 +1015,32 @@ def run_micro_figure(
     # input.  Do not launch such a point and then mistake the expected absence
     # of a metric for a failed run.  Figure 5's smaller sort inputs therefore
     # end before the largest x-axis ticks, matching the plotted paper series.
-    points = paper_micro_batch_points(profile)
+    points, optional_points = evaluation_micro_points(
+        profile, experiment, full_matrix=bool(args.full_matrix)
+    )
     manifest["experiment_matrix"] = profile
     manifest["paper_experiment_matrix"] = original_profile
     manifest["input_scale_locked"] = True
     manifest["paper_scale_locked"] = True
+    manifest["evaluation_scope"] = "full" if args.full_matrix else "representative"
+    manifest["optional_stress_points"] = [list(point) for point in optional_points]
     manifest["execution_strategy"] = (
         "Each microbenchmark point runs in a fresh three-rank MPI process group and is "
-        "checkpointed before the next point starts."
+        "checkpointed before the next point starts. Failed launches are cleaned up and retried "
+        "in a fresh process group."
     )
-    manifest["progress"] = {"completed_points": 0, "total_points": len(points), "current_point": None}
+    records = load_checkpoint_prefix(
+        output_dir, points, ("primitive", "elements", "width", "batch_size")
+    ) if getattr(args, "resume", None) else []
+    manifest["progress"] = {
+        "completed_points": len(records), "total_points": len(points), "current_point": None,
+    }
     write_json(output_dir / "manifest.json", manifest)
 
-    records: list[dict[str, Any]] = []
     primitive_labels = {"<": "gt", "!=": "neq", "==": "eq", "ar": "ar", "mux": "mux", "sort": "sort"}
     for point_index, (primitive, elements, width, batch_size) in enumerate(points, start=1):
+        if point_index <= len(records):
+            continue
         point = {
             "index": point_index, "primitive": primitive, "elements": elements,
             "width": width, "batch_size": batch_size,
@@ -822,7 +1066,8 @@ def run_micro_figure(
         label = f"{primitive_labels.get(primitive, primitive)}-{elements}-w{width}"
         if batch_size is not None:
             label += f"-b{batch_size}"
-        metrics, launch = run_microbenchmark(
+        timeout = micro_point_timeout(args, experiment, primitive, elements, profile)
+        metrics, launch = run_microbenchmark_resilient(
             experiment=experiment,
             executable=target_path(target),
             params=arg_params(params),
@@ -830,6 +1075,7 @@ def run_micro_figure(
             output_dir=output_dir,
             run_name=f"{point_index:03d}-{label}",
             port_offset=point_index - 1,
+            timeout=timeout,
         )
         if len(metrics) != 1:
             raise RuntimeError(f"{label}: expected exactly one {experiment} metric, got {len(metrics)}")
@@ -871,6 +1117,10 @@ def run_figure2(args: argparse.Namespace) -> int:
     output_dir, manifest, spec = performance_context("figure2", args)
     original_profile = spec["experiments"]["figure_2"]["profiles"]["paper"]
     profile = dict(original_profile)
+    if getattr(args, "resume", None):
+        previous_profile = manifest.get("paper_experiment_matrix") or manifest.get("experiment_matrix")
+        if previous_profile != original_profile:
+            raise ValueError("resume manifest uses a different Figure 2 paper matrix")
     target = "benchmark_arith_vs_bool"
     step = build_targets([target], output_dir, args)
     if step:
@@ -878,23 +1128,34 @@ def run_figure2(args: argparse.Namespace) -> int:
         manifest["steps"].append(step)
         manifest["environment_after_build"] = environment_metadata()
 
-    points = paper_micro_points(profile)
+    points, optional_points = evaluation_micro_points(
+        profile, "figure2", full_matrix=bool(args.full_matrix)
+    )
+    records = load_checkpoint_prefix(
+        output_dir, points, ("primitive", "elements", "width")
+    ) if getattr(args, "resume", None) else []
     manifest.update({
         "experiment_matrix": profile,
         "paper_experiment_matrix": original_profile,
         "input_scale_locked": True,
         "paper_scale_locked": True,
+        "evaluation_scope": "full" if args.full_matrix else "representative",
+        "optional_stress_points": [list(point) for point in optional_points],
         "execution_strategy": (
             "Each primitive/elements/width point runs in a fresh three-rank MPI process group. "
-            "The runner checkpoints each completed point before launching the next one."
+            "The runner checkpoints each completed point before launching the next one. Failed "
+            "launches are cleaned up and retried in a fresh process group."
         ),
-        "progress": {"completed_points": 0, "total_points": len(points), "current_point": None},
+        "progress": {
+            "completed_points": len(records), "total_points": len(points), "current_point": None,
+        },
     })
     write_json(output_dir / "manifest.json", manifest)
 
-    records: list[dict[str, Any]] = []
     primitive_labels = {"<": "gt", "==": "eq", "ar": "ar", "mux": "mux", "sort": "sort"}
     for point_index, (primitive, elements, width) in enumerate(points, start=1):
+        if point_index <= len(records):
+            continue
         label = f"{primitive_labels.get(primitive, primitive)}-{elements}-w{width}"
         manifest["progress"] = {
             "completed_points": len(records),
@@ -919,10 +1180,12 @@ def run_figure2(args: argparse.Namespace) -> int:
             "workload_seed": args.seed,
             "batch_size": profile["batch_size"],
         }
-        metrics, launch = run_microbenchmark(
+        timeout = micro_point_timeout(args, "figure2", primitive, elements, profile)
+        metrics, launch = run_microbenchmark_resilient(
             experiment="figure2", executable=target_path(target), params=arg_params(params),
             args=args, output_dir=output_dir, run_name=f"{point_index:03d}-{label}",
             port_offset=point_index - 1,
+            timeout=timeout,
         )
         if len(metrics) != 1:
             raise RuntimeError(f"{label}: expected exactly one Figure 2 metric, got {len(metrics)}")
@@ -1381,6 +1644,21 @@ def add_common_performance_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--output-dir")
 
 
+def add_micro_resilience_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--resume",
+        help="Resume a compatible result directory from its checkpoint; completed prefix points are skipped.",
+    )
+    parser.add_argument(
+        "--retries", type=int, default=1,
+        help="Fresh-process retries after a failed or timed-out microbenchmark point (default: 1).",
+    )
+    parser.add_argument(
+        "--full-matrix", action="store_true",
+        help="Also run optional 2x/64-bit sort stress points omitted from the stable AE matrix.",
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run ParsecDB artifact-evaluation workflows.")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -1424,6 +1702,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     figure2 = sub.add_parser("figure2", help="Run arithmetic-vs-boolean sharing microbenchmarks.")
     add_common_performance_options(figure2)
+    add_micro_resilience_options(figure2)
     figure2.set_defaults(handler=run_figure2)
 
     figure4 = sub.add_parser("figure4", help="Run background-vs-worker-level-JIT BMT microbenchmarks.")
@@ -1432,6 +1711,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     figure5 = sub.add_parser("figure5", help="Run message-batch-size microbenchmarks.")
     add_common_performance_options(figure5)
+    add_micro_resilience_options(figure5)
     figure5.set_defaults(handler=run_figure5)
 
     figure7 = sub.add_parser("figure7", help="Run end-to-end workload comparison.")
@@ -1456,12 +1736,18 @@ def validate_args(args: argparse.Namespace) -> None:
         value = getattr(args, name, None)
         if value is not None and value <= 0:
             raise ValueError(f"--{name.replace('_', '-')} must be positive")
-    if hasattr(args, "timeout") and args.timeout is None:
-        args.timeout = PAPER_TIMEOUT_SECONDS
+    if hasattr(args, "timeout"):
+        args.timeout_is_default = args.timeout is None
+        if args.timeout is None:
+            args.timeout = PAPER_TIMEOUT_SECONDS
     if getattr(args, "timeout", 1) <= 0:
         raise ValueError("--timeout must be positive")
     if getattr(args, "max_bmts", None) is not None and args.max_bmts <= 0:
         raise ValueError("--max-bmts must be positive")
+    if getattr(args, "retries", 0) < 0:
+        raise ValueError("--retries must be non-negative")
+    if getattr(args, "resume", None) and getattr(args, "output_dir", None):
+        raise ValueError("--resume and --output-dir cannot be used together")
     if hasattr(args, "mpi_arg") and args.comm == "mpi" and not args.mpi_arg:
         args.mpi_arg = list(DEFAULT_MPI_ARGS)
 

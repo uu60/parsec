@@ -25,10 +25,11 @@ The repository directly automates the following paper results:
 - the ParsecDB series in Figure 8;
 - both join modes in Table 1.
 
-The ORQ and SECRECY source revisions and local patches used by the paper are not present in this
-repository. Consequently, the runner deliberately refuses to label any locally generated result as
-ORQ or SECRECY. Those external artifacts must be archived at immutable commits before the complete
-cross-system Figure 7/8 claims can receive a Results Reproduced badge.
+The ORQ source is not embedded in this Git repository, but the provided AWS environment contains the
+paper revision at `/home/reviewer/orq`. The optional `run_orq.sh` workflow below validates that
+revision, configures the required cross-node libOTe hostname, uses real BMT generation, and exports
+normalized Figure 7/8 CSVs. SECRECY remains unavailable. An independent archive should still bundle
+the exact ORQ revision and patch rather than depend on the temporary AWS environment.
 
 ## Getting Started Instructions
 
@@ -241,12 +242,29 @@ protocol masks, OT, and BMT generation continue to use the runtime's independent
 randomness. The seed, complete command, rank metrics, commit, dirty status, host, OS, CPU, compiler,
 MPI version, and specification hash are recorded.
 
-### Fixed paper input matrix
+### Fixed evaluation input matrix
 
-All performance commands use the paper input cardinalities and exactly one measurement per point.
+All performance commands use paper input cardinalities and exactly one measurement per point.
 There is no data-scale, per-command row-count, profile, or repetition override. Manifests record
 `input_scale_locked=true` and `paper_scale_locked=true`. `--timeout=SECONDS` changes only the wait
-limit and is recorded in the manifest.
+limit and is recorded in the manifest. Figures 2 and 5 default to a stable representative matrix:
+it retains every paper point except the optional 2x/64-bit sort stress point(s), which previously
+showed extreme scheduler-dependent tails in this 16-vCPU AWS environment. Use `--full-matrix` to
+include those stress points. This changes matrix coverage only; it does not change any retained
+point's input, implementation, or measurement method.
+
+For Figures 2 and 5, every point has an experiment-specific timeout and one fresh-process retry by
+default. A timeout terminates the complete local MPI launcher process group before retrying. Use
+`--timeout=SECONDS` to replace the default point budget or `--retries=N` to change the retry count.
+Successful points are checkpointed and may be resumed without rerunning them:
+
+```bash
+./artifact/run.sh figure5 --skip-build \
+  --resume=artifact/results/RESULT_DIR
+```
+
+Resume validates the experiment, paper matrix, MPI placement, seed, and exact checkpoint prefix.
+The manifest records both the original/resumed commits and specification hashes for auditability.
 
 ### Figure 2: arithmetic versus boolean sharing
 
@@ -259,10 +277,11 @@ arithmetic-over-boolean slowdown over data scale, and boolean-sharing time over 
 communication widths. The measurement includes both online execution and JIT BMT generation inside the
 primitive calls, matching the paper's timing definition. Inputs are
 `100,000/500,000/1,000,000` for non-sort operations and `10,000/50,000/100,000` for sort.
-The runner executes only the 25 points consumed by the paper plot: every primitive and input size at
-64 bits, plus 16/32 bits at each primitive's middle input size (the middle 64-bit point is shared).
+The stable reviewer matrix executes 24 points: every 0.2x/1x primitive point needed by the paper
+plot, all 16/32/64-bit middle-size points, and every non-sort 2x point. The optional
+`sort/100000/64-bit` stress point makes the `--full-matrix` run 25 points.
 Each point runs as an independent MPI process group. Before each launch, the runner prints
-`[progress] Figure 2 point N/25`; after every successful point it updates
+`[progress] Figure 2 point N/24`; after every successful point it updates
 `summary/checkpoint.json` and the manifest's `progress` object. A slow or failed point is therefore
 visible without waiting for the complete matrix, and completed measurements remain auditable.
 
@@ -290,11 +309,12 @@ The fixed matrix uses batch sizes `2^4, 2^6, ..., 2^16`; it does not use the ben
 legacy decimal defaults. The three panels show all primitives at the 1x/64-bit point, sort over data
 scale, and sort over bit width. The middle input is 500,000 elements for non-sort primitives and
 50,000 for sort; the sort grid is `10,000/50,000/100,000`.
-For every primitive and batch size, the runner measures all input sizes at 64 bits and supplements
-the middle input size with 16/32-bit points; the shared middle/64-bit point is not duplicated. With
-five primitives and seven batch sizes this is 175 points instead of the redundant 315-point Cartesian
-product. Every retained point is a fresh MPI process group; the terminal and manifest show point
-progress, and `summary/checkpoint.json` is updated after every point.
+For every primitive and batch size, the runner measures all retained input sizes at 64 bits and
+supplements the middle input size with 16/32-bit points; the shared middle/64-bit point is not
+duplicated, and impossible batch/input pairs are skipped. The stable reviewer matrix contains 107
+points. `--full-matrix` adds the seven 2x/64-bit sort stress points for a total of 114. Every retained
+point is a fresh MPI process group; the terminal and manifest show point progress, and
+`summary/checkpoint.json` is updated after every point.
 
 ### Figure 7: end-to-end queries
 
@@ -335,19 +355,16 @@ was recovered from the plotted points and the Section 9.4 upper limit; that prov
 in `experiments.yaml`. ORQ-bitonic, ORQ-quick, and ORQ-radix require the missing external ORQ
 artifact and are explicitly outside this archive's reproduced claims.
 
-The generated Figure 8 retains the paper's two-panel layout. Until normalized ORQ data is supplied,
-panel (a) contains the available ParsecDB measurements and panel (b) explicitly reports that the ORQ
-baselines are absent. Once baseline CSVs are archived, add them without changing plotting code:
+The generated Figure 8 contains the available ParsecDB measurements and explicitly reports that the
+external baselines are absent. The separate ORQ workflow reports CSV/JSON measurements only; it
+does not generate or modify this figure.
 
-```bash
-./artifact/run.sh plot \
-  --result-dir=artifact/results/<parsec-figure8-result> \
-  --input-csv=/absolute/path/to/orq-figure8.csv
-```
+### Optional ORQ baseline on the provided AWS nodes
 
-The baseline CSV uses the same aggregate schema: `rows`, `series`, and
-`mean_elapsed_seconds`. Supported paper series names are `orq_bitonic`, `orq_quick`, and
-`orq_radix`.
+ORQ is intentionally separate from `run.py` and `run_all.sh` because its real-BMT experiments can
+take substantially longer than the ParsecDB workflows. It runs only when the reviewer explicitly
+invokes `./artifact/run_orq.sh`. See [ORQ.md](ORQ.md) for prerequisites, the short Q6 check, complete
+Figure 7/8 commands, output data, and cleanup behavior.
 
 ### Table 1: multi-way joins
 
@@ -463,9 +480,9 @@ recovery package; SSH access is the primary execution path, not the only immutab
 
 ## Scope limitations and release checklist
 
-- ORQ and SECRECY are not included, so the artifact does not claim complete cross-system Figure 7/8
-  reproduction. Add immutable sources, patches, adapters, and normalized results only if those
-  claims are added later.
+- ORQ is available only on the temporary pre-provisioned AWS nodes; an immutable standalone archive
+  must include its source revision and hostname patch. SECRECY is not included, so complete
+  cross-system Figure 7 reproduction is not claimed.
 - Before release, retain the completed paper-mode raw outputs, record the archive DOI in the
   submission metadata, and commit every artifact file.
 - Before handoff, stop author-owned experiments, verify both nodes have the release commit and a

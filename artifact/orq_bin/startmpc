@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+
+# Minimal, failure-safe replacement for ORQ's system-wide startmpc helper.
+# ORQ's run_experiment.sh has already copied the freshly built executable to
+# every remote node before invoking this command, so this wrapper only starts
+# the parties and reliably tears them down after an interruption.
+
+set -u
+
+usage() {
+    echo "usage: startmpc -n <parties> -h <host0,host1,...> <command> [args ...]" >&2
+    exit 2
+}
+
+party_count=""
+host_string=""
+while getopts ":n:h:s" opt; do
+    case "$opt" in
+        n) party_count=$OPTARG ;;
+        h) host_string=$OPTARG ;;
+        s) ;; # run_experiment.sh performs the copy itself
+        *) usage ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+[[ -n "$party_count" && -n "$host_string" && $# -ge 1 ]] || usage
+IFS=',' read -r -a hosts <<< "$host_string"
+[[ ${#hosts[@]} -eq $party_count ]] || {
+    echo "startmpc: host count does not match -n $party_count" >&2
+    exit 2
+}
+
+command_argv=("$@")
+executable=${command_argv[0]#./}
+executable_name=$(basename "$executable")
+working_directory=$PWD
+base_port=$((20000 + RANDOM % 20000))
+pids=()
+cleaned=0
+
+cleanup() {
+    local rc=$?
+    if [[ $cleaned -eq 0 ]]; then
+        cleaned=1
+        for pid in "${pids[@]:-}"; do
+            kill -TERM "$pid" 2>/dev/null || true
+        done
+        for host in "${hosts[@]}"; do
+            ssh "$host" "pkill -TERM -x '$executable_name' 2>/dev/null || true" >/dev/null 2>&1 || true
+        done
+    fi
+    return "$rc"
+}
+trap cleanup INT TERM EXIT
+
+quoted_command=""
+for arg in "${command_argv[@]}"; do
+    printf -v quoted '%q' "$arg"
+    quoted_command+=" $quoted"
+done
+
+for ((rank = 0; rank < party_count; rank++)); do
+    host=${hosts[$rank]}
+    remote="export STARTMPC_EXEC_MODE=1; export STARTMPC_BASE_PORT=$base_port; export STARTMPC_HOST_COUNT=$party_count; export STARTMPC_HOST_RANK=$rank; export STARTMPC_HOST_LIST=$(printf '%q' "$host_string"); cd $(printf '%q' "$working_directory") && exec stdbuf -oL -eL$quoted_command"
+    ssh "$host" "$remote" &
+    pids+=("$!")
+done
+
+status=0
+for pid in "${pids[@]}"; do
+    wait "$pid"
+    child_status=$?
+    if [[ $child_status -ne 0 ]]; then
+        [[ $status -ne 0 ]] || status=$child_status
+        cleanup
+        break
+    fi
+done
+
+if [[ $status -eq 0 ]]; then
+    trap - INT TERM EXIT
+    cleaned=1
+fi
+exit "$status"
