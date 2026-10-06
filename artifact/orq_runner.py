@@ -317,14 +317,23 @@ def main() -> int:
             print("All ORQ artifact processes stopped.")
         elif args.command == "q6":
             args.result_dir = args.result_dir or default_result_dir("orq-q6")
-            run_figure7(args, (("q6", "q6"),))
+            try:
+                run_figure7(args, (("q6", "q6"),))
+            finally:
+                cleanup(args.hosts, ALL_EXECUTABLES)
         elif args.command == "figure7":
             args.result_dir = args.result_dir or default_result_dir("orq-figure7")
-            run_figure7(args, FIGURE7_TARGETS)
+            try:
+                run_figure7(args, FIGURE7_TARGETS)
+            finally:
+                cleanup(args.hosts, ALL_EXECUTABLES)
         else:
             args.row_exponents = [1] if args.command == "figure8-smoke" else list(range(1, 18))
             args.result_dir = args.result_dir or default_result_dir(f"orq-{args.command}")
-            run_figure8(args)
+            try:
+                run_figure8(args)
+            finally:
+                cleanup(args.hosts, ALL_EXECUTABLES)
     return 0
 
 

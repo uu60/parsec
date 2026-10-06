@@ -17,11 +17,15 @@ The runner fixes two environment-specific issues before benchmarking:
 2. The system `startmpc` cleanup command can leave a one-sided process behind. The artifact uses its
    own failure-safe launcher and cleans both nodes after completion or interruption.
 
-All performance commands use two-party NoCopy communication, real BMT generation, and scale factor
-`0.0001`. The runner intentionally leaves ORQ's worker count, communication-thread count, and batch
-setting unspecified, which selects the upstream defaults: one worker, one communication thread per
-worker, and batch setting `-12`. Outputs are kept under `artifact/results/`; raw logs, a manifest,
-normalized CSV, and JSON summary are retained together.
+The paper's reported ORQ numbers use the upstream default execution configuration: one worker, one
+communication thread per worker, and batch setting `-12`. Accordingly, the runner intentionally
+leaves `-T`, `-n`, and `-b` unspecified. All performance commands use two-party NoCopy
+communication, real BMT generation, and scale factor `0.0001`. Outputs are kept under
+`artifact/results/`; raw logs, a manifest, normalized CSV, and JSON summary are retained together.
+
+The ORQ runner cleans matching processes on both nodes before and after every run, including after
+an interruption. ParsecDB artifact commands also refuse to start when an ORQ process remains on
+either node, because shared CPU and memory pressure would invalidate their timing.
 
 ## Preflight and short check
 

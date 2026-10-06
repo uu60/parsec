@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 import sys
+import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -11,6 +12,7 @@ import yaml
 from artifact.plotting import generate_plots
 from artifact.orq_runner import OVERALL_RE, SORT_RE, configure_hostname
 from artifact.run import (
+    active_orq_processes,
     aggregate,
     build_parser,
     configuration_params,
@@ -33,6 +35,17 @@ from artifact.run import (
 
 
 class ArtifactTests(unittest.TestCase):
+    def test_parsec_preflight_reports_orq_processes_by_host(self) -> None:
+        responses = [
+            subprocess.CompletedProcess([], 0, "123 q6\n", ""),
+            subprocess.CompletedProcess([], 0, "456 micro_tablesort\n", ""),
+        ]
+        with patch("artifact.run.subprocess.run", side_effect=responses):
+            self.assertEqual(
+                active_orq_processes(("parsec0", "parsec1")),
+                ["parsec0: 123 q6", "parsec1: 456 micro_tablesort"],
+            )
+
     def test_orq_hostname_patch_is_idempotent(self) -> None:
         with TemporaryDirectory() as directory:
             root = Path(directory)

@@ -41,6 +41,11 @@ DEFAULT_MPI_ARGS = [
     "--map-by", "seq",
     "--host", "parsec0,parsec1,parsec0",
 ]
+ORQ_EXECUTABLES = (
+    "q6", "q4", "q13", "pwd-reuse", "credit_score", "comorbidity",
+    "rcdiff", "aspirin", "micro_tablesort",
+)
+PARSEC_RUN_COMMANDS = {"smoke", "figure2", "figure4", "figure5", "figure7", "figure8", "table1"}
 METRIC_PREFIX = "ARTIFACT_METRIC "
 MICRO_METRIC_PREFIX = "ARTIFACT_MICRO_METRIC "
 ACTIVE_OUTPUT_DIR: Path | None = None
@@ -72,6 +77,57 @@ def capture(command: Sequence[str]) -> str:
 
 def first_line(value: str) -> str:
     return value.splitlines()[0] if value else "unknown"
+
+
+def active_orq_processes(hosts: Sequence[str] = ("parsec0", "parsec1")) -> list[str]:
+    """Return exact-name ORQ processes on the provisioned AWS nodes."""
+    checks = "; ".join(
+        f"pgrep -a -x {shlex.quote(executable)} || true"
+        for executable in ORQ_EXECUTABLES
+    )
+    found: list[str] = []
+    for host in hosts:
+        try:
+            completed = subprocess.run(
+                [
+                    "ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", host,
+                    "bash", "-lc", shlex.quote(checks),
+                ],
+                cwd=REPO_ROOT,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+        except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
+            raise RuntimeError(f"cannot check ORQ processes on {host}: {exc}") from exc
+        if completed.returncode != 0:
+            detail = completed.stdout.strip()
+            raise RuntimeError(
+                f"cannot check ORQ processes on {host} (exit {completed.returncode})"
+                + (f": {detail}" if detail else "")
+            )
+        output = completed.stdout.strip()
+        if output:
+            found.extend(f"{host}: {line}" for line in output.splitlines())
+    return found
+
+
+def ensure_orq_is_idle() -> None:
+    """Protect ParsecDB timings from ORQ processes left on either AWS node."""
+    # This preflight is specific to the author-provisioned reviewer environment.
+    # Keep local/Docker functionality usable when the external ORQ checkout is absent.
+    if not Path("/home/reviewer/orq").is_dir():
+        return
+    found = active_orq_processes()
+    if found:
+        raise RuntimeError(
+            "leftover ORQ processes would invalidate ParsecDB timing:\n"
+            + "\n".join(found)
+            + "\nRun './artifact/run_orq.sh cleanup' and retry."
+        )
+    print("[preflight] No leftover ORQ processes on parsec0 or parsec1.", flush=True)
 
 
 def cpu_model() -> str:
@@ -1758,6 +1814,8 @@ def main() -> int:
     args = parser.parse_args()
     try:
         validate_args(args)
+        if args.command in PARSEC_RUN_COMMANDS:
+            ensure_orq_is_idle()
         return args.handler(args)
     except KeyboardInterrupt:
         if ACTIVE_OUTPUT_DIR is not None and ACTIVE_MANIFEST is not None:

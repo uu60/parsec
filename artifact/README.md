@@ -71,6 +71,10 @@ pgrep -af '[m]pirun|[b]enchmark_|artifact/run.py|/exp_[1-8] ' || true
 ./artifact/run.sh smoke --skip-build
 ```
 
+Before any ParsecDB smoke or performance workflow starts, the runner checks both nodes for leftover
+ORQ processes. If one is found, it stops with a diagnostic instead of reporting a resource-contended
+timing as passed; run `./artifact/run_orq.sh cleanup` and retry.
+
 To apply the same eight expected-result checks to Background BMT generation, use a small bounded
 queue suitable for correctness testing:
 
