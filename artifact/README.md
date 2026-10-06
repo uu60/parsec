@@ -33,10 +33,10 @@ the exact ORQ revision and patch rather than depend on the temporary AWS environ
 
 ## Getting Started Instructions
 
-The following workflow assumes the supplied AWS instances and is designed to finish within 30
-minutes. Do not install packages, rebuild, change hostnames, or edit network configuration during
-this check: the toolchain, virtual environment, binaries, hostnames, and private-node SSH are already
-configured.
+The initial doctor and smoke checks below assume the supplied AWS instances and are designed to
+finish within 30 minutes. The complete performance workflows can take hours. Do not install
+packages, rebuild, change hostnames, or edit network configuration during the initial check: the
+toolchain, virtual environment, binaries, hostnames, and private-node SSH are already configured.
 
 ### 1. Connect to the entry node
 
@@ -170,7 +170,8 @@ hostfile or custom placement. Use `--comm=tcp` only for an explicit local three-
 Success is indicated by `PASS exp_1` through `PASS exp_8` and `Artifact result: passed`. The command
 maps rank 0 to `parsec0`, rank 1 to `parsec1`, and the rank-2 client to `parsec0`. The repeated
 hostname is intentional and no rankfile or hostfile is required. Missing ORQ/SECRECY is an optional
-scope warning, not an environment failure.
+external-baseline scope warning, not an environment failure. ORQ is provisioned separately on the
+AWS nodes; SECRECY is not included.
 
 Smoke is a functional-correctness check, not a benchmark. Its summary contains only per-experiment
 pass/fail status, the communication backend, and the selected BMT method/capacity. It does not report
@@ -231,15 +232,16 @@ channel instead of repairing cloud infrastructure.
 
 Every Figure/Table C++ benchmark performs an all-rank barrier immediately before and after its measured region.
 Each rank emits one JSON `ARTIFACT_METRIC` record. The runner defines a run's elapsed time as the
-maximum elapsed time of server ranks 0 and 1, then reports the arithmetic mean of three runs in
-`paper` mode. Input generation and table construction are outside the timed region. Correctness
-reconstruction is also excluded from paper runs because `--check` is not enabled.
+maximum elapsed time of server ranks 0 and 1. The current artifact collects exactly one measurement
+per point, so its aggregate mean equals that measurement and no variance estimate is available.
+Input generation and table construction are outside the timed region. Correctness reconstruction is
+also excluded from paper runs because `--check` is not enabled.
 
 Figures 2, 4, and 5 retain the original primitive benchmark convention: each emitted point is the
-arithmetic mean of the two server-rank elapsed times in milliseconds. The artifact runner repeats the
-complete matrix and reports the arithmetic mean and standard deviation across invocations. Their
-client process emits normalized `ARTIFACT_MICRO_METRIC` JSON records; legacy timestamp CSV output is
-disabled only while `--artifact_mode=true` is active.
+arithmetic mean of the two server-rank elapsed times in milliseconds. With one invocation per point,
+the aggregate mean equals that emitted value and the stored standard-deviation field is zero by
+construction. Their client process emits normalized `ARTIFACT_MICRO_METRIC` JSON records; legacy
+timestamp CSV output is disabled only while `--artifact_mode=true` is active.
 
 `--workload_seed=20270276` controls only public synthetic workload generation. Secret sharing,
 protocol masks, OT, and BMT generation continue to use the runtime's independent cryptographic
@@ -356,12 +358,13 @@ the Figure 7 legend and Section 9.3.
 
 The fixed matrix evaluates every power of two from 2 through 131,072 rows with one sort column. This grid
 was recovered from the plotted points and the Section 9.4 upper limit; that provenance is recorded
-in `experiments.yaml`. ORQ-bitonic, ORQ-quick, and ORQ-radix require the missing external ORQ
-artifact and are explicitly outside this archive's reproduced claims.
+in `experiments.yaml`. ORQ-bitonic, ORQ-quick, and ORQ-radix come from an external ORQ source that
+is not embedded in this Git repository. The provisioned AWS environment supplies the validated ORQ
+revision through the separate data-only workflow described below.
 
 The generated Figure 8 contains the available ParsecDB measurements and explicitly reports that the
-external baselines are absent. The separate ORQ workflow reports CSV/JSON measurements only; it
-does not generate or modify this figure.
+external series are not part of that plot. The separate ORQ workflow reports CSV/JSON measurements
+only; it does not generate or modify this figure.
 
 ### Optional ORQ baseline on the provided AWS nodes
 
@@ -379,9 +382,9 @@ Figure 7/8 commands, output data, and cleanup behavior.
 The fixed matrix runs hash and nested-loop joins for `(tables, rows per table)` equal to `(2,3163)`,
 `(3,216)`, `(4,57)`, and `(5,26)`.
 
-The command automatically applies the validated AWS parameters described above, including the
-5-way nested-loop worker-count override; no additional join, batch-size, thread-pool, IKNP, or
-shuffle arguments are required.
+The command automatically applies the validated AWS parameters described above. All four nested-loop
+cases use the same 18,000-worker CTPL configuration; there is no per-case worker-count override. No
+additional join, batch-size, thread-pool, IKNP, or shuffle arguments are required.
 
 ### Regenerating and merging plots
 
@@ -394,9 +397,10 @@ PDF; the selected script path and hash are recorded in `plot-manifest.json`. Fig
 use grouped bars in all three panels, matching the paper scripts.
 
 The plot directory also contains `plot-manifest.json` with source manifest paths, CSV hashes,
-plotter hash, profile, and output paths. `--input-csv` accepts additional normalized series such as
-archived ORQ/SECRECY results. Figure 7 CSVs require `workload`, `configuration`, and
-`mean_elapsed_seconds`; Figure 8 CSVs require `rows`, `series`, and `mean_elapsed_seconds`.
+plotter hash, profile, and output paths. `--input-csv` accepts additional normalized ParsecDB result
+series. Figure 7 CSVs require `workload`, `configuration`, and `mean_elapsed_seconds`; Figure 8 CSVs
+require `rows`, `series`, and `mean_elapsed_seconds`. The separate ORQ workflow is data-only and does
+not invoke this plotting path.
 
 ### AWS convenience workflow
 
@@ -460,9 +464,10 @@ artifact/results/<timestamp>-<experiment>/
     <experiment>.pdf   publication-quality vector figure
 ```
 
-Never edit raw logs after a run. If a point fails, preserve its directory and rerun into a new one.
-Do not combine results from different commits, dirty states, seeds, or hardware without explicitly
-recording that fact.
+Never edit raw logs after a run. For Figures 2 and 5, preserve the directory and use the documented
+`--resume` command to continue a compatible checkpoint. For other workflows, preserve a failed
+directory and rerun into a new one. Do not combine results from different commits, dirty states,
+seeds, or hardware without explicitly recording that fact.
 
 Aggregate JSON/CSV paths are committed to `manifest.json` before plotting starts. If measurement
 finishes but plotting fails (for example because Matplotlib is missing), the manifest has
@@ -493,8 +498,7 @@ recovery package; SSH access is the primary execution path, not the only immutab
   clean tracked worktree, make reference results read-only, test the temporary reviewer key from a
   fresh client, and record both SSH host-key fingerprints in the private access sheet.
 
-After resolving those blockers and committing every artifact file, create the immutable submission
-archive from a clean worktree:
+Create an immutable recovery archive from a clean worktree with:
 
 ```bash
 ./artifact/package.sh

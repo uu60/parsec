@@ -61,18 +61,18 @@ Both commits must match the expected value and both status commands must print n
 
 ## Expected runtimes on this deployment
 
-Fill these values from the final clean rehearsal. State the repetitions and data scale for every
-estimate; do not describe a one-repetition or scaled diagnostic as paper reproduction.
+Fill these values from the final clean rehearsal. The current artifact uses the unscaled fixed paper
+matrix and one measurement per point; state explicitly that these runs do not estimate variance.
 
 | Workflow | Profile/scale/repetitions | Expected wall time |
 | --- | --- | --- |
-| Getting Started through correctness | quick / 1.0 / 1 | `<DURATION>` |
-| Figure 2 | paper / 1.0 / `<REPETITIONS>` | `<DURATION>` |
-| Figure 4 | paper / 1.0 / `<REPETITIONS>` | `<DURATION>` |
-| Figure 5 | paper / 1.0 / `<REPETITIONS>` | `<DURATION>` |
-| Figure 7 | paper / 1.0 / `<REPETITIONS>` | `<DURATION>` |
-| Figure 8 | paper / 1.0 / `<REPETITIONS>` | `<DURATION>` |
-| Table 1 | paper / 1.0 / `<REPETITIONS>` | `<DURATION>` |
+| Getting Started through correctness | functional / n/a / n/a | `<DURATION>` |
+| Figure 2 | paper / 1.0 / 1 | `<DURATION>` |
+| Figure 4 | paper / 1.0 / 1 | `<DURATION>` |
+| Figure 5 | paper / 1.0 / 1 | `<DURATION>` |
+| Figure 7 | paper / 1.0 / 1 | `<DURATION>` |
+| Figure 8 | paper / 1.0 / 1 | `<DURATION>` |
+| Table 1 | paper / 1.0 / 1 | `<DURATION>` |
 
 ## Result locations and handoff state
 

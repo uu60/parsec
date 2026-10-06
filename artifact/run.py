@@ -1661,7 +1661,7 @@ def run_doctor(args: argparse.Namespace) -> int:
         add(f"binary:{target}", path.is_file(), str(path), required=False)
     add(
         "external-baselines", False,
-        "ORQ and SECRECY repository commits/patches are not archived in this repository",
+        "ORQ is provisioned only on the AWS nodes; SECRECY is not included; neither is embedded in this repository",
         required=False,
     )
     result = {
@@ -1689,7 +1689,7 @@ def add_common_performance_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--comm", choices=("tcp", "mpi"), default="mpi")
     parser.add_argument(
         "--timeout", type=float,
-        help="Per-process timeout in seconds (paper default: 86400).",
+        help="Per-process timeout in seconds (default is experiment-specific).",
     )
     parser.add_argument("--tcp-base-port", type=int, default=24000)
     parser.add_argument("--mpirun", default="mpirun")

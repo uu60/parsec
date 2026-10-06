@@ -23,9 +23,9 @@ leaves `-T`, `-n`, and `-b` unspecified. All performance commands use two-party 
 communication, real BMT generation, and scale factor `0.0001`. Outputs are kept under
 `artifact/results/`; raw logs, a manifest, normalized CSV, and JSON summary are retained together.
 
-The ORQ runner cleans matching processes on both nodes before and after every run, including after
-an interruption. ParsecDB artifact commands also refuse to start when an ORQ process remains on
-either node, because shared CPU and memory pressure would invalidate their timing.
+The ORQ runner cleans matching processes on both nodes before and after every run, including after a
+handled interruption. ParsecDB artifact commands also refuse to start when an ORQ process remains
+on either node, because shared CPU and memory pressure would invalidate their timing.
 
 ## Preflight and short check
 

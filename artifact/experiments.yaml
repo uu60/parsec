@@ -80,9 +80,10 @@ configurations:
   orq_2pc_real_bmt:
     description: ORQ in two-party mode with real BMT generation.
     external_artifact:
-      status: not_included
+      status: provisioned_aws_only
       supported_claims: false
-      reason: The exact ORQ revision and paper-specific patches were not archived with this repository.
+      revision: 2d7946a95f6d1d49e020789b70a6cfbdc1198a46
+      reason: The validated ORQ revision is provisioned on the temporary AWS nodes but is not embedded in this repository archive.
 
   secrecy:
     description: SECRECY honest-majority reference configuration.
@@ -331,7 +332,7 @@ experiments:
       - orq_bitonic
       - orq_quick
       - orq_radix
-    baseline_status: not_included
+    baseline_status: provisioned_aws_only
     rows_grid: [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072]
     grid_provenance: "All powers of two through 2^17, recovered from the plotted points and Section 9.4."
     repetitions: 1
@@ -407,7 +408,7 @@ paper_environments:
 provenance_notes:
   - id: exact_scaling_grids
     status: reconstructed_from_paper
-    note: Figure 8/9 point grids were recovered from the plotted points and stated limits; retain original logs if later found.
+    note: The Figure 8 point grid was recovered from the plotted points and stated limit; retain original logs if later found.
   - id: baseline_versions
-    status: out_of_scope
-    note: ORQ and SECRECY revisions are not included, so cross-system reproduction is not claimed.
+    status: partial
+    note: The validated ORQ revision is provisioned on the temporary AWS nodes; SECRECY is not included, so complete cross-system reproduction is not claimed.

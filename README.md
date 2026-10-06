@@ -97,9 +97,10 @@ uses the author-provisioned two-node AWS environment; SSH details are supplied p
 
 Artifact commands default to MPI with the provisioned AWS placement
 `--bind-to none --map-by seq --host parsec0,parsec1,parsec0`; reviewers do not need to supply
-launcher arguments. Performance commands use one repetition at a locked 0.5× paper input scale for
-trend validation; this does not claim paper-scale absolute-value reproduction. TCP is available only
-as an explicit local fallback with `--comm=tcp`.
+launcher arguments. Performance commands use the unscaled fixed paper matrix and collect one
+measurement per point; the microbenchmark matrices retain the paper's 0.2x/1x/2x points. A single
+measurement does not provide a variance estimate. TCP is available only as an explicit local
+fallback with `--comm=tcp`.
 
 ## Build
 

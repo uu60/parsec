@@ -91,10 +91,12 @@ class ArtifactTests(unittest.TestCase):
             spec["experiments"]["figure_7"]["repository_configurations"],
             ["parsec", "parsec_base"],
         )
-        for name in ("orq_2pc_real_bmt", "secrecy"):
-            external = spec["configurations"][name]["external_artifact"]
-            self.assertEqual(external["status"], "not_included")
-            self.assertFalse(external["supported_claims"])
+        orq = spec["configurations"]["orq_2pc_real_bmt"]["external_artifact"]
+        self.assertEqual(orq["status"], "provisioned_aws_only")
+        self.assertFalse(orq["supported_claims"])
+        secrecy = spec["configurations"]["secrecy"]["external_artifact"]
+        self.assertEqual(secrecy["status"], "not_included")
+        self.assertFalse(secrecy["supported_claims"])
         self.assertNotIn("REQUIRED_BEFORE_ARCHIVAL", str(spec))
 
     def test_aws_delivery_is_documented_without_credentials(self) -> None:
@@ -110,6 +112,18 @@ class ArtifactTests(unittest.TestCase):
         self.assertIn("<PARSEC0_PUBLIC_IP_OR_DNS>", template)
         self.assertIn("<40_HEX_COMMIT>", template)
         self.assertNotIn("BEGIN OPENSSH PRIVATE KEY", template)
+
+    def test_documentation_matches_fixed_measurement_and_join_configuration(self) -> None:
+        root = Path(__file__).resolve().parents[2]
+        top_readme = (root / "README.md").read_text(encoding="utf-8")
+        artifact_readme = (root / "artifact" / "README.md").read_text(encoding="utf-8")
+        top_words = " ".join(top_readme.split())
+        artifact_words = " ".join(artifact_readme.split())
+        self.assertNotIn("locked 0.5", top_readme)
+        self.assertIn("one measurement per point", top_words)
+        self.assertNotIn("arithmetic mean of three runs", artifact_words)
+        self.assertNotIn("5-way nested-loop worker-count override", artifact_words)
+        self.assertIn("same 18,000-worker CTPL configuration", artifact_words)
 
     def test_paper_batch_size_is_explicit(self) -> None:
         spec = load_spec()
