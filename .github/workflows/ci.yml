@@ -63,7 +63,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build libopenmpi-dev openmpi-bin libssl-dev libboost-dev libreadline-dev
+          sudo apt-get install -y ninja-build libopenmpi-dev openmpi-bin libssl-dev libboost-dev
 
       - name: Configure
         run: cmake --preset ci-database
@@ -85,7 +85,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build libopenmpi-dev openmpi-bin libssl-dev libboost-dev libreadline-dev
+          sudo apt-get install -y ninja-build libopenmpi-dev openmpi-bin libssl-dev libboost-dev
 
       - name: Configure
         run: cmake --preset dev

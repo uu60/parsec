@@ -19,7 +19,7 @@ servers combine their shares.
 ## Scope
 
 The repository includes Boolean and arithmetic sharing, oblivious transfer, BMT generation, share conversion, secure
-operators, and a SQL-like database demonstration. Security depends on using compatible primitives, non-overlapping
+operators, and secure relational database operators. Security depends on using compatible primitives, non-overlapping
 message tags for concurrent operations, suitable randomness, and the documented party roles.
 
 The MPI and TCP backends transport protocol messages; they should not be treated as encrypted network channels by

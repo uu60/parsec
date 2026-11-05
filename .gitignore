@@ -144,10 +144,5 @@ artifact/
 dist/
 tmp/
 
-# Generated third-party library ================================
-/libsqlparser.so
-/libsqlparser.dylib
-/apps/sql_cli/third_party/sql-parser/.clang-format
-
 benchmark*.csv
 secrecy/
