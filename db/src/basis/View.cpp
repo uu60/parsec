@@ -1,6 +1,7 @@
 
 #include "../../include/basis/View.h"
 
+#include <algorithm>
 #include <numeric>
 
 #include "compute/batch/bool/BoolAndBatchOperator.h"

@@ -28,6 +28,19 @@ endif ()
 
 
 find_package(MPI REQUIRED)
+
+# Tests always start three ranks. Open MPI refuses to start more ranks than detected slots (for example on two-core CI
+# runners) unless oversubscription is allowed.
+set(PARSEC_MPIEXEC_TEST_FLAGS "" CACHE STRING "Extra mpiexec flags used when running MPI tests")
+if (PARSEC_BUILD_TESTS AND PARSEC_MPIEXEC_TEST_FLAGS STREQUAL "")
+    execute_process(COMMAND ${MPIEXEC_EXECUTABLE} --version
+            OUTPUT_VARIABLE PARSEC_MPIEXEC_VERSION ERROR_VARIABLE PARSEC_MPIEXEC_VERSION
+            RESULT_VARIABLE PARSEC_MPIEXEC_VERSION_RESULT)
+    if (PARSEC_MPIEXEC_VERSION MATCHES "Open MPI|OpenRTE|PRRTE|prterun")
+        set(PARSEC_MPIEXEC_TEST_FLAGS "--oversubscribe")
+    endif ()
+endif ()
+separate_arguments(PARSEC_MPIEXEC_TEST_FLAGS_LIST NATIVE_COMMAND "${PARSEC_MPIEXEC_TEST_FLAGS}")
 find_package(OpenSSL REQUIRED)
 
  # Try to find TBB, but make it optional

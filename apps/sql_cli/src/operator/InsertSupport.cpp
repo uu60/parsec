@@ -1,6 +1,7 @@
 
 #include "operator/InsertSupport.h"
 
+#include <algorithm>
 #include <sstream>
 #include "../third_party/hsql/sql/InsertStatement.h"
 

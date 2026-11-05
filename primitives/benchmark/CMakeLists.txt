@@ -24,7 +24,7 @@ if (PARSEC_BUILD_TESTS)
         cmake_parse_arguments(PARSEC_TEST "SLOW" "" "ARGS" ${ARGN})
         add_test(
                 NAME ${name}
-                COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 3
+                COMMAND ${MPIEXEC_EXECUTABLE} ${PARSEC_MPIEXEC_TEST_FLAGS_LIST} ${MPIEXEC_NUMPROC_FLAG} 3
                         ${MPIEXEC_PREFLAGS} $<TARGET_FILE:${target}>
                         ${PARSEC_TEST_ARGS} ${MPIEXEC_POSTFLAGS})
         set_tests_properties(${name} PROPERTIES

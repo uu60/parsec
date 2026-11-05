@@ -17,7 +17,8 @@ if (PARSEC_BUILD_TESTS)
         foreach (exp RANGE 1 8)
             add_test(NAME database.exp_${exp}.mpi
                     COMMAND ${Python3_EXECUTABLE} ${PARSEC_VERIFY_EXP} --exp ${exp} --comm mpi
-                            --mpirun ${MPIEXEC_EXECUTABLE} --bin-dir $<TARGET_FILE_DIR:exp_${exp}>)
+                            --mpirun ${MPIEXEC_EXECUTABLE} "--mpirun-flags=${PARSEC_MPIEXEC_TEST_FLAGS}"
+                            --bin-dir $<TARGET_FILE_DIR:exp_${exp}>)
             add_test(NAME database.exp_${exp}.tcp
                     COMMAND ${Python3_EXECUTABLE} ${PARSEC_VERIFY_EXP} --exp ${exp} --comm tcp
                             --tcp-base-port 21000 --bin-dir $<TARGET_FILE_DIR:exp_${exp}>)
