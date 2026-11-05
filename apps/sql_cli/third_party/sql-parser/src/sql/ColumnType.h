@@ -1,6 +1,7 @@
 #ifndef SQLPARSER_COLUMN_TYPE_H
 #define SQLPARSER_COLUMN_TYPE_H
 
+#include <cstdint>
 #include <ostream>
 
 namespace hsql {

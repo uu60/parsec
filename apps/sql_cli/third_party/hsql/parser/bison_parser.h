@@ -27,6 +27,7 @@ extern int hsql_debug;
 #line 39 "bison_parser.y"
 
 
+#include <cstdint>
 #include "../SQLParserResult.h"
 #include "../sql/statements.h"
 #include "parser_typedef.h"

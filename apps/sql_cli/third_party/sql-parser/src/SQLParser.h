@@ -1,6 +1,7 @@
 #ifndef SQLPARSER_SQLPARSER_H
 #define SQLPARSER_SQLPARSER_H
 
+#include <cstdint>
 #include "SQLParserResult.h"
 #include "sql/statements.h"
 

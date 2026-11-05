@@ -1,6 +1,7 @@
 
 #ifndef SMPC_DATABASE_TABLE_H
 #define SMPC_DATABASE_TABLE_H
+#include <cstdint>
 #include <vector>
 
 #include <string>

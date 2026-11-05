@@ -1,6 +1,7 @@
 
 #ifndef VIEWS_H
 #define VIEWS_H
+#include <cstdint>
 #include "View.h"
 
 
