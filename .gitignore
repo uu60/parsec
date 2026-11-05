@@ -147,7 +147,7 @@ tmp/
 # Generated third-party library ================================
 /libsqlparser.so
 /libsqlparser.dylib
-/db/third_party/sql-parser/.clang-format
+/apps/sql_cli/third_party/sql-parser/.clang-format
 
 benchmark*.csv
 secrecy/

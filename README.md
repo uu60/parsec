@@ -80,11 +80,14 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and
 ## Project Layout
 
 ```text
-runtime/       Configuration, communication, utilities, and parallel runtime support
-primitives/    MPC operators, OT, BMT generation, and secret-sharing primitives
-db/            Secure database layer, SQL parser integration, experiments, and benchmarks
-tools/         Development and utility scripts
-build.sh       Convenience build script
+runtime/        Configuration, communication, utilities, and parallel runtime support
+primitives/     MPC operators, OT, BMT generation, and secret-sharing primitives
+db/              Secure relational data structures and algorithms
+apps/sql_cli/    Optional SQL-like command-line demo, service, client, and parser
+benchmarks/      Database performance benchmarks
+experiments/     Reproducible research experiments and correctness scripts
+tools/           Development and utility scripts
+build.sh         Convenience build script
 ```
 
 ## Dependencies
@@ -97,11 +100,11 @@ Required:
 - MPI implementation, such as OpenMPI
 - OpenSSL
 - Boost
-- Readline, for `db_client`
 
 Optional:
 
 - TBB, for the `tbb_pool` thread-pool backend
+- Readline, when building the SQL command-line demo
 
 macOS example:
 
@@ -122,7 +125,7 @@ sh build.sh
 The script:
 
 1. Configures CMake with Ninja.
-2. Builds the bundled SQL parser as a regular CMake target.
+2. Builds the optional SQL command-line demo and its bundled parser.
 3. Builds all runtime, primitive, database, benchmark, and experiment targets under `build/`.
 
 Build options:
@@ -141,7 +144,17 @@ cmake --build build
 ```
 
 For repeatable configurations, the repository also provides `dev`, `release`, and `ci` CMake presets. The `ci`
-preset builds the core library and registered correctness tests without the database demo or performance benchmarks.
+preset builds the core library and registered correctness tests without the database or SQL command-line demo.
+
+The database algorithms and SQL application can be selected independently:
+
+```bash
+cmake -S . -B build -G Ninja \
+  -DPARSEC_BUILD_DATABASE=ON \
+  -DPARSEC_BUILD_SQL_CLI=OFF
+```
+
+`PARSEC_BUILD_SQL_CLI=ON` requires `PARSEC_BUILD_DATABASE=ON` and Readline.
 
 ## Run
 
@@ -158,8 +171,8 @@ mpirun -np 3 ./build/primitives/benchmark/correctness_ot
 Run a database benchmark:
 
 ```bash
-mpirun -np 3 ./build/db/benchmark/db_sort
-mpirun -np 3 ./build/db/benchmark/db_join
+mpirun -np 3 ./build/benchmarks/database/db_sort
+mpirun -np 3 ./build/benchmarks/database/db_join
 ```
 
 Run on multiple machines with an MPI hostfile:
@@ -189,6 +202,16 @@ The current TCP backend uses one IPv4 `tcp_host` value for outbound peer connect
 ## Database Demo
 
 Parsec includes a simple secure database command-line demo to show how the MPC primitives can be composed into a SQL-like application. The demo consists of a three-rank database service and a lightweight local client, and is intended as a reference example rather than a full database product.
+
+The reusable relational algorithms live in `db/`; SQL parsing and interactive I/O are isolated in
+`apps/sql_cli/`. With the release preset, start the service and client from separate terminals:
+
+```bash
+mpirun -np 3 ./build/release/apps/sql_cli/db
+./build/release/apps/sql_cli/db_client
+```
+
+See [apps/sql_cli/README.md](apps/sql_cli/README.md) for the component boundary and build targets.
 
 ## Configuration
 
@@ -413,16 +436,21 @@ Operators that accept pre-generated BMTs expose `setBmts(...)`.
 
 ### Database API
 
-The database layer is organized around:
+The reusable database core is organized around:
 
-- `SystemManager`: parses client commands, synchronizes rank-local metadata, dispatches SQL operations.
 - `Database`: owns tables in a selected database.
 - `Table`: stores column-oriented secret-shared records and schema metadata.
 - `View`: represents relational views over secret-shared columns.
 - `Views`: provides relational operations such as projection, filtering, sorting, and hash join.
+
+The optional SQL command-line application adds:
+
+- `SystemManager`: parses client commands, synchronizes rank-local metadata, and dispatches SQL operations.
 - `CreateSupport`, `DropSupport`, `InsertSupport`, `SelectSupport`: client/server handlers for SQL-like commands.
 
-Most applications should interact with the database through `db` and `db_client`. Direct C++ use is intended for experiments and benchmarks under `db/exp` and `db/benchmark`.
+Use the `db_core` CMake target for direct C++ integration. The `db` and `db_client` executables are demonstration
+front ends; research experiments and benchmarks use the core directly under `experiments/database` and
+`benchmarks/database`.
 
 ## Development Notes
 
@@ -431,9 +459,9 @@ Most applications should interact with the database through `db` and `db_client`
 - Message tags isolate parallel operator streams. Reusing tags across concurrent operators can cause incorrect receives.
 - Larger batches reduce communication overhead but increase memory usage.
 - `baseline_mode=true` intentionally disables several optimizations and is useful for controlled experiments.
-- The bundled SQL parser is compiled as the `parsec_sqlparser` CMake target when the database layer is enabled.
-- Set `PARSEC_BUILD_DATABASE`, `PARSEC_BUILD_BENCHMARKS`, `PARSEC_BUILD_EXPERIMENTS`, and `PARSEC_BUILD_TESTS` to
-  control optional targets.
+- The bundled SQL parser is compiled as the `parsec_sqlparser` CMake target only when `PARSEC_BUILD_SQL_CLI` is enabled.
+- Set `PARSEC_BUILD_DATABASE`, `PARSEC_BUILD_SQL_CLI`, `PARSEC_BUILD_BENCHMARKS`, `PARSEC_BUILD_EXPERIMENTS`, and
+  `PARSEC_BUILD_TESTS` to control optional targets.
 - Contributions should follow [CONTRIBUTING.md](CONTRIBUTING.md). Security-sensitive reports should follow
   [SECURITY.md](SECURITY.md).
 

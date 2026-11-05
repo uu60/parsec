@@ -15,6 +15,7 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "PARSEC_BUILD_DATABASE": "ON",
+        "PARSEC_BUILD_SQL_CLI": "ON",
         "PARSEC_BUILD_BENCHMARKS": "ON",
         "PARSEC_BUILD_EXPERIMENTS": "ON",
         "PARSEC_BUILD_TESTS": "ON"
@@ -28,6 +29,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "PARSEC_BUILD_DATABASE": "ON",
+        "PARSEC_BUILD_SQL_CLI": "ON",
         "PARSEC_BUILD_BENCHMARKS": "ON",
         "PARSEC_BUILD_EXPERIMENTS": "ON",
         "PARSEC_BUILD_TESTS": "OFF"
@@ -41,6 +43,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "PARSEC_BUILD_DATABASE": "OFF",
+        "PARSEC_BUILD_SQL_CLI": "OFF",
         "PARSEC_BUILD_BENCHMARKS": "OFF",
         "PARSEC_BUILD_EXPERIMENTS": "OFF",
         "PARSEC_BUILD_TESTS": "ON"
@@ -54,6 +57,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "PARSEC_BUILD_DATABASE": "ON",
+        "PARSEC_BUILD_SQL_CLI": "ON",
         "PARSEC_BUILD_BENCHMARKS": "OFF",
         "PARSEC_BUILD_EXPERIMENTS": "OFF",
         "PARSEC_BUILD_TESTS": "OFF"
