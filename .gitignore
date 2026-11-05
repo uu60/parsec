@@ -1,3 +1,8 @@
+# Editors ================================
+.idea/
+.vscode/
+!.vscode/extensions.json
+
 # Clion ================================
 # Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio and WebStorm
 # Reference: https://intellij-support.jetbrains.com/hc/en-us/articles/206544839
@@ -125,9 +130,24 @@ install_manifest.txt
 compile_commands.json
 CTestTestfile.cmake
 
-install
+install/
 .DS_Store
-.clang-format
+
+# Python ================================
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local experiment and packaging output ================================
+artifact/
+dist/
+tmp/
+
+# Generated third-party library ================================
+/libsqlparser.so
+/libsqlparser.dylib
+/db/third_party/sql-parser/.clang-format
 
 benchmark*.csv
 secrecy/

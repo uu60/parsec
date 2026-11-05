@@ -73,4 +73,6 @@ if (TBB_FOUND)
     target_link_libraries(parsec PUBLIC ${TBB_LIBRARIES})
 endif ()
 
-add_subdirectory(benchmark)
+if (PARSEC_BUILD_BENCHMARKS OR PARSEC_BUILD_TESTS)
+    add_subdirectory(benchmark)
+endif ()

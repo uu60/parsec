@@ -1,0 +1,97 @@
+{
+  "version": 4,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 22,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "dev",
+      "displayName": "Developer build",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/dev",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "PARSEC_BUILD_DATABASE": "ON",
+        "PARSEC_BUILD_BENCHMARKS": "ON",
+        "PARSEC_BUILD_EXPERIMENTS": "ON",
+        "PARSEC_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release build",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "PARSEC_BUILD_DATABASE": "ON",
+        "PARSEC_BUILD_BENCHMARKS": "ON",
+        "PARSEC_BUILD_EXPERIMENTS": "ON",
+        "PARSEC_BUILD_TESTS": "OFF"
+      }
+    },
+    {
+      "name": "ci",
+      "displayName": "CI core and correctness tests",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/ci",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "PARSEC_BUILD_DATABASE": "OFF",
+        "PARSEC_BUILD_BENCHMARKS": "OFF",
+        "PARSEC_BUILD_EXPERIMENTS": "OFF",
+        "PARSEC_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "ci-database",
+      "displayName": "CI database build",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/ci-database",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "PARSEC_BUILD_DATABASE": "ON",
+        "PARSEC_BUILD_BENCHMARKS": "OFF",
+        "PARSEC_BUILD_EXPERIMENTS": "OFF",
+        "PARSEC_BUILD_TESTS": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "dev",
+      "configurePreset": "dev"
+    },
+    {
+      "name": "release",
+      "configurePreset": "release"
+    },
+    {
+      "name": "ci",
+      "configurePreset": "ci"
+    },
+    {
+      "name": "ci-database",
+      "configurePreset": "ci-database"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "dev",
+      "configurePreset": "dev",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ci",
+      "configurePreset": "ci",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

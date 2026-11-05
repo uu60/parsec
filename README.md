@@ -1,12 +1,20 @@
 # Parsec
 
+[![CI](https://github.com/uu60/parsec/actions/workflows/ci.yml/badge.svg)](https://github.com/uu60/parsec/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 **Parsec** is a C++17 framework for **parallel secure computation** and secure database experiments. It provides MPC primitives, Boolean and arithmetic secret sharing, BMT generation, OT support, communication backends, parallel execution utilities, and a SQL-like secure database demo built on a three-party, two-server MPC model.
 
 The name stands for **PARallel SEcure Computing/database**.
 
+> [!IMPORTANT]
+> Parsec is research software. Its current security model assumes two non-colluding MPC servers and does not claim
+> production readiness. Read the [security model](docs/security-model.md) before using Parsec with sensitive data.
+
 ## Contents
 
 - [Execution Model](#execution-model)
+- [Quick Start](#quick-start)
 - [Features](#features)
 - [Project Layout](#project-layout)
 - [Dependencies](#dependencies)
@@ -34,6 +42,27 @@ Parsec supports two communication backends:
 
 - **MPI**: default backend, suitable for local multi-process runs and cluster execution through `mpirun`.
 - **TCP**: socket-based backend, suitable for running the three ranks as independent processes without `mpirun`.
+
+## Quick Start
+
+Install the dependencies listed below, then configure, build, and run the first correctness test:
+
+```bash
+cmake --preset ci
+cmake --build --preset ci
+ctest --preset ci
+```
+
+For a full release build including the database demo and benchmarks:
+
+```bash
+cmake --preset release
+cmake --build --preset release
+mpirun -np 3 ./build/release/primitives/benchmark/correctness_ot
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and
+[docs/security-model.md](docs/security-model.md) for the protocol assumptions and current limitations.
 
 ## Features
 
@@ -92,8 +121,8 @@ sh build.sh
 
 The script:
 
-1. Builds `db/third_party/sql-parser` into `libsqlparser.so` when the root library is missing.
-2. Configures CMake with Ninja.
+1. Configures CMake with Ninja.
+2. Builds the bundled SQL parser as a regular CMake target.
 3. Builds all runtime, primitive, database, benchmark, and experiment targets under `build/`.
 
 Build options:
@@ -110,6 +139,9 @@ Manual CMake build:
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
+
+For repeatable configurations, the repository also provides `dev`, `release`, and `ci` CMake presets. The `ci`
+preset builds the core library and registered correctness tests without the database demo or performance benchmarks.
 
 ## Run
 
@@ -399,7 +431,11 @@ Most applications should interact with the database through `db` and `db_client`
 - Message tags isolate parallel operator streams. Reusing tags across concurrent operators can cause incorrect receives.
 - Larger batches reduce communication overhead but increase memory usage.
 - `baseline_mode=true` intentionally disables several optimizations and is useful for controlled experiments.
-- `libsqlparser.so` must be available at the repository root when linking database targets; `build.sh` handles this automatically.
+- The bundled SQL parser is compiled as the `parsec_sqlparser` CMake target when the database layer is enabled.
+- Set `PARSEC_BUILD_DATABASE`, `PARSEC_BUILD_BENCHMARKS`, `PARSEC_BUILD_EXPERIMENTS`, and `PARSEC_BUILD_TESTS` to
+  control optional targets.
+- Contributions should follow [CONTRIBUTING.md](CONTRIBUTING.md). Security-sensitive reports should follow
+  [SECURITY.md](SECURITY.md).
 
 ## License
 

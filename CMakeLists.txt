@@ -1,15 +1,23 @@
- cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.22)
 
- project(parsec)
+project(parsec VERSION 0.1.0 LANGUAGES CXX)
 
- set(CMAKE_CXX_STANDARD 17)
+option(PARSEC_BUILD_DATABASE "Build the secure database demo" ON)
+option(PARSEC_BUILD_BENCHMARKS "Build benchmark executables" ON)
+option(PARSEC_BUILD_EXPERIMENTS "Build research experiment executables" ON)
+option(PARSEC_BUILD_TESTS "Build and register correctness tests" OFF)
 
- # Set base optimization flags
- set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+if (PARSEC_BUILD_TESTS)
+    include(CTest)
+endif ()
 
 
- find_package(MPI REQUIRED)
- find_package(OpenSSL REQUIRED)
+find_package(MPI REQUIRED)
+find_package(OpenSSL REQUIRED)
 
  # Try to find TBB, but make it optional
  if (APPLE)
@@ -35,7 +43,12 @@
      message(STATUS "TBB not found - TBB thread pool will be disabled")
  endif ()
 
- add_subdirectory(runtime)
- add_subdirectory(primitives)
- add_subdirectory(db)
- add_subdirectory(db/benchmark)
+add_subdirectory(runtime)
+add_subdirectory(primitives)
+
+if (PARSEC_BUILD_DATABASE)
+    add_subdirectory(db)
+    if (PARSEC_BUILD_BENCHMARKS)
+        add_subdirectory(db/benchmark)
+    endif ()
+endif ()
