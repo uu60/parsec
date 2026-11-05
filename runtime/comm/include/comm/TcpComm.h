@@ -30,6 +30,8 @@ private:
     std::vector<std::thread> _readerThreads;
     std::mutex _messageMutex;
     std::condition_variable _messageCv;
+    std::condition_variable _readerCv;
+    int _activeReaders{0};
     bool _shuttingDown{false};
     std::exception_ptr _readerError;
     std::map<std::pair<int, int>, std::deque<PendingMessage>> _pendingMessages;

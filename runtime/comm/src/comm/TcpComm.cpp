@@ -9,6 +9,7 @@
 #include <cstring>
 #include <future>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <stdexcept>
 #include <sys/socket.h>
 #include <thread>
@@ -36,6 +37,25 @@ int64_t parseIntParam(const std::string &name, int64_t defaultValue) {
 std::string parseStringParam(const std::string &name, const std::string &defaultValue) {
     return AppConfig::getString(name, defaultValue);
 }
+
+#ifdef MSG_NOSIGNAL
+constexpr int SEND_FLAGS = MSG_NOSIGNAL;
+#else
+constexpr int SEND_FLAGS = 0;
+#endif
+
+void configurePeerSocket(int fd) {
+    int yes = 1;
+    // MPC protocols exchange many small, latency-bound messages. Without TCP_NODELAY, Nagle's algorithm interacts
+    // with delayed ACKs and stalls every round trip by tens of milliseconds.
+    setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes));
+#ifdef SO_NOSIGPIPE
+    // Prevent a write to a peer that already closed from killing the process with SIGPIPE.
+    setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &yes, sizeof(yes));
+#endif
+}
+
+constexpr int64_t SHUTDOWN_TIMEOUT_MS = 30000;
 
 std::runtime_error socketError(const std::string &message) {
     return std::runtime_error(message + ": " + std::strerror(errno));
@@ -75,13 +95,38 @@ void TcpComm::finalize_() {
     _messageCv.notify_all();
 
     closeFd(_listenFd);
-    for (auto &fd: _peerFds) {
-        closeFd(fd);
+
+    // Graceful close: half-close the write side so every peer observes EOF only after all data we sent, then wait
+    // for each peer to do the same. close() alone does not wake a thread blocked in recv() on Linux, which made
+    // finalize hang forever while joining the reader threads.
+    for (int peer = 0; peer < static_cast<int>(_peerFds.size()); ++peer) {
+        if (_peerFds[peer] >= 0) {
+            std::lock_guard<std::mutex> sendLock(_sendMutexes[peer]);
+            ::shutdown(_peerFds[peer], SHUT_WR);
+        }
     }
+
+    {
+        std::unique_lock<std::mutex> lock(_messageMutex);
+        bool drained = _readerCv.wait_for(lock, std::chrono::milliseconds(SHUTDOWN_TIMEOUT_MS),
+                                          [this]() { return _activeReaders == 0; });
+        if (!drained) {
+            // A peer did not close its side in time (crashed or never finalized). Force blocked readers to return.
+            for (int fd: _peerFds) {
+                if (fd >= 0) {
+                    ::shutdown(fd, SHUT_RDWR);
+                }
+            }
+        }
+    }
+
     for (auto &reader: _readerThreads) {
         if (reader.joinable()) {
             reader.join();
         }
+    }
+    for (auto &fd: _peerFds) {
+        closeFd(fd);
     }
 }
 
@@ -199,6 +244,10 @@ void TcpComm::startReaderThreads() {
         if (peer == _rank || _peerFds[peer] < 0) {
             continue;
         }
+        {
+            std::lock_guard<std::mutex> lock(_messageMutex);
+            ++_activeReaders;
+        }
         _readerThreads[peer] = std::thread([this, peer]() {
             readerLoop(peer);
         });
@@ -207,6 +256,8 @@ void TcpComm::startReaderThreads() {
 
 void TcpComm::readerLoop(int senderRank) {
     try {
+        // Keep reading until the peer closes its write side, even while shutting down, so that the peer's final
+        // messages are consumed and the connection closes cleanly instead of being reset.
         while (true) {
             int tag = 0;
             std::vector<char> payload;
@@ -216,9 +267,6 @@ void TcpComm::readerLoop(int senderRank) {
 
             {
                 std::lock_guard<std::mutex> lock(_messageMutex);
-                if (_shuttingDown) {
-                    break;
-                }
                 _pendingMessages[std::make_pair(senderRank, tag)].push_back(PendingMessage{std::move(payload)});
             }
             _messageCv.notify_all();
@@ -229,6 +277,11 @@ void TcpComm::readerLoop(int senderRank) {
             _readerError = std::current_exception();
         }
     }
+    {
+        std::lock_guard<std::mutex> lock(_messageMutex);
+        --_activeReaders;
+    }
+    _readerCv.notify_all();
     _messageCv.notify_all();
 }
 
@@ -284,6 +337,7 @@ int TcpComm::connectToPeer(int peerRank) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 
+    configurePeerSocket(fd);
     int32_t rank = _rank;
     writeAll(fd, &rank, sizeof(rank));
     return fd;
@@ -294,6 +348,7 @@ int TcpComm::acceptPeer() {
     if (fd < 0) {
         throw socketError("accept failed");
     }
+    configurePeerSocket(fd);
     return fd;
 }
 
@@ -311,11 +366,15 @@ void TcpComm::sendPayload(int receiverRank, int tag, const std::vector<char> &pa
 
     MessageHeader header{static_cast<int32_t>(_rank), static_cast<int32_t>(tag), static_cast<uint64_t>(payload.size())};
 
-    std::lock_guard<std::mutex> lock(_sendMutexes[receiverRank]);
-    writeAll(_peerFds[receiverRank], &header, sizeof(header));
+    // Send header and payload in one write so a message is never split across two TCP segments by the caller.
+    std::vector<char> frame(sizeof(header) + payload.size());
+    std::memcpy(frame.data(), &header, sizeof(header));
     if (!payload.empty()) {
-        writeAll(_peerFds[receiverRank], payload.data(), payload.size());
+        std::memcpy(frame.data() + sizeof(header), payload.data(), payload.size());
     }
+
+    std::lock_guard<std::mutex> lock(_sendMutexes[receiverRank]);
+    writeAll(_peerFds[receiverRank], frame.data(), frame.size());
 }
 
 std::vector<char> TcpComm::receivePayload(int senderRank, int tag) {
@@ -371,7 +430,7 @@ bool TcpComm::readNextMessage(int senderRank, int &tag, std::vector<char> &paylo
 void TcpComm::writeAll(int fd, const void *data, size_t length) {
     auto *cursor = static_cast<const char *>(data);
     while (length > 0) {
-        ssize_t written = ::send(fd, cursor, length, 0);
+        ssize_t written = ::send(fd, cursor, length, SEND_FLAGS);
         if (written < 0) {
             if (errno == EINTR) {
                 continue;
