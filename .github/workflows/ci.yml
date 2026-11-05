@@ -71,6 +71,9 @@ jobs:
       - name: Build
         run: cmake --build --preset ci-database --parallel 2
 
+      - name: Test
+        run: ctest --preset ci-database
+
   sanitizers:
     name: ubuntu / sanitizers
     runs-on: ubuntu-latest

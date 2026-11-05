@@ -195,6 +195,13 @@ Local example:
 ./build/primitives/benchmark/correctness_ot --comm_type=tcp --tcp_rank=2 --tcp_size=3 --tcp_host=127.0.0.1 --tcp_base_port=18000
 ```
 
+For local runs, `tools/run_tcp_ranks.py` starts all three ranks, waits for them, and returns a non-zero status if any
+rank fails:
+
+```bash
+tools/run_tcp_ranks.py --base-port 18000 ./build/primitives/benchmark/correctness_ot
+```
+
 TCP rank `r` listens on `tcp_base_port + r`. With the default base port, ranks listen on ports `18000`, `18001`, and `18002`.
 
 The current TCP backend uses one IPv4 `tcp_host` value for outbound peer connections and is restricted to `--tcp_size=3`. It is primarily intended for local or controlled single-host experiments; use MPI for general multi-machine placement.

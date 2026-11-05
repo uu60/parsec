@@ -88,7 +88,7 @@ def parse_rows(output: str) -> List[Tuple[int, ...]]:
             continue
         parts = [x.strip() for x in s.strip("|").split("|")]
         if keep_idx is None:
-            if all(not re.fullmatch(r"-?\\d+", p) for p in parts):
+            if all(not re.fullmatch(r"-?\d+", p) for p in parts):
                 for i, p in enumerate(parts):
                     if p == "$valid":
                         valid_idx = i
@@ -128,17 +128,35 @@ def expected_rows(exp_id: int) -> List[Tuple[int, ...]]:
     raise ValueError("unexpected exp id")
 
 
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+
+
+def default_bin_dir() -> str:
+    build_dirs = []
+    if os.environ.get("PARSEC_BUILD_DIR"):
+        build_dirs.append(os.environ["PARSEC_BUILD_DIR"])
+    build_dirs += [os.path.join(REPO_ROOT, "build", d) for d in ("", "release", "dev")]
+    candidates = [os.path.join(d, "experiments", "database") for d in build_dirs]
+    for candidate in candidates:
+        if os.path.isdir(candidate):
+            return candidate
+    return candidates[0]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--exp", type=int, required=True, choices=range(1, 9))
-    ap.add_argument("--bin-dir", default="build/experiments/database")
+    ap.add_argument("--bin-dir", default=None,
+                    help="directory containing exp_N; defaults to $PARSEC_BUILD_DIR/experiments/database or the "
+                         "first existing build/<preset>/experiments/database")
     ap.add_argument("--comm", choices=["mpi", "tcp"], default="mpi")
     ap.add_argument("--mpirun", default="mpirun")
     ap.add_argument("--tcp-base-port", type=int, default=21000)
     ap.add_argument("--timeout", type=float, default=60.0)
     args = ap.parse_args()
 
-    exe = os.path.join(args.bin_dir, f"exp_{args.exp}")
+    bin_dir = args.bin_dir or default_bin_dir()
+    exe = os.path.join(bin_dir, f"exp_{args.exp}")
     if not os.path.exists(exe):
         print(f"executable not found: {exe}")
         return 2
