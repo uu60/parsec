@@ -16,20 +16,22 @@ BoolAndOperator *BoolAndOperator::execute() {
         start = System::currentTimeMillis();
     }
 
-    if (_bmt == nullptr) {
+    BitwiseBmt generatedBmt;
+    BitwiseBmt *bmt = _bmt;
+    if (bmt == nullptr) {
         if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
-            _bmt = &IntermediateDataSupport::_fixedBitwiseBmt;
+            bmt = &IntermediateDataSupport::_fixedBitwiseBmt;
         } else if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {
-            auto bmt = IntermediateDataSupport::pollBitwiseBmts(1, _width)[0];
-            _bmt = &bmt;
+            generatedBmt = IntermediateDataSupport::pollBitwiseBmts(1, _width)[0];
+            bmt = &generatedBmt;
         } else {
-            auto bmt = BitwiseBmtGenerator(_width, _taskTag, _currentMsgTag).execute()->_bmt;
-            _bmt = &bmt;
+            generatedBmt = BitwiseBmtGenerator(_width, _taskTag, _currentMsgTag).execute()->_bmt;
+            bmt = &generatedBmt;
         }
     }
 
-    int64_t ei = _xi ^ _bmt->_a;
-    int64_t fi = _yi ^ _bmt->_b;
+    int64_t ei = _xi ^ bmt->_a;
+    int64_t fi = _yi ^ bmt->_b;
 
 
     int64_t e, f;
@@ -44,7 +46,7 @@ BoolAndOperator *BoolAndOperator::execute() {
     f = ring(fi ^ efo[1]);
     int64_t extendedRank = Comm::rank() ? ring(-1ll) : 0;
 
-    _zi = (extendedRank & e & f) ^ (f & _bmt->_a) ^ (e & _bmt->_b) ^ _bmt->_c;
+    _zi = (extendedRank & e & f) ^ (f & bmt->_a) ^ (e & bmt->_b) ^ bmt->_c;
 
     if (Conf::ENABLE_CLASS_WISE_TIMING) {
         _totalTime += System::currentTimeMillis() - start;
