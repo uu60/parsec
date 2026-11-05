@@ -316,31 +316,34 @@ int TcpComm::createListenSocket(int port) {
 }
 
 int TcpComm::connectToPeer(int peerRank) {
-    int fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (fd < 0) {
-        throw socketError("socket failed");
-    }
-
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
     addr.sin_port = htons(static_cast<uint16_t>(_basePort + peerRank));
     if (inet_pton(AF_INET, _host.c_str(), &addr.sin_addr) != 1) {
-        close(fd);
         throw std::runtime_error("tcp_host must be an IPv4 address.");
     }
 
-    while (connect(fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) < 0) {
-        if (errno != ECONNREFUSED && errno != ENOENT) {
-            close(fd);
+    while (true) {
+        // Use a fresh socket for every attempt: after a failed connect() the socket state is unspecified, and BSD
+        // and macOS reject a second connect() on it with EINVAL.
+        int fd = socket(AF_INET, SOCK_STREAM, 0);
+        if (fd < 0) {
+            throw socketError("socket failed");
+        }
+        if (connect(fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) == 0) {
+            configurePeerSocket(fd);
+            int32_t rank = _rank;
+            writeAll(fd, &rank, sizeof(rank));
+            return fd;
+        }
+        int connectErrno = errno;
+        close(fd);
+        if (connectErrno != ECONNREFUSED && connectErrno != ENOENT && connectErrno != EINTR) {
+            errno = connectErrno;
             throw socketError("connect failed");
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
-
-    configurePeerSocket(fd);
-    int32_t rank = _rank;
-    writeAll(fd, &rank, sizeof(rank));
-    return fd;
 }
 
 int TcpComm::acceptPeer() {
