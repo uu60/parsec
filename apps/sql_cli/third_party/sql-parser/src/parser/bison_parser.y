@@ -39,6 +39,7 @@
 %code requires {
 // %code requires block
 
+#include <cstdint>
 #include "../SQLParserResult.h"
 #include "../sql/statements.h"
 #include "parser_typedef.h"

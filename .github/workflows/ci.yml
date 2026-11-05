@@ -76,6 +76,25 @@ jobs:
       - name: Test
         run: ctest --preset ci-database
 
+  latest-toolchain-build:
+    # Compile every target with the newest runner toolchain (GCC 15 on Ubuntu 26.04) to catch compiler regressions.
+    # Tests are not run here because the Open MPI 5 launcher on this image cannot start the three test ranks yet.
+    name: ubuntu-latest / build all targets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libopenmpi-dev openmpi-bin libssl-dev libboost-dev libreadline-dev
+
+      - name: Configure
+        run: cmake --preset dev
+
+      - name: Build
+        run: cmake --build --preset dev --parallel 2
+
   sanitizers:
     name: ubuntu / sanitizers
     runs-on: ubuntu-24.04
