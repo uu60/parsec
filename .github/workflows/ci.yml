@@ -8,6 +8,8 @@ on:
 permissions:
   contents: read
 
+# Linux jobs are pinned to Ubuntu 24.04 (GCC 13, Open MPI 4.1) so results are reproducible. ubuntu-latest moved to
+# Ubuntu 26.04 with Open MPI 5, whose launcher currently fails to start the three test ranks on hosted runners.
 jobs:
   build-and-test:
     name: ${{ matrix.os }} / ${{ matrix.compiler }}
@@ -16,11 +18,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             compiler: gcc
             cc: gcc
             cxx: g++
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             compiler: clang
             cc: clang
             cxx: clang++
@@ -56,7 +58,7 @@ jobs:
 
   database-build:
     name: ubuntu / database
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -76,7 +78,7 @@ jobs:
 
   sanitizers:
     name: ubuntu / sanitizers
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
