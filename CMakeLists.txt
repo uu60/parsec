@@ -33,12 +33,26 @@ find_package(MPI REQUIRED)
 # runners) unless oversubscription is allowed.
 set(PARSEC_MPIEXEC_TEST_FLAGS "" CACHE STRING "Extra mpiexec flags used when running MPI tests")
 if (PARSEC_BUILD_TESTS AND PARSEC_MPIEXEC_TEST_FLAGS STREQUAL "")
+    # `mpiexec --version` alone is not reliable: the Debian/Ubuntu Open MPI 5 packages (Ubuntu 26.04) do not install
+    # PRRTE's help files, so `--version` prints only a "couldn't open the help file" error. Also look at the MPI
+    # library version string and at the resolved launcher path (e.g. /usr/bin/mpirun.openmpi).
     execute_process(COMMAND ${MPIEXEC_EXECUTABLE} --version
             OUTPUT_VARIABLE PARSEC_MPIEXEC_VERSION ERROR_VARIABLE PARSEC_MPIEXEC_VERSION
             RESULT_VARIABLE PARSEC_MPIEXEC_VERSION_RESULT)
-    if (PARSEC_MPIEXEC_VERSION MATCHES "Open MPI|OpenRTE|PRRTE|prterun")
+    get_filename_component(PARSEC_MPIEXEC_REALPATH "${MPIEXEC_EXECUTABLE}" REALPATH)
+    set(PARSEC_MPI_ID "${PARSEC_MPIEXEC_VERSION};${PARSEC_MPIEXEC_REALPATH};${MPI_CXX_LIBRARY_VERSION_STRING}")
+    if (PARSEC_MPI_ID MATCHES "Open MPI|OpenRTE|PRRTE|prterun|openmpi|schizo-ompi")
         set(PARSEC_MPIEXEC_TEST_FLAGS "--oversubscribe")
     endif ()
+endif ()
+# Environment for MPI test runs. Open MPI's memory patcher rewrites malloc/munmap hooks, which crashes ASan builds
+# inside MPI_Init on Open MPI 5 (UCX component). The setting is ignored by other MPI implementations.
+set(PARSEC_MPI_TEST_ENVIRONMENT "")
+if (PARSEC_ENABLE_SANITIZERS)
+    list(APPEND PARSEC_MPI_TEST_ENVIRONMENT "OMPI_MCA_memory=^patcher")
+endif ()
+if (PARSEC_BUILD_TESTS)
+    message(STATUS "MPI test launcher: ${MPIEXEC_EXECUTABLE} ${PARSEC_MPIEXEC_TEST_FLAGS}")
 endif ()
 separate_arguments(PARSEC_MPIEXEC_TEST_FLAGS_LIST NATIVE_COMMAND "${PARSEC_MPIEXEC_TEST_FLAGS}")
 find_package(OpenSSL REQUIRED)

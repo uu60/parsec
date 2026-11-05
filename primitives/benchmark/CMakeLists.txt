@@ -32,6 +32,9 @@ if (PARSEC_BUILD_TESTS)
                 PROCESSORS 3
                 TIMEOUT 120
                 FAIL_REGULAR_EXPRESSION "FAIL;MISMATCH")
+        if (PARSEC_MPI_TEST_ENVIRONMENT)
+            set_property(TEST ${name} PROPERTY ENVIRONMENT ${PARSEC_MPI_TEST_ENVIRONMENT})
+        endif ()
         if (PARSEC_TEST_SLOW)
             set_property(TEST ${name} APPEND PROPERTY LABELS slow)
             set_property(TEST ${name} PROPERTY TIMEOUT 300)
