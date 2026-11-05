@@ -5,6 +5,9 @@
 #include "utils/Math.h"
 #include "utils/Log.h"
 
+#include <cstdint>
+#include <stdexcept>
+
 class BitwiseBmt : public Bmt {
 public:
     [[nodiscard]] BitwiseBmt extract(int i) const {
@@ -16,13 +19,22 @@ public:
     }
 
     static BitwiseBmt extract(std::vector<BitwiseBmt> &bmts, int i, int width) {
-        int idx = i * width / 64;
-        int offset = i % 64 * width;
-        int64_t mask = (1ll << width) - 1;
+        if (i < 0 || width <= 0 || width > 64) {
+            throw std::invalid_argument("BitwiseBmt::extract received an invalid index or width");
+        }
+
+        const uint64_t bitIndex = static_cast<uint64_t>(i) * static_cast<uint64_t>(width);
+        const size_t idx = bitIndex / 64;
+        const int offset = static_cast<int>(bitIndex % 64);
+        if (idx >= bmts.size() || offset + width > 64) {
+            throw std::out_of_range("BitwiseBmt::extract field crosses a storage boundary");
+        }
+
+        const uint64_t mask = width == 64 ? ~uint64_t{0} : (uint64_t{1} << width) - 1;
         BitwiseBmt b;
-        b._a = (bmts[idx]._a & (mask << offset)) >> offset;
-        b._b = (bmts[idx]._b & (mask << offset)) >> offset;
-        b._c = (bmts[idx]._c & (mask << offset)) >> offset;
+        b._a = static_cast<int64_t>((static_cast<uint64_t>(bmts[idx]._a) >> offset) & mask);
+        b._b = static_cast<int64_t>((static_cast<uint64_t>(bmts[idx]._b) >> offset) & mask);
+        b._c = static_cast<int64_t>((static_cast<uint64_t>(bmts[idx]._c) >> offset) & mask);
         return b;
     }
 };

@@ -11,6 +11,7 @@
 
 int main(int argc, char **argv) {
     System::init(argc, argv);
+    bool passed = true;
 
     if (Comm::isClient()) {
         System::finalize();
@@ -33,13 +34,13 @@ int main(int argc, char **argv) {
         ms0.resize(n);
         ms1.resize(n);
         for (int i = 0; i < n; ++i) {
-            ms0[i] = Math::ring(Math::randInt(), width);
-            ms1[i] = Math::ring(Math::randInt(), width);
+            ms0[i] = Math::ring(static_cast<int64_t>(i) * 17 + 3, width);
+            ms1[i] = Math::ring(static_cast<int64_t>(i) * 29 + 11, width);
         }
     } else {
         choices.resize(n);
         for (int i = 0; i < n; ++i) {
-            choices[i] = static_cast<int>(Math::randInt(0, 1));
+            choices[i] = (i / 3) % 2;
         }
     }
 
@@ -83,10 +84,11 @@ int main(int argc, char **argv) {
             }
         }
 
-        Log::i(mism == 0 ? "[IKNP OT correctness] PASS" : "[IKNP OT correctness] FAIL mismatches={}", mism);
+        passed = mism == 0;
+        Log::i(passed ? "[IKNP OT correctness] PASS" : "[IKNP OT correctness] FAIL mismatches={}", mism);
     }
 
     System::finalize();
-    return 0;
+    return passed ? 0 : 1;
 }
 

@@ -1,4 +1,5 @@
 #include "comm/Comm.h"
+#include "conf/AppConfig.h"
 #include "intermediate/IntermediateDataSupport.h"
 #include "secret/Secrets.h"
 #include "secret/item/ArithSecret.h"
@@ -14,6 +15,7 @@
 
 int main(int argc, char **argv) {
     System::init(argc, argv);
+    bool passed = true;
 
     // IntermediateDataSupport::init();
 
@@ -21,15 +23,11 @@ int main(int argc, char **argv) {
     const int width = 32;
     const int n = 100;
 
-    // Parse mode from command line (default: arith)
-    std::string mode = "arith";
-    if (argc > 1) {
-        mode = argv[1];
-        if (mode != "arith" && mode != "bool") {
-            Log::e("Invalid mode '{}'. Use 'arith' or 'bool'", mode);
-            System::finalize();
-            return 1;
-        }
+    const std::string mode = AppConfig::getString("test_mode", "arith");
+    if (mode != "arith" && mode != "bool") {
+        Log::e("Invalid test_mode '{}'. Use 'arith' or 'bool'", mode);
+        System::finalize();
+        return 1;
     }
 
     // Generate original data on client
@@ -37,7 +35,7 @@ int main(int argc, char **argv) {
     if (Comm::isClient()) {
         origins.resize(n);
         for (int i = 0; i < n; i++) {
-            origins[i] = Math::randInt(0, 1000);
+            origins[i] = (i * 73 + 19) % 1001;
         }
         if (mode == "arith") {
             Secrets::arithShare(origins, 2, width, task);
@@ -62,6 +60,7 @@ int main(int argc, char **argv) {
             if (mismatch == 0) {
                 Log::i("[ArithSecret Sort correctness] PASS");
             } else {
+                passed = false;
                 Log::i("[ArithSecret Sort correctness] FAIL mismatches={}", mismatch);
             }
         } else {
@@ -87,6 +86,7 @@ int main(int argc, char **argv) {
             if (mismatch == 0) {
                 Log::i("[BoolSecret Sort correctness] PASS");
             } else {
+                passed = false;
                 Log::i("[BoolSecret Sort correctness] FAIL mismatches={}", mismatch);
             }
         }
@@ -145,5 +145,5 @@ int main(int argc, char **argv) {
     }
 
     System::finalize();
-    return 0;
+    return passed ? 0 : 1;
 }

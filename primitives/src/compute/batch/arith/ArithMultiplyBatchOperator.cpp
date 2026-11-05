@@ -38,8 +38,8 @@ ArithMultiplyBatchOperator *ArithMultiplyBatchOperator::execute()
     for (int i = 0; i < num; i++)
     {
         const Bmt &bmt = bmts[i];
-        eis[i] = ring((*_xis)[i] - bmt._a);
-        fis[i] = ring((*_yis)[i] - bmt._b);
+        eis[i] = Math::ringSubtract((*_xis)[i], bmt._a, _width);
+        fis[i] = Math::ringSubtract((*_yis)[i], bmt._b, _width);
     }
 
     std::vector<int64_t> batchEFI;
@@ -61,11 +61,14 @@ ArithMultiplyBatchOperator *ArithMultiplyBatchOperator::execute()
 
     for (int i = 0; i < num; i++)
     {
-        int64_t e_sum = ring(eis[i] + batchEFO[2 * i]);
-        int64_t f_sum = ring(fis[i] + batchEFO[2 * i + 1]);
+        int64_t e_sum = Math::ringAdd(eis[i], batchEFO[2 * i], _width);
+        int64_t f_sum = Math::ringAdd(fis[i], batchEFO[2 * i + 1], _width);
 
         const Bmt &bmt = bmts[i];
-        _zis[i] = ring(Comm::rank() * e_sum * f_sum + f_sum * bmt._a + e_sum * bmt._b + bmt._c);
+        const int64_t ef = Comm::rank() == 0 ? 0 : Math::ringMultiply(e_sum, f_sum, _width);
+        const int64_t fa = Math::ringMultiply(f_sum, bmt._a, _width);
+        const int64_t eb = Math::ringMultiply(e_sum, bmt._b, _width);
+        _zis[i] = Math::ringAdd(Math::ringAdd(ef, fa, _width), Math::ringAdd(eb, bmt._c, _width), _width);
     }
 
     return this;

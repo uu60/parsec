@@ -57,7 +57,7 @@ ArithMutexOperator *ArithMutexOperator::execute() {
         if (Conf::ENABLE_INTRA_OPERATOR_PARALLELISM) {
             cx = f.get();
         }
-        _zi = ring(cx + _yi - cy);
+        _zi = Math::ringSubtract(Math::ringAdd(cx, _yi, _width), cy, _width);
     }
     return this;
 }

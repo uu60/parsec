@@ -6,6 +6,7 @@
 #include "intermediate/BmtGenerator.h"
 #include "intermediate/IntermediateDataSupport.h"
 #include "utils/Log.h"
+#include "utils/Math.h"
 
 ArithLessOperator::ArithLessOperator(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset,
                                      int clientRank) : ArithOperator(
@@ -19,10 +20,10 @@ ArithLessOperator *ArithLessOperator::execute() {
         return this;
     }
 
-    int64_t a_delta = _xi - _yi;
+    int64_t a_delta = Math::ringSubtract(_xi, _yi, _width);
     ArithToBoolOperator e(a_delta, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
     int64_t b_delta = e.setBmts(_bmts)->execute()->_zi;
-    _zi = (b_delta >> (_width - 1)) & 1;
+    _zi = Math::getBit(b_delta, _width - 1);
 
     return this;
 }

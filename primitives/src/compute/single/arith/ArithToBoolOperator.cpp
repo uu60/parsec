@@ -44,14 +44,14 @@ ArithToBoolOperator *ArithToBoolOperator::execute() {
             bool *self_i = Comm::rank() == 0 ? &ai : &bi;
             bool *self_o = Comm::rank() == 0 ? &ao : &bo;
             bool *other_i = Comm::rank() == 0 ? &bi : &ai;
-            *self_i = (xi_i >> i) & 1;
-            *self_o = (xi_o >> i) & 1;
+            *self_i = Math::getBit(xi_i, i);
+            *self_o = Math::getBit(xi_o, i);
             std::vector self_ov = {static_cast<int64_t>(*self_o)};
             std::vector<int64_t> other_iv;
             Comm::serverSend(self_ov, _width, buildTag(_currentMsgTag));
             Comm::serverReceive(other_iv, _width, buildTag(_currentMsgTag));
             *other_i = other_iv[0];
-            this->_zi += static_cast<int64_t>((ai ^ bi) ^ carry_i) << i;
+            this->_zi = Math::changeBit(this->_zi, i, (ai ^ bi) ^ carry_i);
 
             if (i < _width - 1) {
                 bool propagate_i = ai ^ bi;

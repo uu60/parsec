@@ -10,7 +10,13 @@
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
 
+    if (Comm::isClient()) {
+        System::finalize();
+        return 0;
+    }
+
     bool isSender = Comm::rank() == 0;
+    bool passed = true;
 
     // Test data
     std::vector<int64_t> ss0, ss1;
@@ -39,11 +45,16 @@ int main(int argc, char *argv[]) {
         // Verify results
         for (int i = 0; i < 10; i++) {
             int64_t expected = choices[i] == 0 ? ss0[i] : ss1[i];
-            Log::i("OT {}: expected={}, got={}, match={}", i, expected, results[i], expected == results[i]);
+            if (results[i] != expected) {
+                passed = false;
+                Log::e("OT {}: expected={}, got={}", i, expected, results[i]);
+            }
         }
+        Log::i(passed ? "[Base OT batch correctness] PASS" : "[Base OT batch correctness] FAIL");
     }
 
     System::finalize();
+    return passed ? 0 : 1;
 }
 
 

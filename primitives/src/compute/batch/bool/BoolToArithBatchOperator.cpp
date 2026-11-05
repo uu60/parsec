@@ -29,12 +29,12 @@ BoolToArithBatchOperator *BoolToArithBatchOperator::execute() {
 
     for (int i = 0; i < _xis->size(); i++) {
         for (int j = 0; j < _width; j++) {
-            int xb = static_cast<int>(((*_xis)[i] >> j) & 1);
+            int xb = static_cast<int>(Math::getBit((*_xis)[i], j));
             if (isSender) {
                 int64_t r = Math::randInt();
                 rs.push_back(r);
-                int64_t s0 = (static_cast<int64_t>(xb) << j) - r;
-                int64_t s1 = (static_cast<int64_t>(1 - xb) << j) - r;
+                int64_t s0 = Math::ringSubtract(Math::changeBit(0, j, xb != 0), r, _width);
+                int64_t s1 = Math::ringSubtract(Math::changeBit(0, j, xb == 0), r, _width);
                 ss0.push_back(s0);
                 ss1.push_back(s1);
             } else {
@@ -50,13 +50,13 @@ BoolToArithBatchOperator *BoolToArithBatchOperator::execute() {
     if (isSender) {
         for (int i = 0; i < _xis->size(); i++) {
             for (int j = 0; j < _width; j++) {
-                _zis[i] = ring(_zis[i] + rs[i * _width + j]);
+                _zis[i] = Math::ringAdd(_zis[i], rs[i * _width + j], _width);
             }
         }
     } else {
         for (int i = 0; i < _xis->size(); i++) {
             for (int j = 0; j < _width; ++j) {
-                _zis[i] = ring(_zis[i] + e._results[i * _width + j]);
+                _zis[i] = Math::ringAdd(_zis[i], e._results[i * _width + j], _width);
             }
         }
     }

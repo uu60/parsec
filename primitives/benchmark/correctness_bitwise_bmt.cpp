@@ -10,6 +10,7 @@
 
 int main(int argc, char **argv) {
     System::init(argc, argv);
+    bool passed = true;
 
     if (Comm::isClient()) {
         System::finalize();
@@ -65,10 +66,11 @@ int main(int argc, char **argv) {
             }
         }
 
+        passed = mismatch == 0;
         Log::i(mismatch == 0 ? "[BitwiseBmt correctness] PASS" : "[BitwiseBmt correctness] FAIL mismatches={}", mismatch);
     }
 
     System::finalize();
-    return 0;
+    return passed ? 0 : 1;
 }
 

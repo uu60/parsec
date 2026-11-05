@@ -56,7 +56,7 @@ ArithMutexBatchOperator *ArithMutexBatchOperator::execute() {
     }
 
     for (int i = 0; i < num; i++) {
-        _zis[i] = ring(cx_results[i] + (*_yis)[i] - cy_results[i]);
+        _zis[i] = Math::ringSubtract(Math::ringAdd(cx_results[i], (*_yis)[i], _width), cy_results[i], _width);
     }
 
     return this;

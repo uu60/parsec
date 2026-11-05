@@ -54,6 +54,12 @@ public:
 
     static int64_t ring(int64_t num, int width);
 
+    static int64_t ringAdd(int64_t lhs, int64_t rhs, int width);
+
+    static int64_t ringSubtract(int64_t lhs, int64_t rhs, int width);
+
+    static int64_t ringMultiply(int64_t lhs, int64_t rhs, int width);
+
     static bool getBit(int64_t v, int i);
 
     static int64_t changeBit(int64_t v, int i, bool b);

@@ -13,7 +13,8 @@ void BmtGenerator::generateRandomAB() {
 }
 
 int64_t BmtGenerator::corr(int i, int64_t x) const {
-    return ring((_bmt._a << i) - x);
+    const int64_t factor = Math::changeBit(0, i, true);
+    return Math::ringSubtract(Math::ringMultiply(_bmt._a, factor, _width), x, _width);
 }
 
 BmtGenerator *BmtGenerator::reconstruct(int clientRank) {
@@ -51,27 +52,28 @@ void BmtGenerator::computeMix(int sender) {
 
     if (isSender) {
         for (int i = 0; i < ss0.size(); ++i) {
-            sum += ss0[i];
+            sum = Math::ringAdd(sum, ss0[i], _width);
         }
     } else {
         for (int i = 0; i < choices.size(); ++i) {
             int64_t temp = results[i];
             if (choices[i] == 0) {
-                temp = -temp;
+                temp = Math::ringSubtract(0, temp, _width);
             }
-            sum += temp;
+            sum = Math::ringAdd(sum, temp, _width);
         }
     }
 
     if (sender == 0) {
-        _ui = ring(sum);
+        _ui = sum;
     } else {
-        _vi = ring(sum);
+        _vi = sum;
     }
 }
 
 void BmtGenerator::computeC() {
-    _bmt._c = ring(_bmt._a * _bmt._b + _ui + _vi);
+    const int64_t product = Math::ringMultiply(_bmt._a, _bmt._b, _width);
+    _bmt._c = Math::ringAdd(product, Math::ringAdd(_ui, _vi, _width), _width);
 }
 
 BmtGenerator *BmtGenerator::execute() {

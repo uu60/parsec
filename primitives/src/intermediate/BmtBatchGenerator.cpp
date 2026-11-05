@@ -18,7 +18,8 @@ void BmtBatchGenerator::generateRandomAB() {
 }
 
 int64_t BmtBatchGenerator::corr(int bmtIdx, int round, int64_t x) const {
-    return ring((_bmts[bmtIdx]._a << round) - x);
+    const int64_t factor = Math::changeBit(0, round, true);
+    return Math::ringSubtract(Math::ringMultiply(_bmts[bmtIdx]._a, factor, _width), x, _width);
 }
 
 BmtBatchGenerator *BmtBatchGenerator::reconstruct(int clientRank) {
@@ -66,7 +67,7 @@ void BmtBatchGenerator::computeMix(int sender) {
         for (int i = 0; i < bmtCount; i++) {
             sums.push_back(0);
             for (int j = 0; j < _width; j++) {
-                sums[i] += ss0[i * _width + j];
+                sums[i] = Math::ringAdd(sums[i], ss0[i * _width + j], _width);
             }
         }
     } else {
@@ -76,9 +77,9 @@ void BmtBatchGenerator::computeMix(int sender) {
                 int idx = i * _width + j;
                 int64_t temp = results[idx];
                 if (choices[idx] == 0) {
-                    temp = -temp;
+                    temp = Math::ringSubtract(0, temp, _width);
                 }
-                sums[i] += temp;
+                sums[i] = Math::ringAdd(sums[i], temp, _width);
             }
         }
     }
@@ -86,13 +87,14 @@ void BmtBatchGenerator::computeMix(int sender) {
     std::vector<int64_t> *mix = sender == 0 ? &_usi : &_vsi;
     mix->reserve(bmtCount);
     for (int i = 0; i < bmtCount; i++) {
-        mix->push_back(ring(sums[i]));
+        mix->push_back(sums[i]);
     }
 }
 
 void BmtBatchGenerator::computeC() {
     for (int i = 0; i < _bmts.size(); i++) {
-        _bmts[i]._c = ring(_bmts[i]._a * _bmts[i]._b + _usi[i] + _vsi[i]);
+        const int64_t product = Math::ringMultiply(_bmts[i]._a, _bmts[i]._b, _width);
+        _bmts[i]._c = Math::ringAdd(product, Math::ringAdd(_usi[i], _vsi[i], _width), _width);
     }
 }
 

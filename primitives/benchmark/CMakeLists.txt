@@ -15,19 +15,33 @@ foreach (src ${BENCH_SRCS})
 endforeach ()
 
 if (PARSEC_BUILD_TESTS)
+    add_test(NAME correctness.math_ring COMMAND $<TARGET_FILE:correctness_math_ring>)
+    set_tests_properties(correctness.math_ring PROPERTIES
+            LABELS "correctness;unit"
+            TIMEOUT 30)
+
     function(parsec_add_mpi_test name target)
+        cmake_parse_arguments(PARSEC_TEST "SLOW" "" "ARGS" ${ARGN})
         add_test(
                 NAME ${name}
                 COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 3
-                        ${MPIEXEC_PREFLAGS} $<TARGET_FILE:${target}> ${MPIEXEC_POSTFLAGS})
+                        ${MPIEXEC_PREFLAGS} $<TARGET_FILE:${target}>
+                        ${PARSEC_TEST_ARGS} ${MPIEXEC_POSTFLAGS})
         set_tests_properties(${name} PROPERTIES
                 LABELS "correctness;mpi"
                 PROCESSORS 3
-                TIMEOUT 120)
+                TIMEOUT 120
+                FAIL_REGULAR_EXPRESSION "FAIL;MISMATCH")
+        if (PARSEC_TEST_SLOW)
+            set_property(TEST ${name} APPEND PROPERTY LABELS slow)
+            set_property(TEST ${name} PROPERTY TIMEOUT 300)
+        endif ()
     endfunction()
 
+    parsec_add_mpi_test(correctness.base_ot_batch correctness_base_ot_batch)
     parsec_add_mpi_test(correctness.bitwise_bmt correctness_bitwise_bmt)
-    set_tests_properties(correctness.bitwise_bmt PROPERTIES
-            PASS_REGULAR_EXPRESSION "\\[BitwiseBmt correctness\\] PASS"
-            FAIL_REGULAR_EXPRESSION "FAIL;MISMATCH")
+    parsec_add_mpi_test(correctness.iknp_ot correctness_iknp_ot_simple)
+    parsec_add_mpi_test(correctness.bmt_ot_logic correctness_bmt_ot_logic)
+    parsec_add_mpi_test(correctness.secret_sort_arith correctness_secrets_sort SLOW ARGS --test_mode=arith)
+    parsec_add_mpi_test(correctness.secret_sort_bool correctness_secrets_sort SLOW ARGS --test_mode=bool)
 endif ()

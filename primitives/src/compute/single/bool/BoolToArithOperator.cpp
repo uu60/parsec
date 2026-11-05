@@ -15,7 +15,7 @@ BoolToArithOperator *BoolToArithOperator::execute() {
         return this;
     }
 
-    std::atomic_int64_t temp = 0;
+    int64_t temp = 0;
     const int sender = (_startMsgTag / IknpOtBatchOperator::tagStride()) & 1;
     const bool isSender = Comm::rank() == sender;
 
@@ -32,12 +32,12 @@ BoolToArithOperator *BoolToArithOperator::execute() {
     }
 
     for (int i = 0; i < _width; i++) {
-        int xb = static_cast<int>((_xi >> i) & 1);
+        int xb = static_cast<int>(Math::getBit(_xi, i));
         if (isSender) {
             int64_t r = Math::randInt();
             rs.push_back(r);
-            int64_t s0 = (static_cast<int64_t>(xb) << i) - r;
-            int64_t s1 = (static_cast<int64_t>(1 - xb) << i) - r;
+            int64_t s0 = Math::ringSubtract(Math::changeBit(0, i, xb != 0), r, _width);
+            int64_t s1 = Math::ringSubtract(Math::changeBit(0, i, xb == 0), r, _width);
             ss0.push_back(s0);
             ss1.push_back(s1);
         } else {
@@ -51,15 +51,15 @@ BoolToArithOperator *BoolToArithOperator::execute() {
 
     if (isSender) {
         for (auto r: rs) {
-            temp += r;
+            temp = Math::ringAdd(temp, r, _width);
         }
     } else {
         for (int i = 0; i < _width; ++i) {
-            temp += e._results[i];
+            temp = Math::ringAdd(temp, e._results[i], _width);
         }
     }
 
-    _zi = ring(temp);
+    _zi = temp;
     return this;
 }
 

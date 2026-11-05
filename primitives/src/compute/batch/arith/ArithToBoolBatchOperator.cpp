@@ -57,11 +57,11 @@ ArithToBoolBatchOperator *ArithToBoolBatchOperator::execute() {
 
         for (int i = 0; i < num; i++) {
             if (Comm::rank() == 0) {
-                ai_vec[i] = (xi_i_vec[i] >> bitPos) & 1;
-                ao_vec[i] = (xi_o_vec[i] >> bitPos) & 1;
+                ai_vec[i] = Math::getBit(xi_i_vec[i], bitPos);
+                ao_vec[i] = Math::getBit(xi_o_vec[i], bitPos);
             } else {
-                bi_vec[i] = (xi_i_vec[i] >> bitPos) & 1;
-                bo_vec[i] = (xi_o_vec[i] >> bitPos) & 1;
+                bi_vec[i] = Math::getBit(xi_i_vec[i], bitPos);
+                bo_vec[i] = Math::getBit(xi_o_vec[i], bitPos);
             }
         }
 
@@ -88,7 +88,7 @@ ArithToBoolBatchOperator *ArithToBoolBatchOperator::execute() {
         }
 
         for (int i = 0; i < num; i++) {
-            _zis[i] += static_cast<int64_t>((ai_vec[i] ^ bi_vec[i]) ^ carry_i_vec[i]) << bitPos;
+            _zis[i] = Math::changeBit(_zis[i], bitPos, (ai_vec[i] ^ bi_vec[i]) ^ carry_i_vec[i]);
         }
 
         if (bitPos < _width - 1) {

@@ -32,6 +32,14 @@ cmake --build --preset dev
 ctest --preset dev
 ```
 
+Run the fast correctness suite with AddressSanitizer and UndefinedBehaviorSanitizer:
+
+```bash
+cmake --preset ci-sanitizers
+cmake --build --preset ci-sanitizers
+ASAN_OPTIONS=detect_leaks=0 ctest --preset ci-sanitizers
+```
+
 ## Pull requests
 
 Keep each pull request focused and include:

@@ -9,14 +9,14 @@
 #include <vector>
 
 // Simulates BMT's computeMix logic to test if IKNP OT works correctly for it
-void testBmtOtLogic(int sender, int task, int bc) {
+bool testBmtOtLogic(int sender, int task, int bc) {
     const bool isSender = (Comm::rank() == sender);
 
     // Simulate BMT's _bmts
     std::vector<int64_t> local_a(bc), local_b(bc);
     for (int i = 0; i < bc; ++i) {
-        local_a[i] = Math::randInt();
-        local_b[i] = Math::randInt();
+        local_a[i] = static_cast<int64_t>(i) * 0x1f1f1f1fL + sender;
+        local_b[i] = static_cast<int64_t>(i) * 0x01010101L + 1;
     }
 
     std::vector<int64_t> ss0, ss1;
@@ -26,7 +26,7 @@ void testBmtOtLogic(int sender, int task, int bc) {
         ss0.resize(bc);
         ss1.resize(bc);
         for (int i = 0; i < bc; i++) {
-            int64_t random = Math::randInt();
+            int64_t random = static_cast<int64_t>(i) * 0x1234567L + 7;
             ss0[i] = random;
             ss1[i] = local_a[i] ^ random;  // corr(i, random) = _bmts[i]._a ^ x
         }
@@ -76,11 +76,15 @@ void testBmtOtLogic(int sender, int task, int bc) {
             }
         }
         Log::i(mismatch == 0 ? "[BMT OT Logic sender={}] PASS" : "[BMT OT Logic sender={}] FAIL mismatches={}", sender, mismatch);
+        return mismatch == 0;
     }
+
+    return true;
 }
 
 int main(int argc, char **argv) {
     System::init(argc, argv);
+    bool passed = true;
 
     if (Comm::isClient()) {
         System::finalize();
@@ -90,12 +94,12 @@ int main(int argc, char **argv) {
     const int bc = 100;  // Same as BMT test
 
     // Test sender=0
-    testBmtOtLogic(0, System::nextTask(), bc);
+    passed = testBmtOtLogic(0, System::nextTask(), bc) && passed;
 
     // Test sender=1
-    testBmtOtLogic(1, System::nextTask(), bc);
+    passed = testBmtOtLogic(1, System::nextTask(), bc) && passed;
 
     System::finalize();
-    return 0;
+    return passed ? 0 : 1;
 }
 

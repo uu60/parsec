@@ -166,20 +166,46 @@ std::string Math::minus(const std::string &add0, const std::string &add1) {
     return add_or_minus(add0, add1, true);
 }
 
+namespace {
+int64_t fromUnsignedBits(uint64_t value) {
+    int64_t result;
+    static_assert(sizeof(result) == sizeof(value));
+    std::memcpy(&result, &value, sizeof(result));
+    return result;
+}
+}
+
 int64_t Math::ring(int64_t num, int width) {
-    if (width == 64) {
-        return num;
+    if (width <= 0 || width > 64) {
+        throw std::invalid_argument("ring width must be in [1, 64]");
     }
-    return num & ((1LL << width) - 1);
+    uint64_t bits = static_cast<uint64_t>(num);
+    if (width < 64) {
+        bits &= (uint64_t{1} << width) - 1;
+    }
+    return fromUnsignedBits(bits);
+}
+
+int64_t Math::ringAdd(int64_t lhs, int64_t rhs, int width) {
+    return ring(fromUnsignedBits(static_cast<uint64_t>(lhs) + static_cast<uint64_t>(rhs)), width);
+}
+
+int64_t Math::ringSubtract(int64_t lhs, int64_t rhs, int width) {
+    return ring(fromUnsignedBits(static_cast<uint64_t>(lhs) - static_cast<uint64_t>(rhs)), width);
+}
+
+int64_t Math::ringMultiply(int64_t lhs, int64_t rhs, int width) {
+    return ring(fromUnsignedBits(static_cast<uint64_t>(lhs) * static_cast<uint64_t>(rhs)), width);
 }
 
 bool Math::getBit(int64_t v, int i) {
-    return (v >> i) & 1;
+    return (static_cast<uint64_t>(v) >> i) & 1;
 }
 
 int64_t Math::changeBit(int64_t v, int i, bool b) {
-    int64_t mask = ~(1LL << i);
-    return (v & mask) | ((b ? 1LL : 0LL) << i);
+    const uint64_t bit = uint64_t{1} << i;
+    const uint64_t result = (static_cast<uint64_t>(v) & ~bit) | (b ? bit : uint64_t{0});
+    return fromUnsignedBits(result);
 }
 
 int64_t Math::pow(int64_t base, int64_t exponent) {

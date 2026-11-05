@@ -33,7 +33,7 @@ ArithLessBatchOperator *ArithLessBatchOperator::execute() {
 
     std::vector<int64_t> a_deltas(num);
     for (int i = 0; i < num; i++) {
-        a_deltas[i] = (*_xis)[i] - (*_yis)[i];
+        a_deltas[i] = Math::ringSubtract((*_xis)[i], (*_yis)[i], _width);
     }
 
     ArithToBoolBatchOperator toBoolOp(&a_deltas, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
@@ -41,7 +41,7 @@ ArithLessBatchOperator *ArithLessBatchOperator::execute() {
 
     _zis.resize(num);
     for (int i = 0; i < num; i++) {
-        _zis[i] = (toBoolOp._zis[i] >> (_width - 1)) & 1;
+        _zis[i] = Math::getBit(toBoolOp._zis[i], _width - 1);
     }
 
     if (Conf::ENABLE_CLASS_WISE_TIMING) {

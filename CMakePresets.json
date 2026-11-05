@@ -58,6 +58,16 @@
         "PARSEC_BUILD_EXPERIMENTS": "OFF",
         "PARSEC_BUILD_TESTS": "OFF"
       }
+    },
+    {
+      "name": "ci-sanitizers",
+      "inherits": "ci",
+      "displayName": "CI sanitizers",
+      "binaryDir": "${sourceDir}/build/ci-sanitizers",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "PARSEC_ENABLE_SANITIZERS": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -76,6 +86,10 @@
     {
       "name": "ci-database",
       "configurePreset": "ci-database"
+    },
+    {
+      "name": "ci-sanitizers",
+      "configurePreset": "ci-sanitizers"
     }
   ],
   "testPresets": [
@@ -89,6 +103,13 @@
     {
       "name": "ci",
       "configurePreset": "ci",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ci-sanitizers",
+      "configurePreset": "ci-sanitizers",
       "output": {
         "outputOnFailure": true
       }

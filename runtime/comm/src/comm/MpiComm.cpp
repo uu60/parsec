@@ -2,6 +2,7 @@
 #include <mpi.h>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <vector>
 
 #include "comm/item/MpiRequestWrapper.h"
@@ -65,11 +66,11 @@ void MpiComm::send_(const std::vector<int64_t> &source, int width, int receiverR
     if (Conf::ENABLE_TRANSFER_COMPRESSION) {
         if (width == 1) {
             int size = static_cast<int>(source.size());
-            bool s1[size];
+            auto s1 = std::make_unique<bool[]>(size);
             for (int i = 0; i < size; i++) {
                 s1[i] = source[i];
             }
-            MPI_Send(s1, size, MPI_CXX_BOOL, receiverRank, tag, MPI_COMM_WORLD);
+            MPI_Send(s1.get(), size, MPI_CXX_BOOL, receiverRank, tag, MPI_COMM_WORLD);
         } else if (width <= 8) {
             std::vector<int8_t> s8;
             s8.reserve(source.size());
@@ -138,8 +139,8 @@ void MpiComm::receive_(std::vector<int64_t> &source, int width, int senderRank, 
     if (Conf::ENABLE_TRANSFER_COMPRESSION) {
         if (width == 1) {
             MPI_Get_count(&status, MPI_CXX_BOOL, &count);
-            bool temp[count];
-            MPI_Recv(temp, count, MPI_CXX_BOOL, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            auto temp = std::make_unique<bool[]>(count);
+            MPI_Recv(temp.get(), count, MPI_CXX_BOOL, senderRank, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
             source.resize(count);
             for (int i = 0; i < count; ++i) {
