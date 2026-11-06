@@ -294,8 +294,7 @@ void IntermediateDataSupport::prepareIknpDirection(int iknpSender, int msgTagOff
     // IKNP reverses the base-OT roles: the IKNP receiver is the base-OT sender and supplies two seeds per row; the
     // IKNP sender is the base-OT receiver, picks one seed per row with its secret choice bit s_i, and keeps s secret.
     //
-    // Base OT carries 64-bit messages, so each 128-bit seed is transferred as two base OTs (low and high halves) that
-    // use the same choice bits.
+    // Each 128-bit seed is one base OT in 128-bit message mode (low and high words under one RSA exchange).
     constexpr int kRows = 128;
     const int baseOtSender = 1 - iknpSender;
     const bool isBaseOtSender = Comm::rank() == baseOtSender;
@@ -321,10 +320,8 @@ void IntermediateDataSupport::prepareIknpDirection(int iknpSender, int msgTagOff
         }
     }
 
-    BaseOtBatchOperator loOt(baseOtSender, &lo0, &lo1, &choices, 64, taskTag, msgTagOffset);
-    loOt.execute();
-    BaseOtBatchOperator hiOt(baseOtSender, &hi0, &hi1, &choices, 64, taskTag, msgTagOffset + 10);
-    hiOt.execute();
+    BaseOtBatchOperator baseOt(baseOtSender, &lo0, &lo1, &choices, 64, taskTag, msgTagOffset);
+    baseOt.withHighWords(isBaseOtSender ? &hi0 : nullptr, isBaseOtSender ? &hi1 : nullptr)->execute();
 
     seeds.assign(kRows, {});
     if (isBaseOtSender) {
@@ -337,7 +334,7 @@ void IntermediateDataSupport::prepareIknpDirection(int iknpSender, int msgTagOff
         // IKNP sender: keeps the chosen seed k_i^{s_i} and the choice bits.
         senderChoices.assign(kRows, false);
         for (int i = 0; i < kRows; ++i) {
-            seeds[i][0] = {static_cast<uint64_t>(loOt._results[i]), static_cast<uint64_t>(hiOt._results[i])};
+            seeds[i][0] = {static_cast<uint64_t>(baseOt._results[i]), static_cast<uint64_t>(baseOt._resultsHi[i])};
             seeds[i][1] = seeds[i][0];
             senderChoices[i] = choices[i] != 0;
         }

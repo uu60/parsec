@@ -2,6 +2,7 @@
 #ifndef MPC_PACKAGE_MATH_H
 #define MPC_PACKAGE_MATH_H
 
+#include <array>
 #include <bitset>
 #include <cstddef>
 #include <cstdint>
@@ -159,6 +160,9 @@ class Math {
      * @throws std::runtime_error on failure
      */
     static uint64_t kdfSha256To8Bytes(const std::string& input);
+
+    // First 16 bytes of SHA-256(input) as two little-endian words; word 0 equals kdfSha256To8Bytes(input).
+    static std::array<uint64_t, 2> kdfSha256To16Bytes(const std::string& input);
 
     /**
      * Get the public exponent 'e' as byte string from RSA context.

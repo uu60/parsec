@@ -15,6 +15,13 @@ BaseOtBatchOperator::BaseOtBatchOperator(int sender, std::vector<int64_t>* ms0, 
                                          std::vector<int>* choices, int width, int taskTag, int msgTagOffset)
     : AbstractOtBatchOperator(sender, ms0, ms1, choices, width, taskTag, msgTagOffset) {}
 
+BaseOtBatchOperator* BaseOtBatchOperator::withHighWords(std::vector<int64_t>* ms0Hi, std::vector<int64_t>* ms1Hi) {
+    _wide = true;
+    _ms0Hi = ms0Hi;
+    _ms1Hi = ms1Hi;
+    return this;
+}
+
 BaseOtBatchOperator* BaseOtBatchOperator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isClient()) {
@@ -144,6 +151,10 @@ void BaseOtBatchOperator::process() {
         Comm::serverReceive(allM1, buildTag(_currentMsgTag));
 
         _results.resize(size);
+        if (_wide) {
+            _resultsHi.resize(size);
+        }
+        const uint32_t expectedLen = _wide ? 16 : 8;
 
         size_t m0_offset = 0, m1_offset = 0;
         for (int i = 0; i < size; ++i) {
@@ -156,15 +167,15 @@ void BaseOtBatchOperator::process() {
             std::memcpy(&len0, allM0.data() + m0_offset, 4);
             m0_offset += 4;
 
-            if (len0 != 8) {
-                throw std::runtime_error("process: bad allM0 - expected length 8");
+            if (len0 != expectedLen) {
+                throw std::runtime_error("process: bad allM0 - unexpected message length");
             }
             if (m0_offset + len0 > allM0.size()) {
                 throw std::runtime_error("process: bad allM0 - insufficient data for ciphertext");
             }
-            int64_t c0 = 0;
-            std::memcpy(&c0, allM0.data() + m0_offset, 8);
-            m0_offset += 8;
+            int64_t c0[2] = {0, 0};
+            std::memcpy(c0, allM0.data() + m0_offset, len0);
+            m0_offset += len0;
 
             if (m1_offset + 4 > allM1.size()) {
                 throw std::runtime_error("process: bad allM1 - insufficient data for length");
@@ -173,20 +184,22 @@ void BaseOtBatchOperator::process() {
             std::memcpy(&len1, allM1.data() + m1_offset, 4);
             m1_offset += 4;
 
-            if (len1 != 8) {
-                throw std::runtime_error("process: bad allM1 - expected length 8");
+            if (len1 != expectedLen) {
+                throw std::runtime_error("process: bad allM1 - unexpected message length");
             }
             if (m1_offset + len1 > allM1.size()) {
                 throw std::runtime_error("process: bad allM1 - insufficient data for ciphertext");
             }
-            int64_t c1 = 0;
-            std::memcpy(&c1, allM1.data() + m1_offset, 8);
-            m1_offset += 8;
+            int64_t c1[2] = {0, 0};
+            std::memcpy(c1, allM1.data() + m1_offset, len1);
+            m1_offset += len1;
 
-            int64_t pad = static_cast<int64_t>(Math::kdfSha256To8Bytes(_randKs[i]));
-
-            int64_t cb = (b == 0) ? c0 : c1;
-            _results[i] = cb ^ pad;
+            const auto pad = Math::kdfSha256To16Bytes(_randKs[i]);
+            const int64_t* cb = (b == 0) ? c0 : c1;
+            _results[i] = cb[0] ^ static_cast<int64_t>(pad[0]);
+            if (_wide) {
+                _resultsHi[i] = cb[1] ^ static_cast<int64_t>(pad[1]);
+            }
         }
 
     } else {
@@ -237,18 +250,20 @@ void BaseOtBatchOperator::process() {
             std::string k0_bytes = Math::modMul(y_bytes, inv0_bytes, rsaCtx);
             std::string k1_bytes = Math::modMul(y_bytes, inv1_bytes, rsaCtx);
 
-            int64_t pad0 = static_cast<int64_t>(Math::kdfSha256To8Bytes(k0_bytes));
-            int64_t pad1 = static_cast<int64_t>(Math::kdfSha256To8Bytes(k1_bytes));
+            const auto pad0 = Math::kdfSha256To16Bytes(k0_bytes);
+            const auto pad1 = Math::kdfSha256To16Bytes(k1_bytes);
 
-            int64_t c0 = (*_ms0)[i] ^ pad0;
-            int64_t c1 = (*_ms1)[i] ^ pad1;
+            const int64_t c0[2] = {(*_ms0)[i] ^ static_cast<int64_t>(pad0[0]),
+                                   _wide ? (*_ms0Hi)[i] ^ static_cast<int64_t>(pad0[1]) : 0};
+            const int64_t c1[2] = {(*_ms1)[i] ^ static_cast<int64_t>(pad1[0]),
+                                   _wide ? (*_ms1Hi)[i] ^ static_cast<int64_t>(pad1[1]) : 0};
 
-            uint32_t len = 8;
+            const uint32_t len = _wide ? 16 : 8;
             allM0.append(reinterpret_cast<const char*>(&len), 4);
-            allM0.append(reinterpret_cast<const char*>(&c0), 8);
+            allM0.append(reinterpret_cast<const char*>(c0), len);
 
             allM1.append(reinterpret_cast<const char*>(&len), 4);
-            allM1.append(reinterpret_cast<const char*>(&c1), 8);
+            allM1.append(reinterpret_cast<const char*>(c1), len);
         }
 
         Comm::serverSend(allM0, buildTag(_currentMsgTag));
