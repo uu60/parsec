@@ -34,7 +34,7 @@ void ArithToBoolOperator::prepareBmts(BitwiseBmt& b0, BitwiseBmt& b1, BitwiseBmt
 ArithToBoolOperator* ArithToBoolOperator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isServer()) {
-        int64_t xi_i = Math::randInt();
+        int64_t xi_i = Math::randBits();
         int64_t xi_o = xi_i ^ _xi;
         bool carry_i = false;
 

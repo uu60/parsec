@@ -25,6 +25,16 @@ message tags for concurrent operations, suitable randomness, and the documented 
 The MPI and TCP backends transport protocol messages; they should not be treated as encrypted network channels by
 default. Deployments must provide appropriate host, network, process, and transport protection.
 
+## Randomness
+
+Shares, masks, BMT inputs, OT messages and choice bits are drawn from OpenSSL's CSPRNG (`RAND_bytes`) through
+`Math::randBits()`, which is uniform over all 64-bit values, and `Math::randInt(lo, hi)`, which samples without modulo
+bias. `Math::randInt()` without arguments returns only non-negative values and is meant for generating plaintext test
+data, not for protocol randomness.
+
+Known limitation: the IKNP OT extension derives its PRG streams from 64-bit base-OT seeds expanded with fixed-key AES,
+so that component currently offers about 64-bit rather than 128-bit computational security.
+
 ## Observable information
 
 Depending on the selected operator and application flow, parties or the surrounding system may observe metadata such

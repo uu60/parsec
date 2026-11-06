@@ -34,13 +34,13 @@ int main(int argc, char** argv) {
         bits0Packed.resize(limbs);
         bits1Packed.resize(limbs);
         for (int i = 0; i < limbs; ++i) {
-            bits0Packed[i] = Math::randInt();
-            bits1Packed[i] = Math::randInt();
+            bits0Packed[i] = Math::randBits();
+            bits1Packed[i] = Math::randBits();
         }
     } else {
         choiceBitsPacked.resize(limbs);
         for (int i = 0; i < limbs; ++i) {
-            choiceBitsPacked[i] = Math::randInt();
+            choiceBitsPacked[i] = Math::randBits();
         }
     }
 

@@ -3,6 +3,7 @@
 #define MPC_PACKAGE_MATH_H
 
 #include <bitset>
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -40,8 +41,19 @@ class RsaKeyContext {
 
 class Math {
   public:
+    // All random values below come from OpenSSL's CSPRNG (RAND_bytes), buffered per thread.
+
+    // Uniform over all 2^64 values. Use this for shares, masks and other protocol randomness.
+    static int64_t randBits();
+
+    // Fills `out` with `bytes` random bytes.
+    static void randBytes(void* out, size_t bytes);
+
+    // Uniform over [0, INT64_MAX] (never negative). Intended for generating plaintext test data; protocol code that
+    // needs a uniform ring element must use randBits().
     static int64_t randInt();
 
+    // Uniform over [lowest, highest], without modulo bias.
     static int64_t randInt(int64_t lowest, int64_t highest);
 
     static int64_t pow(int64_t base, int64_t exponent);

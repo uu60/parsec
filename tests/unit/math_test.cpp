@@ -2,11 +2,14 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cstdint>
 #include <limits>
 #include <random>
 #include <stdexcept>
 #include <string>
+#include <thread>
+#include <vector>
 
 using namespace parsec;
 
@@ -88,6 +91,85 @@ TEST(MathBigNum, AddAndMinusBinaryStrings) {
             ch = static_cast<char>(rng());
         a[0] = static_cast<char>(a[0] | 0x01); // keep a non-zero leading byte so lengths round-trip
         EXPECT_EQ(Math::minus(Math::add(a, b), b), a);
+    }
+}
+
+} // namespace
+
+namespace {
+
+// Each of the 64 bits should be set in about half of the samples. With 20000 samples the standard deviation of a
+// bit count is about 71, so [9000, 11000] is a > 14-sigma band: it catches stuck bits (such as an always-zero top bit)
+// without being flaky.
+TEST(MathRandom, RandBitsCoversAllBitsUniformly) {
+    constexpr int kSamples = 20000;
+    std::array<int, 64> ones{};
+    for (int s = 0; s < kSamples; ++s) {
+        const auto v = static_cast<uint64_t>(Math::randBits());
+        for (int b = 0; b < 64; ++b) {
+            ones[b] += static_cast<int>((v >> b) & 1u);
+        }
+    }
+    for (int b = 0; b < 64; ++b) {
+        EXPECT_GT(ones[b], 9000) << "bit " << b;
+        EXPECT_LT(ones[b], 11000) << "bit " << b;
+    }
+}
+
+TEST(MathRandom, RandIntIsNonNegativeAndUsesBit62) {
+    bool sawBit62 = false;
+    for (int i = 0; i < 2000; ++i) {
+        const int64_t v = Math::randInt();
+        ASSERT_GE(v, 0);
+        sawBit62 |= ((v >> 62) & 1) != 0;
+    }
+    EXPECT_TRUE(sawBit62);
+}
+
+TEST(MathRandom, RandIntRangeStaysInBoundsAndHitsEveryValue) {
+    std::array<int, 7> counts{};
+    for (int i = 0; i < 7000; ++i) {
+        const int64_t v = Math::randInt(-3, 3);
+        ASSERT_GE(v, -3);
+        ASSERT_LE(v, 3);
+        ++counts[static_cast<size_t>(v + 3)];
+    }
+    for (int c : counts) {
+        EXPECT_GT(c, 700); // expected 1000 each
+    }
+    EXPECT_EQ(Math::randInt(5, 5), 5);
+    EXPECT_THROW(Math::randInt(2, 1), std::invalid_argument);
+    // Full 64-bit range must not overflow.
+    bool sawNegative = false, sawPositive = false;
+    for (int i = 0; i < 200; ++i) {
+        const int64_t v = Math::randInt(kMin, kMax);
+        sawNegative |= v < 0;
+        sawPositive |= v > 0;
+    }
+    EXPECT_TRUE(sawNegative && sawPositive);
+}
+
+TEST(MathRandom, RandStringHasRequestedLengthAndVaries) {
+    EXPECT_TRUE(Math::randString(0).empty());
+    const std::string a = Math::randString(32);
+    const std::string b = Math::randString(32);
+    EXPECT_EQ(a.size(), 32u);
+    EXPECT_NE(a, b);
+    EXPECT_THROW(Math::randString(-1), std::invalid_argument);
+}
+
+TEST(MathRandom, ThreadsDrawIndependentValues) {
+    std::array<int64_t, 4> first{};
+    std::vector<std::thread> threads;
+    for (size_t t = 0; t < first.size(); ++t) {
+        threads.emplace_back([&first, t] { first[t] = Math::randBits(); });
+    }
+    for (auto& th : threads)
+        th.join();
+    for (size_t i = 0; i < first.size(); ++i) {
+        for (size_t j = i + 1; j < first.size(); ++j) {
+            EXPECT_NE(first[i], first[j]);
+        }
     }
 }
 

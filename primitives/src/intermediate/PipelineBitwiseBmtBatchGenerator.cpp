@@ -27,8 +27,8 @@ void PipelineBitwiseBmtBatchGenerator::generateRandomAB(std::vector<int64_t>& as
 
     for (int i = 0; i < size; i++) {
         auto& bmt = bmts[i];
-        bmt._a = Math::randInt();
-        bmt._b = Math::randInt();
+        bmt._a = Math::randBits();
+        bmt._b = Math::randBits();
         as[i] = bmt._a;
         bs[i] = bmt._b;
     }
@@ -44,7 +44,7 @@ void PipelineBitwiseBmtBatchGenerator::compute(int sender, std::vector<int64_t>&
         ssi.resize(bc);
         sso.resize(bc);
         for (int i = 0; i < bc; i++) {
-            int64_t random = Math::randInt();
+            int64_t random = Math::randBits();
             ssi[i] = random;
             sso[i] = corr(as, i, random);
         }

@@ -17,7 +17,7 @@ BoolOperator::BoolOperator(int64_t z, int l, int taskTag, int msgTagOffset, int 
         _zi = ring(z);
     } else {
         if (Comm::rank() == clientRank) {
-            int64_t z1 = ring(Math::randInt());
+            int64_t z1 = ring(Math::randBits());
             int64_t z0 = ring(z ^ z1);
 
             auto r0 = Comm::sendAsync(z0, _width, 0, buildTag(_currentMsgTag));

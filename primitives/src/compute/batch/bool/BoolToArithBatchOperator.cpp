@@ -33,7 +33,7 @@ BoolToArithBatchOperator* BoolToArithBatchOperator::execute() {
         for (int j = 0; j < _width; j++) {
             int xb = static_cast<int>(Math::getBit((*_xis)[i], j));
             if (isSender) {
-                int64_t r = Math::randInt();
+                int64_t r = Math::randBits();
                 rs.push_back(r);
                 int64_t s0 = Math::ringSubtract(Math::changeBit(0, j, xb != 0), r, _width);
                 int64_t s1 = Math::ringSubtract(Math::changeBit(0, j, xb == 0), r, _width);

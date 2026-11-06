@@ -18,7 +18,7 @@ BoolBatchOperator::BoolBatchOperator(std::vector<int64_t>& zs, int width, int ta
             zv0.reserve(zs.size());
             zv1.reserve(zs.size());
             for (auto z : zs) {
-                int64_t z1 = ring(Math::randInt());
+                int64_t z1 = ring(Math::randBits());
                 int64_t z0 = ring(z ^ z1);
                 zv0.push_back(z0);
                 zv1.push_back(z1);
@@ -48,13 +48,13 @@ BoolBatchOperator::BoolBatchOperator(std::vector<int64_t>* xs, std::vector<int64
             v1.reserve(2 * size);
 
             for (auto x : *xs) {
-                int64_t x1 = ring(Math::randInt());
+                int64_t x1 = ring(Math::randBits());
                 int64_t x0 = ring(x ^ x1);
                 v0.push_back(x0);
                 v1.push_back(x1);
             }
             for (auto y : *ys) {
-                int64_t y1 = ring(Math::randInt());
+                int64_t y1 = ring(Math::randBits());
                 int64_t y0 = ring(y ^ y1);
                 v0.push_back(y0);
                 v1.push_back(y1);

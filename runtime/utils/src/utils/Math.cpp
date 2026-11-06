@@ -1,5 +1,7 @@
 
 #include "utils/Math.h"
+#include <algorithm>
+#include <array>
 #include <cstring>
 #include <iomanip>
 #include <limits>
@@ -9,8 +11,8 @@
 #include <openssl/evp.h>
 #include <openssl/param_build.h>
 #include <openssl/pem.h>
+#include <openssl/rand.h>
 #include <openssl/sha.h>
-#include <random>
 #include <stdexcept>
 #include <string>
 
@@ -125,14 +127,74 @@ std::string add_or_minus(const std::string& add0, const std::string& add1, bool 
     return resultStr;
 }
 
-int64_t Math::randInt() { return randInt(0, INT64_MAX); }
+namespace {
 
-thread_local std::mt19937_64 generator(std::random_device{}());
+// Per-thread buffer of CSPRNG output. RAND_bytes is OpenSSL's DRBG (thread-safe, reseeded by OpenSSL); buffering
+// amortizes the call overhead for the many 8-byte draws made by the protocols.
+class RandomBuffer {
+  public:
+    void fill(unsigned char* out, size_t bytes) {
+        while (bytes > 0) {
+            if (_pos == _buf.size()) {
+                refill();
+            }
+            const size_t n = std::min(bytes, _buf.size() - _pos);
+            std::memcpy(out, _buf.data() + _pos, n);
+            _pos += n;
+            out += n;
+            bytes -= n;
+        }
+    }
+
+    ~RandomBuffer() { OPENSSL_cleanse(_buf.data(), _buf.size()); }
+
+  private:
+    void refill() {
+        if (RAND_bytes(_buf.data(), static_cast<int>(_buf.size())) != 1) {
+            throw std::runtime_error("RAND_bytes failed");
+        }
+        _pos = 0;
+    }
+
+    std::array<unsigned char, 4096> _buf{};
+    size_t _pos = _buf.size();
+};
+
+RandomBuffer& randomBuffer() {
+    thread_local RandomBuffer buffer;
+    return buffer;
+}
+
+uint64_t randomU64() {
+    uint64_t v;
+    randomBuffer().fill(reinterpret_cast<unsigned char*>(&v), sizeof(v));
+    return v;
+}
+
+} // namespace
+
+void Math::randBytes(void* out, size_t bytes) { randomBuffer().fill(static_cast<unsigned char*>(out), bytes); }
+
+int64_t Math::randBits() { return static_cast<int64_t>(randomU64()); }
+
+int64_t Math::randInt() { return static_cast<int64_t>(randomU64() >> 1); }
 
 int64_t Math::randInt(int64_t lowest, int64_t highest) {
-    std::uniform_int_distribution<int64_t> dist(lowest, highest);
-
-    return dist(generator);
+    if (lowest > highest) {
+        throw std::invalid_argument("randInt: lowest must not exceed highest");
+    }
+    const uint64_t span = static_cast<uint64_t>(highest) - static_cast<uint64_t>(lowest);
+    if (span == UINT64_MAX) {
+        return static_cast<int64_t>(randomU64());
+    }
+    // Rejection sampling: accept draws below the largest multiple of (span + 1) to avoid modulo bias.
+    const uint64_t range = span + 1;
+    const uint64_t limit = UINT64_MAX - (UINT64_MAX % range + 1) % range;
+    uint64_t r;
+    do {
+        r = randomU64();
+    } while (r > limit);
+    return static_cast<int64_t>(static_cast<uint64_t>(lowest) + r % range);
 }
 
 std::string Math::add(const std::string& add0, int64_t add1) {
@@ -145,15 +207,12 @@ std::string Math::add(const std::string& add0, int64_t add1) {
 }
 
 std::string Math::randString(int bytes) {
-    std::uniform_int_distribution<int8_t> dis(-128, 127);
-
-    std::vector<int8_t> temp;
-    temp.reserve(bytes);
-    for (size_t i = 0; i < bytes; ++i) {
-        temp.push_back(dis(generator));
+    if (bytes < 0) {
+        throw std::invalid_argument("randString: bytes must be non-negative");
     }
-
-    return std::string(temp.begin(), temp.end());
+    std::string out(static_cast<size_t>(bytes), '\0');
+    randBytes(out.data(), out.size());
+    return out;
 }
 
 std::string Math::add(const std::string& add0, const std::string& add1) { return add_or_minus(add0, add1, false); }
