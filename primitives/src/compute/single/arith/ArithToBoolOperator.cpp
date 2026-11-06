@@ -58,9 +58,10 @@ ArithToBoolOperator *ArithToBoolOperator::execute() {
 
                 int cm = _currentMsgTag;
                 std::future<int64_t> f;
-                bool generate_i;
+                bool generate_i = false;
+                const bool parallelGenerate = !Conf::DISABLE_MULTI_THREAD && Conf::ENABLE_INTRA_OPERATOR_PARALLELISM;
 
-                if (!Conf::DISABLE_MULTI_THREAD && Conf::ENABLE_INTRA_OPERATOR_PARALLELISM) {
+                if (parallelGenerate) {
                     f = ThreadPoolSupport::submit([&] {
                         auto bmt = b0.extract(i);
                         return BoolAndOperator(ai, bi, 1, _taskTag, cm, NO_CLIENT_COMPUTE).setBmt(
@@ -78,7 +79,7 @@ ArithToBoolOperator *ArithToBoolOperator::execute() {
                 bool tempCarry_i = BoolAndOperator(propagate_i, carry_i, 1, _taskTag, _currentMsgTag, -1).setBmt(
                     &bmt)->execute()->_zi;
 
-                if (Conf::ENABLE_INTRA_OPERATOR_PARALLELISM) {
+                if (parallelGenerate) {
                     generate_i = f.get();
                 }
                 bool sum_i = generate_i ^ tempCarry_i;

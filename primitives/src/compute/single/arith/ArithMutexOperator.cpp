@@ -33,7 +33,7 @@ ArithMutexOperator *ArithMutexOperator::execute() {
             bmt0 = bs[0];
             bmt1 = bs[1];
         }
-        int64_t cx, cy;
+        int64_t cx = 0, cy = 0;
         std::future<int64_t> f;
         auto bp0 = _bmts == nullptr && Conf::BMT_METHOD == Conf::BMT_JIT ? nullptr : &bmt0;
         auto bp1 = _bmts == nullptr && Conf::BMT_METHOD == Conf::BMT_JIT ? nullptr : &bmt1;

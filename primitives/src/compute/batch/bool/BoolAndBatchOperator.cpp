@@ -51,7 +51,7 @@ BoolAndBatchOperator *BoolAndBatchOperator::execute() {
         return this;
     }
 
-    int64_t start;
+    int64_t start = 0;
     if (Conf::ENABLE_CLASS_WISE_TIMING) {
         start = System::currentTimeMillis();
     }
@@ -168,7 +168,7 @@ void BoolAndBatchOperator::executeForMutex() {
     std::vector<BitwiseBmt> bmts;
     auto num = _xis->size();
     auto condNum = _conds_i->size();
-    int bc;
+    int bc = -1;
 
     std::vector<int64_t> efi(num * 4);
 
