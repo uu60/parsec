@@ -15,11 +15,6 @@ foreach (src ${BENCH_SRCS})
 endforeach ()
 
 if (PARSEC_BUILD_TESTS)
-    add_test(NAME correctness.math_ring COMMAND $<TARGET_FILE:correctness_math_ring>)
-    set_tests_properties(correctness.math_ring PROPERTIES
-            LABELS "correctness;unit"
-            TIMEOUT 30)
-
     function(parsec_add_mpi_test name target)
         cmake_parse_arguments(PARSEC_TEST "SLOW" "" "ARGS" ${ARGN})
         add_test(

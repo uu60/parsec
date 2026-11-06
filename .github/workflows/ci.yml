@@ -40,7 +40,7 @@ jobs:
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
-        run: brew install ninja open-mpi openssl boost
+        run: brew install ninja open-mpi openssl boost googletest
 
       - name: Configure
         env:
@@ -117,7 +117,8 @@ jobs:
         timeout-minutes: 10
         uses: ./.github/actions/setup-ubuntu
         with:
-          extra-packages: clang
+          # The sanitizer runtimes are only a recommended dependency of clang.
+          extra-packages: clang libclang-rt-dev
 
       - name: Configure
         env:

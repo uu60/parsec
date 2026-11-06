@@ -13,7 +13,8 @@ primitives, and the database layer are welcome.
 
 ## Development setup
 
-Install a C++17 compiler, CMake 3.22 or newer, Ninja, MPI, OpenSSL, and Boost.
+Install a C++17 compiler, CMake 3.22 or newer, Ninja, MPI, OpenSSL, and Boost. GoogleTest (`libgtest-dev` on
+Debian/Ubuntu, `googletest` on Homebrew) is needed for the unit tests; without it they are skipped.
 
 Build the core library and correctness tests:
 
@@ -22,6 +23,16 @@ cmake --preset ci
 cmake --build --preset ci
 ctest --preset ci
 ```
+
+Tests are labelled: `unit` tests run in a single process and finish in seconds, `mpi` and `tcp` tests start three
+ranks, and `database` tests run the experiment checks. Run one group with, for example:
+
+```bash
+ctest --preset ci -L unit
+```
+
+New logic that does not need communication (ring arithmetic, encoding, crypto helpers) should get a GoogleTest case
+in `tests/unit/`.
 
 Build all developer targets:
 
