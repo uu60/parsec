@@ -7,6 +7,9 @@
 
 #include <string>
 
+namespace parsec {
+
+
 class Views {
 public:
     static View selectAll(Table &t);
@@ -71,5 +74,8 @@ private:
     static int butterflyPermutationTagStride(View &v);
 };
 
+
+
+} // namespace parsec
 
 #endif

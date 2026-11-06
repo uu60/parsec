@@ -4,6 +4,9 @@
 
 #include "ArithBatchOperator.h"
 
+namespace parsec {
+
+
 class ArithEqualBatchOperator : public ArithBatchOperator {
 public:
     inline static std::atomic_int64_t _totalTime = 0;
@@ -20,5 +23,8 @@ public:
 
     static int tagStride(int width);
 };
+
+
+} // namespace parsec
 
 #endif

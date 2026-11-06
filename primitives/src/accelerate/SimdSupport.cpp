@@ -19,6 +19,9 @@
     #define NO_SIMD
 #endif
 
+namespace parsec {
+
+
 std::vector<int64_t> SimdSupport::xorV(const std::vector<int64_t> &arr0,
                                        const std::vector<int64_t> &arr1) {
     int num = static_cast<int>(arr0.size());
@@ -1025,3 +1028,5 @@ void SimdSupport::selectBits(int64_t* result, const int64_t* y0, const int64_t* 
 #endif
 }
 
+
+} // namespace parsec

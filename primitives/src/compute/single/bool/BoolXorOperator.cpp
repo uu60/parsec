@@ -3,6 +3,9 @@
 
 #include "compute/single/arith/ArithAddOperator.h"
 
+namespace parsec {
+
+
 BoolXorOperator *BoolXorOperator::execute() {
     _zi = _xi ^ _yi;
     return this;
@@ -11,3 +14,5 @@ BoolXorOperator *BoolXorOperator::execute() {
 int BoolXorOperator::tagStride() {
     return 0;
 }
+
+} // namespace parsec

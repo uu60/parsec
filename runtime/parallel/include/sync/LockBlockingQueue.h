@@ -9,6 +9,9 @@
 #include "AbstractBlockingQueue.h"
 #include "utils/Log.h"
 
+namespace parsec {
+
+
 template<typename T>
 class LockBlockingQueue : public AbstractBlockingQueue<T> {
 private:
@@ -46,4 +49,7 @@ public:
         return _maxSize;
     }
 };
+
+} // namespace parsec
+
 #endif

@@ -21,6 +21,8 @@
 #include "conf/DbConf.h"
 #include "parallel/ThreadPoolSupport.h"
 
+using namespace parsec;
+
 void generateRandomData(int num_records,
                         std::vector<int64_t> &pid_data,
                         std::vector<int64_t> &pid_hash_data,

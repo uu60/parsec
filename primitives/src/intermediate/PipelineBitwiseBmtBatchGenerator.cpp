@@ -4,6 +4,9 @@
 #include "intermediate/IntermediateDataSupport.h"
 #include "parallel/ThreadPoolSupport.h"
 
+namespace parsec {
+
+
 PipelineBitwiseBmtBatchGenerator *PipelineBitwiseBmtBatchGenerator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isClient()) {
@@ -156,3 +159,5 @@ int64_t PipelineBitwiseBmtBatchGenerator::corr(std::vector<int64_t> &as, int bmt
 PipelineBitwiseBmtBatchGenerator *PipelineBitwiseBmtBatchGenerator::reconstruct(int clientRank) {
     throw std::runtime_error("reconstruct not implemented");
 }
+
+} // namespace parsec

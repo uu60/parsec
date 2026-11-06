@@ -9,6 +9,9 @@
 #include "conf/Conf.h"
 #include "utils/System.h"
 
+namespace parsec {
+
+
 
 BaseOtBatchOperator::BaseOtBatchOperator(int sender, std::vector<int64_t> *ms0, std::vector<int64_t> *ms1,
                                          std::vector<int> *choices, int width, int taskTag, int msgTagOffset)
@@ -260,3 +263,5 @@ void BaseOtBatchOperator::process() {
 int BaseOtBatchOperator::tagStride() {
     return 1;
 }
+
+} // namespace parsec

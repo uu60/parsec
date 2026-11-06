@@ -3,6 +3,9 @@
 #define BMT_H
 #include <cstdint>
 
+namespace parsec {
+
+
 
 class Bmt {
 public:
@@ -12,5 +15,8 @@ public:
 };
 
 
+
+
+} // namespace parsec
 
 #endif

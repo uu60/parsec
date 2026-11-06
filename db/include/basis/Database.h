@@ -6,6 +6,9 @@
 #include "./Table.h"
 
 #include <string>
+
+namespace parsec {
+
 class Database {
 private:
     std::string _databaseName;
@@ -25,5 +28,8 @@ public:
     Table* getTable(const std::string& tableName);
 };
 
+
+
+} // namespace parsec
 
 #endif

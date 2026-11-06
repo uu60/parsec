@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+using namespace parsec;
+
 namespace {
 
 TEST(StringUtils, HasPrefix) {

@@ -8,6 +8,8 @@
 #include <stdexcept>
 #include <string>
 
+using namespace parsec;
+
 namespace {
 
 constexpr int64_t kMin = std::numeric_limits<int64_t>::min();

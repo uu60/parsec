@@ -8,6 +8,9 @@
 #include "comm/Comm.h"
 #include "compute/single/bool/BoolLessOperator.h"
 
+namespace parsec {
+
+
 BitSecret::BitSecret(bool x, int taskTag) : _data(x), _taskTag(taskTag) {}
 
 BitSecret BitSecret::task(int taskTag) {
@@ -49,3 +52,5 @@ BitSecret BitSecret::reconstruct(int clientRank) const {
 bool BitSecret::get() const {
     return _data;
 }
+
+} // namespace parsec

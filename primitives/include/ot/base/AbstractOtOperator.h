@@ -3,6 +3,9 @@
 #define ABSTRACTOTEXECUTOR_H
 #include "../../base/AbstractSingleOperator.h"
 
+namespace parsec {
+
+
 
 class AbstractOtOperator : public AbstractSingleOperator {
 protected:
@@ -18,5 +21,8 @@ public:
 };
 
 
+
+
+} // namespace parsec
 
 #endif

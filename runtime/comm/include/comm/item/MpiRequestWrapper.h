@@ -7,6 +7,9 @@
 
 #include "AbstractRequest.h"
 
+namespace parsec {
+
+
 
 class MpiRequestWrapper : public AbstractRequest {
 public:
@@ -64,5 +67,8 @@ public:
 };
 
 
+
+
+} // namespace parsec
 
 #endif

@@ -4,6 +4,9 @@
 #include "./ArithOperator.h"
 #include "../../../intermediate/item/BitwiseBmt.h"
 
+namespace parsec {
+
+
 class ArithMutexOperator : public ArithOperator {
 private:
     int64_t _cond_i{};
@@ -20,5 +23,8 @@ public:
 
     static int bmtCount(int width);
 };
+
+
+} // namespace parsec
 
 #endif

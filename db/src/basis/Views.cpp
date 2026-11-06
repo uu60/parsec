@@ -22,6 +22,9 @@
 
 #include "compute/batch/bool/BoolAndBatchOperator.h"
 
+namespace parsec {
+
+
 View Views::selectAll(Table &t) {
     View v(t._tableName, t._fieldNames, t._fieldWidths);
     v._dataCols = t._dataCols;
@@ -1110,3 +1113,5 @@ void Views::addRedundantCols(View &v) {
     v._fieldWidths.emplace_back(1);
     v._dataCols.emplace_back(v._dataCols[0].size());
 }
+
+} // namespace parsec

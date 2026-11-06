@@ -7,6 +7,9 @@
 
 #include "../sync/AbstractBlockingQueue.h"
 
+namespace parsec {
+
+
 template<typename T>
 class BoostLockFreeQueue : public AbstractBlockingQueue<T> {
 private:
@@ -40,5 +43,8 @@ public:
     }
 };
 
+
+
+} // namespace parsec
 
 #endif

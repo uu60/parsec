@@ -5,6 +5,9 @@
 #include "base/AbstractBatchOperator.h"
 #include "item/Bmt.h"
 
+namespace parsec {
+
+
 
 class BmtBatchGenerator : public AbstractBmtBatchGenerator<Bmt> {
 public:
@@ -28,5 +31,8 @@ public:
 };
 
 
+
+
+} // namespace parsec
 
 #endif

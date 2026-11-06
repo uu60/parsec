@@ -5,6 +5,9 @@
 #include "./BoolOperator.h"
 #include "../../../intermediate/item/BitwiseBmt.h"
 
+namespace parsec {
+
+
 class BoolEqualOperator : public BoolOperator {
 private:
     BitwiseBmt *_bmt{};
@@ -17,5 +20,8 @@ public:
 
     BoolEqualOperator *setBmt(BitwiseBmt *bmt);
 };
+
+
+} // namespace parsec
 
 #endif

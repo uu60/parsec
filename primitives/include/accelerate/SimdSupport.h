@@ -6,6 +6,9 @@
 #include <cstdint>
 #include "utils/Crypto.h"  // For U128
 
+namespace parsec {
+
+
 class SimdSupport {
 public:
     static std::vector<int64_t> xorV(const std::vector<int64_t> &arr0, const std::vector<int64_t> &arr1);
@@ -55,5 +58,8 @@ public:
                           const int64_t* choice, const int64_t* hashValues, size_t count);
 };
 
+
+
+} // namespace parsec
 
 #endif

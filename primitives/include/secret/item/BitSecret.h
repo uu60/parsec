@@ -5,6 +5,9 @@
 
 #include "./Secret.h"
 
+namespace parsec {
+
+
 class BitSecret : public Secret {
 public:
     bool _data{};
@@ -33,5 +36,8 @@ public:
     [[nodiscard]] bool get() const;
 };
 
+
+
+} // namespace parsec
 
 #endif

@@ -13,6 +13,9 @@
 #include <future>
 #include <vector>
 
+namespace parsec {
+
+
 constexpr size_t MAX_TILE_WIDTH = 64;
 constexpr size_t TILE_ROWS = 128;
 constexpr size_t MAX_TILE_SIZE = TILE_ROWS * MAX_TILE_WIDTH;
@@ -685,3 +688,5 @@ void IknpOtBatchOperator::receiverExtend() {
         _results[i] = ring(y_c) ^ ring(static_cast<int64_t>(hashValues[i]));
     }
 }
+
+} // namespace parsec

@@ -3,6 +3,9 @@
 #define INTBOOLEXECUTOR_H
 #include "../../../base/AbstractSingleOperator.h"
 
+namespace parsec {
+
+
 class BoolOperator : public AbstractSingleOperator {
 public:
     BoolOperator(int64_t z, int l, int taskTag, int msgTagOffset, int clientRank);
@@ -13,5 +16,8 @@ public:
 
     BoolOperator *execute() override;
 };
+
+
+} // namespace parsec
 
 #endif

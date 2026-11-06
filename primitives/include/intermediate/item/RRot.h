@@ -3,6 +3,9 @@
 #define RROT_H
 #include <cstdint>
 
+namespace parsec {
+
+
 
 class RRot {
 public:
@@ -11,5 +14,8 @@ public:
 };
 
 
+
+
+} // namespace parsec
 
 #endif

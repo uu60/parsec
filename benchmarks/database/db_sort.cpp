@@ -12,6 +12,8 @@
 #include "ot/IknpOtBatchOperator.h"
 #include "utils/Math.h"
 
+using namespace parsec;
+
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
 

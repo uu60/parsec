@@ -10,6 +10,9 @@
 #include "utils/Log.h"
 
 #include <string>
+
+namespace parsec {
+
 void MpiComm::finalize_() {
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize();
@@ -368,3 +371,5 @@ bool MpiComm::isServer_() {
 bool MpiComm::isClient_() {
     return !isServer_();
 }
+
+} // namespace parsec

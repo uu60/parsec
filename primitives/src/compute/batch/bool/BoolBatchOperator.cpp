@@ -6,6 +6,9 @@
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Math.h"
 
+namespace parsec {
+
+
 BoolBatchOperator::BoolBatchOperator(std::vector<int64_t> &zs, int width, int taskTag, int msgTagOffset,
                                      int clientRank) : AbstractBatchOperator(width, taskTag, msgTagOffset) {
     if (clientRank < 0) {
@@ -95,3 +98,5 @@ BoolBatchOperator *BoolBatchOperator::reconstruct(int clientRank) {
 BoolBatchOperator *BoolBatchOperator::execute() {
     throw std::runtime_error("Needs implementation.");
 }
+
+} // namespace parsec

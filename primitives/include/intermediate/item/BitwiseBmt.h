@@ -8,6 +8,9 @@
 #include <cstdint>
 #include <stdexcept>
 
+namespace parsec {
+
+
 class BitwiseBmt : public Bmt {
 public:
     [[nodiscard]] BitwiseBmt extract(int i) const {
@@ -39,5 +42,8 @@ public:
     }
 };
 
+
+
+} // namespace parsec
 
 #endif

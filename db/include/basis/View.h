@@ -7,6 +7,9 @@
 
 #include <string>
 
+namespace parsec {
+
+
 class View : public Table {
 public:
     static const int VALID_COL_OFFSET = -2;
@@ -150,5 +153,8 @@ private:
                                int msgTagBase);
 };
 
+
+
+} // namespace parsec
 
 #endif

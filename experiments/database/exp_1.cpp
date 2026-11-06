@@ -22,6 +22,8 @@
 #include "compute/batch/arith/ArithToBoolBatchOperator.h"
 #include "conf/DbConf.h"
 
+using namespace parsec;
+
 void generateTestData(int rows1, int rows2,
                       std::vector<int64_t> &diagnosis_pid_data,
                       std::vector<int64_t> &diagnosis_diag_data,

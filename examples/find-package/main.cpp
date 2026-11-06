@@ -4,6 +4,8 @@
 
 #include <iostream>
 
+using namespace parsec;
+
 int main() {
     std::cout << "ring(-1, 8) = " << Math::ring(-1, 8) << '\n';
     std::cout << "valid column: " << View::VALID_COL_NAME << '\n';

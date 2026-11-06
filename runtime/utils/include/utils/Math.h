@@ -12,6 +12,9 @@ typedef struct evp_pkey_st EVP_PKEY;
 typedef struct bignum_st BIGNUM;
 typedef struct bignum_ctx BN_CTX;
 
+namespace parsec {
+
+
 /**
  * RAII wrapper for RSA key using EVP_PKEY (OpenSSL 3.0+ compatible).
  * Manages key lifecycle and provides access to n, e, d components.
@@ -167,5 +170,8 @@ public:
     static std::string getExponentD(const RsaKeyContext& ctx);
 };
 
+
+
+} // namespace parsec
 
 #endif

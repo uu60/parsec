@@ -5,6 +5,9 @@
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Log.h"
 
+namespace parsec {
+
+
 RandOtBatchOperator::RandOtBatchOperator(int sender, std::vector<int64_t> *bits0, std::vector<int64_t> *bits1,
                                          std::vector<int64_t> *choiceBits, int taskTag,
                                          int msgTagOffset) : AbstractOtBatchOperator(64, taskTag, msgTagOffset) {
@@ -265,3 +268,5 @@ RandOtBatchOperator *RandOtBatchOperator::execute() {
 int RandOtBatchOperator::tagStride() {
     return 1;
 }
+
+} // namespace parsec

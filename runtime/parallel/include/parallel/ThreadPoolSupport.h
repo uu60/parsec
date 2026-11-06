@@ -9,6 +9,9 @@
 #include "Async.h"
 #include "conf/Conf.h"
 
+namespace parsec {
+
+
 
 class ThreadPoolSupport {
 public:
@@ -71,5 +74,8 @@ public:
     }
 };
 
+
+
+} // namespace parsec
 
 #endif

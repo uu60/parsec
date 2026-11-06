@@ -5,6 +5,9 @@
 #include "ArithBatchOperator.h"
 #include "../../../intermediate/item/Bmt.h"
 
+namespace parsec {
+
+
 class ArithMutexBatchOperator : public ArithBatchOperator {
 private:
     std::vector<int64_t> _conds_i;
@@ -26,5 +29,8 @@ public:
 
     ArithMutexBatchOperator *setBmts(std::vector<Bmt> *bmts);
 };
+
+
+} // namespace parsec
 
 #endif

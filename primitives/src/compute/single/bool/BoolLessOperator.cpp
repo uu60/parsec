@@ -10,6 +10,9 @@
 #include "utils/Log.h"
 #include "utils/Math.h"
 
+namespace parsec {
+
+
 bool BoolLessOperator::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     if (_bmts != nullptr) {
         bmts = std::move(*_bmts);
@@ -115,3 +118,5 @@ int64_t BoolLessOperator::shiftGreater(int64_t in, int r) const {
 
     return in;
 }
+
+} // namespace parsec

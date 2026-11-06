@@ -10,6 +10,9 @@
 #include "intermediate/IntermediateDataSupport.h"
 #include "parallel/ThreadPoolSupport.h"
 
+namespace parsec {
+
+
 BoolLessBatchOperator *BoolLessBatchOperator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isClient()) {
@@ -171,3 +174,5 @@ bool BoolLessBatchOperator::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     }
     return false;
 }
+
+} // namespace parsec

@@ -8,6 +8,9 @@
 #include "utils/Log.h"
 #include "utils/Math.h"
 
+namespace parsec {
+
+
 BoolAndOperator *BoolAndOperator::execute() {
     _currentMsgTag = _startMsgTag;
 
@@ -63,3 +66,5 @@ BoolAndOperator *BoolAndOperator::setBmt(BitwiseBmt *bmt) {
     _bmt = bmt;
     return this;
 }
+
+} // namespace parsec

@@ -8,6 +8,9 @@
 
 #include "item/AbstractRequest.h"
 
+namespace parsec {
+
+
 class Comm {
 public:
     inline static std::atomic_int64_t _totalTime = 0;
@@ -115,5 +118,8 @@ protected:
     virtual AbstractRequest *receiveAsync_(std::string &target, int length, int senderRank, int tag) = 0;
 };
 
+
+
+} // namespace parsec
 
 #endif

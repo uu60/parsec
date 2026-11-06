@@ -6,6 +6,9 @@
 #include "conf/Conf.h"
 #include "utils/Log.h"
 
+namespace parsec {
+
+
 class DbConf {
 public:
     inline static bool ENABLE_HASH_JOIN = true;
@@ -32,5 +35,8 @@ public:
     };
 };
 
+
+
+} // namespace parsec
 
 #endif

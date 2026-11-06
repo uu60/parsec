@@ -103,6 +103,9 @@
 #include <memory>
 #include <stdexcept>
 
+namespace parsec {
+
+
 std::unordered_map<int, std::string> Crypto::_selfPubs = {};
 std::unordered_map<int, std::string> Crypto::_selfPris = {};
 std::unordered_map<int, std::string> Crypto::_otherPubs = {};
@@ -758,3 +761,5 @@ void Crypto::extract_uRaw_col0_col64_fast(
     }
 }
 
+
+} // namespace parsec

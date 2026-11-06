@@ -18,6 +18,9 @@
 #include "ot/BaseOtBatchOperator.h"
 #include "utils/Crypto.h"
 
+namespace parsec {
+
+
 void IntermediateDataSupport::prepareBmt() {
     if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
         _fixedBmt = BmtGenerator(64, 0, 0).execute()->_bmt;
@@ -416,3 +419,5 @@ void IntermediateDataSupport::prepareIknp() {
         }
     }
 }
+
+} // namespace parsec

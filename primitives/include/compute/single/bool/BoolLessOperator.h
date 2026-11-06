@@ -4,6 +4,9 @@
 #include "./BoolOperator.h"
 #include "../../../intermediate/item/BitwiseBmt.h"
 
+namespace parsec {
+
+
 class BoolLessOperator : public BoolOperator {
 private:
     std::vector<BitwiseBmt> *_bmts{};
@@ -29,5 +32,8 @@ private:
 };
 
 
+
+
+} // namespace parsec
 
 #endif

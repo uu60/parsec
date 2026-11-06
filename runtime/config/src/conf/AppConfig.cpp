@@ -5,6 +5,9 @@
 #include <iostream>
 #include <stdexcept>
 
+namespace parsec {
+
+
 namespace {
 bool parseBool(const std::string &value) {
     std::string normalized = value;
@@ -71,3 +74,5 @@ bool AppConfig::getBool(const std::string &name, bool defaultValue) {
 const std::map<std::string, std::string> &AppConfig::params() {
     return _params;
 }
+
+} // namespace parsec

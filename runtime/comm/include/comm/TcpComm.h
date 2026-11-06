@@ -14,6 +14,9 @@
 #include <thread>
 #include <vector>
 
+namespace parsec {
+
+
 class TcpComm : public Comm {
 private:
     struct PendingMessage {
@@ -112,5 +115,8 @@ private:
 
     static size_t elementSize(int width);
 };
+
+
+} // namespace parsec
 
 #endif

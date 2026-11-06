@@ -10,6 +10,9 @@
 
 #include "RandOtBatchOperator.h"
 
+namespace parsec {
+
+
 // Minimal IKNP OT extension operator (k=128).
 //
 // Notes for this repo/version:
@@ -65,5 +68,8 @@ private:
     void senderExtend();
     void receiverExtend();
 };
+
+
+} // namespace parsec
 
 #endif

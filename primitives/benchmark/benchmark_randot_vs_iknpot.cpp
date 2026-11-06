@@ -12,6 +12,8 @@
 #include <string>
 #include <vector>
 
+using namespace parsec;
+
 namespace {
 
 struct Config {

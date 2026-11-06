@@ -5,6 +5,9 @@
 
 #include <future>
 
+namespace parsec {
+
+
 class TcpRequestWrapper : public AbstractRequest {
 private:
     std::future<void> _future;
@@ -14,5 +17,8 @@ public:
 
     void wait() override;
 };
+
+
+} // namespace parsec
 
 #endif

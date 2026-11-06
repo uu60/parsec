@@ -8,6 +8,9 @@
 #include "intermediate/IntermediateDataSupport.h"
 #include "parallel/ThreadPoolSupport.h"
 
+namespace parsec {
+
+
 BoolMutexBatchOperator::BoolMutexBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys,
                                                std::vector<int64_t> *conds, int width, int taskTag,
                                                int msgTagOffset, int clientRank) : BoolBatchOperator(
@@ -141,3 +144,5 @@ int BoolMutexBatchOperator::bmtCount(int num, int width) {
     }
     return 2 * BoolAndBatchOperator::bmtCount(num, width);
 }
+
+} // namespace parsec

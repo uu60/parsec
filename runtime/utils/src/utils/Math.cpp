@@ -14,6 +14,9 @@
 #include <openssl/core_names.h>
 #include <openssl/param_build.h>
 
+namespace parsec {
+
+
 RsaKeyContext::~RsaKeyContext() {
     if (pkey != nullptr) {
         EVP_PKEY_free(pkey);
@@ -567,3 +570,5 @@ std::string Math::getExponentD(const RsaKeyContext& ctx) {
     return out;
 }
 
+
+} // namespace parsec

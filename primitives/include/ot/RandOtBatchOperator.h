@@ -3,6 +3,9 @@
 #define RANDOTBATCHEXECUTOR_H
 #include "./base/AbstractOtBatchOperator.h"
 
+namespace parsec {
+
+
 
 class RandOtBatchOperator : public AbstractOtBatchOperator {
 public:
@@ -34,5 +37,8 @@ private:
     void executeForBitsAsync();
 };
 
+
+
+} // namespace parsec
 
 #endif

@@ -8,6 +8,8 @@
 #include <cstdint>
 #include <vector>
 
+using namespace parsec;
+
 void testDirection(int sender, int task, int limbs) {
     const bool isSender = (Comm::rank() == sender);
 

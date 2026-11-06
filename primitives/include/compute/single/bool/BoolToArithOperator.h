@@ -3,6 +3,9 @@
 #define TOARITHEXECUTOR_H
 #include "./BoolOperator.h"
 
+namespace parsec {
+
+
 
 class BoolToArithOperator : public BoolOperator {
 public:
@@ -20,5 +23,8 @@ public:
 };
 
 
+
+
+} // namespace parsec
 
 #endif

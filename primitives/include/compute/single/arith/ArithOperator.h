@@ -6,6 +6,9 @@
 
 #include "../../../base/AbstractSingleOperator.h"
 
+namespace parsec {
+
+
 
 class ArithOperator : public AbstractSingleOperator {
 public:
@@ -19,5 +22,8 @@ public:
     ArithOperator *execute() override;
 };
 
+
+
+} // namespace parsec
 
 #endif

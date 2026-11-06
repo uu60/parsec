@@ -6,6 +6,9 @@
 
 #include "./base/AbstractOtOperator.h"
 
+namespace parsec {
+
+
 class BaseOtOperator : public AbstractOtOperator {
 private:
     std::string _rand0{};
@@ -27,5 +30,8 @@ private:
     void process();
 };
 
+
+
+} // namespace parsec
 
 #endif

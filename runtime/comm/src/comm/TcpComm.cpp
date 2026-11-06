@@ -15,6 +15,9 @@
 #include <thread>
 #include <unistd.h>
 
+namespace parsec {
+
+
 namespace {
 struct MessageHeader {
     int32_t senderRank;
@@ -558,3 +561,5 @@ size_t TcpComm::elementSize(int width) {
     }
     return sizeof(int64_t);
 }
+
+} // namespace parsec

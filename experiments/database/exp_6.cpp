@@ -23,6 +23,8 @@
 #include "conf/DbConf.h"
 #include "utils/StringUtils.h"
 
+using namespace parsec;
+
 static int64_t PLAIN_START_DATE = Math::randInt();
 static int64_t PLAIN_END_DATE   = PLAIN_START_DATE + 3;
 

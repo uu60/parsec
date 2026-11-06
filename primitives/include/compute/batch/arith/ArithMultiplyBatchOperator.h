@@ -5,6 +5,9 @@
 #include "./ArithBatchOperator.h"
 #include "../../../intermediate/item/Bmt.h"
 
+namespace parsec {
+
+
 class ArithMultiplyBatchOperator : public ArithBatchOperator {
 public:
     ArithMultiplyBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys,
@@ -16,5 +19,8 @@ public:
 
     [[nodiscard]] static int tagStride(int width);
 };
+
+
+} // namespace parsec
 
 #endif

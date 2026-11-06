@@ -12,6 +12,9 @@
 #include <chrono>
 #include <string>
 
+namespace parsec {
+
+
 namespace {
 int64_t currentTimeMillis() {
     auto now = std::chrono::system_clock::now();
@@ -229,3 +232,5 @@ void Comm::wait(AbstractRequest *request) {
         delete request;
     } catch (...) {}
 }
+
+} // namespace parsec

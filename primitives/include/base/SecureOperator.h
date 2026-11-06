@@ -9,6 +9,9 @@
 #include "utils/System.h"
 #include "conf/Conf.h"
 
+namespace parsec {
+
+
 class SecureOperator {
 public:
     static constexpr int NO_CLIENT_COMPUTE = -1;
@@ -37,5 +40,8 @@ protected:
 
     [[nodiscard]] int buildTag(int msgTag) const;
 };
+
+
+} // namespace parsec
 
 #endif

@@ -3,6 +3,9 @@
 #define XOREXECUTOR_H
 #include "./BoolOperator.h"
 
+namespace parsec {
+
+
 class BoolXorOperator : public BoolOperator {
 public:
     BoolXorOperator(bool x, bool y, int l, int taskTag, int msgTagOffset,
@@ -15,5 +18,8 @@ public:
 };
 
 
+
+
+} // namespace parsec
 
 #endif

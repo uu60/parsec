@@ -9,6 +9,9 @@
 #include "utils/Log.h"
 #include "utils/System.h"
 
+namespace parsec {
+
+
 BoolOperator::BoolOperator(int64_t z, int l, int taskTag, int msgTagOffset,
                            int clientRank) : AbstractSingleOperator(
     l, taskTag, msgTagOffset) {
@@ -71,3 +74,5 @@ BoolOperator *BoolOperator::reconstruct(int clientRank) {
 BoolOperator *BoolOperator::execute() {
     throw std::runtime_error("This method needs implementation.");
 }
+
+} // namespace parsec

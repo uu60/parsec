@@ -3,6 +3,9 @@
 #define ABSTRACTBATCHEXECUTOR_H
 #include "./SecureOperator.h"
 
+namespace parsec {
+
+
 
 class AbstractBatchOperator : public SecureOperator {
 public:
@@ -29,5 +32,8 @@ public:
 };
 
 
+
+
+} // namespace parsec
 
 #endif

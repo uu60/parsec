@@ -5,6 +5,9 @@
 #include "utils/Log.h"
 #include "utils/Math.h"
 
+namespace parsec {
+
+
 BoolToArithBatchOperator *BoolToArithBatchOperator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isClient()) {
@@ -66,3 +69,5 @@ BoolToArithBatchOperator *BoolToArithBatchOperator::execute() {
 int BoolToArithBatchOperator::tagStride() {
     return IknpOtBatchOperator::tagStride();
 }
+
+} // namespace parsec

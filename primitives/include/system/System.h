@@ -5,6 +5,9 @@
 #include "conf/Conf.h"
 #include "third_party/ctpl_stl.h"
 
+namespace parsec {
+
+
 class System {
 private:
     
@@ -24,5 +27,8 @@ public:
     static int64_t currentTimeMillis();
 };
 
+
+
+} // namespace parsec
 
 #endif

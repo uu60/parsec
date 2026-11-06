@@ -14,6 +14,9 @@
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Log.h"
 
+namespace parsec {
+
+
 using BatchOutput = std::tuple<
     std::vector<int>,
     std::vector<int>,
@@ -451,3 +454,5 @@ void doSort(std::vector<ArithSecret> &secrets, bool asc, int taskTag) {
 void Secrets::sort(std::vector<ArithSecret> &secrets, bool asc, int taskTag) {
     doSort(secrets, asc, taskTag);
 }
+
+} // namespace parsec

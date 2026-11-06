@@ -12,6 +12,9 @@
 #include "./item/BitwiseBmt.h"
 #include "sync/AbstractBlockingQueue.h"
 
+namespace parsec {
+
+
 
 class IntermediateDataSupport {
 private:
@@ -73,5 +76,8 @@ public:
     static std::vector<BitwiseBmt> pollBitwiseBmts(int count, int width);
 };
 
+
+
+} // namespace parsec
 
 #endif

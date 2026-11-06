@@ -2,6 +2,9 @@
 #ifndef ABSTRACTBLOCKINGQUEUE_H
 #define ABSTRACTBLOCKINGQUEUE_H
 
+namespace parsec {
+
+
 template <typename T>
 class AbstractBlockingQueue {
 public:
@@ -16,5 +19,8 @@ public:
     [[nodiscard]] virtual size_t capacity() const = 0;
 };
 
+
+
+} // namespace parsec
 
 #endif
