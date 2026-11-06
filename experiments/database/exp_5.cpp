@@ -19,6 +19,8 @@
 #include <vector>
 #include <cstdint>
 
+using namespace parsec;
+
 void generateRandomData(
     int rows,
     std::vector<int64_t> &id_data,

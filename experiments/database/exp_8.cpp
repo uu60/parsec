@@ -21,6 +21,8 @@
 #include "compute/batch/bool/BoolToArithBatchOperator.h"
 #include "compute/batch/bool/BoolXorBatchOperator.h"
 
+using namespace parsec;
+
 
 struct OrderRow {
     int64_t cust;

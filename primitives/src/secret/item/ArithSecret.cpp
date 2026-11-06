@@ -12,6 +12,9 @@
 #include "compute/single/arith/ArithToBoolOperator.h"
 #include "utils/Log.h"
 
+namespace parsec {
+
+
 ArithSecret::ArithSecret() = default;
 
 ArithSecret::ArithSecret(int64_t x, int l, int taskTag) : _data(x), _width(l), _taskTag(taskTag) {}
@@ -57,3 +60,5 @@ BitSecret ArithSecret::getBit(int n) const {
 ArithSecret ArithSecret::mux(ArithSecret yi, BitSecret cond_i) const {
     return {ArithMutexOperator(_data, yi._data, cond_i.get(), _width, _taskTag, 0, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zi, _width, _taskTag};
 }
+
+} // namespace parsec

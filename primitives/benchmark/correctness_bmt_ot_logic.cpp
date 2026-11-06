@@ -8,6 +8,8 @@
 #include <cstdint>
 #include <vector>
 
+using namespace parsec;
+
 // Simulates BMT's computeMix logic to test if IKNP OT works correctly for it
 bool testBmtOtLogic(int sender, int task, int bc) {
     const bool isSender = (Comm::rank() == sender);

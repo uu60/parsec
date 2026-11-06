@@ -4,6 +4,9 @@
 #include <map>
 #include <string>
 
+namespace parsec {
+
+
 class AppConfig {
 private:
     inline static std::map<std::string, std::string> _params{};
@@ -21,5 +24,8 @@ public:
 
     static const std::map<std::string, std::string> &params();
 };
+
+
+} // namespace parsec
 
 #endif

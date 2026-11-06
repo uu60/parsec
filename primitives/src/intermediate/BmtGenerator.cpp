@@ -7,6 +7,9 @@
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Log.h"
 
+namespace parsec {
+
+
 void BmtGenerator::generateRandomAB() {
     _bmt._a = ring(Math::randInt());
     _bmt._b = ring(Math::randInt());
@@ -99,3 +102,5 @@ BmtGenerator *BmtGenerator::execute() {
 
     return this;
 }
+
+} // namespace parsec

@@ -6,6 +6,9 @@
 
 #include <string>
 
+namespace parsec {
+
+
 class Conf {
 public:
     inline static std::map<std::string, std::string> _userParams{};
@@ -65,5 +68,8 @@ public:
     inline static bool ENABLE_IKNP_MULTITHREAD = true;
 };
 
+
+
+} // namespace parsec
 
 #endif

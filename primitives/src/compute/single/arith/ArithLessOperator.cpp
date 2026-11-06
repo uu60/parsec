@@ -8,6 +8,9 @@
 #include "utils/Log.h"
 #include "utils/Math.h"
 
+namespace parsec {
+
+
 ArithLessOperator::ArithLessOperator(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset,
                                      int clientRank) : ArithOperator(
     x, y, l, taskTag, msgTagOffset, clientRank) {
@@ -52,3 +55,5 @@ ArithLessOperator *ArithLessOperator::setBmts(std::vector<BitwiseBmt> *bmts) {
     _bmts = bmts;
     return this;
 }
+
+} // namespace parsec

@@ -4,6 +4,9 @@
 #include "./ArithOperator.h"
 #include "../../../intermediate/item/Bmt.h"
 
+namespace parsec {
+
+
 class ArithMultiplyOperator : public ArithOperator {
 private:
     Bmt* _bmt{};
@@ -20,5 +23,8 @@ public:
     ArithMultiplyOperator *setBmt(Bmt *bmt);
 };
 
+
+
+} // namespace parsec
 
 #endif

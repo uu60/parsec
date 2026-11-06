@@ -5,6 +5,9 @@
 #include "utils/Math.h"
 #include <limits>
 
+namespace parsec {
+
+
 ArithAddOperator *ArithAddOperator::execute() {
     if (Comm::isServer()) {
         _zi = Math::ringAdd(_xi, _yi, _width);
@@ -12,3 +15,5 @@ ArithAddOperator *ArithAddOperator::execute() {
 
     return this;
 }
+
+} // namespace parsec

@@ -3,6 +3,9 @@
 #define ABSTRACTOTBATCHEXECUTOR_H
 #include "../../base/AbstractBatchOperator.h"
 
+namespace parsec {
+
+
 
 class AbstractOtBatchOperator : public AbstractBatchOperator {
 protected:
@@ -22,5 +25,8 @@ public:
     AbstractOtBatchOperator *reconstruct(int clientRank) override;
 };
 
+
+
+} // namespace parsec
 
 #endif

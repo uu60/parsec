@@ -9,6 +9,9 @@
 
 #include "AbstractBlockingQueue.h"
 
+namespace parsec {
+
+
 template <typename T, size_t C>
 class BoostSPSCQueue : public AbstractBlockingQueue<T> {
 private:
@@ -41,5 +44,8 @@ public:
 };
 
 
+
+
+} // namespace parsec
 
 #endif

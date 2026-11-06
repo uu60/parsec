@@ -6,6 +6,9 @@
 #include "../base/AbstractSingleOperator.h"
 #include "conf/Conf.h"
 
+namespace parsec {
+
+
 
 template<class BmtT>
 class AbstractBmtSingleGenerator : public AbstractSingleOperator {
@@ -20,5 +23,8 @@ protected:
     }
 };
 
+
+
+} // namespace parsec
 
 #endif

@@ -23,6 +23,8 @@
 
 #include <string>
 
+using namespace parsec;
+
 static int task;
 
 void prepareOrigins(int num, std::vector<int64_t> &originsA, std::vector<int64_t> &originsB,

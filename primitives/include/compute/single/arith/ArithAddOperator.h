@@ -4,6 +4,9 @@
 
 #include "./ArithOperator.h"
 
+namespace parsec {
+
+
 class ArithAddOperator : public ArithOperator {
 public:
     ArithAddOperator(int64_t x, int64_t y, int width, int taskTag, int msgTagOffset,
@@ -13,5 +16,8 @@ public:
     ArithAddOperator *execute() override;
 };
 
+
+
+} // namespace parsec
 
 #endif

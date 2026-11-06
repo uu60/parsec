@@ -7,6 +7,9 @@
 #include "utils/Math.h"
 #include "utils/Crypto.h"
 
+namespace parsec {
+
+
 BaseOtOperator::BaseOtOperator(int sender, int64_t m0, int64_t m1, int choice, int l, int taskTag, int msgTagOffset)
     : AbstractOtOperator(sender, m0, m1, choice, l, taskTag, msgTagOffset) {
 }
@@ -69,3 +72,5 @@ void BaseOtOperator::process() {
 int BaseOtOperator::tagStride() {
     return 1;
 }
+
+} // namespace parsec

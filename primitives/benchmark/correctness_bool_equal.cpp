@@ -8,6 +8,8 @@
 #include <cstdint>
 #include <vector>
 
+using namespace parsec;
+
 namespace {
 bool testBatchWidth(int width) {
     constexpr int count = 17;

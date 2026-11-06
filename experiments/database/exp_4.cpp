@@ -20,6 +20,8 @@
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/StringUtils.h"
 
+using namespace parsec;
+
 void generateTestData(int rows,
                       std::vector<int64_t> &id_data,
                       std::vector<int64_t> &pwd_data);

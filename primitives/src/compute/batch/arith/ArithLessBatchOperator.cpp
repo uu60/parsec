@@ -10,6 +10,9 @@
 #include "utils/Math.h"
 #include "utils/System.h"
 
+namespace parsec {
+
+
 ArithLessBatchOperator::ArithLessBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys, int width,
                                                int taskTag, int msgTagOffset, int clientRank)
     : ArithBatchOperator(xs, ys, width, taskTag, msgTagOffset, clientRank) {
@@ -66,3 +69,5 @@ ArithLessBatchOperator *ArithLessBatchOperator::reconstruct(int clientRank) {
 int ArithLessBatchOperator::tagStride(int width) {
     return ArithToBoolBatchOperator::tagStride(width);
 }
+
+} // namespace parsec

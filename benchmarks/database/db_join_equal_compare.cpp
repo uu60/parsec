@@ -14,6 +14,8 @@
 #include <string>
 #include <vector>
 
+using namespace parsec;
+
 namespace {
 struct BenchConfig {
     int rows = 100;

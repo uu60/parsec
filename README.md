@@ -283,6 +283,9 @@ Database options:
 
 Parsec is designed around replaceable abstractions rather than fixed implementations. Core modules expose base classes or facades so users can inherit and implement project-specific communication backends, secure operators, BMT/OT providers, thread-pool strategies, and database-layer functionality without rewriting the whole runtime.
 
+All library types and functions live in the `parsec` namespace. The examples below assume `using namespace parsec;`
+(or qualified names such as `parsec::System`).
+
 ### Runtime Lifecycle
 
 Every MPC executable should initialize and finalize the runtime:
@@ -290,6 +293,8 @@ Every MPC executable should initialize and finalize the runtime:
 ```cpp
 #include "utils/System.h"
 #include "comm/Comm.h"
+
+using namespace parsec;
 
 int main(int argc, char **argv) {
     System::init(argc, argv);

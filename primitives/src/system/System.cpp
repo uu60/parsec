@@ -10,6 +10,9 @@
 #include "utils/Log.h"
 #include "utils/Math.h"
 
+namespace parsec {
+
+
 void System::init(int argc, char **argv) {
     Conf::init(argc, argv);
 
@@ -58,3 +61,5 @@ int64_t System::currentTimeMillis() {
 
     return millis;
 }
+
+} // namespace parsec

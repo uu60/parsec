@@ -6,6 +6,9 @@
 
 #include <string>
 
+namespace parsec {
+
+
 class MpiComm : public Comm {
 public:
     static const int CLIENT_RANK;
@@ -51,5 +54,8 @@ public:
     MpiRequestWrapper *receiveAsync_(std::string &target, int length, int senderRank, int tag) override;
 };
 
+
+
+} // namespace parsec
 
 #endif

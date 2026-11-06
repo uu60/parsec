@@ -3,6 +3,9 @@
 #define RANDOTEXECUTOR_H
 #include "./base/AbstractOtOperator.h"
 
+namespace parsec {
+
+
 
 class RandOtOperator : public AbstractOtOperator {
 public:
@@ -14,5 +17,8 @@ public:
 
     static int tagStride(int width);
 };
+
+
+} // namespace parsec
 
 #endif

@@ -4,6 +4,9 @@
 #include "conf/Conf.h"
 #include "utils/Log.h"
 
+namespace parsec {
+
+
 MpiRequestWrapper::MpiRequestWrapper(bool recv) {
     _recv = recv;
 }
@@ -90,3 +93,5 @@ void MpiRequestWrapper::wait() {
     if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND)
         Log::i("3");
 }
+
+} // namespace parsec

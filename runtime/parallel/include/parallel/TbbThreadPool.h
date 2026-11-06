@@ -7,6 +7,8 @@
 #include <tbb/task_arena.h>
 #include <tbb/task_group.h>
 
+namespace parsec {
+
 class TbbThreadPool {
 private:
     tbb::task_arena arena;
@@ -35,9 +37,13 @@ public:
     }
 };
 
+} // namespace parsec
+
 #else
 #include <future>
 #include <stdexcept>
+
+namespace parsec {
 
 class TbbThreadPool {
 public:
@@ -49,6 +55,8 @@ public:
         throw std::runtime_error("TBB thread pool is not available");
     }
 };
+
+} // namespace parsec
 
 #endif
 

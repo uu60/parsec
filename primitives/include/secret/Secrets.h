@@ -6,6 +6,9 @@
 #include "./item/ArithSecret.h"
 #include "./item/BoolSecret.h"
 
+namespace parsec {
+
+
 
 
 class Secrets {
@@ -23,5 +26,8 @@ public:
     static std::vector<int64_t> arithReconstruct(std::vector<int64_t> &secrets, int clientRank, int width, int taskTag);
 };
 
+
+
+} // namespace parsec
 
 #endif

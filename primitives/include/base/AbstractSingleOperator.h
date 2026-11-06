@@ -3,6 +3,9 @@
 #define ABSTRACTSINGLEEXECUTOR_H
 #include "./SecureOperator.h"
 
+namespace parsec {
+
+
 
 class AbstractSingleOperator : public SecureOperator {
 public:
@@ -17,5 +20,8 @@ public:
 };
 
 
+
+
+} // namespace parsec
 
 #endif

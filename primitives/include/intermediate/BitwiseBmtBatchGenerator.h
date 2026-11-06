@@ -5,6 +5,9 @@
 #include "../base/AbstractBatchOperator.h"
 #include "../intermediate/item/BitwiseBmt.h"
 
+namespace parsec {
+
+
 
 class BitwiseBmtBatchGenerator : public AbstractBmtBatchGenerator<BitwiseBmt> {
 public:
@@ -32,5 +35,8 @@ public:
 };
 
 
+
+
+} // namespace parsec
 
 #endif

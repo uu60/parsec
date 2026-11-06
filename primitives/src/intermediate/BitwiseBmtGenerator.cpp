@@ -4,6 +4,9 @@
 #include "ot/IknpOtBatchOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 
+namespace parsec {
+
+
 BitwiseBmtGenerator *BitwiseBmtGenerator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isClient()) {
@@ -97,3 +100,5 @@ SecureOperator *BitwiseBmtGenerator::reconstruct(int clientRank) {
 int BitwiseBmtGenerator::tagStride(int width) {
     return 2 * IknpOtBatchOperator::tagStride();
 }
+
+} // namespace parsec

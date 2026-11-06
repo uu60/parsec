@@ -6,6 +6,9 @@
 #include "./BitSecret.h"
 #include "./Secret.h"
 
+namespace parsec {
+
+
 class BoolSecret : public Secret {
 public:
     int64_t _data{};
@@ -40,5 +43,8 @@ public:
 };
 
 
+
+
+} // namespace parsec
 
 #endif

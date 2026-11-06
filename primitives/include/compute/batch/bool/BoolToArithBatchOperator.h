@@ -3,6 +3,9 @@
 #define BOOLTOARITHBATCHOPERATOR_H
 #include "BoolBatchOperator.h"
 
+namespace parsec {
+
+
 
 class BoolToArithBatchOperator : public BoolBatchOperator {
 public:
@@ -16,5 +19,8 @@ public:
     static int tagStride();
 };
 
+
+
+} // namespace parsec
 
 #endif

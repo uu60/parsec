@@ -5,6 +5,9 @@
 #include "ot/RandOtOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 
+namespace parsec {
+
+
 BitwiseBmtBatchGenerator::BitwiseBmtBatchGenerator(int count, int width, int taskTag,
                                                    int msgTagOffset) : AbstractBmtBatchGenerator(count,
     width, taskTag, msgTagOffset) {
@@ -105,3 +108,5 @@ SecureOperator *BitwiseBmtBatchGenerator::reconstruct(int clientRank) {
 int BitwiseBmtBatchGenerator::tagStride() {
     return 2 * IknpOtBatchOperator::tagStride();
 }
+
+} // namespace parsec

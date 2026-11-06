@@ -7,6 +7,9 @@
 
 
 #include <string>
+
+namespace parsec {
+
 class StringUtils {
 public:
     template<typename T>
@@ -24,5 +27,8 @@ public:
     static bool hasPrefix(const std::string &str, const std::string &prefix);
 };
 
+
+
+} // namespace parsec
 
 #endif

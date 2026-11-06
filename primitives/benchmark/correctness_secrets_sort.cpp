@@ -13,6 +13,8 @@
 #include <string>
 #include <vector>
 
+using namespace parsec;
+
 int main(int argc, char **argv) {
     System::init(argc, argv);
     bool passed = true;

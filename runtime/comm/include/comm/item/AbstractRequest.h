@@ -2,6 +2,9 @@
 #ifndef ABSTRACTREQUEST_H
 #define ABSTRACTREQUEST_H
 
+namespace parsec {
+
+
 
 
 class AbstractRequest {
@@ -12,5 +15,8 @@ public:
 };
 
 
+
+
+} // namespace parsec
 
 #endif

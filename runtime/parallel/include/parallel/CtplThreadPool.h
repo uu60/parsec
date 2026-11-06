@@ -4,6 +4,9 @@
 #include "third_party/ctpl_stl.h"
 #include "utils/Log.h"
 
+namespace parsec {
+
+
 class CtplThreadPool {
 private:
     ctpl::thread_pool *pool;
@@ -28,5 +31,8 @@ public:
     }
 };
 
+
+
+} // namespace parsec
 
 #endif

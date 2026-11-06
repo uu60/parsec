@@ -7,6 +7,9 @@
 
 #include "Secret.h"
 
+namespace parsec {
+
+
 class ArithSecret : public Secret {
 public:
     int64_t _data{};
@@ -42,5 +45,8 @@ public:
     BitSecret getBit(int n) const;
 };
 
+
+
+} // namespace parsec
 
 #endif

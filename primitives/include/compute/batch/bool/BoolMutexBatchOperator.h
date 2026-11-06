@@ -4,6 +4,9 @@
 #include "./BoolBatchOperator.h"
 #include "../../../intermediate/item/BitwiseBmt.h"
 
+namespace parsec {
+
+
 class BoolMutexBatchOperator : public BoolBatchOperator {
 public:
     std::vector<int64_t> *_conds_i{};
@@ -40,5 +43,8 @@ private:
     void executeBidirectionally();
 };
 
+
+
+} // namespace parsec
 
 #endif

@@ -9,6 +9,9 @@
 #include "utils/Log.h"
 #include <mpi.h>
 
+namespace parsec {
+
+
 int BoolAndBatchOperator::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     if (_bmts != nullptr) {
         bmts = std::move(*_bmts);
@@ -252,3 +255,5 @@ void BoolAndBatchOperator::executeForMutex() {
         }
     }
 }
+
+} // namespace parsec

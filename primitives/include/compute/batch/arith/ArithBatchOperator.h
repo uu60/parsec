@@ -3,6 +3,9 @@
 #define ARITHBATCHEXECUTOR_H
 #include "../../../base/AbstractBatchOperator.h"
 
+namespace parsec {
+
+
 
 class ArithBatchOperator : public AbstractBatchOperator {
 public:
@@ -16,5 +19,8 @@ public:
 };
 
 
+
+
+} // namespace parsec
 
 #endif

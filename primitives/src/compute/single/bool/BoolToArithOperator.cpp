@@ -9,6 +9,9 @@
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Math.h"
 
+namespace parsec {
+
+
 BoolToArithOperator *BoolToArithOperator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isClient()) {
@@ -77,3 +80,5 @@ BoolToArithOperator *BoolToArithOperator::reconstruct(int clientRank) {
     return this;
 }
 
+
+} // namespace parsec

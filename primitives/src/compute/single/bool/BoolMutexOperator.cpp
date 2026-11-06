@@ -6,6 +6,9 @@
 #include "intermediate/IntermediateDataSupport.h"
 #include "parallel/ThreadPoolSupport.h"
 
+namespace parsec {
+
+
 BoolMutexOperator::BoolMutexOperator(int64_t x, int64_t y, bool cond, int width, int taskTag, int msgTagOffset,
                                      int clientRank) : BoolOperator(x, y, width, taskTag, msgTagOffset, clientRank) {
     _cond_i = BoolOperator(cond, 1, _taskTag, _currentMsgTag, clientRank)._zi;
@@ -70,3 +73,5 @@ int BoolMutexOperator::tagStride(int width) {
 int BoolMutexOperator::bmtCount() {
     return 2;
 }
+
+} // namespace parsec

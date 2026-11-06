@@ -6,6 +6,9 @@
 #include "../base/AbstractSingleOperator.h"
 #include "./item/BitwiseBmt.h"
 
+namespace parsec {
+
+
 
 class BitwiseBmtGenerator : public AbstractBmtSingleGenerator<BitwiseBmt> {
 public:
@@ -33,5 +36,8 @@ public:
     static int tagStride(int width);
 };
 
+
+
+} // namespace parsec
 
 #endif

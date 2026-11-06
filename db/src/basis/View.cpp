@@ -22,6 +22,9 @@
 #include "conf/DbConf.h"
 #include "utils/StringUtils.h"
 
+namespace parsec {
+
+
 View::View(std::vector<std::string> &fieldNames,
            std::vector<int> &fieldWidths) : Table(
     EMPTY_VIEW_NAME, fieldNames, fieldWidths, EMPTY_KEY_FIELD) {
@@ -3087,3 +3090,5 @@ void View::bitonicSortMultiBatches(const std::vector<std::string> &orderFields,
         }
     }
 }
+
+} // namespace parsec

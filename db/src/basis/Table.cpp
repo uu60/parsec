@@ -9,6 +9,9 @@
 #include "utils/Log.h"
 #include "utils/StringUtils.h"
 
+namespace parsec {
+
+
 
 Table::Table(std::string &tableName, std::vector<std::string> &fieldNames, std::vector<int> &fieldWidths,
              std::string keyField) {
@@ -60,3 +63,5 @@ size_t Table::rowNum() const {
     }
     return _dataCols[0].size();
 }
+
+} // namespace parsec

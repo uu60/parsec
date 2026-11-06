@@ -6,6 +6,9 @@
 #include "../ot/RandOtBatchOperator.h"
 #include "../ot/RandOtOperator.h"
 
+namespace parsec {
+
+
 template <class BmtT>
 class AbstractBmtBatchGenerator : public AbstractBatchOperator {
 public:
@@ -22,5 +25,8 @@ protected:
     }
 };
 
+
+
+} // namespace parsec
 
 #endif

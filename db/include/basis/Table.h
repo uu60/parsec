@@ -5,6 +5,9 @@
 #include <vector>
 
 #include <string>
+
+namespace parsec {
+
 class Table {
 public:
     inline static const std::string BUCKET_TAG_PREFIX = "$tag:";
@@ -34,5 +37,8 @@ public:
     [[nodiscard]] size_t rowNum() const;
 };
 
+
+
+} // namespace parsec
 
 #endif

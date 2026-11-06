@@ -3,6 +3,9 @@
 #define ARITHADDBATCHOPERATOR_H
 #include "ArithBatchOperator.h"
 
+namespace parsec {
+
+
 
 class ArithAddBatchOperator : public ArithBatchOperator {
 public:
@@ -15,5 +18,8 @@ public:
     static int tagStride();
 };
 
+
+
+} // namespace parsec
 
 #endif

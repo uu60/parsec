@@ -3,6 +3,9 @@
 
 #include "accelerate/SimdSupport.h"
 
+namespace parsec {
+
+
 BoolXorBatchOperator * BoolXorBatchOperator::execute() {
     if (Conf::ENABLE_SIMD) {
         _zis = SimdSupport::xorV(*_xis, *_yis);
@@ -19,3 +22,5 @@ int BoolXorBatchOperator::tagStride() {
     return 0;
 }
 
+
+} // namespace parsec

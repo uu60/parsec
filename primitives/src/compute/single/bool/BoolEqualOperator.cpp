@@ -6,6 +6,9 @@
 #include "intermediate/IntermediateDataSupport.h"
 #include "utils/Math.h"
 
+namespace parsec {
+
+
 BoolEqualOperator *BoolEqualOperator::execute() {
     if (Comm::isServer()) {
         int64_t diff = ring(_xi ^ _yi);
@@ -60,3 +63,5 @@ BoolEqualOperator * BoolEqualOperator::setBmt(BitwiseBmt *bmt) {
     _bmt = bmt;
     return this;
 }
+
+} // namespace parsec

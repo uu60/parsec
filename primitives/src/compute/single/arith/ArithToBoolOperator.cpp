@@ -11,6 +11,9 @@
 #include "utils/Log.h"
 #include "utils/Math.h"
 
+namespace parsec {
+
+
 void ArithToBoolOperator::prepareBmts(BitwiseBmt &b0, BitwiseBmt &b1, BitwiseBmt &b2) const {
     if (_bmts != nullptr) {
         b0 = _bmts->at(0);
@@ -122,3 +125,5 @@ ArithToBoolOperator *ArithToBoolOperator::reconstruct(int clientRank) {
 int ArithToBoolOperator::bmtCount(int width) {
     return 3;
 }
+
+} // namespace parsec

@@ -19,6 +19,8 @@
 
 #include "compute/batch/arith/ArithMultiplyBatchOperator.h"
 
+using namespace parsec;
+
 static int64_t START_DATE = Math::randInt();
 static int64_t END_DATE_EX = Math::randInt();
 static int64_t DISCOUNT_MIN = Math::randInt();

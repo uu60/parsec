@@ -9,6 +9,9 @@
 #include "utils/Log.h"
 #include "utils/Math.h"
 
+namespace parsec {
+
+
 ArithMultiplyBatchOperator::ArithMultiplyBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys,
                                                        int width, int taskTag, int msgTagOffset, int clientRank)
     : ArithBatchOperator(xs, ys, width, taskTag, msgTagOffset, clientRank)
@@ -84,3 +87,5 @@ int ArithMultiplyBatchOperator::tagStride(int width)
 {
     return BmtBatchGenerator::tagStride();
 }
+
+} // namespace parsec

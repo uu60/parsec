@@ -12,6 +12,9 @@
 #include "utils/Log.h"
 #include "utils/Math.h"
 
+namespace parsec {
+
+
 ArithMutexBatchOperator::ArithMutexBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys, 
                                                  std::vector<int64_t> *conds, int width, int taskTag, 
                                                  int msgTagOffset, int clientRank)
@@ -83,3 +86,5 @@ ArithMutexBatchOperator *ArithMutexBatchOperator::setBmts(std::vector<Bmt> *bmts
     _bmts = bmts;
     return this;
 }
+
+} // namespace parsec

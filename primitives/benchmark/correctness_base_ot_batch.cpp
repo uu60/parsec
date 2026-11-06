@@ -7,6 +7,8 @@
 #include "utils/StringUtils.h"
 #include "utils/System.h"
 
+using namespace parsec;
+
 int main(int argc, char *argv[]) {
     System::init(argc, argv);
 

@@ -5,6 +5,9 @@
 #include "./base/AbstractOtBatchOperator.h"
 #include <string>
 
+namespace parsec {
+
+
 class BaseOtBatchOperator : public AbstractOtBatchOperator {
 private:
     std::vector<std::string> _rand0s{};
@@ -27,6 +30,9 @@ private:
     void process();
 };
 
+
+
+} // namespace parsec
 
 #endif
 

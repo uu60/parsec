@@ -8,6 +8,9 @@
 #include "utils/Math.h"
 #include "utils/System.h"
 
+namespace parsec {
+
+
 ArithEqualBatchOperator::ArithEqualBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys, int width,
                                                  int taskTag, int msgTagOffset, int clientRank)
     : ArithBatchOperator(xs, ys, width, taskTag, msgTagOffset, clientRank) {
@@ -80,3 +83,5 @@ ArithEqualBatchOperator *ArithEqualBatchOperator::reconstruct(int clientRank) {
 int ArithEqualBatchOperator::tagStride(int width) {
     return std::max(ArithLessBatchOperator::tagStride(width), BoolAndBatchOperator::tagStride());
 }
+
+} // namespace parsec

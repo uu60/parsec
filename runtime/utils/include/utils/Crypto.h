@@ -30,6 +30,9 @@
 #include <vector>
 #include <string>
 
+namespace parsec {
+
+
 // 128-bit data structure for cryptographic operations
 struct U128 {
     uint64_t lo;
@@ -129,6 +132,9 @@ public:
         U128 *outCol0, U128 *outCol64
     );
 };
+
+
+} // namespace parsec
 
 #endif
 

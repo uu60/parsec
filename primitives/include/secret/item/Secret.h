@@ -2,6 +2,9 @@
 #ifndef SECRET_H
 #define SECRET_H
 
+namespace parsec {
+
+
 
 
 class Secret {
@@ -10,5 +13,8 @@ public:
 };
 
 
+
+
+} // namespace parsec
 
 #endif

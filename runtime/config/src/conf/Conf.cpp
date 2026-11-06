@@ -5,6 +5,9 @@
 #include <iostream>
 #include <stdexcept>
 
+namespace parsec {
+
+
 namespace {
 Conf::BmtT parseBmtMethod(const std::string &value) {
     if (value == "bmt_background") {
@@ -141,3 +144,5 @@ void Conf::init(int argc, char **argv) {
         std::cerr << "Error: " << ex.what() << std::endl;
     }
 }
+
+} // namespace parsec

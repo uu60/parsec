@@ -7,6 +7,9 @@
 #include "./item/Bmt.h"
 #include "../base/AbstractSingleOperator.h"
 
+namespace parsec {
+
+
 class BmtGenerator : public AbstractBmtSingleGenerator<Bmt> {
 public:
     explicit BmtGenerator(int width, int taskTag, int msgTagOffset) : AbstractBmtSingleGenerator(
@@ -30,5 +33,8 @@ public:
     static int tagStride(int width);
 };
 
+
+
+} // namespace parsec
 
 #endif

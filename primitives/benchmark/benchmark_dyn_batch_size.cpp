@@ -21,6 +21,8 @@
 #include "compute/batch/bool/BoolToArithBatchOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 
+using namespace parsec;
+
 void prepareOrigins(int num, std::vector<int64_t> &originsA, std::vector<int64_t> &originsB,
                     std::vector<int64_t> &conditions) {
     if (Comm::isClient()) {

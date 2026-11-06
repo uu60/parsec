@@ -4,6 +4,9 @@
 #include "intermediate/IntermediateDataSupport.h"
 #include "utils/Log.h"
 
+namespace parsec {
+
+
 RandOtOperator *RandOtOperator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isServer()) {
@@ -32,3 +35,5 @@ RandOtOperator *RandOtOperator::execute() {
 int RandOtOperator::tagStride(int width) {
     return 1;
 }
+
+} // namespace parsec

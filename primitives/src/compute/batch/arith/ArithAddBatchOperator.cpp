@@ -2,6 +2,9 @@
 #include "compute/batch/arith/ArithAddBatchOperator.h"
 #include "utils/Math.h"
 
+namespace parsec {
+
+
 ArithAddBatchOperator * ArithAddBatchOperator::execute() {
     if (Comm::isClient()) {
         return this;
@@ -19,3 +22,5 @@ ArithAddBatchOperator * ArithAddBatchOperator::execute() {
 int ArithAddBatchOperator::tagStride() {
     return 0;
 }
+
+} // namespace parsec

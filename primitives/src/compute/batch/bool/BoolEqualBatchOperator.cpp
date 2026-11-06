@@ -5,6 +5,9 @@
 
 #include "utils/Math.h"
 
+namespace parsec {
+
+
 BoolEqualBatchOperator *BoolEqualBatchOperator::execute() {
     if (Comm::isClient()) {
         return this;
@@ -118,3 +121,5 @@ bool BoolEqualBatchOperator::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     }
     return false;
 }
+
+} // namespace parsec

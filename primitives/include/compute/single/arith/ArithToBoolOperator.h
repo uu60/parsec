@@ -4,6 +4,9 @@
 #include "./ArithOperator.h"
 #include "../../../intermediate/item/BitwiseBmt.h"
 
+namespace parsec {
+
+
 class ArithToBoolOperator : public ArithOperator {
 private:
     std::vector<BitwiseBmt> *_bmts{};
@@ -29,5 +32,8 @@ private:
     void prepareBmts(BitwiseBmt &b0, BitwiseBmt &b1, BitwiseBmt &b2) const;
 };
 
+
+
+} // namespace parsec
 
 #endif

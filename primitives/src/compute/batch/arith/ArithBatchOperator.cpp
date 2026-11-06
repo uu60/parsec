@@ -5,6 +5,9 @@
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Math.h"
 
+namespace parsec {
+
+
 ArithBatchOperator::ArithBatchOperator(std::vector<int64_t> &zs, int width, int taskTag, int msgTagOffset,
                                        int clientRank) : AbstractBatchOperator(width, taskTag, msgTagOffset) {
     if (clientRank < 0) {
@@ -94,3 +97,5 @@ ArithBatchOperator *ArithBatchOperator::reconstruct(int clientRank) {
 ArithBatchOperator *ArithBatchOperator::execute() {
     throw std::runtime_error("Needs implementation.");
 }
+
+} // namespace parsec

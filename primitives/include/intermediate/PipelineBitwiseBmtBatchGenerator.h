@@ -5,6 +5,9 @@
 #include "item/BitwiseBmt.h"
 #include "sync/BoostSpscQueue.h"
 
+namespace parsec {
+
+
 class PipelineBitwiseBmtBatchGenerator : public AbstractBatchOperator {
 private:
     int _index{};
@@ -45,5 +48,8 @@ public:
     PipelineBitwiseBmtBatchGenerator *reconstruct(int clientRank) override;
 };
 
+
+
+} // namespace parsec
 
 #endif

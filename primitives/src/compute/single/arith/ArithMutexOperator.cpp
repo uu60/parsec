@@ -12,6 +12,9 @@
 #include "utils/Log.h"
 #include "utils/Math.h"
 
+namespace parsec {
+
+
 ArithMutexOperator::ArithMutexOperator(int64_t x, int64_t y, bool cond, int l, int taskTag, int msgTagOffset,
                                        int clientRank) : ArithOperator(x, y, l, taskTag, msgTagOffset, clientRank) {
     if (clientRank < 0 && _width > 1) {
@@ -79,3 +82,5 @@ ArithMutexOperator *ArithMutexOperator::setBmts(std::vector<Bmt> *bmts) {
 int ArithMutexOperator::bmtCount(int width) {
     return 2;
 }
+
+} // namespace parsec

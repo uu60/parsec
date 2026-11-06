@@ -11,6 +11,9 @@
 #include <mutex>
 #include "comm/Comm.h"
 
+namespace parsec {
+
+
 class Log {
 private:
     static inline const std::string INFO = "INFO";
@@ -118,5 +121,8 @@ private:
         return oss.str();
     }
 };
+
+
+} // namespace parsec
 
 #endif

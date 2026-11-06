@@ -6,6 +6,9 @@
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Math.h"
 
+namespace parsec {
+
+
 BmtBatchGenerator::BmtBatchGenerator(int count, int l, int taskTag, int msgTagOffset) : AbstractBmtBatchGenerator(
     count, l, taskTag, msgTagOffset) {
 }
@@ -119,3 +122,5 @@ BmtBatchGenerator *BmtBatchGenerator::execute() {
     computeC();
     return this;
 }
+
+} // namespace parsec

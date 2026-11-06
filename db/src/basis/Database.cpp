@@ -4,6 +4,9 @@
 
 #include "../../include/basis/Database.h"
 
+namespace parsec {
+
+
 Database::Database(std::string databaseName) {
     this->_databaseName = std::move(databaseName);
 }
@@ -39,3 +42,5 @@ Table *Database::getTable(const std::string &tableName) {
 }
 
 Database::Database() = default;
+
+} // namespace parsec

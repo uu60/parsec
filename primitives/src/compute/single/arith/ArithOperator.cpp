@@ -7,6 +7,9 @@
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Math.h"
 
+namespace parsec {
+
+
 ArithOperator::ArithOperator(int64_t z, int width, int taskTag, int msgTagOffset,
                              int clientRank) : AbstractSingleOperator(width, taskTag, msgTagOffset) {
     if (clientRank < 0) {
@@ -67,3 +70,5 @@ ArithOperator *ArithOperator::reconstruct(int clientRank) {
     }
     return this;
 }
+
+} // namespace parsec

@@ -8,6 +8,9 @@
 #include "compute/single/bool/BoolToArithOperator.h"
 #include "compute/single/bool/BoolXorOperator.h"
 
+namespace parsec {
+
+
 BoolSecret::BoolSecret() = default;
 
 BoolSecret::BoolSecret(int64_t x, int l, int taskTag, int msgTagOffset) : _data(x), _width(l),
@@ -72,3 +75,5 @@ BoolSecret BoolSecret::mux(BoolSecret yi, BitSecret cond_i) const {
         _width, _taskTag, _currentMsgTag
     };
 }
+
+} // namespace parsec

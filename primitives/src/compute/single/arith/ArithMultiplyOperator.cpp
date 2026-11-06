@@ -7,6 +7,9 @@
 #include "utils/Log.h"
 #include "utils/Math.h"
 
+namespace parsec {
+
+
 ArithMultiplyOperator *ArithMultiplyOperator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isServer()) {
@@ -43,3 +46,5 @@ ArithMultiplyOperator *ArithMultiplyOperator::setBmt(Bmt *bmt) {
     _bmt = bmt;
     return this;
 }
+
+} // namespace parsec

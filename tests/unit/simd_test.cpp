@@ -6,6 +6,8 @@
 #include <random>
 #include <vector>
 
+using namespace parsec;
+
 namespace {
 
 std::vector<int64_t> randomVector(size_t n, uint64_t seed) {

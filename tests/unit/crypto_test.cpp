@@ -7,6 +7,8 @@
 #include <random>
 #include <vector>
 
+using namespace parsec;
+
 namespace {
 
 // Bit `c` of a 128-bit row: columns 0-63 live in `lo`, 64-127 in `hi`.

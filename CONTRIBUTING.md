@@ -59,7 +59,8 @@ Keep each pull request focused and include:
 3. Security and performance implications.
 4. Documentation updates for public behavior or configuration changes.
 
-Use the repository `.clang-format` for changed C++ files. Avoid unrelated formatting changes. New correctness tests
+Put library code in the `parsec` namespace; executables (benchmarks, experiments, tests) may use
+`using namespace parsec;`. Use the repository `.clang-format` for changed C++ files. Avoid unrelated formatting changes. New correctness tests
 must return a non-zero exit status on failure or provide an unambiguous pass/fail result that CTest can validate.
 
 ## Commit messages

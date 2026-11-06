@@ -14,6 +14,9 @@
 #include "utils/Math.h"
 #include "utils/System.h"
 
+namespace parsec {
+
+
 ArithToBoolBatchOperator::ArithToBoolBatchOperator(std::vector<int64_t> *xs, int width, int taskTag, int msgTagOffset,
                                                    int clientRank)
     : ArithBatchOperator(*xs, width, taskTag, msgTagOffset, clientRank) {
@@ -161,3 +164,5 @@ ArithToBoolBatchOperator *ArithToBoolBatchOperator::reconstruct(int clientRank) 
 int ArithToBoolBatchOperator::tagStride(int width) {
     return BoolAndBatchOperator::tagStride();
 }
+
+} // namespace parsec

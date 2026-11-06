@@ -3,6 +3,9 @@
 #define BOOLXORBATCHOPERATOR_H
 #include "BoolBatchOperator.h"
 
+namespace parsec {
+
+
 
 class BoolXorBatchOperator : public BoolBatchOperator {
 public:
@@ -15,5 +18,8 @@ public:
     int tagStride();
 };
 
+
+
+} // namespace parsec
 
 #endif

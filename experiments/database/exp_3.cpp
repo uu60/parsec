@@ -20,6 +20,8 @@
 #include <vector>
 #include <algorithm>
 
+using namespace parsec;
+
 static int64_t kHD = Math::randInt();
 static int64_t kASP = Math::randInt();
 

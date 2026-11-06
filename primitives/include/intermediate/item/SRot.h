@@ -4,6 +4,9 @@
 
 #include <cstdint>
 
+namespace parsec {
+
+
 
 class SRot {
 public:
@@ -11,5 +14,8 @@ public:
     int64_t _r1{};
 };
 
+
+
+} // namespace parsec
 
 #endif
