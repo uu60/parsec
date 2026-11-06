@@ -78,9 +78,6 @@ void BitwiseBmtBatchGenerator::computeMix(int sender) {
                                        _currentMsgTag + sender * IknpOtBatchOperator::tagStride())
                        .execute()
                        ->_results;
-    // auto results = RandOtBatchOperator(sender, &ss0, &ss1, &choices, _taskTag,
-    //                                    _currentMsgTag + sender *
-    //                                    RandOtBatchOperator::tagStride()).execute()->_results;
 
     std::vector<int64_t>* mix = sender == 0 ? &_usi : &_vsi;
     mix->resize(_bc);

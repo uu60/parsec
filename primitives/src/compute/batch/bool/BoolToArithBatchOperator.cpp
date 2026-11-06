@@ -44,7 +44,6 @@ BoolToArithBatchOperator* BoolToArithBatchOperator::execute() {
             }
         }
     }
-    // RandOtBatchOperator e(0, &ss0, &ss1, &choices, _width, _taskTag, _currentMsgTag);
     IknpOtBatchOperator e(sender, &ss0, &ss1, &choices, _width, _taskTag, _currentMsgTag);
     e.execute();
 
