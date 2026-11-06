@@ -20,7 +20,6 @@
 
 namespace parsec {
 
-
 void IntermediateDataSupport::prepareBmt() {
     if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
         _fixedBmt = BmtGenerator(64, 0, 0).execute()->_bmt;
@@ -65,7 +64,6 @@ void IntermediateDataSupport::prepareBmt() {
     }
 }
 
-
 void IntermediateDataSupport::init() {
     if (Comm::isClient()) {
         return;
@@ -79,7 +77,8 @@ void IntermediateDataSupport::init() {
 
     prepareBmt();
 
-    if ((Conf::BMT_METHOD == Conf::BMT_BACKGROUND || Conf::BMT_METHOD == Conf::BMT_PIPELINE) && Conf::BMT_PRE_GEN_SECONDS > 0) {
+    if ((Conf::BMT_METHOD == Conf::BMT_BACKGROUND || Conf::BMT_METHOD == Conf::BMT_PIPELINE) &&
+        Conf::BMT_PRE_GEN_SECONDS > 0) {
         std::this_thread::sleep_for(std::chrono::seconds(Conf::BMT_PRE_GEN_SECONDS));
     }
 }
@@ -133,8 +132,8 @@ void IntermediateDataSupport::prepareRot() {
             _rRot0 = new RRot();
             _rRot0->_b = static_cast<int>(Math::randInt(0, 1));
         }
-        BaseOtOperator e(i, isSender ? _sRot0->_r0 : -1, isSender ? _sRot0->_r1 : -1, !isSender ? _rRot0->_b : -1,
-                         64, 2, i * BaseOtOperator::tagStride());
+        BaseOtOperator e(i, isSender ? _sRot0->_r0 : -1, isSender ? _sRot0->_r1 : -1, !isSender ? _rRot0->_b : -1, 64,
+                         2, i * BaseOtOperator::tagStride());
         e.execute();
         if (!isSender) {
             _rRot0->_rb = e._result;
@@ -151,8 +150,8 @@ void IntermediateDataSupport::prepareRot() {
             _rRot1 = new RRot();
             _rRot1->_b = 1 - _rRot0->_b;
         }
-        BaseOtOperator e(i, isSender ? _sRot1->_r0 : -1, isSender ? _sRot1->_r1 : -1, !isSender ? _rRot1->_b : -1,
-                         64, 2, i * BaseOtOperator::tagStride());
+        BaseOtOperator e(i, isSender ? _sRot1->_r0 : -1, isSender ? _sRot1->_r1 : -1, !isSender ? _rRot1->_b : -1, 64,
+                         2, i * BaseOtOperator::tagStride());
         e.execute();
         if (!isSender) {
             _rRot1->_rb = e._result;
@@ -239,7 +238,8 @@ void IntermediateDataSupport::startGenerateBmtsAsync() {
                     while (!System::_shutdown.load()) {
                         q->offer(BmtGenerator(64, Conf::BMT_QUEUE_NUM + i, 0).execute()->_bmt);
                     }
-                } catch (...) {}
+                } catch (...) {
+                }
             });
         }
     }
@@ -252,12 +252,14 @@ void IntermediateDataSupport::startGenerateBitwiseBmtsAsync() {
                 try {
                     auto q = _bitwiseBmtQs[i];
                     while (!System::_shutdown.load()) {
-                        auto bitwiseBmts = BitwiseBmtBatchGenerator(Conf::BMT_GEN_BATCH_SIZE, 64, i, 0).execute()->_bmts;
-                        for (auto b: bitwiseBmts) {
+                        auto bitwiseBmts =
+                            BitwiseBmtBatchGenerator(Conf::BMT_GEN_BATCH_SIZE, 64, i, 0).execute()->_bmts;
+                        for (auto b : bitwiseBmts) {
                             q->offer(b);
                         }
                     }
-                } catch (...) {}
+                } catch (...) {
+                }
             });
         }
     } else if (Conf::BMT_METHOD == Conf::BMT_PIPELINE) {
@@ -267,7 +269,8 @@ void IntermediateDataSupport::startGenerateBitwiseBmtsAsync() {
                     auto g = new PipelineBitwiseBmtBatchGenerator(i, i, 0);
                     g->execute();
                     delete g;
-                } catch (...) {}
+                } catch (...) {
+                }
             });
         }
     }
@@ -279,7 +282,7 @@ void IntermediateDataSupport::prepareIknp() {
     }
 
     if (!_iknpBaseSeeds0.empty()) {
-        return;  // Already initialized
+        return; // Already initialized
     }
 
     // Prepare IKNP base data for BOTH directions:

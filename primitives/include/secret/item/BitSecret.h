@@ -7,12 +7,12 @@
 
 namespace parsec {
 
-
 class BitSecret : public Secret {
-public:
+  public:
     bool _data{};
     int _taskTag{};
-public:
+
+  public:
     explicit BitSecret(bool x, int taskTag);
 
     BitSecret task(int taskTag);
@@ -35,8 +35,6 @@ public:
 
     [[nodiscard]] bool get() const;
 };
-
-
 
 } // namespace parsec
 

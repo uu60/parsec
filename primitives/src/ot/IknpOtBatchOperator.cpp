@@ -7,25 +7,21 @@
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Crypto.h"
 #include "utils/System.h"
-#include <cstring>
-#include <stdexcept>
 #include <algorithm>
+#include <cstring>
 #include <future>
+#include <stdexcept>
 #include <vector>
 
 namespace parsec {
-
 
 constexpr size_t MAX_TILE_WIDTH = 64;
 constexpr size_t TILE_ROWS = 128;
 constexpr size_t MAX_TILE_SIZE = TILE_ROWS * MAX_TILE_WIDTH;
 
-IknpOtBatchOperator::IknpOtBatchOperator(int sender,
-                                         std::vector<int64_t> *bits0Packed,
-                                         std::vector<int64_t> *bits1Packed,
-                                         std::vector<int64_t> *choiceBitsPacked,
-                                         int taskTag,
-                                         int msgTagOffset)
+IknpOtBatchOperator::IknpOtBatchOperator(int sender, std::vector<int64_t>* bits0Packed,
+                                         std::vector<int64_t>* bits1Packed, std::vector<int64_t>* choiceBitsPacked,
+                                         int taskTag, int msgTagOffset)
     : AbstractOtBatchOperator(64, taskTag, msgTagOffset) {
     if (Comm::isClient()) {
         return;
@@ -41,13 +37,8 @@ IknpOtBatchOperator::IknpOtBatchOperator(int sender,
     }
 }
 
-IknpOtBatchOperator::IknpOtBatchOperator(int sender,
-                                         std::vector<int64_t> *ms0,
-                                         std::vector<int64_t> *ms1,
-                                         std::vector<int> *choices,
-                                         int width,
-                                         int taskTag,
-                                         int msgTagOffset)
+IknpOtBatchOperator::IknpOtBatchOperator(int sender, std::vector<int64_t>* ms0, std::vector<int64_t>* ms1,
+                                         std::vector<int>* choices, int width, int taskTag, int msgTagOffset)
     : AbstractOtBatchOperator(sender, ms0, ms1, choices, width, taskTag, msgTagOffset) {
     if (Comm::isClient()) {
         return;
@@ -57,11 +48,9 @@ IknpOtBatchOperator::IknpOtBatchOperator(int sender,
     _choiceBitsPacked = nullptr;
 }
 
-int IknpOtBatchOperator::tagStride() {
-    return 2;
-}
+int IknpOtBatchOperator::tagStride() { return 2; }
 
-IknpOtBatchOperator *IknpOtBatchOperator::execute() {
+IknpOtBatchOperator* IknpOtBatchOperator::execute() {
     if (Comm::isClient()) {
         return this;
     }
@@ -90,9 +79,8 @@ IknpOtBatchOperator *IknpOtBatchOperator::execute() {
 }
 
 void IknpOtBatchOperator::deriveSenderSeeds() {
-    const auto &baseSeeds = (_senderRank == 0)
-                                ? IntermediateDataSupport::_iknpBaseSeeds0
-                                : IntermediateDataSupport::_iknpBaseSeeds1;
+    const auto& baseSeeds =
+        (_senderRank == 0) ? IntermediateDataSupport::_iknpBaseSeeds0 : IntermediateDataSupport::_iknpBaseSeeds1;
 
     if (baseSeeds.size() < SECURITY_PARAM) {
         throw std::runtime_error("IKNP: base seeds not prepared; call IntermediateDataSupport::init() first");
@@ -120,7 +108,8 @@ void IknpOtBatchOperator::senderExtendForBits() {
 
     const size_t numTiles = (totalBits + TILE_ROWS * W - 1) / (TILE_ROWS * W);
     std::vector<size_t> tileBlocks(numTiles);
-    size_t totalUSize = 0; {
+    size_t totalUSize = 0;
+    {
         size_t offset = 0;
         for (size_t t = 0; t < numTiles; ++t) {
             const size_t chunk = std::min<size_t>(TILE_ROWS * W, totalBits - offset);
@@ -133,32 +122,37 @@ void IknpOtBatchOperator::senderExtendForBits() {
 
     alignas(32) U128 qRows[MAX_TILE_SIZE];
 
-    const auto &senderChoices = (_senderRank == 0)
-                                    ? IntermediateDataSupport::_iknpSenderChoices0
-                                    : IntermediateDataSupport::_iknpSenderChoices1;
+    const auto& senderChoices = (_senderRank == 0) ? IntermediateDataSupport::_iknpSenderChoices0
+                                                   : IntermediateDataSupport::_iknpSenderChoices1;
 
     U128 sBlock{0, 0};
     for (size_t i = 0; i < 64; ++i) {
-        if (senderChoices[i]) sBlock.lo |= (1ULL << i);
+        if (senderChoices[i])
+            sBlock.lo |= (1ULL << i);
     }
     for (size_t i = 64; i < TILE_ROWS; ++i) {
-        if (senderChoices[i]) sBlock.hi |= (1ULL << (i - 64));
+        if (senderChoices[i])
+            sBlock.hi |= (1ULL << (i - 64));
     }
 
-    std::vector<int64_t> allUBuffer(totalUSize); {
-        AbstractRequest *recvReq = Comm::serverReceiveAsync(
-            allUBuffer, static_cast<int>(totalUSize), 64, buildTag(_currentMsgTag.load())); {
+    std::vector<int64_t> allUBuffer(totalUSize);
+    {
+        AbstractRequest* recvReq =
+            Comm::serverReceiveAsync(allUBuffer, static_cast<int>(totalUSize), 64, buildTag(_currentMsgTag.load()));
+        {
             alignas(32) uint64_t prgSeeds[TILE_ROWS];
-            for (size_t i = 0; i < TILE_ROWS; ++i) prgSeeds[i] = _senderSeeds[i][0];
+            for (size_t i = 0; i < TILE_ROWS; ++i)
+                prgSeeds[i] = _senderSeeds[i][0];
             Crypto::batchPrgGenerate(prgSeeds, TILE_ROWS, qRows, tileBlocks[0]);
         }
         Comm::wait(recvReq);
     }
-    _currentMsgTag.fetch_add(1, std::memory_order_relaxed); {
-        const size_t nThreads = std::min<size_t>(numTiles,
-                                                 std::max<size_t>(1, std::thread::hardware_concurrency()));
+    _currentMsgTag.fetch_add(1, std::memory_order_relaxed);
+    {
+        const size_t nThreads = std::min<size_t>(numTiles, std::max<size_t>(1, std::thread::hardware_concurrency()));
 
-        std::vector<size_t> tileOffset(numTiles), tileUOffset(numTiles); {
+        std::vector<size_t> tileOffset(numTiles), tileUOffset(numTiles);
+        {
             size_t off = 0, uOff = 0;
             for (size_t t = 0; t < numTiles; ++t) {
                 tileOffset[t] = off;
@@ -186,12 +180,12 @@ void IknpOtBatchOperator::senderExtendForBits() {
                 Crypto::batchPrgGenerate(prgSeeds, TILE_ROWS, qRowsLocal, blocks_);
 
                 // XOR with U
-                const U128 *uRows_ = reinterpret_cast<const U128 *>(&allUBuffer[uOff_]); {
+                const U128* uRows_ = reinterpret_cast<const U128*>(&allUBuffer[uOff_]);
+                {
                     if (Conf::ENABLE_SIMD) {
                         for (size_t i = 0; i < TILE_ROWS; ++i) {
                             if (senderChoices[i])
-                                SimdSupport::xorU128Arrays(&qRowsLocal[i * blocks_],
-                                                           &qRowsLocal[i * blocks_],
+                                SimdSupport::xorU128Arrays(&qRowsLocal[i * blocks_], &qRowsLocal[i * blocks_],
                                                            &uRows_[i * blocks_], blocks_);
                         }
                     } else {
@@ -204,7 +198,8 @@ void IknpOtBatchOperator::senderExtendForBits() {
                             }
                         }
                     }
-                } {
+                }
+                {
                     for (size_t blk = 0; blk < blocks_; ++blk) {
                         for (size_t r = 0; r < TILE_ROWS; ++r)
                             tile[r] = qRowsLocal[r * blocks_ + blk];
@@ -221,12 +216,13 @@ void IknpOtBatchOperator::senderExtendForBits() {
 
                         uint64_t h0Bits[2], h1Bits[2];
                         const size_t validInTile = std::min<size_t>(TILE_ROWS, chunk_ - blk * TILE_ROWS);
-                        Crypto::hashTileBatchPair(static_cast<int>(offset_ + blk * TILE_ROWS),
-                                                  tile, tile_xor_s, validInTile, h0Bits, h1Bits);
+                        Crypto::hashTileBatchPair(static_cast<int>(offset_ + blk * TILE_ROWS), tile, tile_xor_s,
+                                                  validInTile, h0Bits, h1Bits);
 
                         for (size_t k = 0; k < TILE_ROWS && (blk + k * blocks_) < chunk_; ++k) {
                             const size_t pos = blk + k * blocks_;
-                            if (offset_ + pos >= totalBits) continue;
+                            if (offset_ + pos >= totalBits)
+                                continue;
                             const size_t limbIdx = (offset_ + pos) / 64;
                             const size_t bitPos = (offset_ + pos) % 64;
                             const uint64_t m0_bit = ((*_ms0)[limbIdx] >> bitPos) & 1;
@@ -245,20 +241,21 @@ void IknpOtBatchOperator::senderExtendForBits() {
             workerSender(0, numTiles);
         } else {
             const size_t tilesPerThread = (numTiles + nThreads - 1) / nThreads;
-            std::vector<std::future<void> > futures;
+            std::vector<std::future<void>> futures;
             futures.reserve(nThreads);
             for (size_t i = 0; i < nThreads; ++i) {
                 const size_t tStart = i * tilesPerThread;
                 const size_t tEnd = std::min(tStart + tilesPerThread, numTiles);
-                if (tStart >= numTiles) break;
-                futures.push_back(ThreadPoolSupport::submit([=, &workerSender]() {
-                    workerSender(tStart, tEnd);
-                }));
+                if (tStart >= numTiles)
+                    break;
+                futures.push_back(ThreadPoolSupport::submit([=, &workerSender]() { workerSender(tStart, tEnd); }));
             }
-            for (auto &f: futures) f.get();
+            for (auto& f : futures)
+                f.get();
         }
-    } {
-        AbstractRequest *sendReq = Comm::serverSendAsync(_results, 64, buildTag(_currentMsgTag.load()));
+    }
+    {
+        AbstractRequest* sendReq = Comm::serverSendAsync(_results, 64, buildTag(_currentMsgTag.load()));
         Comm::wait(sendReq);
     }
     _currentMsgTag.fetch_add(1, std::memory_order_relaxed);
@@ -276,7 +273,8 @@ void IknpOtBatchOperator::receiverExtendForBits() {
     const size_t numTiles = (totalBits + TILE_ROWS * W - 1) / (TILE_ROWS * W);
 
     std::vector<size_t> tileBlocks(numTiles);
-    size_t totalUSize = 0; {
+    size_t totalUSize = 0;
+    {
         size_t offset = 0;
         for (size_t t = 0; t < numTiles; ++t) {
             const size_t chunk = std::min<size_t>(TILE_ROWS * W, totalBits - offset);
@@ -287,7 +285,8 @@ void IknpOtBatchOperator::receiverExtendForBits() {
         }
     }
 
-    std::vector<size_t> tileOffset(numTiles), tileUOffset(numTiles); {
+    std::vector<size_t> tileOffset(numTiles), tileUOffset(numTiles);
+    {
         size_t off = 0, uOff = 0;
         for (size_t t = 0; t < numTiles; ++t) {
             tileOffset[t] = off;
@@ -301,9 +300,8 @@ void IknpOtBatchOperator::receiverExtendForBits() {
     std::vector<int64_t> allUBuffer(totalUSize);
     std::vector<U128> allTBuffer(totalUSize / 2);
 
-    const auto &baseSeeds = (_senderRank == 0)
-                                ? IntermediateDataSupport::_iknpBaseSeeds0
-                                : IntermediateDataSupport::_iknpBaseSeeds1;
+    const auto& baseSeeds =
+        (_senderRank == 0) ? IntermediateDataSupport::_iknpBaseSeeds0 : IntermediateDataSupport::_iknpBaseSeeds1;
 
     const uint64_t derivationSalt = static_cast<uint64_t>(_taskTag) << 32 | static_cast<uint64_t>(_startMsgTag);
     std::vector<uint64_t> derivedSeeds0(TILE_ROWS);
@@ -314,8 +312,8 @@ void IknpOtBatchOperator::receiverExtendForBits() {
         derivedSeeds1[i] = static_cast<uint64_t>(baseSeeds[i][1]) ^ mix;
     }
 
-    const size_t nThreads = std::min<size_t>(numTiles,
-                                             std::max<size_t>(1, std::thread::hardware_concurrency())); {
+    const size_t nThreads = std::min<size_t>(numTiles, std::max<size_t>(1, std::thread::hardware_concurrency()));
+    {
         auto workerPhase1 = [&](size_t tStart, size_t tEnd) {
             alignas(32) U128 tRowsLocal[MAX_TILE_SIZE];
             alignas(32) U128 uRowsLocal[MAX_TILE_SIZE];
@@ -330,12 +328,15 @@ void IknpOtBatchOperator::receiverExtendForBits() {
                 for (size_t w = 0; w < blocks_; ++w) {
                     for (size_t row = 0; row < TILE_ROWS; ++row) {
                         const size_t idx = offset_ + w + row * blocks_;
-                        if (idx >= totalBits) break;
+                        if (idx >= totalBits)
+                            break;
                         const size_t limbIdx = idx / 64;
                         const size_t bitPos = idx % 64;
                         const uint64_t choiceBit = ((*_choiceBitsPacked)[limbIdx] >> bitPos) & 1;
-                        if (row < 64) cBlocks[w].lo |= (choiceBit << row);
-                        else cBlocks[w].hi |= (choiceBit << (row - 64));
+                        if (row < 64)
+                            cBlocks[w].lo |= (choiceBit << row);
+                        else
+                            cBlocks[w].hi |= (choiceBit << (row - 64));
                     }
                 }
 
@@ -344,12 +345,14 @@ void IknpOtBatchOperator::receiverExtendForBits() {
                 for (size_t i = 0; i < TILE_ROWS; ++i) {
                     prgSeeds0[i] = derivedSeeds0[i] + t;
                     prgSeeds1[i] = derivedSeeds1[i] + t;
-                } {
+                }
+                {
                     Crypto::batchPrgGenerate(prgSeeds0, TILE_ROWS, tRowsLocal, blocks_);
                     Crypto::batchPrgGenerate(prgSeeds1, TILE_ROWS, uRowsLocal, blocks_);
                 }
 
-                std::memcpy(&allTBuffer[uOff_ / 2], tRowsLocal, TILE_ROWS * blocks_ * sizeof(U128)); {
+                std::memcpy(&allTBuffer[uOff_ / 2], tRowsLocal, TILE_ROWS * blocks_ * sizeof(U128));
+                {
                     if (Conf::ENABLE_SIMD) {
                         for (size_t i = 0; i < TILE_ROWS; ++i) {
                             SimdSupport::xorU128Arrays(&uRowsLocal[i * blocks_], &uRowsLocal[i * blocks_],
@@ -377,26 +380,28 @@ void IknpOtBatchOperator::receiverExtendForBits() {
             workerPhase1(0, numTiles);
         } else {
             const size_t tilesPerThread = (numTiles + nThreads - 1) / nThreads;
-            std::vector<std::future<void> > futures;
+            std::vector<std::future<void>> futures;
             futures.reserve(nThreads);
             for (size_t i = 0; i < nThreads; ++i) {
                 const size_t tStart = i * tilesPerThread;
                 const size_t tEnd = std::min(tStart + tilesPerThread, numTiles);
-                if (tStart >= numTiles) break;
-                futures.push_back(ThreadPoolSupport::submit([=, &workerPhase1]() {
-                    workerPhase1(tStart, tEnd);
-                }));
+                if (tStart >= numTiles)
+                    break;
+                futures.push_back(ThreadPoolSupport::submit([=, &workerPhase1]() { workerPhase1(tStart, tEnd); }));
             }
-            for (auto &f: futures) f.get();
+            for (auto& f : futures)
+                f.get();
         }
     }
 
-    AbstractRequest *sendReq = nullptr; {
+    AbstractRequest* sendReq = nullptr;
+    {
         const int64_t tc = System::currentTimeMillis();
         sendReq = Comm::serverSendAsync(allUBuffer, 64, buildTag(_currentMsgTag.load()));
-        (void) tc;
+        (void)tc;
     }
-    _currentMsgTag.fetch_add(1, std::memory_order_relaxed); {
+    _currentMsgTag.fetch_add(1, std::memory_order_relaxed);
+    {
         auto workerPhase3 = [&](size_t tStart, size_t tEnd) {
             alignas(32) U128 tile[TILE_ROWS];
             for (size_t t = tStart; t < tEnd; ++t) {
@@ -404,7 +409,7 @@ void IknpOtBatchOperator::receiverExtendForBits() {
                 const size_t uOff_ = tileUOffset[t];
                 const size_t chunk_ = std::min<size_t>(TILE_ROWS * W, totalBits - offset_);
                 const size_t blocks_ = tileBlocks[t];
-                const U128 *cachedT = &allTBuffer[uOff_ / 2];
+                const U128* cachedT = &allTBuffer[uOff_ / 2];
 
                 for (size_t blk = 0; blk < blocks_; ++blk) {
                     for (size_t r = 0; r < TILE_ROWS; ++r)
@@ -417,7 +422,8 @@ void IknpOtBatchOperator::receiverExtendForBits() {
 
                     for (size_t k = 0; k < TILE_ROWS && (blk + k * blocks_) < chunk_; ++k) {
                         const size_t pos = blk + k * blocks_;
-                        if (offset_ + pos >= totalBits) continue;
+                        if (offset_ + pos >= totalBits)
+                            continue;
                         const size_t limbIdx = (offset_ + pos) / 64;
                         const size_t bitPos = (offset_ + pos) % 64;
                         const uint64_t h_bit = (k < 64) ? ((hBits[0] >> k) & 1) : ((hBits[1] >> (k - 64)) & 1);
@@ -431,36 +437,39 @@ void IknpOtBatchOperator::receiverExtendForBits() {
             workerPhase3(0, numTiles);
         } else {
             const size_t tilesPerThread = (numTiles + nThreads - 1) / nThreads;
-            std::vector<std::future<void> > futures;
+            std::vector<std::future<void>> futures;
             futures.reserve(nThreads);
             for (size_t i = 0; i < nThreads; ++i) {
                 const size_t tStart = i * tilesPerThread;
                 const size_t tEnd = std::min(tStart + tilesPerThread, numTiles);
-                if (tStart >= numTiles) break;
-                futures.push_back(ThreadPoolSupport::submit([=, &workerPhase3]() {
-                    workerPhase3(tStart, tEnd);
-                }));
+                if (tStart >= numTiles)
+                    break;
+                futures.push_back(ThreadPoolSupport::submit([=, &workerPhase3]() { workerPhase3(tStart, tEnd); }));
             }
-            for (auto &f: futures) f.get();
+            for (auto& f : futures)
+                f.get();
         }
-    } {
+    }
+    {
         Comm::wait(sendReq);
     }
 
-    std::vector<int64_t> maskedMessages(n * 2); {
-        AbstractRequest *recvReq = Comm::serverReceiveAsync(
-            maskedMessages, static_cast<int>(n * 2), 64, buildTag(_currentMsgTag.load()));
+    std::vector<int64_t> maskedMessages(n * 2);
+    {
+        AbstractRequest* recvReq =
+            Comm::serverReceiveAsync(maskedMessages, static_cast<int>(n * 2), 64, buildTag(_currentMsgTag.load()));
         Comm::wait(recvReq);
     }
-    _currentMsgTag.fetch_add(1, std::memory_order_relaxed); {
+    _currentMsgTag.fetch_add(1, std::memory_order_relaxed);
+    {
         if (Conf::ENABLE_SIMD) {
             std::vector<int64_t> y0Vec(n), y1Vec(n);
             for (size_t limb = 0; limb < n; ++limb) {
                 y0Vec[limb] = maskedMessages[limb * 2];
                 y1Vec[limb] = maskedMessages[limb * 2 + 1];
             }
-            SimdSupport::selectBits(_results.data(), y0Vec.data(), y1Vec.data(),
-                                    _choiceBitsPacked->data(), _results.data(), n);
+            SimdSupport::selectBits(_results.data(), y0Vec.data(), y1Vec.data(), _choiceBitsPacked->data(),
+                                    _results.data(), n);
         } else {
             for (size_t limb = 0; limb < n; ++limb) {
                 const uint64_t choice = static_cast<uint64_t>((*_choiceBitsPacked)[limb]);
@@ -483,23 +492,25 @@ void IknpOtBatchOperator::senderExtend() {
     const size_t numTiles = (n + OTS_PER_TILE - 1) / OTS_PER_TILE;
     const size_t totalUSize = numTiles * TILE_ROWS * 2;
 
-    const auto &senderChoices = (_senderRank == 0)
-                                    ? IntermediateDataSupport::_iknpSenderChoices0
-                                    : IntermediateDataSupport::_iknpSenderChoices1;
+    const auto& senderChoices = (_senderRank == 0) ? IntermediateDataSupport::_iknpSenderChoices0
+                                                   : IntermediateDataSupport::_iknpSenderChoices1;
     U128 sBlock{0, 0};
     for (size_t i = 0; i < 64; ++i)
-        if (senderChoices[i]) sBlock.lo |= (1ULL << i);
+        if (senderChoices[i])
+            sBlock.lo |= (1ULL << i);
     for (size_t i = 64; i < TILE_ROWS; ++i)
-        if (senderChoices[i]) sBlock.hi |= (1ULL << (i - 64));
+        if (senderChoices[i])
+            sBlock.hi |= (1ULL << (i - 64));
 
-    std::vector<int64_t> allUBuffer(totalUSize); {
-        AbstractRequest *recvReq = Comm::serverReceiveAsync(
-            allUBuffer, static_cast<int>(totalUSize), 64, buildTag(_currentMsgTag.load()));
+    std::vector<int64_t> allUBuffer(totalUSize);
+    {
+        AbstractRequest* recvReq =
+            Comm::serverReceiveAsync(allUBuffer, static_cast<int>(totalUSize), 64, buildTag(_currentMsgTag.load()));
         Comm::wait(recvReq);
     }
-    _currentMsgTag.fetch_add(1, std::memory_order_relaxed); {
-        const size_t nThreads = std::min<size_t>(numTiles,
-                                                 std::max<size_t>(1, std::thread::hardware_concurrency()));
+    _currentMsgTag.fetch_add(1, std::memory_order_relaxed);
+    {
+        const size_t nThreads = std::min<size_t>(numTiles, std::max<size_t>(1, std::thread::hardware_concurrency()));
 
         auto workerSender = [&](size_t tStart, size_t tEnd) {
             alignas(32) U128 qRows[TILE_ROWS];
@@ -515,7 +526,7 @@ void IknpOtBatchOperator::senderExtend() {
                     prg.generateBlocks(&qRows[i], 1);
                 }
 
-                const U128 *uRows = reinterpret_cast<const U128 *>(&allUBuffer[uOff]);
+                const U128* uRows = reinterpret_cast<const U128*>(&allUBuffer[uOff]);
                 for (size_t i = 0; i < TILE_ROWS; ++i) {
                     if (senderChoices[i]) {
                         qRows[i].lo ^= uRows[i].lo;
@@ -542,20 +553,21 @@ void IknpOtBatchOperator::senderExtend() {
             workerSender(0, numTiles);
         } else {
             const size_t tilesPerThread = (numTiles + nThreads - 1) / nThreads;
-            std::vector<std::future<void> > futures;
+            std::vector<std::future<void>> futures;
             futures.reserve(nThreads);
             for (size_t i = 0; i < nThreads; ++i) {
                 const size_t tStart = i * tilesPerThread;
                 const size_t tEnd = std::min(tStart + tilesPerThread, numTiles);
-                if (tStart >= numTiles) break;
-                futures.push_back(ThreadPoolSupport::submit([=, &workerSender]() {
-                    workerSender(tStart, tEnd);
-                }));
+                if (tStart >= numTiles)
+                    break;
+                futures.push_back(ThreadPoolSupport::submit([=, &workerSender]() { workerSender(tStart, tEnd); }));
             }
-            for (auto &f: futures) f.get();
+            for (auto& f : futures)
+                f.get();
         }
-    } {
-        AbstractRequest *sendReq = Comm::serverSendAsync(_results, 64, buildTag(_currentMsgTag.load()));
+    }
+    {
+        AbstractRequest* sendReq = Comm::serverSendAsync(_results, 64, buildTag(_currentMsgTag.load()));
         Comm::wait(sendReq);
     }
     _currentMsgTag.fetch_add(1, std::memory_order_relaxed);
@@ -569,12 +581,10 @@ void IknpOtBatchOperator::receiverExtend() {
     const size_t numTiles = (n + OTS_PER_TILE - 1) / OTS_PER_TILE;
     const size_t totalUSize = numTiles * TILE_ROWS * 2;
 
-    const size_t nThreads = std::min<size_t>(numTiles,
-                                             std::max<size_t>(1, std::thread::hardware_concurrency()));
+    const size_t nThreads = std::min<size_t>(numTiles, std::max<size_t>(1, std::thread::hardware_concurrency()));
 
-    const auto &baseSeeds = (_senderRank == 0)
-                                ? IntermediateDataSupport::_iknpBaseSeeds0
-                                : IntermediateDataSupport::_iknpBaseSeeds1;
+    const auto& baseSeeds =
+        (_senderRank == 0) ? IntermediateDataSupport::_iknpBaseSeeds0 : IntermediateDataSupport::_iknpBaseSeeds1;
 
     const uint64_t derivationSalt = static_cast<uint64_t>(_taskTag) << 32 | static_cast<uint64_t>(_startMsgTag);
     std::vector<uint64_t> derivedSeeds0(TILE_ROWS);
@@ -586,7 +596,8 @@ void IknpOtBatchOperator::receiverExtend() {
     }
 
     std::vector<int64_t> allUBuffer(totalUSize);
-    std::vector<U128> allTBuffer(numTiles * TILE_ROWS); {
+    std::vector<U128> allTBuffer(numTiles * TILE_ROWS);
+    {
         auto workerPhase1 = [&](size_t tStart, size_t tEnd) {
             alignas(32) U128 tRows[TILE_ROWS];
             alignas(32) U128 uRows[TILE_ROWS];
@@ -599,8 +610,10 @@ void IknpOtBatchOperator::receiverExtend() {
                 U128 cBlock{0, 0};
                 for (size_t j = 0; j < chunk; ++j) {
                     const uint64_t cb = (*_choices)[offset + j] & 1;
-                    if (j < 64) cBlock.lo |= (cb << j);
-                    else cBlock.hi |= (cb << (j - 64));
+                    if (j < 64)
+                        cBlock.lo |= (cb << j);
+                    else
+                        cBlock.hi |= (cb << (j - 64));
                 }
 
                 for (size_t i = 0; i < TILE_ROWS; ++i) {
@@ -621,24 +634,25 @@ void IknpOtBatchOperator::receiverExtend() {
             workerPhase1(0, numTiles);
         } else {
             const size_t tilesPerThread = (numTiles + nThreads - 1) / nThreads;
-            std::vector<std::future<void> > futures;
+            std::vector<std::future<void>> futures;
             futures.reserve(nThreads);
             for (size_t i = 0; i < nThreads; ++i) {
                 const size_t tStart = i * tilesPerThread;
                 const size_t tEnd = std::min(tStart + tilesPerThread, numTiles);
-                if (tStart >= numTiles) break;
-                futures.push_back(ThreadPoolSupport::submit([=, &workerPhase1]() {
-                    workerPhase1(tStart, tEnd);
-                }));
+                if (tStart >= numTiles)
+                    break;
+                futures.push_back(ThreadPoolSupport::submit([=, &workerPhase1]() { workerPhase1(tStart, tEnd); }));
             }
-            for (auto &f: futures) f.get();
+            for (auto& f : futures)
+                f.get();
         }
     }
 
-    AbstractRequest *sendReq = Comm::serverSendAsync(allUBuffer, 64, buildTag(_currentMsgTag.load()));
+    AbstractRequest* sendReq = Comm::serverSendAsync(allUBuffer, 64, buildTag(_currentMsgTag.load()));
     _currentMsgTag.fetch_add(1, std::memory_order_relaxed);
 
-    std::vector<uint64_t> hashValues(n); {
+    std::vector<uint64_t> hashValues(n);
+    {
         auto workerPhase3 = [&](size_t tStart, size_t tEnd) {
             alignas(32) U128 tile[TILE_ROWS];
 
@@ -659,25 +673,26 @@ void IknpOtBatchOperator::receiverExtend() {
             workerPhase3(0, numTiles);
         } else {
             const size_t tilesPerThread = (numTiles + nThreads - 1) / nThreads;
-            std::vector<std::future<void> > futures;
+            std::vector<std::future<void>> futures;
             futures.reserve(nThreads);
             for (size_t i = 0; i < nThreads; ++i) {
                 const size_t tStart = i * tilesPerThread;
                 const size_t tEnd = std::min(tStart + tilesPerThread, numTiles);
-                if (tStart >= numTiles) break;
-                futures.push_back(ThreadPoolSupport::submit([=, &workerPhase3]() {
-                    workerPhase3(tStart, tEnd);
-                }));
+                if (tStart >= numTiles)
+                    break;
+                futures.push_back(ThreadPoolSupport::submit([=, &workerPhase3]() { workerPhase3(tStart, tEnd); }));
             }
-            for (auto &f: futures) f.get();
+            for (auto& f : futures)
+                f.get();
         }
     }
 
     Comm::wait(sendReq);
 
-    std::vector<int64_t> maskedMessages(n * 2); {
-        AbstractRequest *recvReq = Comm::serverReceiveAsync(
-            maskedMessages, static_cast<int>(n * 2), 64, buildTag(_currentMsgTag.load()));
+    std::vector<int64_t> maskedMessages(n * 2);
+    {
+        AbstractRequest* recvReq =
+            Comm::serverReceiveAsync(maskedMessages, static_cast<int>(n * 2), 64, buildTag(_currentMsgTag.load()));
         Comm::wait(recvReq);
     }
     _currentMsgTag.fetch_add(1, std::memory_order_relaxed);

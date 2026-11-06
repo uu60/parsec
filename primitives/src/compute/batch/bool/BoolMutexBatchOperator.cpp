@@ -10,11 +10,10 @@
 
 namespace parsec {
 
-
-BoolMutexBatchOperator::BoolMutexBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys,
-                                               std::vector<int64_t> *conds, int width, int taskTag,
-                                               int msgTagOffset, int clientRank) : BoolBatchOperator(
-    xs, ys, width, taskTag, msgTagOffset, clientRank) {
+BoolMutexBatchOperator::BoolMutexBatchOperator(std::vector<int64_t>* xs, std::vector<int64_t>* ys,
+                                               std::vector<int64_t>* conds, int width, int taskTag, int msgTagOffset,
+                                               int clientRank)
+    : BoolBatchOperator(xs, ys, width, taskTag, msgTagOffset, clientRank) {
     if (clientRank == NO_CLIENT_COMPUTE) {
         if (Comm::isClient()) {
             return;
@@ -26,19 +25,18 @@ BoolMutexBatchOperator::BoolMutexBatchOperator(std::vector<int64_t> *xs, std::ve
     if (Comm::isClient()) {
         return;
     }
-    for (int64_t &ci: *_conds_i) {
+    for (int64_t& ci : *_conds_i) {
         if (ci != 0) {
             ci = ring(-1ll);
         }
     }
 }
 
-BoolMutexBatchOperator::BoolMutexBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys,
-                                               std::vector<int64_t> *conds, int width, int taskTag,
-                                               int msgTagOffset) : BoolBatchOperator(
-    xs, ys, width, taskTag, msgTagOffset, NO_CLIENT_COMPUTE) {
+BoolMutexBatchOperator::BoolMutexBatchOperator(std::vector<int64_t>* xs, std::vector<int64_t>* ys,
+                                               std::vector<int64_t>* conds, int width, int taskTag, int msgTagOffset)
+    : BoolBatchOperator(xs, ys, width, taskTag, msgTagOffset, NO_CLIENT_COMPUTE) {
     _conds_i = new std::vector(*conds);
-    for (int64_t &ci: *_conds_i) {
+    for (int64_t& ci : *_conds_i) {
         if (ci != 0) {
             ci = ring(-1ll);
         }
@@ -46,11 +44,9 @@ BoolMutexBatchOperator::BoolMutexBatchOperator(std::vector<int64_t> *xs, std::ve
     _bidir = true;
 }
 
-BoolMutexBatchOperator::~BoolMutexBatchOperator() {
-    delete _conds_i;
-}
+BoolMutexBatchOperator::~BoolMutexBatchOperator() { delete _conds_i; }
 
-bool BoolMutexBatchOperator::prepareBmts(std::vector<BitwiseBmt> &bmts) {
+bool BoolMutexBatchOperator::prepareBmts(std::vector<BitwiseBmt>& bmts) {
     bool gotBmt = false;
     if (_bmts != nullptr) {
         gotBmt = true;
@@ -65,12 +61,14 @@ void BoolMutexBatchOperator::execute0() {
 
     auto num = _conds_i->size();
 
-    auto zis = BoolAndBatchOperator(_xis, _yis, _conds_i, _width, _taskTag, _currentMsgTag).setBmts(
-        gotBmt ? &bmts : nullptr)->execute()->_zis;
+    auto zis = BoolAndBatchOperator(_xis, _yis, _conds_i, _width, _taskTag, _currentMsgTag)
+                   .setBmts(gotBmt ? &bmts : nullptr)
+                   ->execute()
+                   ->_zis;
 
     if (Conf::ENABLE_SIMD) {
         _zis = SimdSupport::xor3(zis.data(), _yis->data(), zis.data() + num, num);
-        for (auto &zi: _zis) {
+        for (auto& zi : _zis) {
             zi = ring(zi);
         }
     } else {
@@ -87,12 +85,14 @@ void BoolMutexBatchOperator::executeBidirectionally() {
 
     auto num = _xis->size();
 
-    auto zis = BoolAndBatchOperator(_xis, _yis, _conds_i, _width, _taskTag, _currentMsgTag).setBmts(
-        gotBmt ? &bmts : nullptr)->execute()->_zis;
+    auto zis = BoolAndBatchOperator(_xis, _yis, _conds_i, _width, _taskTag, _currentMsgTag)
+                   .setBmts(gotBmt ? &bmts : nullptr)
+                   ->execute()
+                   ->_zis;
 
     if (Conf::ENABLE_SIMD) {
         _zis = SimdSupport::xor3Concat(zis.data(), _yis->data(), _xis->data(), zis.data() + num, num);
-        for (auto &zi: _zis) {
+        for (auto& zi : _zis) {
             zi = ring(zi);
         }
     } else {
@@ -104,7 +104,7 @@ void BoolMutexBatchOperator::executeBidirectionally() {
     }
 }
 
-BoolMutexBatchOperator *BoolMutexBatchOperator::execute() {
+BoolMutexBatchOperator* BoolMutexBatchOperator::execute() {
     _currentMsgTag = _startMsgTag;
 
     if (Comm::isClient()) {
@@ -129,14 +129,12 @@ BoolMutexBatchOperator *BoolMutexBatchOperator::execute() {
     return this;
 }
 
-BoolMutexBatchOperator *BoolMutexBatchOperator::setBmts(std::vector<BitwiseBmt> *bmts) {
+BoolMutexBatchOperator* BoolMutexBatchOperator::setBmts(std::vector<BitwiseBmt>* bmts) {
     _bmts = bmts;
     return this;
 }
 
-int BoolMutexBatchOperator::tagStride() {
-    return BoolAndBatchOperator::tagStride();
-}
+int BoolMutexBatchOperator::tagStride() { return BoolAndBatchOperator::tagStride(); }
 
 int BoolMutexBatchOperator::bmtCount(int num, int width) {
     if (Conf::BMT_METHOD == Conf::BMT_FIXED) {

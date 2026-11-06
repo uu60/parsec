@@ -10,13 +10,10 @@
 
 namespace parsec {
 
+ArithLessOperator::ArithLessOperator(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset, int clientRank)
+    : ArithOperator(x, y, l, taskTag, msgTagOffset, clientRank) {}
 
-ArithLessOperator::ArithLessOperator(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset,
-                                     int clientRank) : ArithOperator(
-    x, y, l, taskTag, msgTagOffset, clientRank) {
-}
-
-ArithLessOperator *ArithLessOperator::execute() {
+ArithLessOperator* ArithLessOperator::execute() {
     _currentMsgTag = _startMsgTag;
 
     if (Comm::isClient()) {
@@ -31,15 +28,13 @@ ArithLessOperator *ArithLessOperator::execute() {
     return this;
 }
 
-ArithLessOperator *ArithLessOperator::reconstruct(int clientRank) {
+ArithLessOperator* ArithLessOperator::reconstruct(int clientRank) {
     ArithOperator::reconstruct(clientRank);
     _result &= 1;
     return this;
 }
 
-int ArithLessOperator::tagStride(int l) {
-    return ArithToBoolOperator::tagStride(l);
-}
+int ArithLessOperator::tagStride(int l) { return ArithToBoolOperator::tagStride(l); }
 
 int ArithLessOperator::bmtCount(int width) {
     if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
@@ -48,7 +43,7 @@ int ArithLessOperator::bmtCount(int width) {
     return ArithToBoolOperator::bmtCount(width);
 }
 
-ArithLessOperator *ArithLessOperator::setBmts(std::vector<BitwiseBmt> *bmts) {
+ArithLessOperator* ArithLessOperator::setBmts(std::vector<BitwiseBmt>* bmts) {
     if (bmts != nullptr && bmts->size() != bmtCount(_width)) {
         throw std::runtime_error("Bmt size mismatch.");
     }

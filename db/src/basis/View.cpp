@@ -4,17 +4,17 @@
 #include <algorithm>
 #include <numeric>
 
+#include "comm/Comm.h"
+#include "compute/batch/arith/ArithMultiplyBatchOperator.h"
+#include "compute/batch/arith/ArithMutexBatchOperator.h"
 #include "compute/batch/bool/BoolAndBatchOperator.h"
 #include "compute/batch/bool/BoolEqualBatchOperator.h"
 #include "compute/batch/bool/BoolLessBatchOperator.h"
 #include "compute/batch/bool/BoolMutexBatchOperator.h"
 #include "compute/batch/bool/BoolToArithBatchOperator.h"
-#include "compute/batch/arith/ArithMutexBatchOperator.h"
-#include "compute/batch/arith/ArithMultiplyBatchOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "secret/Secrets.h"
 #include "utils/Log.h"
-#include "comm/Comm.h"
 
 #include <string>
 
@@ -24,24 +24,20 @@
 
 namespace parsec {
 
-
-View::View(std::vector<std::string> &fieldNames,
-           std::vector<int> &fieldWidths) : Table(
-    EMPTY_VIEW_NAME, fieldNames, fieldWidths, EMPTY_KEY_FIELD) {
+View::View(std::vector<std::string>& fieldNames, std::vector<int>& fieldWidths)
+    : Table(EMPTY_VIEW_NAME, fieldNames, fieldWidths, EMPTY_KEY_FIELD) {
     addRedundantCols();
 }
 
-View::View(std::string &tableName, std::vector<std::string> &fieldNames, std::vector<int> &fieldWidths) : Table(
-    tableName, fieldNames, fieldWidths, EMPTY_KEY_FIELD) {
+View::View(std::string& tableName, std::vector<std::string>& fieldNames, std::vector<int>& fieldWidths)
+    : Table(tableName, fieldNames, fieldWidths, EMPTY_KEY_FIELD) {
     addRedundantCols();
 }
 
-View::View(std::string &tableName, std::vector<std::string> &fieldNames, std::vector<int> &fieldWidths,
-           bool dummy) : Table(
-    tableName, fieldNames, fieldWidths, EMPTY_KEY_FIELD) {
-}
+View::View(std::string& tableName, std::vector<std::string>& fieldNames, std::vector<int>& fieldWidths, bool dummy)
+    : Table(tableName, fieldNames, fieldWidths, EMPTY_KEY_FIELD) {}
 
-void View::select(std::vector<std::string> &fieldNames) {
+void View::select(std::vector<std::string>& fieldNames) {
     if (fieldNames.empty()) {
         return;
     }
@@ -49,7 +45,7 @@ void View::select(std::vector<std::string> &fieldNames) {
     std::vector<int> selectedIndices;
     selectedIndices.reserve(fieldNames.size());
 
-    for (const std::string &fieldName: fieldNames) {
+    for (const std::string& fieldName : fieldNames) {
         int index = colIndex(fieldName);
         if (index >= 0) {
             selectedIndices.push_back(index);
@@ -64,7 +60,7 @@ void View::select(std::vector<std::string> &fieldNames) {
     int validColIndex = totalCols + VALID_COL_OFFSET;
     int paddingColIndex = totalCols + PADDING_COL_OFFSET;
 
-    std::vector<std::vector<int64_t> > newDataCols;
+    std::vector<std::vector<int64_t>> newDataCols;
     std::vector<std::string> newFieldNames;
     std::vector<int> newFieldWidths;
 
@@ -73,7 +69,7 @@ void View::select(std::vector<std::string> &fieldNames) {
     newFieldNames.reserve(newSize);
     newFieldWidths.reserve(newSize);
 
-    for (int index: selectedIndices) {
+    for (int index : selectedIndices) {
         newDataCols.push_back(std::move(_dataCols[index]));
         newFieldNames.push_back(std::move(_fieldNames[index]));
         newFieldWidths.push_back(_fieldWidths[index]);
@@ -91,30 +87,30 @@ void View::select(std::vector<std::string> &fieldNames) {
     _fieldWidths = std::move(newFieldWidths);
 }
 
-void View::sort(const std::string &orderField, bool ascendingOrder, int msgTagBase) {
+void View::sort(const std::string& orderField, bool ascendingOrder, int msgTagBase) {
     size_t n = rowNum();
     if (n == 0) {
         return;
     }
     bool isPowerOf2 = (n > 0) && ((n & (n - 1)) == 0);
     if (!isPowerOf2) {
-        size_t nextPow2 = static_cast<size_t>(1) <<
-                          static_cast<size_t>(std::ceil(std::log2(n)));
-        for (auto &v: _dataCols) {
+        size_t nextPow2 = static_cast<size_t>(1) << static_cast<size_t>(std::ceil(std::log2(n)));
+        for (auto& v : _dataCols) {
             v.resize(nextPow2, 1);
         }
     }
     bitonicSort(orderField, ascendingOrder, msgTagBase);
     if (n < _dataCols[0].size()) {
-        for (auto &v: _dataCols) {
+        for (auto& v : _dataCols) {
             v.resize(n);
         }
     }
 }
 
-std::vector<int64_t> View::groupBySingleBatch(const std::string &groupField, int msgTagBase) {
+std::vector<int64_t> View::groupBySingleBatch(const std::string& groupField, int msgTagBase) {
     const size_t n = rowNum();
-    if (n == 0) return {};
+    if (n == 0)
+        return {};
 
     const int k = colIndex(groupField);
     if (k < 0) {
@@ -122,7 +118,7 @@ std::vector<int64_t> View::groupBySingleBatch(const std::string &groupField, int
         return std::vector<int64_t>(n, 0);
     }
 
-    auto &keys = _dataCols[k];
+    auto& keys = _dataCols[k];
     const int bw = _fieldWidths[k];
 
     std::vector<int64_t> eqs;
@@ -134,8 +130,8 @@ std::vector<int64_t> View::groupBySingleBatch(const std::string &groupField, int
             curr.push_back(keys[i]);
             prev.push_back(keys[i - 1]);
         }
-        eqs = BoolEqualBatchOperator(&curr, &prev, bw, 0, msgTagBase,
-                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        eqs =
+            BoolEqualBatchOperator(&curr, &prev, bw, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
     }
 
     const bool precise = (!DbConf::BASELINE_MODE) && (!DbConf::DISABLE_PRECISE_COMPACTION);
@@ -153,30 +149,34 @@ std::vector<int64_t> View::groupBySingleBatch(const std::string &groupField, int
     }
 
     const int validIdx = colNum() + VALID_COL_OFFSET;
-    auto &validCol = _dataCols[validIdx];
+    auto& validCol = _dataCols[validIdx];
 
     heads[0] = (n > 0 ? validCol[0] : 0);
 
     if (n > 1) {
         std::vector<int64_t> neq(n - 1);
-        for (size_t i = 0; i < n - 1; ++i) neq[i] = eqs[i] ^ Comm::rank();
+        for (size_t i = 0; i < n - 1; ++i)
+            neq[i] = eqs[i] ^ Comm::rank();
 
         std::vector<int64_t> valid_tail(n - 1);
-        for (size_t i = 1; i < n; ++i) valid_tail[i - 1] = validCol[i];
+        for (size_t i = 1; i < n; ++i)
+            valid_tail[i - 1] = validCol[i];
 
-        auto heads_tail = BoolAndBatchOperator(&valid_tail, &neq, 1,
-                                               0, msgTagBase,
-                                               SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto heads_tail = BoolAndBatchOperator(&valid_tail, &neq, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                              .execute()
+                              ->_zis;
 
-        for (size_t i = 1; i < n; ++i) heads[i] = heads_tail[i - 1];
+        for (size_t i = 1; i < n; ++i)
+            heads[i] = heads_tail[i - 1];
     }
 
     return heads;
 }
 
-std::vector<int64_t> View::groupByMultiBatches(const std::string &groupField, int msgTagBase) {
+std::vector<int64_t> View::groupByMultiBatches(const std::string& groupField, int msgTagBase) {
     const size_t n = rowNum();
-    if (n == 0) return {};
+    if (n == 0)
+        return {};
 
     if (n <= static_cast<size_t>(Conf::BATCH_SIZE)) {
         return groupBySingleBatch(groupField, msgTagBase);
@@ -187,7 +187,7 @@ std::vector<int64_t> View::groupByMultiBatches(const std::string &groupField, in
         Log::e("groupByMultiBatches: field '{}' not found", groupField);
         return std::vector<int64_t>(n, 0);
     }
-    auto &keys = _dataCols[k];
+    auto& keys = _dataCols[k];
     const int bw = _fieldWidths[k];
 
     std::vector<int64_t> eqs;
@@ -198,13 +198,14 @@ std::vector<int64_t> View::groupByMultiBatches(const std::string &groupField, in
         const int batchNum = (cmpPairs + batchSize - 1) / batchSize;
         const int tagOffset = BoolEqualBatchOperator::tagStride();
 
-        std::vector<std::future<std::vector<int64_t> > > batchFuts(batchNum);
+        std::vector<std::future<std::vector<int64_t>>> batchFuts(batchNum);
         for (int b = 0; b < batchNum; ++b) {
             batchFuts[b] = ThreadPoolSupport::submit([&, b]() {
                 const int start = b * batchSize + 1;
                 const int end = std::min(start + batchSize, static_cast<int>(n));
                 const int curN = end - start;
-                if (curN <= 0) return std::vector<int64_t>();
+                if (curN <= 0)
+                    return std::vector<int64_t>();
 
                 std::vector<int64_t> curr, prev;
                 curr.reserve(curN);
@@ -214,11 +215,12 @@ std::vector<int64_t> View::groupByMultiBatches(const std::string &groupField, in
                     prev.push_back(keys[i - 1]);
                 }
                 const int batchTag = msgTagBase + b * tagOffset;
-                return BoolEqualBatchOperator(&curr, &prev, bw, 0, batchTag,
-                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                return BoolEqualBatchOperator(&curr, &prev, bw, 0, batchTag, SecureOperator::NO_CLIENT_COMPUTE)
+                    .execute()
+                    ->_zis;
             });
         }
-        for (auto &f: batchFuts) {
+        for (auto& f : batchFuts) {
             auto part = f.get();
             eqs.insert(eqs.end(), part.begin(), part.end());
         }
@@ -238,31 +240,35 @@ std::vector<int64_t> View::groupByMultiBatches(const std::string &groupField, in
     }
 
     const int validIdx = colNum() + VALID_COL_OFFSET;
-    auto &validCol = _dataCols[validIdx];
+    auto& validCol = _dataCols[validIdx];
 
     heads[0] = validCol[0];
 
     if (n > 1) {
         std::vector<int64_t> neq(n - 1);
-        for (size_t i = 0; i < n - 1; ++i) neq[i] = eqs[i] ^ Comm::rank();
+        for (size_t i = 0; i < n - 1; ++i)
+            neq[i] = eqs[i] ^ Comm::rank();
 
         std::vector<int64_t> valid_tail(n - 1);
-        for (size_t i = 1; i < n; ++i) valid_tail[i - 1] = validCol[i];
+        for (size_t i = 1; i < n; ++i)
+            valid_tail[i - 1] = validCol[i];
 
-        auto heads_tail = BoolAndBatchOperator(&valid_tail, &neq, 1,
-                                               0, msgTagBase,
-                                               SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto heads_tail = BoolAndBatchOperator(&valid_tail, &neq, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                              .execute()
+                              ->_zis;
 
-        for (size_t i = 1; i < n; ++i) heads[i] = heads_tail[i - 1];
+        for (size_t i = 1; i < n; ++i)
+            heads[i] = heads_tail[i - 1];
     }
 
     return heads;
 }
 
-std::vector<int64_t> View::groupBySingleBatch(const std::vector<std::string> &groupFields, int msgTagBase) {
+std::vector<int64_t> View::groupBySingleBatch(const std::vector<std::string>& groupFields, int msgTagBase) {
     const size_t n = rowNum();
     std::vector<int64_t> groupHeads(n, 0);
-    if (n == 0 || groupFields.empty()) return groupHeads;
+    if (n == 0 || groupFields.empty())
+        return groupHeads;
 
     std::vector<int> idx(groupFields.size());
     for (size_t k = 0; k < groupFields.size(); ++k) {
@@ -280,9 +286,10 @@ std::vector<int64_t> View::groupBySingleBatch(const std::vector<std::string> &gr
                 cur[i - 1] = _dataCols[idx[0]][i];
                 prv[i - 1] = _dataCols[idx[0]][i - 1];
             }
-            eq_all = BoolEqualBatchOperator(&cur, &prv, _fieldWidths[idx[0]],
-                                            0, msgTagBase,
-                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+            eq_all = BoolEqualBatchOperator(&cur, &prv, _fieldWidths[idx[0]], 0, msgTagBase,
+                                            SecureOperator::NO_CLIENT_COMPUTE)
+                         .execute()
+                         ->_zis;
         }
         for (size_t k = 1; k < idx.size(); ++k) {
             std::vector<int64_t> cur(n - 1), prv(n - 1);
@@ -290,18 +297,19 @@ std::vector<int64_t> View::groupBySingleBatch(const std::vector<std::string> &gr
                 cur[i - 1] = _dataCols[idx[k]][i];
                 prv[i - 1] = _dataCols[idx[k]][i - 1];
             }
-            auto eq_k = BoolEqualBatchOperator(&cur, &prv, _fieldWidths[idx[k]],
-                                               0, msgTagBase,
-                                               SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-            eq_all = BoolAndBatchOperator(&eq_all, &eq_k, 1,
-                                          0, msgTagBase,
-                                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+            auto eq_k = BoolEqualBatchOperator(&cur, &prv, _fieldWidths[idx[k]], 0, msgTagBase,
+                                               SecureOperator::NO_CLIENT_COMPUTE)
+                            .execute()
+                            ->_zis;
+            eq_all = BoolAndBatchOperator(&eq_all, &eq_k, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                         .execute()
+                         ->_zis;
         }
     }
 
     const bool precise = !DbConf::DISABLE_PRECISE_COMPACTION;
     const int validColIndex = colNum() + VALID_COL_OFFSET;
-    const auto &validCol = _dataCols[validColIndex];
+    const auto& validCol = _dataCols[validColIndex];
     const int64_t NOT_mask = Comm::rank();
 
     if (precise) {
@@ -317,21 +325,24 @@ std::vector<int64_t> View::groupBySingleBatch(const std::vector<std::string> &gr
                 neq[i - 1] = eq_all[i - 1] ^ NOT_mask;
             }
             std::vector<int64_t> valid_tail(n - 1);
-            for (size_t i = 1; i < n; ++i) valid_tail[i - 1] = validCol[i];
+            for (size_t i = 1; i < n; ++i)
+                valid_tail[i - 1] = validCol[i];
 
-            auto and_res = BoolAndBatchOperator(&valid_tail, &neq, 1,
-                                                0, msgTagBase,
-                                                SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-            for (size_t i = 1; i < n; ++i) groupHeads[i] = and_res[i - 1];
+            auto and_res = BoolAndBatchOperator(&valid_tail, &neq, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                               .execute()
+                               ->_zis;
+            for (size_t i = 1; i < n; ++i)
+                groupHeads[i] = and_res[i - 1];
         }
     }
 
     return groupHeads;
 }
 
-std::vector<int64_t> View::groupByMultiBatches(const std::vector<std::string> &groupFields, int msgTagBase) {
+std::vector<int64_t> View::groupByMultiBatches(const std::vector<std::string>& groupFields, int msgTagBase) {
     const size_t n = rowNum();
-    if (n == 0) return {};
+    if (n == 0)
+        return {};
     if (n <= static_cast<size_t>(Conf::BATCH_SIZE)) {
         return groupBySingleBatch(groupFields, msgTagBase);
     }
@@ -351,14 +362,14 @@ std::vector<int64_t> View::groupByMultiBatches(const std::vector<std::string> &g
         const int batchNum = (pairCnt + batchSize - 1) / batchSize;
         const int tagOffset = std::max(BoolEqualBatchOperator::tagStride(), BoolAndBatchOperator::tagStride());
 
-        std::vector<std::future<std::vector<int64_t> > > colFuts(groupFields.size());
+        std::vector<std::future<std::vector<int64_t>>> colFuts(groupFields.size());
         for (int colIdx = 0; colIdx < static_cast<int>(groupFields.size()); ++colIdx) {
             colFuts[colIdx] = ThreadPoolSupport::submit([&, colIdx] {
                 const int fidx = gIdx[colIdx];
                 std::vector<int64_t> colEq;
                 colEq.reserve(n - 1);
 
-                std::vector<std::future<std::vector<int64_t> > > batchFuts(batchNum);
+                std::vector<std::future<std::vector<int64_t>>> batchFuts(batchNum);
                 const int startTag = tagOffset * batchNum * colIdx;
 
                 for (int b = 0; b < batchNum; ++b) {
@@ -366,7 +377,8 @@ std::vector<int64_t> View::groupByMultiBatches(const std::vector<std::string> &g
                         const int start = b * batchSize + 1;
                         const int end = std::min(start + batchSize, static_cast<int>(n));
                         const int curN = end - start;
-                        if (curN <= 0) return std::vector<int64_t>();
+                        if (curN <= 0)
+                            return std::vector<int64_t>();
 
                         std::vector<int64_t> curr(curN), prev(curN);
                         for (int i = 0; i < curN; ++i) {
@@ -374,15 +386,14 @@ std::vector<int64_t> View::groupByMultiBatches(const std::vector<std::string> &g
                             prev[i] = _dataCols[fidx][start + i - 1];
                         }
                         const int batchTag = startTag + b * tagOffset;
-                        return BoolEqualBatchOperator(
-                            &curr, &prev, _fieldWidths[fidx],
-                            0, batchTag,
-                            SecureOperator::NO_CLIENT_COMPUTE
-                        ).execute()->_zis;
+                        return BoolEqualBatchOperator(&curr, &prev, _fieldWidths[fidx], 0, batchTag,
+                                                      SecureOperator::NO_CLIENT_COMPUTE)
+                            .execute()
+                            ->_zis;
                     });
                 }
 
-                for (auto &bf: batchFuts) {
+                for (auto& bf : batchFuts) {
                     auto part = bf.get();
                     colEq.insert(colEq.end(), part.begin(), part.end());
                 }
@@ -390,7 +401,7 @@ std::vector<int64_t> View::groupByMultiBatches(const std::vector<std::string> &g
             });
         }
 
-        std::vector<std::vector<int64_t> > allCols(groupFields.size());
+        std::vector<std::vector<int64_t>> allCols(groupFields.size());
         for (int colIdx = 0; colIdx < static_cast<int>(groupFields.size()); ++colIdx) {
             allCols[colIdx] = colFuts[colIdx].get();
         }
@@ -398,11 +409,10 @@ std::vector<int64_t> View::groupByMultiBatches(const std::vector<std::string> &g
         if (!allCols.empty()) {
             eq_all = std::move(allCols[0]);
             for (int colIdx = 1; colIdx < static_cast<int>(allCols.size()); ++colIdx) {
-                eq_all = BoolAndBatchOperator(
-                    &eq_all, &allCols[colIdx], 1,
-                    0, msgTagBase,
-                    SecureOperator::NO_CLIENT_COMPUTE
-                ).execute()->_zis;
+                eq_all =
+                    BoolAndBatchOperator(&eq_all, &allCols[colIdx], 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                        .execute()
+                        ->_zis;
             }
         }
     }
@@ -416,22 +426,23 @@ std::vector<int64_t> View::groupByMultiBatches(const std::vector<std::string> &g
         }
     } else {
         const int validColIndex = colNum() + VALID_COL_OFFSET;
-        auto &validCol = _dataCols[validColIndex];
+        auto& validCol = _dataCols[validColIndex];
 
         groupHeads[0] = (n > 0 ? validCol[0] : 0);
 
         if (n > 1) {
             std::vector<int64_t> neq(eq_all.size());
-            for (size_t j = 0; j < eq_all.size(); ++j) neq[j] = eq_all[j] ^ NOT_mask;
+            for (size_t j = 0; j < eq_all.size(); ++j)
+                neq[j] = eq_all[j] ^ NOT_mask;
 
             std::vector<int64_t> valid_tail(eq_all.size());
-            for (size_t j = 0; j < eq_all.size(); ++j) valid_tail[j] = validCol[j + 1];
+            for (size_t j = 0; j < eq_all.size(); ++j)
+                valid_tail[j] = validCol[j + 1];
 
-            auto tail_heads = BoolAndBatchOperator(
-                &valid_tail, &neq, 1,
-                0, msgTagBase,
-                SecureOperator::NO_CLIENT_COMPUTE
-            ).execute()->_zis;
+            auto tail_heads =
+                BoolAndBatchOperator(&valid_tail, &neq, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                    .execute()
+                    ->_zis;
 
             for (size_t i = 1; i < n; ++i) {
                 groupHeads[i] = tail_heads[i - 1];
@@ -442,10 +453,11 @@ std::vector<int64_t> View::groupByMultiBatches(const std::vector<std::string> &g
     return groupHeads;
 }
 
-void View::countSingleBatch(std::vector<int64_t> &heads, std::string alias, int msgTagBase, std::string matchedTable,
+void View::countSingleBatch(std::vector<int64_t>& heads, std::string alias, int msgTagBase, std::string matchedTable,
                             bool compress) {
     const size_t n = rowNum();
-    if (n == 0) return;
+    if (n == 0)
+        return;
 
     const bool BASELINE = DbConf::BASELINE_MODE;
     const bool APPROX_COMPACT = DbConf::DISABLE_PRECISE_COMPACTION;
@@ -455,8 +467,10 @@ void View::countSingleBatch(std::vector<int64_t> &heads, std::string alias, int 
     std::vector<int64_t> bs_bool = heads;
 
     if (BASELINE || APPROX_COMPACT) {
-        bs_bool = BoolAndBatchOperator(&bs_bool, &_dataCols[validIdx], 1, 0, msgTagBase,
-                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        bs_bool =
+            BoolAndBatchOperator(&bs_bool, &_dataCols[validIdx], 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                .execute()
+                ->_zis;
     }
 
     std::vector<int64_t> counts(n, 0);
@@ -464,7 +478,9 @@ void View::countSingleBatch(std::vector<int64_t> &heads, std::string alias, int 
         counts = _dataCols[validIdx];
         if (!matchedTable.empty()) {
             counts = BoolAndBatchOperator(&counts, &_dataCols[colIndex(OUTER_MATCH_PREFIX + matchedTable)], 1, 0,
-                                          msgTagBase, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                          msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                         .execute()
+                         ->_zis;
         }
     } else {
         for (size_t i = 0; i < n; ++i) {
@@ -472,15 +488,16 @@ void View::countSingleBatch(std::vector<int64_t> &heads, std::string alias, int 
         }
     }
 
-    auto counts_arith = BoolToArithBatchOperator(&counts, 64, 0, msgTagBase,
-                                                 SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+    auto counts_arith =
+        BoolToArithBatchOperator(&counts, 64, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
-    auto bs_arith = BoolToArithBatchOperator(&bs_bool, 64, 0, msgTagBase,
-                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+    auto bs_arith =
+        BoolToArithBatchOperator(&bs_bool, 64, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
     for (int delta = 1; delta < static_cast<int>(n); delta <<= 1) {
         const int m = static_cast<int>(n) - delta;
-        if (m <= 0) break;
+        if (m <= 0)
+            break;
 
         std::vector<int64_t> propagate_mask(m);
         for (int i = 0; i < m; ++i) {
@@ -493,7 +510,9 @@ void View::countSingleBatch(std::vector<int64_t> &heads, std::string alias, int 
         }
 
         auto increments = ArithMultiplyBatchOperator(&propagate_mask, &add_values, 64, 0, msgTagBase,
-                                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                     SecureOperator::NO_CLIENT_COMPUTE)
+                              .execute()
+                              ->_zis;
 
         for (int i = 0; i < m; ++i) {
             counts_arith[i + delta] += increments[i];
@@ -504,18 +523,18 @@ void View::countSingleBatch(std::vector<int64_t> &heads, std::string alias, int 
             not_l[i] = bs_bool[i] ^ rank;
             not_r[i] = bs_bool[i + delta] ^ rank;
         }
-        auto and_out = BoolAndBatchOperator(&not_l, &not_r, 1, 0, msgTagBase,
-                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto and_out =
+            BoolAndBatchOperator(&not_l, &not_r, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         for (int i = 0; i < m; ++i) {
             bs_bool[i + delta] = and_out[i] ^ rank;
         }
 
-        bs_arith = BoolToArithBatchOperator(&bs_bool, 64, 0, msgTagBase,
-                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        bs_arith =
+            BoolToArithBatchOperator(&bs_bool, 64, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
     }
 
-    auto counts_bool = ArithToBoolBatchOperator(&counts_arith, 64, 0, msgTagBase,
-                                                SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+    auto counts_bool =
+        ArithToBoolBatchOperator(&counts_arith, 64, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
     std::vector<int64_t> group_tails(n);
     for (size_t i = 0; i + 1 < n; ++i) {
@@ -523,7 +542,7 @@ void View::countSingleBatch(std::vector<int64_t> &heads, std::string alias, int 
     }
 
     if (BASELINE || APPROX_COMPACT) {
-        auto &valid = _dataCols[validIdx];
+        auto& valid = _dataCols[validIdx];
         std::vector<int64_t> next_valid(n);
         for (size_t i = 0; i + 1 < n; ++i) {
             next_valid[i] = valid[i + 1];
@@ -534,16 +553,17 @@ void View::countSingleBatch(std::vector<int64_t> &heads, std::string alias, int 
         for (size_t i = 0; i < n; ++i) {
             not_next[i] = next_valid[i] ^ rank;
         }
-        auto boundary = BoolAndBatchOperator(&valid, &not_next, 1, 0, msgTagBase,
-                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto boundary = BoolAndBatchOperator(&valid, &not_next, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                            .execute()
+                            ->_zis;
 
         std::vector<int64_t> not_gt(n), not_bd(n);
         for (size_t i = 0; i < n; ++i) {
             not_gt[i] = group_tails[i] ^ rank;
             not_bd[i] = boundary[i] ^ rank;
         }
-        auto and_not = BoolAndBatchOperator(&not_gt, &not_bd, 1, 0, msgTagBase,
-                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto and_not =
+            BoolAndBatchOperator(&not_gt, &not_bd, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         for (size_t i = 0; i < n; ++i) {
             group_tails[i] = and_not[i] ^ rank;
         }
@@ -559,11 +579,15 @@ void View::countSingleBatch(std::vector<int64_t> &heads, std::string alias, int 
     const int newValidIdx = colNum() + VALID_COL_OFFSET;
     if (BASELINE) {
         auto new_valid = BoolAndBatchOperator(&_dataCols[newValidIdx], &group_tails, 1, 0, msgTagBase,
-                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                              SecureOperator::NO_CLIENT_COMPUTE)
+                             .execute()
+                             ->_zis;
         _dataCols[newValidIdx] = std::move(new_valid);
     } else if (APPROX_COMPACT) {
         auto new_valid = BoolAndBatchOperator(&_dataCols[newValidIdx], &group_tails, 1, 0, msgTagBase,
-                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                              SecureOperator::NO_CLIENT_COMPUTE)
+                             .execute()
+                             ->_zis;
         _dataCols[newValidIdx] = std::move(new_valid);
         if (compress) {
             clearInvalidEntries(msgTagBase);
@@ -576,11 +600,12 @@ void View::countSingleBatch(std::vector<int64_t> &heads, std::string alias, int 
     }
 }
 
-void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int msgTagBase, std::string matchedTable,
+void View::countMultiBatches(std::vector<int64_t>& heads, std::string alias, int msgTagBase, std::string matchedTable,
                              bool compress) {
     size_t n = rowNum();
     const int batchSize = Conf::BATCH_SIZE;
-    if (n == 0) return;
+    if (n == 0)
+        return;
     if (n <= static_cast<size_t>(batchSize)) {
         countSingleBatch(heads, alias, msgTagBase, matchedTable, compress);
         return;
@@ -594,8 +619,10 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
     std::vector<int64_t> bs_bool = heads;
 
     if (BASELINE || APPROX_COMPACT) {
-        bs_bool = BoolAndBatchOperator(&bs_bool, &_dataCols[validIdx], 1, 0, msgTagBase,
-                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        bs_bool =
+            BoolAndBatchOperator(&bs_bool, &_dataCols[validIdx], 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                .execute()
+                ->_zis;
     }
 
     std::vector<int64_t> counts(n, 0);
@@ -609,11 +636,11 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
         }
     }
 
-    auto counts_arith = BoolToArithBatchOperator(&counts, 64, 0, msgTagBase,
-                                                 SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+    auto counts_arith =
+        BoolToArithBatchOperator(&counts, 64, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
-    auto bs_arith = BoolToArithBatchOperator(&bs_bool, 64, 0, msgTagBase,
-                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+    auto bs_arith =
+        BoolToArithBatchOperator(&bs_bool, 64, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
     const int mulStride = ArithMultiplyBatchOperator::tagStride(64);
     const int andStride = BoolAndBatchOperator::tagStride();
@@ -625,17 +652,14 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
 
     for (int delta = 1; delta < static_cast<int>(n); delta <<= 1) {
         const int totalPairs = static_cast<int>(n) - delta;
-        if (totalPairs <= 0) break;
+        if (totalPairs <= 0)
+            break;
 
         const int numBatches = (totalPairs + batchSize - 1) / batchSize;
 
-        using Triple = std::tuple<
-            std::vector<int64_t>,
-            std::vector<int64_t>,
-            std::vector<int64_t>
-        >;
+        using Triple = std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>>;
 
-        std::vector<std::future<Triple> > futs(numBatches);
+        std::vector<std::future<Triple>> futs(numBatches);
 
         for (int b = 0; b < numBatches; ++b) {
             const int start = b * batchSize;
@@ -648,7 +672,8 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
             const int b2aTag = baseTag + mulStride + andStride;
 
             futs[b] = ThreadPoolSupport::submit([=, &counts_arith, &bs_bool, &bs_arith]() -> Triple {
-                if (len <= 0) return Triple{{}, {}, {}};
+                if (len <= 0)
+                    return Triple{{}, {}, {}};
 
                 std::vector<int64_t> propagate_mask(len);
                 for (int i = 0; i < len; ++i) {
@@ -663,7 +688,9 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
                 }
 
                 auto increments = ArithMultiplyBatchOperator(&propagate_mask, &add_values, 64, 0, mulTag,
-                                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                             SecureOperator::NO_CLIENT_COMPUTE)
+                                      .execute()
+                                      ->_zis;
 
                 std::vector<int64_t> not_left(len), not_right(len);
                 for (int i = 0; i < len; ++i) {
@@ -671,16 +698,20 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
                     not_left[i] = bs_bool[idx] ^ rank;
                     not_right[i] = bs_bool[idx + delta] ^ rank;
                 }
-                auto and_res = BoolAndBatchOperator(&not_left, &not_right, 1, 0, andTag,
-                                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                auto and_res =
+                    BoolAndBatchOperator(&not_left, &not_right, 1, 0, andTag, SecureOperator::NO_CLIENT_COMPUTE)
+                        .execute()
+                        ->_zis;
 
                 std::vector<int64_t> new_bs_bool(len);
                 for (int i = 0; i < len; ++i) {
                     new_bs_bool[i] = and_res[i] ^ rank;
                 }
 
-                auto new_bs_arith = BoolToArithBatchOperator(&new_bs_bool, 64, 0, b2aTag,
-                                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                auto new_bs_arith =
+                    BoolToArithBatchOperator(&new_bs_bool, 64, 0, b2aTag, SecureOperator::NO_CLIENT_COMPUTE)
+                        .execute()
+                        ->_zis;
 
                 return Triple{std::move(increments), std::move(new_bs_bool), std::move(new_bs_arith)};
             });
@@ -692,12 +723,13 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
             const int start = b * batchSize;
             const int end = std::min(start + batchSize, totalPairs);
             const int len = end - start;
-            if (len <= 0) continue;
+            if (len <= 0)
+                continue;
 
             auto triple = futs[b].get();
-            auto &increments = std::get<0>(triple);
-            auto &new_b_bool = std::get<1>(triple);
-            auto &new_b_arith = std::get<2>(triple);
+            auto& increments = std::get<0>(triple);
+            auto& new_b_bool = std::get<1>(triple);
+            auto& new_b_arith = std::get<2>(triple);
 
             for (int i = 0; i < len; ++i) {
                 counts_arith[start + i + delta] += increments[i];
@@ -707,9 +739,10 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
         }
     }
 
-    std::vector<int64_t> counts_bool; {
+    std::vector<int64_t> counts_bool;
+    {
         const int numBatches = (static_cast<int>(n) + batchSize - 1) / batchSize;
-        std::vector<std::future<std::vector<int64_t> > > futs(numBatches);
+        std::vector<std::future<std::vector<int64_t>>> futs(numBatches);
         for (int b = 0; b < numBatches; ++b) {
             const int start = b * batchSize;
             const int end = std::min(start + batchSize, static_cast<int>(n));
@@ -719,12 +752,13 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
                 futs[b] = ThreadPoolSupport::submit([=]() { return std::vector<int64_t>(); });
                 continue;
             }
-            auto slice = std::make_shared<std::vector<int64_t> >(counts_arith.begin() + start,
-                                                                 counts_arith.begin() + end);
+            auto slice =
+                std::make_shared<std::vector<int64_t>>(counts_arith.begin() + start, counts_arith.begin() + end);
             const int tg = tagCursorBase + b * a2bStride;
             futs[b] = ThreadPoolSupport::submit([slice, tg]() {
-                return ArithToBoolBatchOperator(slice.get(), 64, 0, tg,
-                                                SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                return ArithToBoolBatchOperator(slice.get(), 64, 0, tg, SecureOperator::NO_CLIENT_COMPUTE)
+                    .execute()
+                    ->_zis;
             });
         }
         tagCursorBase += numBatches * a2bStride;
@@ -742,7 +776,7 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
     }
 
     if (BASELINE || APPROX_COMPACT) {
-        auto &valid = _dataCols[validIdx];
+        auto& valid = _dataCols[validIdx];
         std::vector<int64_t> next_valid(n);
         for (size_t i = 0; i + 1 < n; ++i) {
             next_valid[i] = valid[i + 1];
@@ -753,16 +787,17 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
         for (size_t i = 0; i < n; ++i) {
             not_next[i] = next_valid[i] ^ rank;
         }
-        auto boundary = BoolAndBatchOperator(&valid, &not_next, 1, 0, msgTagBase,
-                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto boundary = BoolAndBatchOperator(&valid, &not_next, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                            .execute()
+                            ->_zis;
 
         std::vector<int64_t> not_gt(n), not_bd(n);
         for (size_t i = 0; i < n; ++i) {
             not_gt[i] = group_tails[i] ^ rank;
             not_bd[i] = boundary[i] ^ rank;
         }
-        auto and_not = BoolAndBatchOperator(&not_gt, &not_bd, 1, 0, msgTagBase,
-                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto and_not =
+            BoolAndBatchOperator(&not_gt, &not_bd, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         for (size_t i = 0; i < n; ++i) {
             group_tails[i] = and_not[i] ^ rank;
         }
@@ -778,11 +813,15 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
     const int newValidIdx = colNum() + VALID_COL_OFFSET;
     if (BASELINE) {
         auto new_valid = BoolAndBatchOperator(&_dataCols[newValidIdx], &group_tails, 1, 0, msgTagBase,
-                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                              SecureOperator::NO_CLIENT_COMPUTE)
+                             .execute()
+                             ->_zis;
         _dataCols[newValidIdx] = std::move(new_valid);
     } else if (APPROX_COMPACT) {
         auto new_valid = BoolAndBatchOperator(&_dataCols[newValidIdx], &group_tails, 1, 0, msgTagBase,
-                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                              SecureOperator::NO_CLIENT_COMPUTE)
+                             .execute()
+                             ->_zis;
         _dataCols[newValidIdx] = std::move(new_valid);
         if (compress) {
             clearInvalidEntries(msgTagBase);
@@ -795,12 +834,11 @@ void View::countMultiBatches(std::vector<int64_t> &heads, std::string alias, int
     }
 }
 
-void View::maxSingleBatch(std::vector<int64_t> &heads,
-                          const std::string &fieldName,
-                          std::string alias,
+void View::maxSingleBatch(std::vector<int64_t>& heads, const std::string& fieldName, std::string alias,
                           int msgTagBase) {
     const size_t n = rowNum();
-    if (n == 0) return;
+    if (n == 0)
+        return;
 
     const int fieldIdx = colIndex(fieldName);
     if (fieldIdx < 0) {
@@ -813,7 +851,7 @@ void View::maxSingleBatch(std::vector<int64_t> &heads,
     const bool APPROX_COMPACT = DbConf::DISABLE_PRECISE_COMPACTION;
     const bool PRECISE_COMPACT = !BASELINE && !APPROX_COMPACT;
 
-    std::vector<int64_t> &src = _dataCols[fieldIdx];
+    std::vector<int64_t>& src = _dataCols[fieldIdx];
     if (src.size() != n || heads.size() != n) {
         Log::e("Size mismatch: fieldData={}, heads={}, n={}", src.size(), heads.size(), n);
         return;
@@ -825,14 +863,15 @@ void View::maxSingleBatch(std::vector<int64_t> &heads,
 
     int validIdx = colNum() + VALID_COL_OFFSET;
     if (BASELINE || APPROX_COMPACT) {
-        auto &valid = _dataCols[validIdx];
+        auto& valid = _dataCols[validIdx];
 
-        bs_bool = BoolAndBatchOperator(&bs_bool, &valid, 1, 0, msgTagBase,
-                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        bs_bool =
+            BoolAndBatchOperator(&bs_bool, &valid, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
         std::vector<int64_t> zeros(n, 0);
-        vs = BoolMutexBatchOperator(&vs, &zeros, &valid, bitlen, 0, msgTagBase,
-                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        vs = BoolMutexBatchOperator(&vs, &zeros, &valid, bitlen, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                 .execute()
+                 ->_zis;
     }
 
     for (int delta = 1; delta < static_cast<int>(n); delta <<= 1) {
@@ -845,64 +884,84 @@ void View::maxSingleBatch(std::vector<int64_t> &heads,
         }
 
         if (BASELINE || APPROX_COMPACT) {
-            auto &valid = _dataCols[validIdx];
+            auto& valid = _dataCols[validIdx];
             std::vector<int64_t> zeros(m, 0), left_valid(m), right_valid(m);
             for (int i = 0; i < m; ++i) {
                 left_valid[i] = valid[i];
                 right_valid[i] = valid[i + delta];
             }
             left_vals = BoolMutexBatchOperator(&left_vals, &zeros, &left_valid, bitlen, 0, msgTagBase,
-                                               SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                               SecureOperator::NO_CLIENT_COMPUTE)
+                            .execute()
+                            ->_zis;
             right_vals = BoolMutexBatchOperator(&right_vals, &zeros, &right_valid, bitlen, 0, msgTagBase,
-                                                SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                SecureOperator::NO_CLIENT_COMPUTE)
+                             .execute()
+                             ->_zis;
         }
 
-        auto cmp = BoolLessBatchOperator(&left_vals, &right_vals, bitlen, 0, msgTagBase,
-                                         SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto cmp =
+            BoolLessBatchOperator(&left_vals, &right_vals, bitlen, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                .execute()
+                ->_zis;
         auto cand = BoolMutexBatchOperator(&right_vals, &left_vals, &cmp, bitlen, 0, msgTagBase,
-                                           SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                           SecureOperator::NO_CLIENT_COMPUTE)
+                        .execute()
+                        ->_zis;
 
         std::vector<int64_t> gate(m);
-        for (int i = 0; i < m; ++i) gate[i] = (bs_bool[i + delta] ^ XOR_MASK);
-        auto new_right = BoolMutexBatchOperator(&cand, &right_vals, &gate, bitlen, 0, msgTagBase,
-                                                SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        for (int i = 0; i < m; ++i)
+            gate[i] = (bs_bool[i + delta] ^ XOR_MASK);
+        auto new_right =
+            BoolMutexBatchOperator(&cand, &right_vals, &gate, bitlen, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                .execute()
+                ->_zis;
 
-        for (int i = 0; i < m; ++i) vs[i + delta] = new_right[i];
+        for (int i = 0; i < m; ++i)
+            vs[i + delta] = new_right[i];
 
         std::vector<int64_t> not_l(m), not_r(m);
         for (int i = 0; i < m; ++i) {
             not_l[i] = bs_bool[i] ^ XOR_MASK;
             not_r[i] = bs_bool[i + delta] ^ XOR_MASK;
         }
-        auto and_out = BoolAndBatchOperator(&not_l, &not_r, 1, 0, msgTagBase,
-                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-        for (int i = 0; i < m; ++i) bs_bool[i + delta] = (and_out[i] ^ XOR_MASK);
+        auto and_out =
+            BoolAndBatchOperator(&not_l, &not_r, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        for (int i = 0; i < m; ++i)
+            bs_bool[i + delta] = (and_out[i] ^ XOR_MASK);
     }
 
     std::vector<int64_t> group_tails(n);
-    for (size_t i = 0; i + 1 < n; ++i) group_tails[i] = heads[i + 1];
+    for (size_t i = 0; i + 1 < n; ++i)
+        group_tails[i] = heads[i + 1];
 
     if (PRECISE_COMPACT) {
         group_tails[n - 1] = Comm::rank();
     } else {
-        auto &valid = _dataCols[validIdx];
+        auto& valid = _dataCols[validIdx];
         std::vector<int64_t> next_valid(n);
-        for (size_t i = 0; i + 1 < n; ++i) next_valid[i] = valid[i + 1];
+        for (size_t i = 0; i + 1 < n; ++i)
+            next_valid[i] = valid[i + 1];
         next_valid[n - 1] = 0;
 
         std::vector<int64_t> not_next(n);
-        for (size_t i = 0; i < n; ++i) not_next[i] = next_valid[i] ^ XOR_MASK;
-        auto last_valid_tail = BoolAndBatchOperator(&valid, &not_next, 1, 0, msgTagBase,
-                                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        for (size_t i = 0; i < n; ++i)
+            not_next[i] = next_valid[i] ^ XOR_MASK;
+        auto last_valid_tail =
+            BoolAndBatchOperator(&valid, &not_next, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                .execute()
+                ->_zis;
 
         std::vector<int64_t> not_gt(n), not_lvt(n);
         for (size_t i = 0; i < n; ++i) {
             not_gt[i] = group_tails[i] ^ XOR_MASK;
             not_lvt[i] = last_valid_tail[i] ^ XOR_MASK;
         }
-        auto and_not = BoolAndBatchOperator(&not_gt, &not_lvt, 1, 0, msgTagBase,
-                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-        for (size_t i = 0; i < n; ++i) group_tails[i] = (and_not[i] ^ XOR_MASK);
+        auto and_not = BoolAndBatchOperator(&not_gt, &not_lvt, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                           .execute()
+                           ->_zis;
+        for (size_t i = 0; i < n; ++i)
+            group_tails[i] = (and_not[i] ^ XOR_MASK);
     }
 
     const std::string outName = alias.empty() ? ("max_" + fieldName) : alias;
@@ -918,11 +977,15 @@ void View::maxSingleBatch(std::vector<int64_t> &heads,
     validIdx = colNum() + VALID_COL_OFFSET;
     if (BASELINE) {
         auto new_valid = BoolAndBatchOperator(&_dataCols[validIdx], &group_tails, 1, 0, msgTagBase,
-                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                              SecureOperator::NO_CLIENT_COMPUTE)
+                             .execute()
+                             ->_zis;
         _dataCols[validIdx] = std::move(new_valid);
     } else if (APPROX_COMPACT) {
         auto new_valid = BoolAndBatchOperator(&_dataCols[validIdx], &group_tails, 1, 0, msgTagBase,
-                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                              SecureOperator::NO_CLIENT_COMPUTE)
+                             .execute()
+                             ->_zis;
         _dataCols[validIdx] = std::move(new_valid);
         clearInvalidEntries(msgTagBase);
     } else {
@@ -931,12 +994,11 @@ void View::maxSingleBatch(std::vector<int64_t> &heads,
     }
 }
 
-void View::maxMultiBatches(std::vector<int64_t> &heads,
-                           const std::string &fieldName,
-                           std::string alias,
+void View::maxMultiBatches(std::vector<int64_t>& heads, const std::string& fieldName, std::string alias,
                            int msgTagBase) {
     const size_t n = rowNum();
-    if (n == 0) return;
+    if (n == 0)
+        return;
 
     const int fieldIdx = colIndex(fieldName);
     if (fieldIdx < 0) {
@@ -945,7 +1007,7 @@ void View::maxMultiBatches(std::vector<int64_t> &heads,
     }
     const int bitlen = _fieldWidths[fieldIdx];
 
-    auto &src = _dataCols[fieldIdx];
+    auto& src = _dataCols[fieldIdx];
     if (src.size() != n || heads.size() != n) {
         Log::e("Size mismatch: fieldData={}, heads={}, n={}", src.size(), heads.size(), n);
         return;
@@ -965,12 +1027,16 @@ void View::maxMultiBatches(std::vector<int64_t> &heads,
     std::vector<int64_t> vs = src;
 
     if (APPROX_COMPACT) {
-        bs_bool = BoolAndBatchOperator(&bs_bool, &_dataCols[validIdx], 1, 0, msgTagBase,
-                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        bs_bool =
+            BoolAndBatchOperator(&bs_bool, &_dataCols[validIdx], 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                .execute()
+                ->_zis;
 
         std::vector<int64_t> zeros(n, 0);
         vs = BoolMutexBatchOperator(&vs, &zeros, &_dataCols[validIdx], bitlen, 0, msgTagBase,
-                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                    SecureOperator::NO_CLIENT_COMPUTE)
+                 .execute()
+                 ->_zis;
     }
 
     const int lessStride = BoolLessBatchOperator::tagStride();
@@ -983,13 +1049,14 @@ void View::maxMultiBatches(std::vector<int64_t> &heads,
 
     for (int delta = 1; delta < static_cast<int>(n); delta <<= 1) {
         const int totalPairs = static_cast<int>(n) - delta;
-        if (totalPairs <= 0) break;
+        if (totalPairs <= 0)
+            break;
 
         const int numBatches = (totalPairs + batchSize - 1) / batchSize;
 
-        using Pair = std::pair<std::vector<int64_t>, std::vector<int64_t> >;
+        using Pair = std::pair<std::vector<int64_t>, std::vector<int64_t>>;
 
-        std::vector<std::future<Pair> > futs(numBatches);
+        std::vector<std::future<Pair>> futs(numBatches);
 
         for (int b = 0; b < numBatches; ++b) {
             const int start = b * batchSize;
@@ -1003,7 +1070,8 @@ void View::maxMultiBatches(std::vector<int64_t> &heads,
             const int andTag = mtx2Tag + mutexStride;
 
             futs[b] = ThreadPoolSupport::submit([=, &vs, &bs_bool]() -> Pair {
-                if (len <= 0) return Pair{{}, {}};
+                if (len <= 0)
+                    return Pair{{}, {}};
 
                 std::vector<int64_t> left_vals(len), right_vals(len);
                 for (int i = 0; i < len; ++i) {
@@ -1014,48 +1082,52 @@ void View::maxMultiBatches(std::vector<int64_t> &heads,
                 }
 
                 if (APPROX_COMPACT) {
-                    auto &valid = _dataCols[validIdx];
+                    auto& valid = _dataCols[validIdx];
                     std::vector<int64_t> zeros(len, 0), left_valid(len), right_valid(len);
                     for (int i = 0; i < len; ++i) {
                         left_valid[i] = valid[start + i];
                         right_valid[i] = valid[start + i + delta];
                     }
                     left_vals = BoolMutexBatchOperator(&left_vals, &zeros, &left_valid, bitlen, 0, lessTag,
-                                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                       SecureOperator::NO_CLIENT_COMPUTE)
+                                    .execute()
+                                    ->_zis;
                     right_vals = BoolMutexBatchOperator(&right_vals, &zeros, &right_valid, bitlen, 0, lessTag,
-                                                        SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                        SecureOperator::NO_CLIENT_COMPUTE)
+                                     .execute()
+                                     ->_zis;
                 }
 
-                auto cmp = BoolLessBatchOperator(&left_vals, &right_vals, bitlen,
-                                                 0, lessTag,
+                auto cmp = BoolLessBatchOperator(&left_vals, &right_vals, bitlen, 0, lessTag,
                                                  SecureOperator::NO_CLIENT_COMPUTE)
-                        .execute()->_zis;
+                               .execute()
+                               ->_zis;
 
-                auto cand = BoolMutexBatchOperator(&right_vals, &left_vals, &cmp,
-                                                   bitlen, 0, mtx1Tag,
+                auto cand = BoolMutexBatchOperator(&right_vals, &left_vals, &cmp, bitlen, 0, mtx1Tag,
                                                    SecureOperator::NO_CLIENT_COMPUTE)
-                        .execute()->_zis;
+                                .execute()
+                                ->_zis;
 
                 std::vector<int64_t> not_bR(len);
                 for (int i = 0; i < len; ++i) {
                     not_bR[i] = bs_bool[start + i + delta] ^ NOT_mask;
                 }
-                auto new_right = BoolMutexBatchOperator(&cand, &right_vals, &not_bR,
-                                                        bitlen, 0, mtx2Tag,
+                auto new_right = BoolMutexBatchOperator(&cand, &right_vals, &not_bR, bitlen, 0, mtx2Tag,
                                                         SecureOperator::NO_CLIENT_COMPUTE)
-                        .execute()->_zis;
+                                     .execute()
+                                     ->_zis;
 
                 std::vector<int64_t> not_bL(len);
                 for (int i = 0; i < len; ++i) {
                     not_bL[i] = bs_bool[start + i] ^ NOT_mask;
                     not_bR[i] = bs_bool[start + i + delta] ^ NOT_mask;
                 }
-                auto and_out = BoolAndBatchOperator(&not_bL, &not_bR,
-                                                    1, 0, andTag,
-                                                    SecureOperator::NO_CLIENT_COMPUTE)
-                        .execute()->_zis;
+                auto and_out = BoolAndBatchOperator(&not_bL, &not_bR, 1, 0, andTag, SecureOperator::NO_CLIENT_COMPUTE)
+                                   .execute()
+                                   ->_zis;
                 std::vector<int64_t> new_b(len);
-                for (int i = 0; i < len; ++i) new_b[i] = and_out[i] ^ NOT_mask;
+                for (int i = 0; i < len; ++i)
+                    new_b[i] = and_out[i] ^ NOT_mask;
 
                 return Pair{std::move(new_right), std::move(new_b)};
             });
@@ -1067,11 +1139,12 @@ void View::maxMultiBatches(std::vector<int64_t> &heads,
             const int start = b * batchSize;
             const int end = std::min(start + batchSize, totalPairs);
             const int len = end - start;
-            if (len <= 0) continue;
+            if (len <= 0)
+                continue;
 
             auto pr = futs[b].get();
-            auto &new_right = pr.first;
-            auto &new_b = pr.second;
+            auto& new_right = pr.first;
+            auto& new_b = pr.second;
 
             for (int i = 0; i < len; ++i) {
                 const int idxR = start + i + delta;
@@ -1082,28 +1155,35 @@ void View::maxMultiBatches(std::vector<int64_t> &heads,
     }
 
     std::vector<int64_t> group_tails(n);
-    for (size_t i = 0; i + 1 < n; ++i) group_tails[i] = heads[i + 1];
+    for (size_t i = 0; i + 1 < n; ++i)
+        group_tails[i] = heads[i + 1];
 
     if (APPROX_COMPACT) {
-        auto &valid = _dataCols[validIdx];
+        auto& valid = _dataCols[validIdx];
         std::vector<int64_t> next_valid(n);
-        for (size_t i = 0; i + 1 < n; ++i) next_valid[i] = valid[i + 1];
+        for (size_t i = 0; i + 1 < n; ++i)
+            next_valid[i] = valid[i + 1];
         next_valid[n - 1] = 0;
 
         std::vector<int64_t> not_next(n);
-        for (size_t i = 0; i < n; ++i) not_next[i] = next_valid[i] ^ rank;
+        for (size_t i = 0; i < n; ++i)
+            not_next[i] = next_valid[i] ^ rank;
 
-        auto last_valid_tail = BoolAndBatchOperator(&valid, &not_next, 1, 0, msgTagBase,
-                                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto last_valid_tail =
+            BoolAndBatchOperator(&valid, &not_next, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                .execute()
+                ->_zis;
 
         std::vector<int64_t> not_gt(n), not_lvt(n);
         for (size_t i = 0; i < n; ++i) {
             not_gt[i] = group_tails[i] ^ rank;
             not_lvt[i] = last_valid_tail[i] ^ rank;
         }
-        auto and_not = BoolAndBatchOperator(&not_gt, &not_lvt, 1, 0, msgTagBase,
-                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-        for (size_t i = 0; i < n; ++i) group_tails[i] = and_not[i] ^ rank;
+        auto and_not = BoolAndBatchOperator(&not_gt, &not_lvt, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                           .execute()
+                           ->_zis;
+        for (size_t i = 0; i < n; ++i)
+            group_tails[i] = and_not[i] ^ rank;
     } else {
         group_tails[n - 1] = rank;
     }
@@ -1121,7 +1201,9 @@ void View::maxMultiBatches(std::vector<int64_t> &heads,
 
     if (APPROX_COMPACT) {
         auto new_valid = BoolAndBatchOperator(&_dataCols[validIdx], &group_tails, 1, 0, msgTagBase,
-                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                              SecureOperator::NO_CLIENT_COMPUTE)
+                             .execute()
+                             ->_zis;
         _dataCols[validIdx] = std::move(new_valid);
         clearInvalidEntries(msgTagBase);
     } else {
@@ -1130,12 +1212,11 @@ void View::maxMultiBatches(std::vector<int64_t> &heads,
     }
 }
 
-void View::minSingleBatch(std::vector<int64_t> &heads,
-                          const std::string &fieldName,
-                          std::string alias,
+void View::minSingleBatch(std::vector<int64_t>& heads, const std::string& fieldName, std::string alias,
                           int msgTagBase) {
     const size_t n = rowNum();
-    if (n == 0) return;
+    if (n == 0)
+        return;
 
     const int fieldIdx = colIndex(fieldName);
     if (fieldIdx < 0) {
@@ -1148,7 +1229,7 @@ void View::minSingleBatch(std::vector<int64_t> &heads,
     const bool APPROX_COMPACT = DbConf::DISABLE_PRECISE_COMPACTION;
     const bool PRECISE_COMPACT = !BASELINE && !APPROX_COMPACT;
 
-    std::vector<int64_t> &src = _dataCols[fieldIdx];
+    std::vector<int64_t>& src = _dataCols[fieldIdx];
     if (src.size() != n || heads.size() != n) {
         Log::e("Size mismatch: fieldData={}, heads={}, n={}", src.size(), heads.size(), n);
         return;
@@ -1160,14 +1241,15 @@ void View::minSingleBatch(std::vector<int64_t> &heads,
 
     int validIdx = colNum() + VALID_COL_OFFSET;
     if (BASELINE || APPROX_COMPACT) {
-        auto &valid = _dataCols[validIdx];
+        auto& valid = _dataCols[validIdx];
 
-        bs_bool = BoolAndBatchOperator(&bs_bool, &valid, 1, 0, msgTagBase,
-                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        bs_bool =
+            BoolAndBatchOperator(&bs_bool, &valid, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
         std::vector<int64_t> max_vals(n, (1LL << (bitlen - 1)) - 1);
-        vs = BoolMutexBatchOperator(&vs, &max_vals, &valid, bitlen, 0, msgTagBase,
-                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        vs = BoolMutexBatchOperator(&vs, &max_vals, &valid, bitlen, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                 .execute()
+                 ->_zis;
     }
 
     for (int delta = 1; delta < static_cast<int>(n); delta <<= 1) {
@@ -1180,64 +1262,84 @@ void View::minSingleBatch(std::vector<int64_t> &heads,
         }
 
         if (BASELINE || APPROX_COMPACT) {
-            auto &valid = _dataCols[validIdx];
+            auto& valid = _dataCols[validIdx];
             std::vector<int64_t> max_vals(m, (1LL << (bitlen - 1)) - 1), left_valid(m), right_valid(m);
             for (int i = 0; i < m; ++i) {
                 left_valid[i] = valid[i];
                 right_valid[i] = valid[i + delta];
             }
             left_vals = BoolMutexBatchOperator(&left_vals, &max_vals, &left_valid, bitlen, 0, msgTagBase,
-                                               SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                               SecureOperator::NO_CLIENT_COMPUTE)
+                            .execute()
+                            ->_zis;
             right_vals = BoolMutexBatchOperator(&right_vals, &max_vals, &right_valid, bitlen, 0, msgTagBase,
-                                                SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                SecureOperator::NO_CLIENT_COMPUTE)
+                             .execute()
+                             ->_zis;
         }
 
-        auto cmp = BoolLessBatchOperator(&left_vals, &right_vals, bitlen, 0, msgTagBase,
-                                         SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto cmp =
+            BoolLessBatchOperator(&left_vals, &right_vals, bitlen, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                .execute()
+                ->_zis;
         auto cand = BoolMutexBatchOperator(&left_vals, &right_vals, &cmp, bitlen, 0, msgTagBase,
-                                           SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                           SecureOperator::NO_CLIENT_COMPUTE)
+                        .execute()
+                        ->_zis;
 
         std::vector<int64_t> gate(m);
-        for (int i = 0; i < m; ++i) gate[i] = (bs_bool[i + delta] ^ XOR_MASK);
-        auto new_right = BoolMutexBatchOperator(&cand, &right_vals, &gate, bitlen, 0, msgTagBase,
-                                                SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        for (int i = 0; i < m; ++i)
+            gate[i] = (bs_bool[i + delta] ^ XOR_MASK);
+        auto new_right =
+            BoolMutexBatchOperator(&cand, &right_vals, &gate, bitlen, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                .execute()
+                ->_zis;
 
-        for (int i = 0; i < m; ++i) vs[i + delta] = new_right[i];
+        for (int i = 0; i < m; ++i)
+            vs[i + delta] = new_right[i];
 
         std::vector<int64_t> not_l(m), not_r(m);
         for (int i = 0; i < m; ++i) {
             not_l[i] = bs_bool[i] ^ XOR_MASK;
             not_r[i] = bs_bool[i + delta] ^ XOR_MASK;
         }
-        auto and_out = BoolAndBatchOperator(&not_l, &not_r, 1, 0, msgTagBase,
-                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-        for (int i = 0; i < m; ++i) bs_bool[i + delta] = (and_out[i] ^ XOR_MASK);
+        auto and_out =
+            BoolAndBatchOperator(&not_l, &not_r, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        for (int i = 0; i < m; ++i)
+            bs_bool[i + delta] = (and_out[i] ^ XOR_MASK);
     }
 
     std::vector<int64_t> group_tails(n);
-    for (size_t i = 0; i + 1 < n; ++i) group_tails[i] = heads[i + 1];
+    for (size_t i = 0; i + 1 < n; ++i)
+        group_tails[i] = heads[i + 1];
 
     if (PRECISE_COMPACT) {
         group_tails[n - 1] = Comm::rank();
     } else {
-        auto &valid = _dataCols[validIdx];
+        auto& valid = _dataCols[validIdx];
         std::vector<int64_t> next_valid(n);
-        for (size_t i = 0; i + 1 < n; ++i) next_valid[i] = valid[i + 1];
+        for (size_t i = 0; i + 1 < n; ++i)
+            next_valid[i] = valid[i + 1];
         next_valid[n - 1] = 0;
 
         std::vector<int64_t> not_next(n);
-        for (size_t i = 0; i < n; ++i) not_next[i] = next_valid[i] ^ XOR_MASK;
-        auto last_valid_tail = BoolAndBatchOperator(&valid, &not_next, 1, 0, msgTagBase,
-                                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        for (size_t i = 0; i < n; ++i)
+            not_next[i] = next_valid[i] ^ XOR_MASK;
+        auto last_valid_tail =
+            BoolAndBatchOperator(&valid, &not_next, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                .execute()
+                ->_zis;
 
         std::vector<int64_t> not_gt(n), not_lvt(n);
         for (size_t i = 0; i < n; ++i) {
             not_gt[i] = group_tails[i] ^ XOR_MASK;
             not_lvt[i] = last_valid_tail[i] ^ XOR_MASK;
         }
-        auto and_not = BoolAndBatchOperator(&not_gt, &not_lvt, 1, 0, msgTagBase,
-                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-        for (size_t i = 0; i < n; ++i) group_tails[i] = (and_not[i] ^ XOR_MASK);
+        auto and_not = BoolAndBatchOperator(&not_gt, &not_lvt, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                           .execute()
+                           ->_zis;
+        for (size_t i = 0; i < n; ++i)
+            group_tails[i] = (and_not[i] ^ XOR_MASK);
     }
 
     const std::string outName = alias.empty() ? ("min_" + fieldName) : alias;
@@ -1253,11 +1355,15 @@ void View::minSingleBatch(std::vector<int64_t> &heads,
     validIdx = colNum() + VALID_COL_OFFSET;
     if (BASELINE) {
         auto new_valid = BoolAndBatchOperator(&_dataCols[validIdx], &group_tails, 1, 0, msgTagBase,
-                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                              SecureOperator::NO_CLIENT_COMPUTE)
+                             .execute()
+                             ->_zis;
         _dataCols[validIdx] = std::move(new_valid);
     } else if (APPROX_COMPACT) {
         auto new_valid = BoolAndBatchOperator(&_dataCols[validIdx], &group_tails, 1, 0, msgTagBase,
-                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                              SecureOperator::NO_CLIENT_COMPUTE)
+                             .execute()
+                             ->_zis;
         _dataCols[validIdx] = std::move(new_valid);
         clearInvalidEntries(msgTagBase);
     } else {
@@ -1266,12 +1372,11 @@ void View::minSingleBatch(std::vector<int64_t> &heads,
     }
 }
 
-void View::minMultiBatches(std::vector<int64_t> &heads,
-                           const std::string &fieldName,
-                           std::string alias,
+void View::minMultiBatches(std::vector<int64_t>& heads, const std::string& fieldName, std::string alias,
                            int msgTagBase) {
     const size_t n = rowNum();
-    if (n == 0) return;
+    if (n == 0)
+        return;
 
     const int fieldIdx = colIndex(fieldName);
     if (fieldIdx < 0) {
@@ -1280,7 +1385,7 @@ void View::minMultiBatches(std::vector<int64_t> &heads,
     }
     const int bitlen = _fieldWidths[fieldIdx];
 
-    auto &src = _dataCols[fieldIdx];
+    auto& src = _dataCols[fieldIdx];
     if (src.size() != n || heads.size() != n) {
         Log::e("Size mismatch: fieldData={}, heads={}, n={}", src.size(), heads.size(), n);
         return;
@@ -1300,12 +1405,16 @@ void View::minMultiBatches(std::vector<int64_t> &heads,
     std::vector<int64_t> vs = src;
 
     if (APPROX_COMPACT) {
-        bs_bool = BoolAndBatchOperator(&bs_bool, &_dataCols[validIdx], 1, 0, msgTagBase,
-                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        bs_bool =
+            BoolAndBatchOperator(&bs_bool, &_dataCols[validIdx], 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                .execute()
+                ->_zis;
 
         std::vector<int64_t> max_vals(n, (1LL << (bitlen - 1)) - 1);
         vs = BoolMutexBatchOperator(&vs, &max_vals, &_dataCols[validIdx], bitlen, 0, msgTagBase,
-                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                    SecureOperator::NO_CLIENT_COMPUTE)
+                 .execute()
+                 ->_zis;
     }
 
     const int lessStride = BoolLessBatchOperator::tagStride();
@@ -1318,13 +1427,14 @@ void View::minMultiBatches(std::vector<int64_t> &heads,
 
     for (int delta = 1; delta < static_cast<int>(n); delta <<= 1) {
         const int totalPairs = static_cast<int>(n) - delta;
-        if (totalPairs <= 0) break;
+        if (totalPairs <= 0)
+            break;
 
         const int numBatches = (totalPairs + batchSize - 1) / batchSize;
 
-        using Pair = std::pair<std::vector<int64_t>, std::vector<int64_t> >;
+        using Pair = std::pair<std::vector<int64_t>, std::vector<int64_t>>;
 
-        std::vector<std::future<Pair> > futs(numBatches);
+        std::vector<std::future<Pair>> futs(numBatches);
 
         for (int b = 0; b < numBatches; ++b) {
             const int start = b * batchSize;
@@ -1338,7 +1448,8 @@ void View::minMultiBatches(std::vector<int64_t> &heads,
             const int andTag = mtx2Tag + mutexStride;
 
             futs[b] = ThreadPoolSupport::submit([=, &vs, &bs_bool]() -> Pair {
-                if (len <= 0) return Pair{{}, {}};
+                if (len <= 0)
+                    return Pair{{}, {}};
 
                 std::vector<int64_t> left_vals(len), right_vals(len);
                 for (int i = 0; i < len; ++i) {
@@ -1349,48 +1460,52 @@ void View::minMultiBatches(std::vector<int64_t> &heads,
                 }
 
                 if (APPROX_COMPACT) {
-                    auto &valid = _dataCols[validIdx];
+                    auto& valid = _dataCols[validIdx];
                     std::vector<int64_t> max_vals(len, (1LL << (bitlen - 1)) - 1), left_valid(len), right_valid(len);
                     for (int i = 0; i < len; ++i) {
                         left_valid[i] = valid[start + i];
                         right_valid[i] = valid[start + i + delta];
                     }
                     left_vals = BoolMutexBatchOperator(&left_vals, &max_vals, &left_valid, bitlen, 0, lessTag,
-                                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                       SecureOperator::NO_CLIENT_COMPUTE)
+                                    .execute()
+                                    ->_zis;
                     right_vals = BoolMutexBatchOperator(&right_vals, &max_vals, &right_valid, bitlen, 0, lessTag,
-                                                        SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                        SecureOperator::NO_CLIENT_COMPUTE)
+                                     .execute()
+                                     ->_zis;
                 }
 
-                auto cmp = BoolLessBatchOperator(&left_vals, &right_vals, bitlen,
-                                                 0, lessTag,
+                auto cmp = BoolLessBatchOperator(&left_vals, &right_vals, bitlen, 0, lessTag,
                                                  SecureOperator::NO_CLIENT_COMPUTE)
-                        .execute()->_zis;
+                               .execute()
+                               ->_zis;
 
-                auto cand = BoolMutexBatchOperator(&left_vals, &right_vals, &cmp,
-                                                   bitlen, 0, mtx1Tag,
+                auto cand = BoolMutexBatchOperator(&left_vals, &right_vals, &cmp, bitlen, 0, mtx1Tag,
                                                    SecureOperator::NO_CLIENT_COMPUTE)
-                        .execute()->_zis;
+                                .execute()
+                                ->_zis;
 
                 std::vector<int64_t> not_bR(len);
                 for (int i = 0; i < len; ++i) {
                     not_bR[i] = bs_bool[start + i + delta] ^ NOT_mask;
                 }
-                auto new_right = BoolMutexBatchOperator(&cand, &right_vals, &not_bR,
-                                                        bitlen, 0, mtx2Tag,
+                auto new_right = BoolMutexBatchOperator(&cand, &right_vals, &not_bR, bitlen, 0, mtx2Tag,
                                                         SecureOperator::NO_CLIENT_COMPUTE)
-                        .execute()->_zis;
+                                     .execute()
+                                     ->_zis;
 
                 std::vector<int64_t> not_bL(len);
                 for (int i = 0; i < len; ++i) {
                     not_bL[i] = bs_bool[start + i] ^ NOT_mask;
                     not_bR[i] = bs_bool[start + i + delta] ^ NOT_mask;
                 }
-                auto and_out = BoolAndBatchOperator(&not_bL, &not_bR,
-                                                    1, 0, andTag,
-                                                    SecureOperator::NO_CLIENT_COMPUTE)
-                        .execute()->_zis;
+                auto and_out = BoolAndBatchOperator(&not_bL, &not_bR, 1, 0, andTag, SecureOperator::NO_CLIENT_COMPUTE)
+                                   .execute()
+                                   ->_zis;
                 std::vector<int64_t> new_b(len);
-                for (int i = 0; i < len; ++i) new_b[i] = and_out[i] ^ NOT_mask;
+                for (int i = 0; i < len; ++i)
+                    new_b[i] = and_out[i] ^ NOT_mask;
 
                 return Pair{std::move(new_right), std::move(new_b)};
             });
@@ -1402,11 +1517,12 @@ void View::minMultiBatches(std::vector<int64_t> &heads,
             const int start = b * batchSize;
             const int end = std::min(start + batchSize, totalPairs);
             const int len = end - start;
-            if (len <= 0) continue;
+            if (len <= 0)
+                continue;
 
             auto pr = futs[b].get();
-            auto &new_right = pr.first;
-            auto &new_b = pr.second;
+            auto& new_right = pr.first;
+            auto& new_b = pr.second;
 
             for (int i = 0; i < len; ++i) {
                 const int idxR = start + i + delta;
@@ -1417,28 +1533,35 @@ void View::minMultiBatches(std::vector<int64_t> &heads,
     }
 
     std::vector<int64_t> group_tails(n);
-    for (size_t i = 0; i + 1 < n; ++i) group_tails[i] = heads[i + 1];
+    for (size_t i = 0; i + 1 < n; ++i)
+        group_tails[i] = heads[i + 1];
 
     if (APPROX_COMPACT) {
-        auto &valid = _dataCols[validIdx];
+        auto& valid = _dataCols[validIdx];
         std::vector<int64_t> next_valid(n);
-        for (size_t i = 0; i + 1 < n; ++i) next_valid[i] = valid[i + 1];
+        for (size_t i = 0; i + 1 < n; ++i)
+            next_valid[i] = valid[i + 1];
         next_valid[n - 1] = 0;
 
         std::vector<int64_t> not_next(n);
-        for (size_t i = 0; i < n; ++i) not_next[i] = next_valid[i] ^ rank;
+        for (size_t i = 0; i < n; ++i)
+            not_next[i] = next_valid[i] ^ rank;
 
-        auto last_valid_tail = BoolAndBatchOperator(&valid, &not_next, 1, 0, msgTagBase,
-                                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto last_valid_tail =
+            BoolAndBatchOperator(&valid, &not_next, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                .execute()
+                ->_zis;
 
         std::vector<int64_t> not_gt(n), not_lvt(n);
         for (size_t i = 0; i < n; ++i) {
             not_gt[i] = group_tails[i] ^ rank;
             not_lvt[i] = last_valid_tail[i] ^ rank;
         }
-        auto and_not = BoolAndBatchOperator(&not_gt, &not_lvt, 1, 0, msgTagBase,
-                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-        for (size_t i = 0; i < n; ++i) group_tails[i] = and_not[i] ^ rank;
+        auto and_not = BoolAndBatchOperator(&not_gt, &not_lvt, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                           .execute()
+                           ->_zis;
+        for (size_t i = 0; i < n; ++i)
+            group_tails[i] = and_not[i] ^ rank;
     } else {
         group_tails[n - 1] = rank;
     }
@@ -1457,7 +1580,9 @@ void View::minMultiBatches(std::vector<int64_t> &heads,
     validIdx = colNum() + VALID_COL_OFFSET;
     if (APPROX_COMPACT) {
         auto new_valid = BoolAndBatchOperator(&_dataCols[validIdx], &group_tails, 1, 0, msgTagBase,
-                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                              SecureOperator::NO_CLIENT_COMPUTE)
+                             .execute()
+                             ->_zis;
         _dataCols[validIdx] = std::move(new_valid);
         clearInvalidEntries(msgTagBase);
     } else {
@@ -1471,12 +1596,11 @@ int View::sortTagStride() {
            BoolMutexBatchOperator::tagStride();
 }
 
-void View::filterSingleBatch(std::vector<std::string> &fieldNames,
-                             std::vector<ComparatorType> &comparatorTypes,
-                             std::vector<int64_t> &constShares, bool clear, int msgTagBase) {
+void View::filterSingleBatch(std::vector<std::string>& fieldNames, std::vector<ComparatorType>& comparatorTypes,
+                             std::vector<int64_t>& constShares, bool clear, int msgTagBase) {
     size_t n = fieldNames.size();
     size_t data_size = _dataCols[0].size();
-    std::vector<std::vector<int64_t> > collected(n);
+    std::vector<std::vector<int64_t>> collected(n);
 
     for (int i = 0; i < n; i++) {
         int colIndex = 0;
@@ -1489,47 +1613,50 @@ void View::filterSingleBatch(std::vector<std::string> &fieldNames,
         auto ct = comparatorTypes[i];
 
         std::vector<int64_t> batch_const(data_size, constShares[i]);
-        std::vector<int64_t> &batch_data = _dataCols[colIndex];
+        std::vector<int64_t>& batch_data = _dataCols[colIndex];
 
         std::vector<int64_t> batch_result;
 
         switch (ct) {
-            case GREATER:
-            case LESS_EQ: {
-                batch_result = BoolLessBatchOperator(&batch_const, &batch_data,
-                                                     _fieldWidths[colIndex], 0, msgTagBase,
-                                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-                if (ct == LESS_EQ) {
-                    for (auto &v: batch_result) {
-                        v ^= Comm::rank();
-                    }
+        case GREATER:
+        case LESS_EQ: {
+            batch_result = BoolLessBatchOperator(&batch_const, &batch_data, _fieldWidths[colIndex], 0, msgTagBase,
+                                                 SecureOperator::NO_CLIENT_COMPUTE)
+                               .execute()
+                               ->_zis;
+            if (ct == LESS_EQ) {
+                for (auto& v : batch_result) {
+                    v ^= Comm::rank();
                 }
-                break;
             }
-            case LESS:
-            case GREATER_EQ: {
-                batch_result = BoolLessBatchOperator(&batch_data, &batch_const,
-                                                     _fieldWidths[colIndex], 0, msgTagBase,
-                                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-                if (ct == GREATER_EQ) {
-                    for (auto &v: batch_result) {
-                        v ^= Comm::rank();
-                    }
+            break;
+        }
+        case LESS:
+        case GREATER_EQ: {
+            batch_result = BoolLessBatchOperator(&batch_data, &batch_const, _fieldWidths[colIndex], 0, msgTagBase,
+                                                 SecureOperator::NO_CLIENT_COMPUTE)
+                               .execute()
+                               ->_zis;
+            if (ct == GREATER_EQ) {
+                for (auto& v : batch_result) {
+                    v ^= Comm::rank();
                 }
-                break;
             }
-            case EQUALS:
-            case NOT_EQUALS: {
-                batch_result = BoolEqualBatchOperator(&batch_const, &batch_data, _fieldWidths[colIndex],
-                                                      0, msgTagBase,
-                                                      SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-                if (ct == NOT_EQUALS) {
-                    for (auto &v: batch_result) {
-                        v ^= Comm::rank();
-                    }
+            break;
+        }
+        case EQUALS:
+        case NOT_EQUALS: {
+            batch_result = BoolEqualBatchOperator(&batch_const, &batch_data, _fieldWidths[colIndex], 0, msgTagBase,
+                                                  SecureOperator::NO_CLIENT_COMPUTE)
+                               .execute()
+                               ->_zis;
+            if (ct == NOT_EQUALS) {
+                for (auto& v : batch_result) {
+                    v ^= Comm::rank();
                 }
-                break;
             }
+            break;
+        }
         }
 
         collected[i] = std::move(batch_result);
@@ -1541,38 +1668,40 @@ void View::filterSingleBatch(std::vector<std::string> &fieldNames,
     if (DbConf::BASELINE_MODE || Conf::DISABLE_MULTI_THREAD) {
         result = std::move(collected[0]);
         for (int i = 1; i < n; i++) {
-            result = BoolAndBatchOperator(&result, &collected[i], 1, 0, msgTagBase,
-                                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+            result = BoolAndBatchOperator(&result, &collected[i], 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                         .execute()
+                         ->_zis;
         }
     } else {
-        std::vector<std::vector<int64_t> > andCols = std::move(collected);
+        std::vector<std::vector<int64_t>> andCols = std::move(collected);
         while (andCols.size() > 1) {
             const int m = static_cast<int>(andCols.size());
             const int pairs = m / 2;
             const int msgStride = BoolAndBatchOperator::tagStride();
 
-            std::vector<std::future<std::vector<int64_t> > > futures1;
+            std::vector<std::future<std::vector<int64_t>>> futures1;
             futures1.reserve(pairs);
 
             for (int p = 0; p < pairs; ++p) {
-                futures1.emplace_back(
-                    ThreadPoolSupport::submit([&, p]() {
-                        auto &L = andCols[2 * p];
-                        auto &R = andCols[2 * p + 1];
-                        // Pairs of one level run concurrently, so each needs its own full tag range. Levels run
-                        // one after another and may reuse the same ranges.
-                        return BoolAndBatchOperator(&L, &R, 1, 0,
-                                                    msgTagBase + p * msgStride,
-                                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-                    })
-                );
+                futures1.emplace_back(ThreadPoolSupport::submit([&, p]() {
+                    auto& L = andCols[2 * p];
+                    auto& R = andCols[2 * p + 1];
+                    // Pairs of one level run concurrently, so each needs its own full tag range. Levels run
+                    // one after another and may reuse the same ranges.
+                    return BoolAndBatchOperator(&L, &R, 1, 0, msgTagBase + p * msgStride,
+                                                SecureOperator::NO_CLIENT_COMPUTE)
+                        .execute()
+                        ->_zis;
+                }));
             }
 
-            std::vector<std::vector<int64_t> > nextCols;
+            std::vector<std::vector<int64_t>> nextCols;
             nextCols.reserve((m + 1) / 2);
 
-            for (int p = 0; p < pairs; ++p) nextCols.push_back(futures1[p].get());
-            if (m % 2) nextCols.push_back(std::move(andCols.back()));
+            for (int p = 0; p < pairs; ++p)
+                nextCols.push_back(futures1[p].get());
+            if (m % 2)
+                nextCols.push_back(std::move(andCols.back()));
 
             andCols.swap(nextCols);
         }
@@ -1581,7 +1710,9 @@ void View::filterSingleBatch(std::vector<std::string> &fieldNames,
 
     if (DbConf::BASELINE_MODE) {
         _dataCols[validColIndex] = BoolAndBatchOperator(&result, &_dataCols[validColIndex], 1, 0, msgTagBase,
-                                                        SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                        SecureOperator::NO_CLIENT_COMPUTE)
+                                       .execute()
+                                       ->_zis;
     } else if (!DbConf::DISABLE_PRECISE_COMPACTION) {
         _dataCols[validColIndex] = std::move(result);
         if (clear) {
@@ -1589,26 +1720,25 @@ void View::filterSingleBatch(std::vector<std::string> &fieldNames,
         }
     } else {
         _dataCols[validColIndex] = BoolAndBatchOperator(&result, &_dataCols[validColIndex], 1, 0, msgTagBase,
-                                                        SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                        SecureOperator::NO_CLIENT_COMPUTE)
+                                       .execute()
+                                       ->_zis;
         if (clear) {
             clearInvalidEntries(msgTagBase);
         }
     }
 }
 
-void View::filterMultiBatches(std::vector<std::string> &fieldNames,
-                              std::vector<ComparatorType> &comparatorTypes,
-                              std::vector<int64_t> &constShares, bool clear,
-                              int msgTagBase) {
+void View::filterMultiBatches(std::vector<std::string>& fieldNames, std::vector<ComparatorType>& comparatorTypes,
+                              std::vector<int64_t>& constShares, bool clear, int msgTagBase) {
     const size_t n = fieldNames.size();
-    std::vector<std::vector<int64_t> > collected(n);
+    std::vector<std::vector<int64_t>> collected(n);
 
-    std::vector<std::future<std::vector<int64_t> > > futures(n);
+    std::vector<std::future<std::vector<int64_t>>> futures(n);
     const size_t data_size = _dataCols[0].size();
     const int batchSize = Conf::BATCH_SIZE;
     const int batchNum = static_cast<int>((data_size + batchSize - 1) / batchSize);
-    const int tagOffset = std::max(BoolLessBatchOperator::tagStride(),
-                                   BoolEqualBatchOperator::tagStride());
+    const int tagOffset = std::max(BoolLessBatchOperator::tagStride(), BoolEqualBatchOperator::tagStride());
 
     for (int i = 0; i < static_cast<int>(n); ++i) {
         futures[i] = ThreadPoolSupport::submit([&, i] {
@@ -1621,7 +1751,7 @@ void View::filterMultiBatches(std::vector<std::string> &fieldNames,
             }
             auto ct = comparatorTypes[i];
 
-            std::vector<std::future<std::vector<int64_t> > > batch_futures(batchNum);
+            std::vector<std::future<std::vector<int64_t>>> batch_futures(batchNum);
             const int startTag = msgTagBase + tagOffset * batchNum * i;
 
             for (int b = 0; b < batchNum; ++b) {
@@ -1629,56 +1759,59 @@ void View::filterMultiBatches(std::vector<std::string> &fieldNames,
                 const int end = std::min(start + batchSize, static_cast<int>(data_size));
                 const int curSz = end - start;
 
-                batch_futures[b] = ThreadPoolSupport::submit(
-                    [&, start, end, ct, colIndex, startTag, b, curSz]() {
-                        std::vector<int64_t> batch_const(curSz, constShares[i]);
-                        std::vector<int64_t> batch_data(_dataCols[colIndex].begin() + start,
-                                                        _dataCols[colIndex].begin() + end);
+                batch_futures[b] = ThreadPoolSupport::submit([&, start, end, ct, colIndex, startTag, b, curSz]() {
+                    std::vector<int64_t> batch_const(curSz, constShares[i]);
+                    std::vector<int64_t> batch_data(_dataCols[colIndex].begin() + start,
+                                                    _dataCols[colIndex].begin() + end);
 
-                        const int batch_start_tag = startTag + b * tagOffset;
-                        std::vector<int64_t> batch_result;
+                    const int batch_start_tag = startTag + b * tagOffset;
+                    std::vector<int64_t> batch_result;
 
-                        switch (ct) {
-                            case GREATER:
-                            case LESS_EQ: {
-                                batch_result = BoolLessBatchOperator(&batch_const, &batch_data,
-                                                                     _fieldWidths[colIndex], 0, batch_start_tag,
-                                                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-                                if (ct == LESS_EQ) {
-                                    for (auto &v: batch_result) v ^= Comm::rank();
-                                }
-                                break;
-                            }
-                            case LESS:
-                            case GREATER_EQ: {
-                                batch_result = BoolLessBatchOperator(&batch_data, &batch_const,
-                                                                     _fieldWidths[colIndex], 0, batch_start_tag,
-                                                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-                                if (ct == GREATER_EQ) {
-                                    for (auto &v: batch_result) v ^= Comm::rank();
-                                }
-                                break;
-                            }
-                            case EQUALS:
-                            case NOT_EQUALS: {
-                                batch_result = BoolEqualBatchOperator(&batch_const, &batch_data,
-                                                                      _fieldWidths[colIndex], 0, batch_start_tag,
-                                                                      SecureOperator::NO_CLIENT_COMPUTE).execute()->
-                                        _zis;
-                                if (ct == NOT_EQUALS) {
-                                    for (auto &v: batch_result) v ^= Comm::rank();
-                                }
-                                break;
-                            }
+                    switch (ct) {
+                    case GREATER:
+                    case LESS_EQ: {
+                        batch_result = BoolLessBatchOperator(&batch_const, &batch_data, _fieldWidths[colIndex], 0,
+                                                             batch_start_tag, SecureOperator::NO_CLIENT_COMPUTE)
+                                           .execute()
+                                           ->_zis;
+                        if (ct == LESS_EQ) {
+                            for (auto& v : batch_result)
+                                v ^= Comm::rank();
                         }
-                        return batch_result;
+                        break;
                     }
-                );
+                    case LESS:
+                    case GREATER_EQ: {
+                        batch_result = BoolLessBatchOperator(&batch_data, &batch_const, _fieldWidths[colIndex], 0,
+                                                             batch_start_tag, SecureOperator::NO_CLIENT_COMPUTE)
+                                           .execute()
+                                           ->_zis;
+                        if (ct == GREATER_EQ) {
+                            for (auto& v : batch_result)
+                                v ^= Comm::rank();
+                        }
+                        break;
+                    }
+                    case EQUALS:
+                    case NOT_EQUALS: {
+                        batch_result = BoolEqualBatchOperator(&batch_const, &batch_data, _fieldWidths[colIndex], 0,
+                                                              batch_start_tag, SecureOperator::NO_CLIENT_COMPUTE)
+                                           .execute()
+                                           ->_zis;
+                        if (ct == NOT_EQUALS) {
+                            for (auto& v : batch_result)
+                                v ^= Comm::rank();
+                        }
+                        break;
+                    }
+                    }
+                    return batch_result;
+                });
             }
 
             std::vector<int64_t> currentCondition;
             currentCondition.reserve(data_size);
-            for (auto &f: batch_futures) {
+            for (auto& f : batch_futures) {
                 auto br = f.get();
                 currentCondition.insert(currentCondition.end(), br.begin(), br.end());
             }
@@ -1696,34 +1829,35 @@ void View::filterMultiBatches(std::vector<std::string> &fieldNames,
     if (n == 1) {
         result = std::move(collected[0]);
     } else {
-        std::vector<std::vector<int64_t> > andCols = std::move(collected);
+        std::vector<std::vector<int64_t>> andCols = std::move(collected);
         while (andCols.size() > 1) {
             const int m = static_cast<int>(andCols.size());
             const int pairs = m / 2;
             const int msgStride = BoolAndBatchOperator::tagStride();
 
-            std::vector<std::future<std::vector<int64_t> > > futures1;
+            std::vector<std::future<std::vector<int64_t>>> futures1;
             futures1.reserve(pairs);
 
             for (int p = 0; p < pairs; ++p) {
-                futures1.emplace_back(
-                    ThreadPoolSupport::submit([&, p]() {
-                        auto &L = andCols[2 * p];
-                        auto &R = andCols[2 * p + 1];
-                        // Pairs of one level run concurrently, so each needs its own full tag range. Levels run
-                        // one after another and may reuse the same ranges.
-                        return BoolAndBatchOperator(&L, &R, 1, 0,
-                                                    msgTagBase + p * msgStride,
-                                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-                    })
-                );
+                futures1.emplace_back(ThreadPoolSupport::submit([&, p]() {
+                    auto& L = andCols[2 * p];
+                    auto& R = andCols[2 * p + 1];
+                    // Pairs of one level run concurrently, so each needs its own full tag range. Levels run
+                    // one after another and may reuse the same ranges.
+                    return BoolAndBatchOperator(&L, &R, 1, 0, msgTagBase + p * msgStride,
+                                                SecureOperator::NO_CLIENT_COMPUTE)
+                        .execute()
+                        ->_zis;
+                }));
             }
 
-            std::vector<std::vector<int64_t> > nextCols;
+            std::vector<std::vector<int64_t>> nextCols;
             nextCols.reserve((m + 1) / 2);
 
-            for (int p = 0; p < pairs; ++p) nextCols.push_back(futures1[p].get());
-            if (m % 2) nextCols.push_back(std::move(andCols.back()));
+            for (int p = 0; p < pairs; ++p)
+                nextCols.push_back(futures1[p].get());
+            if (m % 2)
+                nextCols.push_back(std::move(andCols.back()));
 
             andCols.swap(nextCols);
         }
@@ -1736,18 +1870,18 @@ void View::filterMultiBatches(std::vector<std::string> &fieldNames,
             clearInvalidEntries(msgTagBase);
         }
     } else {
-        _dataCols[validColIndex] =
-                BoolAndBatchOperator(&_dataCols[validColIndex], &result,
-                                     1, 0, msgTagBase,
-                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        _dataCols[validColIndex] = BoolAndBatchOperator(&_dataCols[validColIndex], &result, 1, 0, msgTagBase,
+                                                        SecureOperator::NO_CLIENT_COMPUTE)
+                                       .execute()
+                                       ->_zis;
         if (clear) {
             clearInvalidEntries(msgTagBase);
         }
     }
 }
 
-void View::filterAndConditions(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
-                               std::vector<int64_t> &constShares, int msgTagBase) {
+void View::filterAndConditions(std::vector<std::string>& fieldNames, std::vector<ComparatorType>& comparatorTypes,
+                               std::vector<int64_t>& constShares, int msgTagBase) {
     if (Conf::BATCH_SIZE <= 0 || Conf::DISABLE_MULTI_THREAD) {
         filterSingleBatch(fieldNames, comparatorTypes, constShares, true, msgTagBase);
     } else {
@@ -1755,9 +1889,7 @@ void View::filterAndConditions(std::vector<std::string> &fieldNames, std::vector
     }
 }
 
-void View::clearInvalidEntries(int msgTagBase) {
-    clearInvalidEntries(true, msgTagBase);
-}
+void View::clearInvalidEntries(int msgTagBase) { clearInvalidEntries(true, msgTagBase); }
 
 void View::clearInvalidEntries(bool doSort, int msgTagBase) {
     if (DbConf::BASELINE_MODE || DbConf::NO_COMPACTION) {
@@ -1769,27 +1901,30 @@ void View::clearInvalidEntries(bool doSort, int msgTagBase) {
     int64_t sumShare = 0, sumShare1;
     if (Conf::DISABLE_MULTI_THREAD || Conf::BATCH_SIZE <= 0) {
         auto ta = BoolToArithBatchOperator(&_dataCols[_dataCols.size() + VALID_COL_OFFSET], 64, 0, msgTagBase,
-                                           SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                           SecureOperator::NO_CLIENT_COMPUTE)
+                      .execute()
+                      ->_zis;
         sumShare = std::accumulate(ta.begin(), ta.end(), 0ll);
     } else {
         size_t batchSize = Conf::BATCH_SIZE;
         size_t n = rowNum();
         size_t batchNum = (n + batchSize - 1) / batchSize;
-        std::vector<std::future<std::vector<int64_t> > > futures(batchNum);
+        std::vector<std::future<std::vector<int64_t>>> futures(batchNum);
 
         for (int i = 0; i < batchNum; ++i) {
             futures[i] = ThreadPoolSupport::submit([this, i, batchSize, n, msgTagBase] {
-                auto &validCol = _dataCols[_dataCols.size() + VALID_COL_OFFSET];
-                std::vector part(validCol.begin() + batchSize * i,
-                                 validCol.begin() + std::min(batchSize * (i + 1), n));
+                auto& validCol = _dataCols[_dataCols.size() + VALID_COL_OFFSET];
+                std::vector part(validCol.begin() + batchSize * i, validCol.begin() + std::min(batchSize * (i + 1), n));
                 return BoolToArithBatchOperator(&part, 64, 0, msgTagBase + BoolToArithBatchOperator::tagStride() * i,
-                                                SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                SecureOperator::NO_CLIENT_COMPUTE)
+                    .execute()
+                    ->_zis;
             });
         }
 
-        for (auto &f: futures) {
+        for (auto& f : futures) {
             auto temp = f.get();
-            for (auto e: temp) {
+            for (auto e : temp) {
                 sumShare += e;
             }
         }
@@ -1797,8 +1932,8 @@ void View::clearInvalidEntries(bool doSort, int msgTagBase) {
 
     if (DbConf::DISABLE_PRECISE_COMPACTION) {
         std::vector<int64_t> sv = {sumShare};
-        auto sumBoolShare = ArithToBoolBatchOperator(&sv, 64, 0, msgTagBase,
-                                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis[0];
+        auto sumBoolShare =
+            ArithToBoolBatchOperator(&sv, 64, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis[0];
         std::vector<bool> bits(64);
         for (int i = 0; i < 64; i++) {
             bits[i] = Math::getBit(sumBoolShare, i);
@@ -1827,7 +1962,7 @@ void View::clearInvalidEntries(bool doSort, int msgTagBase) {
         size_t n = rowNum();
         size_t keep = std::min(n, msb >= 0 ? static_cast<size_t>(1) << (msb + 1) : 2);
 
-        for (auto &col: _dataCols) {
+        for (auto& col : _dataCols) {
             col.resize(keep);
         }
     } else {
@@ -1838,17 +1973,15 @@ void View::clearInvalidEntries(bool doSort, int msgTagBase) {
 
         int64_t validNum = sumShare + sumShare1;
 
-
-        for (auto &v: _dataCols) {
+        for (auto& v : _dataCols) {
             v.resize(validNum);
         }
     }
 }
 
 int View::clearInvalidEntriesTagStride() {
-    return std::max(sortTagStride(),
-                    static_cast<int>((rowNum() + Conf::BATCH_SIZE - 1) / Conf::BATCH_SIZE) *
-                    BoolToArithBatchOperator::tagStride());
+    return std::max(sortTagStride(), static_cast<int>((rowNum() + Conf::BATCH_SIZE - 1) / Conf::BATCH_SIZE) *
+                                         BoolToArithBatchOperator::tagStride());
 }
 
 void View::addRedundantCols() {
@@ -1861,11 +1994,11 @@ void View::addRedundantCols() {
     _dataCols.emplace_back(_dataCols[0].size());
 }
 
-void View::bitonicSortSingleBatch(const std::string &orderField, bool ascendingOrder, int msgTagBase) {
+void View::bitonicSortSingleBatch(const std::string& orderField, bool ascendingOrder, int msgTagBase) {
     auto n = _dataCols[0].size();
     int ofi = colIndex(orderField);
-    auto &orderCol = _dataCols[ofi];
-    auto &paddings = _dataCols[colNum() + PADDING_COL_OFFSET];
+    auto& orderCol = _dataCols[ofi];
+    auto& paddings = _dataCols[colNum() + PADDING_COL_OFFSET];
     for (int k = 2; k <= n; k *= 2) {
         for (int j = k / 2; j > 0; j /= 2) {
             std::vector<int64_t> xs;
@@ -1891,7 +2024,7 @@ void View::bitonicSortSingleBatch(const std::string &orderField, bool ascendingO
                     continue;
                 }
                 if ((paddings[i] && dir) || (paddings[l] && !dir)) {
-                    for (auto &v: _dataCols) {
+                    for (auto& v : _dataCols) {
                         std::swap(v[i], v[l]);
                     }
                     continue;
@@ -1912,8 +2045,9 @@ void View::bitonicSortSingleBatch(const std::string &orderField, bool ascendingO
             }
 
             std::vector<int64_t> zs;
-            zs = BoolLessBatchOperator(&xs, &ys, _fieldWidths[ofi], 0, msgTagBase,
-                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+            zs = BoolLessBatchOperator(&xs, &ys, _fieldWidths[ofi], 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                     .execute()
+                     ->_zis;
 
             for (int i = 0; i < comparingCount; i++) {
                 if (!ascs[i]) {
@@ -1934,8 +2068,7 @@ void View::bitonicSortSingleBatch(const std::string &orderField, bool ascendingO
                 }
             }
 
-            zs = BoolMutexBatchOperator(&xs, &ys, &zs, _maxWidth, 0, msgTagBase).
-                    execute()->_zis;
+            zs = BoolMutexBatchOperator(&xs, &ys, &zs, _maxWidth, 0, msgTagBase).execute()->_zis;
 
             for (int i = 0; i < comparingCount; i++) {
                 orderCol[xIdx[i]] = Math::ring(zs[i], _fieldWidths[ofi]);
@@ -1947,7 +2080,7 @@ void View::bitonicSortSingleBatch(const std::string &orderField, bool ascendingO
                 if (i == ofi) {
                     continue;
                 }
-                auto &co = _dataCols[i];
+                auto& co = _dataCols[i];
                 for (int m = 0; m < comparingCount; m++) {
                     co[xIdx[m]] = Math::ring(zs[pos * comparingCount + m], _fieldWidths[i]);
                     co[yIdx[m]] = Math::ring(zs[(pos + colNum() - 1) * comparingCount + m], _fieldWidths[i]);
@@ -1958,12 +2091,12 @@ void View::bitonicSortSingleBatch(const std::string &orderField, bool ascendingO
     }
 }
 
-void View::bitonicSortMultiBatches(const std::string &orderField, bool ascendingOrder, int msgTagBase) {
+void View::bitonicSortMultiBatches(const std::string& orderField, bool ascendingOrder, int msgTagBase) {
     const int batchSize = Conf::BATCH_SIZE;
     const int n = static_cast<int>(rowNum());
     int ofi = colIndex(orderField);
-    auto &orderCol = _dataCols[ofi];
-    auto &paddings = _dataCols[colNum() + PADDING_COL_OFFSET];
+    auto& orderCol = _dataCols[ofi];
+    auto& paddings = _dataCols[colNum() + PADDING_COL_OFFSET];
     for (int k = 2; k <= n; k <<= 1) {
         for (int j = k >> 1; j > 0; j >>= 1) {
             size_t halfN = n / 2;
@@ -1982,7 +2115,7 @@ void View::bitonicSortMultiBatches(const std::string &orderField, bool ascending
                     continue;
                 }
                 if ((paddings[i] && dir) || (paddings[l] && !dir)) {
-                    for (auto &v: _dataCols) {
+                    for (auto& v : _dataCols) {
                         std::swap(v[i], v[l]);
                     }
                     continue;
@@ -2002,7 +2135,7 @@ void View::bitonicSortMultiBatches(const std::string &orderField, bool ascending
 
             const int numBatches = (comparingCount + batchSize - 1) / batchSize;
             const int tagStride = static_cast<int>(BoolMutexBatchOperator::tagStride() * (colNum() - 1));
-            std::vector<std::future<void> > futures;
+            std::vector<std::future<void>> futures;
             futures.reserve(numBatches);
             for (int b = 0; b < numBatches; ++b) {
                 futures.emplace_back(ThreadPoolSupport::submit([&, b]() {
@@ -2019,21 +2152,21 @@ void View::bitonicSortMultiBatches(const std::string &orderField, bool ascending
                         ys.push_back(orderCol[yIdx[t]]);
                         ascs2.push_back(ascs[t]);
                     }
-                    auto zs = BoolLessBatchOperator(&xs, &ys, _fieldWidths[ofi], 0,
-                                                    msgTagBase + tagStride * b,
-                                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->
-                            _zis;
+                    auto zs = BoolLessBatchOperator(&xs, &ys, _fieldWidths[ofi], 0, msgTagBase + tagStride * b,
+                                                    SecureOperator::NO_CLIENT_COMPUTE)
+                                  .execute()
+                                  ->_zis;
                     for (int t = 0; t < cnt; ++t) {
                         if (!ascs2[t]) {
                             zs[t] ^= Comm::rank();
                         }
                     }
 
-                    std::vector<std::future<void> > futures2;
+                    std::vector<std::future<void>> futures2;
                     futures2.reserve(colNum() - 1);
                     for (int c = 0; c < colNum() - 1; ++c) {
                         futures2.push_back(ThreadPoolSupport::submit([&, b, c] {
-                            auto &col = _dataCols[c];
+                            auto& col = _dataCols[c];
                             std::vector<int64_t> subXs, subYs;
                             if (_fieldNames[c] == orderField) {
                                 subXs = std::move(xs);
@@ -2050,8 +2183,9 @@ void View::bitonicSortMultiBatches(const std::string &orderField, bool ascending
                             auto copy = zs;
                             auto zs2 = BoolMutexBatchOperator(&subXs, &subYs, &copy, _fieldWidths[c], 0,
                                                               msgTagBase + tagStride * b +
-                                                              BoolMutexBatchOperator::tagStride() * c).execute()->
-                                    _zis;
+                                                                  BoolMutexBatchOperator::tagStride() * c)
+                                           .execute()
+                                           ->_zis;
 
                             for (int t = 0; t < cnt; ++t) {
                                 col[xIdx[start + t]] = zs2[t];
@@ -2059,44 +2193,41 @@ void View::bitonicSortMultiBatches(const std::string &orderField, bool ascending
                             }
                         }));
                     }
-                    for (auto &f: futures2) {
+                    for (auto& f : futures2) {
                         f.wait();
                     }
                 }));
             }
-            for (auto &f: futures) {
+            for (auto& f : futures) {
                 f.wait();
             }
         }
     }
 }
 
-
-void View::minAndMaxSingleBatch(std::vector<int64_t> &heads,
-                                const std::string &minFieldName,
-                                const std::string &maxFieldName,
-                                std::string minAlias,
-                                std::string maxAlias,
+void View::minAndMaxSingleBatch(std::vector<int64_t>& heads, const std::string& minFieldName,
+                                const std::string& maxFieldName, std::string minAlias, std::string maxAlias,
                                 int msgTagBase) {
     const size_t n = rowNum();
-    if (n == 0) return;
+    if (n == 0)
+        return;
 
     const int minIdx = colIndex(minFieldName);
     const int maxIdx = colIndex(maxFieldName);
     if (minIdx < 0 || maxIdx < 0) {
-        Log::e("Field not found for minAndMax: min='{}' idx={}, max='{}' idx={}",
-               minFieldName, minIdx, maxFieldName, maxIdx);
+        Log::e("Field not found for minAndMax: min='{}' idx={}, max='{}' idx={}", minFieldName, minIdx, maxFieldName,
+               maxIdx);
         return;
     }
 
     const int minBitlen = _fieldWidths[minIdx];
     const int maxBitlen = _fieldWidths[maxIdx];
 
-    auto &min_src = _dataCols[minIdx];
-    auto &max_src = _dataCols[maxIdx];
+    auto& min_src = _dataCols[minIdx];
+    auto& max_src = _dataCols[maxIdx];
     if (min_src.size() != n || max_src.size() != n || heads.size() != n) {
-        Log::e("Size mismatch in minAndMax: min={}, max={}, heads={}, n={}",
-               min_src.size(), max_src.size(), heads.size(), n);
+        Log::e("Size mismatch in minAndMax: min={}, max={}, heads={}, n={}", min_src.size(), max_src.size(),
+               heads.size(), n);
         return;
     }
 
@@ -2112,27 +2243,32 @@ void View::minAndMaxSingleBatch(std::vector<int64_t> &heads,
 
     int validIdx = colNum() + VALID_COL_OFFSET;
     if (BASELINE || APPROX_COMPACT) {
-        auto &valid = _dataCols[validIdx];
+        auto& valid = _dataCols[validIdx];
 
-        bs_bool = BoolAndBatchOperator(&bs_bool, &valid, 1, 0, msgTagBase,
-                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        bs_bool =
+            BoolAndBatchOperator(&bs_bool, &valid, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
         std::vector<int64_t> max_vals_min(n, (1LL << (minBitlen - 1)) - 1);
         min_vs = BoolMutexBatchOperator(&min_vs, &max_vals_min, &valid, minBitlen, 0, msgTagBase,
-                                        SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                        SecureOperator::NO_CLIENT_COMPUTE)
+                     .execute()
+                     ->_zis;
 
         std::vector<int64_t> min_vals_max(n, 0);
         max_vs = BoolMutexBatchOperator(&max_vs, &min_vals_max, &valid, maxBitlen, 0, msgTagBase,
-                                        SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                        SecureOperator::NO_CLIENT_COMPUTE)
+                     .execute()
+                     ->_zis;
     }
 
     const int tag_off_less = BoolLessBatchOperator::tagStride();
     const int tag_off_and = BoolAndBatchOperator::tagStride();
     const int tag_off_mux = BoolMutexBatchOperator::tagStride();
 
-    for (int delta = 1, round = 0; delta < (int) n; delta <<= 1, ++round) {
-        const int m = (int) n - delta;
-        if (m <= 0) break;
+    for (int delta = 1, round = 0; delta < (int)n; delta <<= 1, ++round) {
+        const int m = (int)n - delta;
+        if (m <= 0)
+            break;
 
         std::vector<int64_t> min_L(m), min_R(m), max_L(m), max_R(m);
         for (int i = 0; i < m; ++i) {
@@ -2143,7 +2279,7 @@ void View::minAndMaxSingleBatch(std::vector<int64_t> &heads,
         }
 
         if (BASELINE || APPROX_COMPACT) {
-            auto &valid = _dataCols[validIdx];
+            auto& valid = _dataCols[validIdx];
             std::vector<int64_t> max_vals_min(m, (1LL << (minBitlen - 1)) - 1), min_vals_max(m, 0);
             std::vector<int64_t> left_valid(m), right_valid(m);
             for (int i = 0; i < m; ++i) {
@@ -2151,50 +2287,69 @@ void View::minAndMaxSingleBatch(std::vector<int64_t> &heads,
                 right_valid[i] = valid[i + delta];
             }
             min_L = BoolMutexBatchOperator(&min_L, &max_vals_min, &left_valid, minBitlen, 0, msgTagBase,
-                                           SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                           SecureOperator::NO_CLIENT_COMPUTE)
+                        .execute()
+                        ->_zis;
             min_R = BoolMutexBatchOperator(&min_R, &max_vals_min, &right_valid, minBitlen, 0, msgTagBase,
-                                           SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                           SecureOperator::NO_CLIENT_COMPUTE)
+                        .execute()
+                        ->_zis;
             max_L = BoolMutexBatchOperator(&max_L, &min_vals_max, &left_valid, maxBitlen, 0, msgTagBase,
-                                           SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                           SecureOperator::NO_CLIENT_COMPUTE)
+                        .execute()
+                        ->_zis;
             max_R = BoolMutexBatchOperator(&max_R, &min_vals_max, &right_valid, maxBitlen, 0, msgTagBase,
-                                           SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                           SecureOperator::NO_CLIENT_COMPUTE)
+                        .execute()
+                        ->_zis;
         }
 
         auto less_min = BoolLessBatchOperator(&min_L, &min_R, minBitlen, 0,
                                               msgTagBase + round * (2 * tag_off_less + tag_off_and + 4 * tag_off_mux),
-                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                              SecureOperator::NO_CLIENT_COMPUTE)
+                            .execute()
+                            ->_zis;
 
         auto less_max = BoolLessBatchOperator(&max_L, &max_R, maxBitlen, 0,
                                               msgTagBase + round * (2 * tag_off_less + tag_off_and + 4 * tag_off_mux) +
-                                              tag_off_less,
-                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                  tag_off_less,
+                                              SecureOperator::NO_CLIENT_COMPUTE)
+                            .execute()
+                            ->_zis;
 
         auto min_cand = BoolMutexBatchOperator(&min_L, &min_R, &less_min, minBitlen, 0,
                                                msgTagBase + round * (2 * tag_off_less + tag_off_and + 4 * tag_off_mux) +
-                                               2 *
-                                               tag_off_less,
-                                               SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                   2 * tag_off_less,
+                                               SecureOperator::NO_CLIENT_COMPUTE)
+                            .execute()
+                            ->_zis;
 
         auto max_cand = BoolMutexBatchOperator(&max_R, &max_L, &less_max, maxBitlen, 0,
                                                msgTagBase + round * (2 * tag_off_less + tag_off_and + 4 * tag_off_mux) +
-                                               2 *
-                                               tag_off_less + tag_off_mux,
-                                               SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                   2 * tag_off_less + tag_off_mux,
+                                               SecureOperator::NO_CLIENT_COMPUTE)
+                            .execute()
+                            ->_zis;
 
         std::vector<int64_t> gate(m);
-        for (int i = 0; i < m; ++i) gate[i] = (bs_bool[i + delta] ^ XOR_MASK);
+        for (int i = 0; i < m; ++i)
+            gate[i] = (bs_bool[i + delta] ^ XOR_MASK);
 
-        auto min_new_right = BoolMutexBatchOperator(&min_cand, &min_R, &gate, minBitlen, 0,
-                                                    msgTagBase + round * (
-                                                        2 * tag_off_less + tag_off_and + 4 * tag_off_mux)
-                                                    + 2 * tag_off_less + 2 * tag_off_mux,
-                                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto min_new_right =
+            BoolMutexBatchOperator(&min_cand, &min_R, &gate, minBitlen, 0,
+                                   msgTagBase + round * (2 * tag_off_less + tag_off_and + 4 * tag_off_mux) +
+                                       2 * tag_off_less + 2 * tag_off_mux,
+                                   SecureOperator::NO_CLIENT_COMPUTE)
+                .execute()
+                ->_zis;
 
-        auto max_new_right = BoolMutexBatchOperator(&max_cand, &max_R, &gate, maxBitlen, 0,
-                                                    msgTagBase + round * (
-                                                        2 * tag_off_less + tag_off_and + 4 * tag_off_mux)
-                                                    + 2 * tag_off_less + 3 * tag_off_mux,
-                                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto max_new_right =
+            BoolMutexBatchOperator(&max_cand, &max_R, &gate, maxBitlen, 0,
+                                   msgTagBase + round * (2 * tag_off_less + tag_off_and + 4 * tag_off_mux) +
+                                       2 * tag_off_less + 3 * tag_off_mux,
+                                   SecureOperator::NO_CLIENT_COMPUTE)
+                .execute()
+                ->_zis;
 
         for (int i = 0; i < m; ++i) {
             min_vs[i + delta] = min_new_right[i];
@@ -2207,37 +2362,46 @@ void View::minAndMaxSingleBatch(std::vector<int64_t> &heads,
             not_r[i] = bs_bool[i + delta] ^ XOR_MASK;
         }
         auto and_out = BoolAndBatchOperator(&not_l, &not_r, 1, 0,
-                                            msgTagBase + round * (2 * tag_off_less + tag_off_and + 4 * tag_off_mux) + 2
-                                            *
-                                            tag_off_less + 4 * tag_off_mux,
-                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-        for (int i = 0; i < m; ++i) bs_bool[i + delta] = and_out[i] ^ XOR_MASK;
+                                            msgTagBase + round * (2 * tag_off_less + tag_off_and + 4 * tag_off_mux) +
+                                                2 * tag_off_less + 4 * tag_off_mux,
+                                            SecureOperator::NO_CLIENT_COMPUTE)
+                           .execute()
+                           ->_zis;
+        for (int i = 0; i < m; ++i)
+            bs_bool[i + delta] = and_out[i] ^ XOR_MASK;
     }
 
     std::vector<int64_t> group_tails(n);
-    for (size_t i = 0; i + 1 < n; ++i) group_tails[i] = heads[i + 1];
+    for (size_t i = 0; i + 1 < n; ++i)
+        group_tails[i] = heads[i + 1];
 
     if (PRECISE_COMPACT) {
         group_tails[n - 1] = Comm::rank();
     } else {
-        auto &valid = _dataCols[validIdx];
+        auto& valid = _dataCols[validIdx];
         std::vector<int64_t> next_valid(n);
-        for (size_t i = 0; i + 1 < n; ++i) next_valid[i] = valid[i + 1];
+        for (size_t i = 0; i + 1 < n; ++i)
+            next_valid[i] = valid[i + 1];
         next_valid[n - 1] = 0;
 
         std::vector<int64_t> not_next(n);
-        for (size_t i = 0; i < n; ++i) not_next[i] = next_valid[i] ^ XOR_MASK;
-        auto last_valid_tail = BoolAndBatchOperator(&valid, &not_next, 1, 0, msgTagBase,
-                                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        for (size_t i = 0; i < n; ++i)
+            not_next[i] = next_valid[i] ^ XOR_MASK;
+        auto last_valid_tail =
+            BoolAndBatchOperator(&valid, &not_next, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                .execute()
+                ->_zis;
 
         std::vector<int64_t> not_gt(n), not_lvt(n);
         for (size_t i = 0; i < n; ++i) {
             not_gt[i] = group_tails[i] ^ XOR_MASK;
             not_lvt[i] = last_valid_tail[i] ^ XOR_MASK;
         }
-        auto and_not = BoolAndBatchOperator(&not_gt, &not_lvt, 1, 0, msgTagBase,
-                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-        for (size_t i = 0; i < n; ++i) group_tails[i] = (and_not[i] ^ XOR_MASK);
+        auto and_not = BoolAndBatchOperator(&not_gt, &not_lvt, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                           .execute()
+                           ->_zis;
+        for (size_t i = 0; i < n; ++i)
+            group_tails[i] = (and_not[i] ^ XOR_MASK);
     }
 
     const std::string minOutName = minAlias.empty() ? ("min_" + minFieldName) : minAlias;
@@ -2255,11 +2419,15 @@ void View::minAndMaxSingleBatch(std::vector<int64_t> &heads,
     validIdx = colNum() + VALID_COL_OFFSET;
     if (BASELINE) {
         auto new_valid = BoolAndBatchOperator(&_dataCols[validIdx], &group_tails, 1, 0, msgTagBase,
-                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                              SecureOperator::NO_CLIENT_COMPUTE)
+                             .execute()
+                             ->_zis;
         _dataCols[validIdx] = std::move(new_valid);
     } else if (APPROX_COMPACT) {
         auto new_valid = BoolAndBatchOperator(&_dataCols[validIdx], &group_tails, 1, 0, msgTagBase,
-                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                              SecureOperator::NO_CLIENT_COMPUTE)
+                             .execute()
+                             ->_zis;
         _dataCols[validIdx] = std::move(new_valid);
         clearInvalidEntries(msgTagBase);
     } else {
@@ -2268,36 +2436,34 @@ void View::minAndMaxSingleBatch(std::vector<int64_t> &heads,
     }
 }
 
-void View::minAndMaxMultiBatches(std::vector<int64_t> &heads,
-                                 const std::string &minFieldName,
-                                 const std::string &maxFieldName,
-                                 std::string minAlias,
-                                 std::string maxAlias,
+void View::minAndMaxMultiBatches(std::vector<int64_t>& heads, const std::string& minFieldName,
+                                 const std::string& maxFieldName, std::string minAlias, std::string maxAlias,
                                  int msgTagBase) {
     const size_t n = rowNum();
-    if (n == 0) return;
+    if (n == 0)
+        return;
 
     const int minIdx = colIndex(minFieldName);
     const int maxIdx = colIndex(maxFieldName);
     if (minIdx < 0 || maxIdx < 0) {
-        Log::e("Field not found for minAndMax: min='{}' idx={}, max='{}' idx={}",
-               minFieldName, minIdx, maxFieldName, maxIdx);
+        Log::e("Field not found for minAndMax: min='{}' idx={}, max='{}' idx={}", minFieldName, minIdx, maxFieldName,
+               maxIdx);
         return;
     }
 
     const int minBitlen = _fieldWidths[minIdx];
     const int maxBitlen = _fieldWidths[maxIdx];
 
-    auto &min_src = _dataCols[minIdx];
-    auto &max_src = _dataCols[maxIdx];
+    auto& min_src = _dataCols[minIdx];
+    auto& max_src = _dataCols[maxIdx];
     if (min_src.size() != n || max_src.size() != n || heads.size() != n) {
-        Log::e("Size mismatch in minAndMax multi: min={}, max={}, heads={}, n={}",
-               min_src.size(), max_src.size(), heads.size(), n);
+        Log::e("Size mismatch in minAndMax multi: min={}, max={}, heads={}, n={}", min_src.size(), max_src.size(),
+               heads.size(), n);
         return;
     }
 
     const int batchSize = Conf::BATCH_SIZE;
-    if (n <= (size_t) batchSize) {
+    if (n <= (size_t)batchSize) {
         minAndMaxSingleBatch(heads, minFieldName, maxFieldName, std::move(minAlias), std::move(maxAlias), msgTagBase);
         return;
     }
@@ -2312,16 +2478,22 @@ void View::minAndMaxMultiBatches(std::vector<int64_t> &heads,
 
     int validIdx = colNum() + VALID_COL_OFFSET;
     if (APPROX_COMPACT) {
-        bs_bool = BoolAndBatchOperator(&bs_bool, &_dataCols[validIdx], 1, 0, msgTagBase,
-                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        bs_bool =
+            BoolAndBatchOperator(&bs_bool, &_dataCols[validIdx], 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                .execute()
+                ->_zis;
 
         std::vector<int64_t> max_vals_min(n, (1LL << (minBitlen - 1)) - 1);
         min_vs = BoolMutexBatchOperator(&min_vs, &max_vals_min, &_dataCols[validIdx], minBitlen, 0, msgTagBase,
-                                        SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                        SecureOperator::NO_CLIENT_COMPUTE)
+                     .execute()
+                     ->_zis;
 
         std::vector<int64_t> min_vals_max(n, 0);
         max_vs = BoolMutexBatchOperator(&max_vs, &min_vals_max, &_dataCols[validIdx], maxBitlen, 0, msgTagBase,
-                                        SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                        SecureOperator::NO_CLIENT_COMPUTE)
+                     .execute()
+                     ->_zis;
     }
 
     const int lessStride = BoolLessBatchOperator::tagStride();
@@ -2331,14 +2503,15 @@ void View::minAndMaxMultiBatches(std::vector<int64_t> &heads,
 
     int tagCursorBase = msgTagBase;
 
-    for (int delta = 1; delta < (int) n; delta <<= 1) {
-        const int totalPairs = (int) n - delta;
-        if (totalPairs <= 0) break;
+    for (int delta = 1; delta < (int)n; delta <<= 1) {
+        const int totalPairs = (int)n - delta;
+        if (totalPairs <= 0)
+            break;
 
         const int numBatches = (totalPairs + batchSize - 1) / batchSize;
 
-        using Triple = std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t> >;
-        std::vector<std::future<Triple> > futs(numBatches);
+        using Triple = std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>>;
+        std::vector<std::future<Triple>> futs(numBatches);
 
         for (int b = 0; b < numBatches; ++b) {
             const int start = b * batchSize;
@@ -2354,7 +2527,8 @@ void View::minAndMaxMultiBatches(std::vector<int64_t> &heads,
             const int andTag = maxMtx2Tag + mutexStride;
 
             futs[b] = ThreadPoolSupport::submit([=, &min_vs, &max_vs, &bs_bool]() -> Triple {
-                if (len <= 0) return Triple{{}, {}, {}};
+                if (len <= 0)
+                    return Triple{{}, {}, {}};
 
                 std::vector<int64_t> min_left(len), min_right(len);
                 std::vector<int64_t> max_left(len), max_right(len);
@@ -2372,7 +2546,7 @@ void View::minAndMaxMultiBatches(std::vector<int64_t> &heads,
                 }
 
                 if (APPROX_COMPACT) {
-                    auto &valid = _dataCols[validIdx];
+                    auto& valid = _dataCols[validIdx];
                     std::vector<int64_t> max_vals_min(len, (1LL << (minBitlen - 1)) - 1), min_vals_max(len, 0);
                     std::vector<int64_t> left_valid(len), right_valid(len);
                     for (int i = 0; i < len; ++i) {
@@ -2380,47 +2554,56 @@ void View::minAndMaxMultiBatches(std::vector<int64_t> &heads,
                         right_valid[i] = valid[start + i + delta];
                     }
                     min_left = BoolMutexBatchOperator(&min_left, &max_vals_min, &left_valid, minBitlen, 0, minLessTag,
-                                                      SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                      SecureOperator::NO_CLIENT_COMPUTE)
+                                   .execute()
+                                   ->_zis;
                     min_right = BoolMutexBatchOperator(&min_right, &max_vals_min, &right_valid, minBitlen, 0,
-                                                       minLessTag,
-                                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                       minLessTag, SecureOperator::NO_CLIENT_COMPUTE)
+                                    .execute()
+                                    ->_zis;
                     max_left = BoolMutexBatchOperator(&max_left, &min_vals_max, &left_valid, maxBitlen, 0, maxLessTag,
-                                                      SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                      SecureOperator::NO_CLIENT_COMPUTE)
+                                   .execute()
+                                   ->_zis;
                     max_right = BoolMutexBatchOperator(&max_right, &min_vals_max, &right_valid, maxBitlen, 0,
-                                                       maxLessTag,
-                                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                       maxLessTag, SecureOperator::NO_CLIENT_COMPUTE)
+                                    .execute()
+                                    ->_zis;
                 }
 
-                auto min_cmp = BoolLessBatchOperator(&min_left, &min_right, minBitlen, 0,
-                                                     minLessTag, SecureOperator::NO_CLIENT_COMPUTE)
-                        .execute()->_zis;
-                auto max_cmp = BoolLessBatchOperator(&max_left, &max_right, maxBitlen, 0,
-                                                     maxLessTag, SecureOperator::NO_CLIENT_COMPUTE)
-                        .execute()->_zis;
+                auto min_cmp = BoolLessBatchOperator(&min_left, &min_right, minBitlen, 0, minLessTag,
+                                                     SecureOperator::NO_CLIENT_COMPUTE)
+                                   .execute()
+                                   ->_zis;
+                auto max_cmp = BoolLessBatchOperator(&max_left, &max_right, maxBitlen, 0, maxLessTag,
+                                                     SecureOperator::NO_CLIENT_COMPUTE)
+                                   .execute()
+                                   ->_zis;
 
-                auto min_cand = BoolMutexBatchOperator(&min_left, &min_right, &min_cmp,
-                                                       minBitlen, 0, minMtx1Tag,
+                auto min_cand = BoolMutexBatchOperator(&min_left, &min_right, &min_cmp, minBitlen, 0, minMtx1Tag,
                                                        SecureOperator::NO_CLIENT_COMPUTE)
-                        .execute()->_zis;
-                auto max_cand = BoolMutexBatchOperator(&max_right, &max_left, &max_cmp,
-                                                       maxBitlen, 0, maxMtx1Tag,
+                                    .execute()
+                                    ->_zis;
+                auto max_cand = BoolMutexBatchOperator(&max_right, &max_left, &max_cmp, maxBitlen, 0, maxMtx1Tag,
                                                        SecureOperator::NO_CLIENT_COMPUTE)
-                        .execute()->_zis;
+                                    .execute()
+                                    ->_zis;
 
-                auto min_new_right = BoolMutexBatchOperator(&min_cand, &min_right, &not_bR,
-                                                            minBitlen, 0, minMtx2Tag,
+                auto min_new_right = BoolMutexBatchOperator(&min_cand, &min_right, &not_bR, minBitlen, 0, minMtx2Tag,
                                                             SecureOperator::NO_CLIENT_COMPUTE)
-                        .execute()->_zis;
-                auto max_new_right = BoolMutexBatchOperator(&max_cand, &max_right, &not_bR,
-                                                            maxBitlen, 0, maxMtx2Tag,
+                                         .execute()
+                                         ->_zis;
+                auto max_new_right = BoolMutexBatchOperator(&max_cand, &max_right, &not_bR, maxBitlen, 0, maxMtx2Tag,
                                                             SecureOperator::NO_CLIENT_COMPUTE)
-                        .execute()->_zis;
+                                         .execute()
+                                         ->_zis;
 
-                auto and_out = BoolAndBatchOperator(&not_bL, &not_bR, 1, 0, andTag,
-                                                    SecureOperator::NO_CLIENT_COMPUTE)
-                        .execute()->_zis;
+                auto and_out = BoolAndBatchOperator(&not_bL, &not_bR, 1, 0, andTag, SecureOperator::NO_CLIENT_COMPUTE)
+                                   .execute()
+                                   ->_zis;
                 std::vector<int64_t> new_b(len);
-                for (int i = 0; i < len; ++i) new_b[i] = and_out[i] ^ NOT_mask;
+                for (int i = 0; i < len; ++i)
+                    new_b[i] = and_out[i] ^ NOT_mask;
 
                 return Triple{std::move(min_new_right), std::move(max_new_right), std::move(new_b)};
             });
@@ -2432,12 +2615,13 @@ void View::minAndMaxMultiBatches(std::vector<int64_t> &heads,
             const int start = b * batchSize;
             const int end = std::min(start + batchSize, totalPairs);
             const int len = end - start;
-            if (len <= 0) continue;
+            if (len <= 0)
+                continue;
 
             auto triple = futs[b].get();
-            auto &min_new_right = std::get<0>(triple);
-            auto &max_new_right = std::get<1>(triple);
-            auto &new_b = std::get<2>(triple);
+            auto& min_new_right = std::get<0>(triple);
+            auto& max_new_right = std::get<1>(triple);
+            auto& new_b = std::get<2>(triple);
 
             for (int i = 0; i < len; ++i) {
                 const int idxR = start + i + delta;
@@ -2449,30 +2633,37 @@ void View::minAndMaxMultiBatches(std::vector<int64_t> &heads,
     }
 
     std::vector<int64_t> group_tails(n);
-    for (size_t i = 0; i + 1 < n; ++i) group_tails[i] = heads[i + 1];
+    for (size_t i = 0; i + 1 < n; ++i)
+        group_tails[i] = heads[i + 1];
 
     if (PRECISE_COMPACT) {
         group_tails[n - 1] = Comm::rank();
     } else {
-        auto &valid = _dataCols[validIdx];
+        auto& valid = _dataCols[validIdx];
         std::vector<int64_t> next_valid(n);
-        for (size_t i = 0; i + 1 < n; ++i) next_valid[i] = valid[i + 1];
+        for (size_t i = 0; i + 1 < n; ++i)
+            next_valid[i] = valid[i + 1];
         next_valid[n - 1] = 0;
 
         std::vector<int64_t> not_next(n);
-        for (size_t i = 0; i < n; ++i) not_next[i] = next_valid[i] ^ NOT_mask;
+        for (size_t i = 0; i < n; ++i)
+            not_next[i] = next_valid[i] ^ NOT_mask;
 
-        auto last_valid_tail = BoolAndBatchOperator(&valid, &not_next, 1, 0, msgTagBase,
-                                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto last_valid_tail =
+            BoolAndBatchOperator(&valid, &not_next, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                .execute()
+                ->_zis;
 
         std::vector<int64_t> not_gt(n), not_lvt(n);
         for (size_t i = 0; i < n; ++i) {
             not_gt[i] = group_tails[i] ^ NOT_mask;
             not_lvt[i] = last_valid_tail[i] ^ NOT_mask;
         }
-        auto and_not = BoolAndBatchOperator(&not_gt, &not_lvt, 1, 0, msgTagBase,
-                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-        for (size_t i = 0; i < n; ++i) group_tails[i] = and_not[i] ^ NOT_mask;
+        auto and_not = BoolAndBatchOperator(&not_gt, &not_lvt, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                           .execute()
+                           ->_zis;
+        for (size_t i = 0; i < n; ++i)
+            group_tails[i] = and_not[i] ^ NOT_mask;
     }
 
     const std::string minOutName = minAlias.empty() ? ("min_" + minFieldName) : minAlias;
@@ -2490,7 +2681,9 @@ void View::minAndMaxMultiBatches(std::vector<int64_t> &heads,
     validIdx = colNum() + VALID_COL_OFFSET;
     if (APPROX_COMPACT) {
         auto new_valid = BoolAndBatchOperator(&_dataCols[validIdx], &group_tails, 1, 0, msgTagBase,
-                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                              SecureOperator::NO_CLIENT_COMPUTE)
+                             .execute()
+                             ->_zis;
         _dataCols[validIdx] = std::move(new_valid);
         clearInvalidEntries(msgTagBase);
     } else {
@@ -2499,11 +2692,11 @@ void View::minAndMaxMultiBatches(std::vector<int64_t> &heads,
     }
 }
 
-std::vector<int64_t> View::groupBy(const std::string &groupField, int msgTagBase) {
+std::vector<int64_t> View::groupBy(const std::string& groupField, int msgTagBase) {
     return groupBy(groupField, true, msgTagBase);
 }
 
-std::vector<int64_t> View::groupBy(const std::string &groupField, bool doSort, int msgTagBase) {
+std::vector<int64_t> View::groupBy(const std::string& groupField, bool doSort, int msgTagBase) {
     size_t n = rowNum();
     if (n == 0) {
         return std::vector<int64_t>();
@@ -2531,7 +2724,7 @@ std::vector<int64_t> View::groupBy(const std::string &groupField, bool doSort, i
     }
 }
 
-std::vector<int64_t> View::groupBy(const std::vector<std::string> &groupFields, int msgTagBase) {
+std::vector<int64_t> View::groupBy(const std::vector<std::string>& groupFields, int msgTagBase) {
     size_t n = rowNum();
     if (n == 0 || groupFields.empty()) {
         return std::vector<int64_t>();
@@ -2549,7 +2742,7 @@ std::vector<int64_t> View::groupBy(const std::vector<std::string> &groupFields, 
         std::vector<bool> ascending;
         sortFields.push_back(VALID_COL_NAME);
         ascending.push_back(false);
-        for (const auto &gf: groupFields) {
+        for (const auto& gf : groupFields) {
             sortFields.push_back(gf);
             ascending.push_back(true);
         }
@@ -2563,12 +2756,12 @@ std::vector<int64_t> View::groupBy(const std::vector<std::string> &groupFields, 
     }
 }
 
-void View::count(std::vector<std::string> &groupFields, std::vector<int64_t> &heads, std::string alias,
+void View::count(std::vector<std::string>& groupFields, std::vector<int64_t>& heads, std::string alias,
                  int msgTagBase) {
     count(groupFields, heads, std::move(alias), true, msgTagBase);
 }
 
-void View::count(std::vector<std::string> &groupFields, std::vector<int64_t> &heads, std::string alias, bool compress,
+void View::count(std::vector<std::string>& groupFields, std::vector<int64_t>& heads, std::string alias, bool compress,
                  int msgTagBase) {
     size_t pos = groupFields[0].find('.');
     std::string matchedTable;
@@ -2587,20 +2780,20 @@ void View::count(std::vector<std::string> &groupFields, std::vector<int64_t> &he
 
     std::vector<int> groupIdx;
     groupIdx.reserve(groupFields.size());
-    for (const auto &name: groupFields) {
+    for (const auto& name : groupFields) {
         int idx = colIndex(name);
         groupIdx.push_back(idx);
     }
 
     const size_t keep = groupIdx.size() + 2;
-    std::vector<std::vector<int64_t> > newDataCols;
+    std::vector<std::vector<int64_t>> newDataCols;
     std::vector<std::string> newFieldNames;
     std::vector<int> newFieldWidths;
     newDataCols.reserve(keep);
     newFieldNames.reserve(keep);
     newFieldWidths.reserve(keep);
 
-    for (int gi: groupIdx) {
+    for (int gi : groupIdx) {
         newDataCols.push_back(std::move(_dataCols[gi]));
         newFieldNames.push_back(std::move(_fieldNames[gi]));
         newFieldWidths.push_back(_fieldWidths[gi]);
@@ -2630,7 +2823,7 @@ void View::count(std::vector<std::string> &groupFields, std::vector<int64_t> &he
     }
 }
 
-void View::max(std::vector<int64_t> &heads, const std::string &fieldName, std::string alias, int msgTagBase) {
+void View::max(std::vector<int64_t>& heads, const std::string& fieldName, std::string alias, int msgTagBase) {
     if (Conf::BATCH_SIZE <= 0 || Conf::DISABLE_MULTI_THREAD) {
         maxSingleBatch(heads, fieldName, alias, msgTagBase);
     } else {
@@ -2638,7 +2831,7 @@ void View::max(std::vector<int64_t> &heads, const std::string &fieldName, std::s
     }
 }
 
-void View::min(std::vector<int64_t> &heads, const std::string &fieldName, std::string alias, int msgTagBase) {
+void View::min(std::vector<int64_t>& heads, const std::string& fieldName, std::string alias, int msgTagBase) {
     if (Conf::BATCH_SIZE <= 0 || Conf::DISABLE_MULTI_THREAD) {
         minSingleBatch(heads, fieldName, alias, msgTagBase);
     } else {
@@ -2646,17 +2839,13 @@ void View::min(std::vector<int64_t> &heads, const std::string &fieldName, std::s
     }
 }
 
-void View::minAndMax(std::vector<int64_t> &heads, const std::string &fieldName, std::string minAlias,
+void View::minAndMax(std::vector<int64_t>& heads, const std::string& fieldName, std::string minAlias,
                      std::string maxAlias, int msgTagBase) {
     minAndMax(heads, fieldName, fieldName, std::move(minAlias), std::move(maxAlias), msgTagBase);
 }
 
-void View::minAndMax(std::vector<int64_t> &heads,
-                     const std::string &minFieldName,
-                     const std::string &maxFieldName,
-                     std::string minAlias,
-                     std::string maxAlias,
-                     int msgTagBase) {
+void View::minAndMax(std::vector<int64_t>& heads, const std::string& minFieldName, const std::string& maxFieldName,
+                     std::string minAlias, std::string maxAlias, int msgTagBase) {
     if (Conf::DISABLE_MULTI_THREAD || Conf::BATCH_SIZE <= 0) {
         minAndMaxSingleBatch(heads, minFieldName, maxFieldName, std::move(minAlias), std::move(maxAlias), msgTagBase);
     } else {
@@ -2690,10 +2879,8 @@ int View::groupByTagStride() {
         return 0;
     }
 
-    int tags_per_record = BoolEqualBatchOperator::tagStride() +
-                          BoolToArithBatchOperator::tagStride() +
-                          ArithMutexBatchOperator::tagStride(64) +
-                          ArithMultiplyBatchOperator::tagStride(64);
+    int tags_per_record = BoolEqualBatchOperator::tagStride() + BoolToArithBatchOperator::tagStride() +
+                          ArithMutexBatchOperator::tagStride(64) + ArithMultiplyBatchOperator::tagStride(64);
 
     int sort_stride = sortTagStride();
 
@@ -2701,13 +2888,11 @@ int View::groupByTagStride() {
 }
 
 int View::distinctTagStride() {
-    return std::max({
-        BoolEqualBatchOperator::tagStride(), BoolAndBatchOperator::tagStride(),
-        clearInvalidEntriesTagStride()
-    });
+    return std::max(
+        {BoolEqualBatchOperator::tagStride(), BoolAndBatchOperator::tagStride(), clearInvalidEntriesTagStride()});
 }
 
-void View::bitonicSort(const std::string &orderField, bool ascendingOrder, int msgTagBase) {
+void View::bitonicSort(const std::string& orderField, bool ascendingOrder, int msgTagBase) {
     if (rowNum() <= 1) {
         return;
     }
@@ -2718,7 +2903,7 @@ void View::bitonicSort(const std::string &orderField, bool ascendingOrder, int m
     }
 }
 
-void View::sort(const std::vector<std::string> &orderFields, const std::vector<bool> &ascendingOrders, int msgTagBase) {
+void View::sort(const std::vector<std::string>& orderFields, const std::vector<bool>& ascendingOrders, int msgTagBase) {
     if (orderFields.empty()) {
         return;
     }
@@ -2735,9 +2920,8 @@ void View::sort(const std::vector<std::string> &orderFields, const std::vector<b
 
     bool isPowerOf2 = (n > 0) && ((n & (n - 1)) == 0);
     if (!isPowerOf2) {
-        size_t nextPow2 = static_cast<size_t>(1) <<
-                          static_cast<size_t>(std::ceil(std::log2(n)));
-        for (auto &v: _dataCols) {
+        size_t nextPow2 = static_cast<size_t>(1) << static_cast<size_t>(std::ceil(std::log2(n)));
+        for (auto& v : _dataCols) {
             v.resize(nextPow2, 1);
         }
     }
@@ -2745,13 +2929,13 @@ void View::sort(const std::vector<std::string> &orderFields, const std::vector<b
     bitonicSort(orderFields, ascendingOrders, msgTagBase);
 
     if (n < _dataCols[0].size()) {
-        for (auto &v: _dataCols) {
+        for (auto& v : _dataCols) {
             v.resize(n);
         }
     }
 }
 
-void View::bitonicSort(const std::vector<std::string> &orderFields, const std::vector<bool> &ascendingOrders,
+void View::bitonicSort(const std::vector<std::string>& orderFields, const std::vector<bool>& ascendingOrders,
                        int msgTagBase) {
     if (rowNum() <= 1) {
         return;
@@ -2763,7 +2947,7 @@ void View::bitonicSort(const std::vector<std::string> &orderFields, const std::v
     }
 }
 
-int View::sortTagStride(const std::vector<std::string> &orderFields) {
+int View::sortTagStride(const std::vector<std::string>& orderFields) {
     if (orderFields.empty()) {
         return 0;
     }
@@ -2780,8 +2964,8 @@ int View::sortTagStride(const std::vector<std::string> &orderFields) {
     return base_stride * multi_col_factor;
 }
 
-void View::filterAndConditions(std::vector<std::string> &fieldNames, std::vector<ComparatorType> &comparatorTypes,
-                               std::vector<int64_t> &constShares, bool clear, int msgTagBase) {
+void View::filterAndConditions(std::vector<std::string>& fieldNames, std::vector<ComparatorType>& comparatorTypes,
+                               std::vector<int64_t>& constShares, bool clear, int msgTagBase) {
     if (Conf::BATCH_SIZE <= 0 || Conf::DISABLE_MULTI_THREAD) {
         filterSingleBatch(fieldNames, comparatorTypes, constShares, clear, msgTagBase);
     } else {
@@ -2789,7 +2973,7 @@ void View::filterAndConditions(std::vector<std::string> &fieldNames, std::vector
     }
 }
 
-void View::bitonicSortSingleBatch(const std::vector<std::string> &orderFields, const std::vector<bool> &ascendingOrders,
+void View::bitonicSortSingleBatch(const std::vector<std::string>& orderFields, const std::vector<bool>& ascendingOrders,
                                   int msgTagBase) {
     auto n = _dataCols[0].size();
 
@@ -2798,7 +2982,7 @@ void View::bitonicSortSingleBatch(const std::vector<std::string> &orderFields, c
         orderFieldIndices[i] = colIndex(orderFields[i]);
     }
 
-    auto &paddings = _dataCols[colNum() + PADDING_COL_OFFSET];
+    auto& paddings = _dataCols[colNum() + PADDING_COL_OFFSET];
     for (int k = 2; k <= n; k *= 2) {
         for (int j = k / 2; j > 0; j /= 2) {
             std::vector<int64_t> xIdx;
@@ -2819,7 +3003,7 @@ void View::bitonicSortSingleBatch(const std::vector<std::string> &orderFields, c
                     continue;
                 }
                 if ((paddings[i] && dir) || (paddings[l] && !dir)) {
-                    for (auto &v: _dataCols) {
+                    for (auto& v : _dataCols) {
                         std::swap(v[i], v[l]);
                     }
                     continue;
@@ -2840,53 +3024,58 @@ void View::bitonicSortSingleBatch(const std::vector<std::string> &orderFields, c
             std::vector<int64_t> xs, ys;
             xs.reserve(comparingCount);
             ys.reserve(comparingCount);
-            for (auto idx: xIdx) {
+            for (auto idx : xIdx) {
                 xs.push_back(_dataCols[orderFieldIndices[0]][idx]);
             }
-            for (auto idx: yIdx) {
+            for (auto idx : yIdx) {
                 ys.push_back(_dataCols[orderFieldIndices[0]][idx]);
             }
 
             std::vector<int64_t> lts = ascendingOrders[0]
                                            ? BoolLessBatchOperator(&xs, &ys, _fieldWidths[orderFieldIndices[0]], 0,
-                                                                   msgTagBase,
-                                                                   SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis
+                                                                   msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                                                 .execute()
+                                                 ->_zis
                                            : BoolLessBatchOperator(&ys, &xs, _fieldWidths[orderFieldIndices[0]], 0,
-                                                                   msgTagBase,
-                                                                   SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                                   msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                                                 .execute()
+                                                 ->_zis;
             std::vector<int64_t> eqs = BoolEqualBatchOperator(&xs, &ys, _fieldWidths[orderFieldIndices[0]], 0,
-                                                              msgTagBase,
-                                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                              msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                                           .execute()
+                                           ->_zis;
             for (int i = 1; i < orderFields.size(); i++) {
                 xs.clear();
                 ys.clear();
-                for (auto idx: xIdx) {
+                for (auto idx : xIdx) {
                     xs.push_back(_dataCols[orderFieldIndices[i]][idx]);
                 }
-                for (auto idx: yIdx) {
+                for (auto idx : yIdx) {
                     ys.push_back(_dataCols[orderFieldIndices[i]][idx]);
                 }
-                std::vector<int64_t> lts_i = ascendingOrders[i]
-                                                 ? BoolLessBatchOperator(
-                                                     &xs, &ys, _fieldWidths[orderFieldIndices[i]], 0,
-                                                     msgTagBase,
-                                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis
-                                                 : BoolLessBatchOperator(
-                                                     &ys, &xs, _fieldWidths[orderFieldIndices[i]], 0,
-                                                     msgTagBase,
-                                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                std::vector<int64_t> lts_i =
+                    ascendingOrders[i] ? BoolLessBatchOperator(&xs, &ys, _fieldWidths[orderFieldIndices[i]], 0,
+                                                               msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                                             .execute()
+                                             ->_zis
+                                       : BoolLessBatchOperator(&ys, &xs, _fieldWidths[orderFieldIndices[i]], 0,
+                                                               msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                                             .execute()
+                                             ->_zis;
 
-                lts = BoolMutexBatchOperator(&lts_i, &lts, &eqs, 1, 0, msgTagBase,
-                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                lts = BoolMutexBatchOperator(&lts_i, &lts, &eqs, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                          .execute()
+                          ->_zis;
 
                 std::vector<int64_t> eqs_i = BoolEqualBatchOperator(&xs, &ys, _fieldWidths[orderFieldIndices[i]], 0,
-                                                                    msgTagBase,
-                                                                    SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                                    msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                                                 .execute()
+                                                 ->_zis;
 
-                eqs = BoolAndBatchOperator(&eqs, &eqs_i, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE).execute()
-                        ->_zis;
+                eqs = BoolAndBatchOperator(&eqs, &eqs_i, 1, 0, msgTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                          .execute()
+                          ->_zis;
             }
-
 
             for (int i = 0; i < comparingCount; i++) {
                 if (!dirs[i]) {
@@ -2907,12 +3096,11 @@ void View::bitonicSortSingleBatch(const std::vector<std::string> &orderFields, c
                 }
             }
 
-            auto zs = BoolMutexBatchOperator(&xs, &ys, &lts, _maxWidth, 0, msgTagBase).
-                    execute()->_zis;
+            auto zs = BoolMutexBatchOperator(&xs, &ys, &lts, _maxWidth, 0, msgTagBase).execute()->_zis;
 
             int pos = 0;
             for (int i = 0; i < colNum() - 1; i++) {
-                auto &co = _dataCols[i];
+                auto& co = _dataCols[i];
                 for (int m = 0; m < comparingCount; m++) {
                     co[xIdx[m]] = Math::ring(zs[pos * comparingCount + m], _fieldWidths[i]);
                     co[yIdx[m]] = Math::ring(zs[(pos + colNum() - 1) * comparingCount + m], _fieldWidths[i]);
@@ -2923,8 +3111,8 @@ void View::bitonicSortSingleBatch(const std::vector<std::string> &orderFields, c
     }
 }
 
-void View::bitonicSortMultiBatches(const std::vector<std::string> &orderFields,
-                                   const std::vector<bool> &ascendingOrders, int msgTagBase) {
+void View::bitonicSortMultiBatches(const std::vector<std::string>& orderFields,
+                                   const std::vector<bool>& ascendingOrders, int msgTagBase) {
     const int batchSize = Conf::BATCH_SIZE;
     const int n = static_cast<int>(rowNum());
 
@@ -2933,7 +3121,7 @@ void View::bitonicSortMultiBatches(const std::vector<std::string> &orderFields,
         orderFieldIndices[i] = colIndex(orderFields[i]);
     }
 
-    auto &paddings = _dataCols[colNum() + PADDING_COL_OFFSET];
+    auto& paddings = _dataCols[colNum() + PADDING_COL_OFFSET];
 
     for (int k = 2; k <= n; k <<= 1) {
         for (int j = k >> 1; j > 0; j >>= 1) {
@@ -2954,7 +3142,7 @@ void View::bitonicSortMultiBatches(const std::vector<std::string> &orderFields,
                     continue;
                 }
                 if ((paddings[i] && dir) || (paddings[l] && !dir)) {
-                    for (auto &v: _dataCols) {
+                    for (auto& v : _dataCols) {
                         std::swap(v[i], v[l]);
                     }
                     continue;
@@ -2981,7 +3169,7 @@ void View::bitonicSortMultiBatches(const std::vector<std::string> &orderFields,
             const int maxOperatorTagStride = std::max({baseTagStride, eqTagStride, andTagStride, mutexTagStride});
             const int tagsPerBatch = maxOperatorTagStride + (colNum() - 1) * mutexTagStride;
 
-            std::vector<std::future<void> > futures;
+            std::vector<std::future<void>> futures;
             futures.reserve(numBatches);
 
             for (int b = 0; b < numBatches; ++b) {
@@ -3001,20 +3189,20 @@ void View::bitonicSortMultiBatches(const std::vector<std::string> &orderFields,
                         ys.push_back(_dataCols[orderFieldIndices[0]][yIdx[t]]);
                     }
 
-                    std::vector<int64_t> lts = ascendingOrders[0]
-                                                   ? BoolLessBatchOperator(
-                                                       &xs, &ys, _fieldWidths[orderFieldIndices[0]], 0,
-                                                       batchTagBase,
-                                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis
-                                                   : BoolLessBatchOperator(
-                                                       &ys, &xs, _fieldWidths[orderFieldIndices[0]], 0,
-                                                       batchTagBase,
-                                                       SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                    std::vector<int64_t> lts =
+                        ascendingOrders[0] ? BoolLessBatchOperator(&xs, &ys, _fieldWidths[orderFieldIndices[0]], 0,
+                                                                   batchTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                                                 .execute()
+                                                 ->_zis
+                                           : BoolLessBatchOperator(&ys, &xs, _fieldWidths[orderFieldIndices[0]], 0,
+                                                                   batchTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                                                 .execute()
+                                                 ->_zis;
 
                     std::vector<int64_t> eqs = BoolEqualBatchOperator(&xs, &ys, _fieldWidths[orderFieldIndices[0]], 0,
-                                                                      batchTagBase,
-                                                                      SecureOperator::NO_CLIENT_COMPUTE).execute()->
-                            _zis;
+                                                                      batchTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                                                   .execute()
+                                                   ->_zis;
 
                     for (int col = 1; col < orderFields.size(); col++) {
                         xs.clear();
@@ -3024,26 +3212,31 @@ void View::bitonicSortMultiBatches(const std::vector<std::string> &orderFields,
                             ys.push_back(_dataCols[orderFieldIndices[col]][yIdx[t]]);
                         }
 
-                        std::vector<int64_t> lts_i = ascendingOrders[col]
-                                                         ? BoolLessBatchOperator(
-                                                             &xs, &ys, _fieldWidths[orderFieldIndices[col]], 0,
-                                                             batchTagBase,
-                                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis
-                                                         : BoolLessBatchOperator(
-                                                             &ys, &xs, _fieldWidths[orderFieldIndices[col]], 0,
-                                                             batchTagBase,
-                                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                        std::vector<int64_t> lts_i =
+                            ascendingOrders[col]
+                                ? BoolLessBatchOperator(&xs, &ys, _fieldWidths[orderFieldIndices[col]], 0, batchTagBase,
+                                                        SecureOperator::NO_CLIENT_COMPUTE)
+                                      .execute()
+                                      ->_zis
+                                : BoolLessBatchOperator(&ys, &xs, _fieldWidths[orderFieldIndices[col]], 0, batchTagBase,
+                                                        SecureOperator::NO_CLIENT_COMPUTE)
+                                      .execute()
+                                      ->_zis;
 
                         lts = BoolMutexBatchOperator(&lts_i, &lts, &eqs, 1, 0, batchTagBase,
-                                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                                     SecureOperator::NO_CLIENT_COMPUTE)
+                                  .execute()
+                                  ->_zis;
 
-                        std::vector<int64_t> eqs_i = BoolEqualBatchOperator(
-                            &xs, &ys, _fieldWidths[orderFieldIndices[col]], 0,
-                            batchTagBase,
-                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                        std::vector<int64_t> eqs_i =
+                            BoolEqualBatchOperator(&xs, &ys, _fieldWidths[orderFieldIndices[col]], 0, batchTagBase,
+                                                   SecureOperator::NO_CLIENT_COMPUTE)
+                                .execute()
+                                ->_zis;
 
-                        eqs = BoolAndBatchOperator(&eqs, &eqs_i, 1, 0, batchTagBase,
-                                                   SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                        eqs = BoolAndBatchOperator(&eqs, &eqs_i, 1, 0, batchTagBase, SecureOperator::NO_CLIENT_COMPUTE)
+                                  .execute()
+                                  ->_zis;
                     }
 
                     for (int t = 0; t < cnt; ++t) {
@@ -3052,12 +3245,12 @@ void View::bitonicSortMultiBatches(const std::vector<std::string> &orderFields,
                         }
                     }
 
-                    std::vector<std::future<void> > futures2;
+                    std::vector<std::future<void>> futures2;
                     futures2.reserve(colNum() - 1);
 
                     for (int c = 0; c < colNum() - 1; ++c) {
                         futures2.push_back(ThreadPoolSupport::submit([&, c, currentTag, start, end, cnt] {
-                            auto &col = _dataCols[c];
+                            auto& col = _dataCols[c];
                             std::vector<int64_t> subXs, subYs;
                             subXs.reserve(cnt);
                             subYs.reserve(cnt);
@@ -3069,7 +3262,9 @@ void View::bitonicSortMultiBatches(const std::vector<std::string> &orderFields,
 
                             auto copy = lts;
                             auto zs2 = BoolMutexBatchOperator(&subXs, &subYs, &copy, _fieldWidths[c], 0,
-                                                              currentTag + mutexTagStride * c).execute()->_zis;
+                                                              currentTag + mutexTagStride * c)
+                                           .execute()
+                                           ->_zis;
 
                             for (int t = 0; t < cnt; ++t) {
                                 col[xIdx[start + t]] = zs2[t];
@@ -3078,13 +3273,13 @@ void View::bitonicSortMultiBatches(const std::vector<std::string> &orderFields,
                         }));
                     }
 
-                    for (auto &f: futures2) {
+                    for (auto& f : futures2) {
                         f.wait();
                     }
                 }));
             }
 
-            for (auto &f: futures) {
+            for (auto& f : futures) {
                 f.wait();
             }
         }

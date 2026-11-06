@@ -1,29 +1,26 @@
 
 #ifndef BLOCKINGQUEUE_H
 #define BLOCKINGQUEUE_H
-#include <iostream>
-#include <queue>
-#include <mutex>
 #include <condition_variable>
+#include <iostream>
+#include <mutex>
+#include <queue>
 
 #include "AbstractBlockingQueue.h"
 #include "utils/Log.h"
 
 namespace parsec {
 
-
-template<typename T>
-class LockBlockingQueue : public AbstractBlockingQueue<T> {
-private:
+template <typename T> class LockBlockingQueue : public AbstractBlockingQueue<T> {
+  private:
     std::queue<T> _queue;
     std::mutex _mutex;
     std::condition_variable _notEmpty;
     std::condition_variable _notFull;
     size_t _maxSize;
 
-public:
-    explicit LockBlockingQueue(size_t max_size) : _maxSize(max_size) {
-    }
+  public:
+    explicit LockBlockingQueue(size_t max_size) : _maxSize(max_size) {}
 
     void offer(T item) override {
         std::unique_lock<std::mutex> lock(_mutex);
@@ -41,13 +38,9 @@ public:
         return item;
     }
 
-    [[nodiscard]] size_t size() const override {
-        return _queue.size();
-    }
+    [[nodiscard]] size_t size() const override { return _queue.size(); }
 
-    [[nodiscard]] size_t capacity() const override {
-        return _maxSize;
-    }
+    [[nodiscard]] size_t capacity() const override { return _maxSize; }
 };
 
 } // namespace parsec

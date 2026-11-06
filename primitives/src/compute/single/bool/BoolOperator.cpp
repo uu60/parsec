@@ -3,18 +3,16 @@
 
 #include "comm/Comm.h"
 #include "conf/Conf.h"
-#include "utils/Math.h"
 #include "ot/BaseOtOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Log.h"
+#include "utils/Math.h"
 #include "utils/System.h"
 
 namespace parsec {
 
-
-BoolOperator::BoolOperator(int64_t z, int l, int taskTag, int msgTagOffset,
-                           int clientRank) : AbstractSingleOperator(
-    l, taskTag, msgTagOffset) {
+BoolOperator::BoolOperator(int64_t z, int l, int taskTag, int msgTagOffset, int clientRank)
+    : AbstractSingleOperator(l, taskTag, msgTagOffset) {
     if (clientRank < 0) {
         _zi = ring(z);
     } else {
@@ -32,8 +30,8 @@ BoolOperator::BoolOperator(int64_t z, int l, int taskTag, int msgTagOffset,
     }
 }
 
-BoolOperator::BoolOperator(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset,
-                           int clientRank) : AbstractSingleOperator(l, taskTag, msgTagOffset) {
+BoolOperator::BoolOperator(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset, int clientRank)
+    : AbstractSingleOperator(l, taskTag, msgTagOffset) {
     if (clientRank < 0) {
         _xi = ring(x);
         _yi = ring(y);
@@ -58,7 +56,7 @@ BoolOperator::BoolOperator(int64_t x, int64_t y, int l, int taskTag, int msgTagO
     }
 }
 
-BoolOperator *BoolOperator::reconstruct(int clientRank) {
+BoolOperator* BoolOperator::reconstruct(int clientRank) {
     _currentMsgTag = _startMsgTag;
     if (Comm::isServer()) {
         Comm::send(_zi, _width, clientRank, buildTag(_currentMsgTag));
@@ -71,8 +69,6 @@ BoolOperator *BoolOperator::reconstruct(int clientRank) {
     return this;
 }
 
-BoolOperator *BoolOperator::execute() {
-    throw std::runtime_error("This method needs implementation.");
-}
+BoolOperator* BoolOperator::execute() { throw std::runtime_error("This method needs implementation."); }
 
 } // namespace parsec

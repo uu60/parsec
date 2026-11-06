@@ -2,9 +2,9 @@
 #include "secret/Secrets.h"
 #include "utils/System.h"
 
+#include "basis/Table.h"
 #include "basis/View.h"
 #include "basis/Views.h"
-#include "basis/Table.h"
 #include "conf/DbConf.h"
 #include "utils/Log.h"
 #include "utils/StringUtils.h"
@@ -15,7 +15,7 @@
 
 using namespace parsec;
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     System::init(argc, argv);
     DbConf::init();
 
@@ -41,8 +41,8 @@ int main(int argc, char *argv[]) {
 
     Log::ir(2, "Join benchmark - Rows per table: {}, Table count: {}, Hash join: {}", rows, table_num, hash);
 
-    std::vector<std::vector<int64_t> > allShares(table_num);
-    std::vector<std::vector<int64_t> > allTagShares(table_num);
+    std::vector<std::vector<int64_t>> allShares(table_num);
+    std::vector<std::vector<int64_t>> allTagShares(table_num);
 
     int rows_per_table = rows;
 
@@ -134,7 +134,6 @@ int main(int argc, char *argv[]) {
             }
         }
     }
-
 
     System::finalize();
     return 0;

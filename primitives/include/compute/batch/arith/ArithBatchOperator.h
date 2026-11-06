@@ -5,21 +5,17 @@
 
 namespace parsec {
 
-
-
 class ArithBatchOperator : public AbstractBatchOperator {
-public:
+  public:
     ArithBatchOperator(std::vector<int64_t>& zs, int width, int taskTag, int msgTagOffset, int clientRank);
 
-    ArithBatchOperator(std::vector<int64_t>* xs, std::vector<int64_t>* ys, int width, int taskTag, int msgTagOffset, int clientRank);
+    ArithBatchOperator(std::vector<int64_t>* xs, std::vector<int64_t>* ys, int width, int taskTag, int msgTagOffset,
+                       int clientRank);
 
-    ArithBatchOperator *reconstruct(int clientRank) override;
+    ArithBatchOperator* reconstruct(int clientRank) override;
 
-    ArithBatchOperator *execute() override;
+    ArithBatchOperator* execute() override;
 };
-
-
-
 
 } // namespace parsec
 

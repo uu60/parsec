@@ -1,20 +1,18 @@
 
 #include "ot/BaseOtOperator.h"
 
-#include <string>
 #include "comm/Comm.h"
 #include "intermediate/IntermediateDataSupport.h"
-#include "utils/Math.h"
 #include "utils/Crypto.h"
+#include "utils/Math.h"
+#include <string>
 
 namespace parsec {
 
-
 BaseOtOperator::BaseOtOperator(int sender, int64_t m0, int64_t m1, int choice, int l, int taskTag, int msgTagOffset)
-    : AbstractOtOperator(sender, m0, m1, choice, l, taskTag, msgTagOffset) {
-}
+    : AbstractOtOperator(sender, m0, m1, choice, l, taskTag, msgTagOffset) {}
 
-BaseOtOperator *BaseOtOperator::execute() {
+BaseOtOperator* BaseOtOperator::execute() {
     if (Comm::isServer()) {
         generateAndShareRandoms();
         process();
@@ -40,7 +38,6 @@ void BaseOtOperator::generateAndShareRandoms() {
     }
 }
 
-
 void BaseOtOperator::process() {
     if (!_isSender) {
         std::string ek = Crypto::rsaEncrypt(_randK, IntermediateDataSupport::_baseOtOtherPub);
@@ -55,12 +52,8 @@ void BaseOtOperator::process() {
     } else {
         std::string sumStr;
         Comm::serverReceive(sumStr, buildTag(_currentMsgTag));
-        std::string k0 = Crypto::rsaDecrypt(
-            Math::minus(sumStr, _rand0), IntermediateDataSupport::_baseOtSelfPri
-        );
-        std::string k1 = Crypto::rsaDecrypt(
-            Math::minus(sumStr, _rand1), IntermediateDataSupport::_baseOtSelfPri
-        );
+        std::string k0 = Crypto::rsaDecrypt(Math::minus(sumStr, _rand0), IntermediateDataSupport::_baseOtSelfPri);
+        std::string k1 = Crypto::rsaDecrypt(Math::minus(sumStr, _rand1), IntermediateDataSupport::_baseOtSelfPri);
         std::string m0 = Math::add(std::to_string(_m0), k0);
         std::string m1 = Math::add(std::to_string(_m1), k1);
 
@@ -69,8 +62,6 @@ void BaseOtOperator::process() {
     }
 }
 
-int BaseOtOperator::tagStride() {
-    return 1;
-}
+int BaseOtOperator::tagStride() { return 1; }
 
 } // namespace parsec

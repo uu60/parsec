@@ -1,8 +1,8 @@
 #include "compute/single/bool/BoolToArithOperator.h"
 
-#include "intermediate/IntermediateDataSupport.h"
 #include "comm/Comm.h"
 #include "compute/single/arith/ArithOperator.h"
+#include "intermediate/IntermediateDataSupport.h"
 #include "ot/IknpOtBatchOperator.h"
 #include "ot/RandOtBatchOperator.h"
 #include "ot/RandOtOperator.h"
@@ -11,8 +11,7 @@
 
 namespace parsec {
 
-
-BoolToArithOperator *BoolToArithOperator::execute() {
+BoolToArithOperator* BoolToArithOperator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isClient()) {
         return this;
@@ -53,7 +52,7 @@ BoolToArithOperator *BoolToArithOperator::execute() {
     e.execute();
 
     if (isSender) {
-        for (auto r: rs) {
+        for (auto r : rs) {
             temp = Math::ringAdd(temp, r, _width);
         }
     } else {
@@ -66,11 +65,9 @@ BoolToArithOperator *BoolToArithOperator::execute() {
     return this;
 }
 
-int BoolToArithOperator::tagStride(int width) {
-    return RandOtOperator::tagStride(width) * width;
-}
+int BoolToArithOperator::tagStride(int width) { return RandOtOperator::tagStride(width) * width; }
 
-BoolToArithOperator *BoolToArithOperator::reconstruct(int clientRank) {
+BoolToArithOperator* BoolToArithOperator::reconstruct(int clientRank) {
     _currentMsgTag = _startMsgTag;
     ArithOperator e(_zi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
     e.reconstruct(clientRank);
@@ -79,6 +76,5 @@ BoolToArithOperator *BoolToArithOperator::reconstruct(int clientRank) {
     }
     return this;
 }
-
 
 } // namespace parsec

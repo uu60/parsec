@@ -3,19 +3,19 @@
 // Single test for JIT mode - to be called by Python script
 //
 
+#include "comm/Comm.h"
 #include "compute/batch/bool/BoolLessBatchOperator.h"
 #include "compute/single/arith/ArithLessOperator.h"
 #include "secret/Secrets.h"
 #include "utils/Log.h"
 #include "utils/Math.h"
 #include "utils/System.h"
-#include "comm/Comm.h"
+#include <chrono>
 #include <fstream>
 #include <iomanip>
-#include <sstream>
-#include <chrono>
-#include <numeric>
 #include <map>
+#include <numeric>
+#include <sstream>
 
 #include "compute/batch/bool/BoolEqualBatchOperator.h"
 #include "compute/batch/bool/BoolMutexBatchOperator.h"
@@ -27,8 +27,8 @@ using namespace parsec;
 
 static int task;
 
-void prepareOrigins(int num, std::vector<int64_t> &originsA, std::vector<int64_t> &originsB,
-                    std::vector<int64_t> &conditions) {
+void prepareOrigins(int num, std::vector<int64_t>& originsA, std::vector<int64_t>& originsB,
+                    std::vector<int64_t>& conditions) {
     if (Comm::isClient()) {
         originsA.resize(num);
         originsB.resize(num);
@@ -42,16 +42,16 @@ void prepareOrigins(int num, std::vector<int64_t> &originsA, std::vector<int64_t
     task = System::nextTask();
 }
 
-void boolShare(int width, std::vector<int64_t> &originsA, std::vector<int64_t> &originsB,
-               std::vector<int64_t> &conditions, std::vector<int64_t> &secretsA,
-               std::vector<int64_t> &secretsB, std::vector<int64_t> &secretConditions) {
+void boolShare(int width, std::vector<int64_t>& originsA, std::vector<int64_t>& originsB,
+               std::vector<int64_t>& conditions, std::vector<int64_t>& secretsA, std::vector<int64_t>& secretsB,
+               std::vector<int64_t>& secretConditions) {
     secretsA = Secrets::boolShare(originsA, 2, width, 0);
     secretsB = Secrets::boolShare(originsB, 2, width, 0);
     secretConditions = Secrets::boolShare(conditions, 2, 1, 0);
 }
 
-bool testJit(std::string pmt, int width, std::vector<int64_t> &originsA,
-             std::vector<int64_t> &originsB, std::vector<int64_t> &conditions, int64_t &jitTime) {
+bool testJit(std::string pmt, int width, std::vector<int64_t>& originsA, std::vector<int64_t>& originsB,
+             std::vector<int64_t>& conditions, int64_t& jitTime) {
     std::vector<int64_t> secretsA;
     std::vector<int64_t> secretsB;
     std::vector<int64_t> secretConditions;
@@ -66,19 +66,19 @@ bool testJit(std::string pmt, int width, std::vector<int64_t> &originsA,
             // "<"
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
-            std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
+            std::vector<std::future<std::vector<int64_t>>> futures(batch_num);
             for (int b = 0; b < batch_num; ++b) {
                 futures[b] = ThreadPoolSupport::submit([&, b] {
                     int startIdx = b * batch_size;
                     int endIdx = std::min((b + 1) * batch_size, static_cast<int>(secretsA.size()));
                     std::vector<int64_t> batchA(secretsA.begin() + startIdx, secretsA.begin() + endIdx);
                     std::vector<int64_t> batchB(secretsB.begin() + startIdx, secretsB.begin() + endIdx);
-                    return BoolLessBatchOperator(&batchA, &batchB, width, 0, BoolLessBatchOperator::tagStride() * b,
-                                                 -1).
-                            execute()->_zis;
+                    return BoolLessBatchOperator(&batchA, &batchB, width, 0, BoolLessBatchOperator::tagStride() * b, -1)
+                        .execute()
+                        ->_zis;
                 });
             }
-            for (auto &f: futures) {
+            for (auto& f : futures) {
                 auto v = f.get();
                 zs.insert(zs.end(), v.begin(), v.end());
             }
@@ -86,24 +86,24 @@ bool testJit(std::string pmt, int width, std::vector<int64_t> &originsA,
             // "<="
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
-            std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
+            std::vector<std::future<std::vector<int64_t>>> futures(batch_num);
             for (int b = 0; b < batch_num; ++b) {
                 futures[b] = ThreadPoolSupport::submit([&, b] {
                     int startIdx = b * batch_size;
                     int endIdx = std::min((b + 1) * batch_size, static_cast<int>(secretsA.size()));
                     std::vector<int64_t> batchA(secretsA.begin() + startIdx, secretsA.begin() + endIdx);
                     std::vector<int64_t> batchB(secretsB.begin() + startIdx, secretsB.begin() + endIdx);
-                    auto zsB = BoolLessBatchOperator(&batchB, &batchA, width, 0,
-                                                     BoolLessBatchOperator::tagStride() * b,
-                                                     -1).
-                            execute()->_zis;
-                    for (auto &t: zsB) {
+                    auto zsB =
+                        BoolLessBatchOperator(&batchB, &batchA, width, 0, BoolLessBatchOperator::tagStride() * b, -1)
+                            .execute()
+                            ->_zis;
+                    for (auto& t : zsB) {
                         t = t ^ Comm::rank();
                     }
                     return zsB;
                 });
             }
-            for (auto &f: futures) {
+            for (auto& f : futures) {
                 auto v = f.get();
                 zs.insert(zs.end(), v.begin(), v.end());
             }
@@ -111,19 +111,20 @@ bool testJit(std::string pmt, int width, std::vector<int64_t> &originsA,
             // "=="
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
-            std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
+            std::vector<std::future<std::vector<int64_t>>> futures(batch_num);
             for (int b = 0; b < batch_num; ++b) {
                 futures[b] = ThreadPoolSupport::submit([&, b] {
                     int startIdx = b * batch_size;
                     int endIdx = std::min((b + 1) * batch_size, static_cast<int>(secretsA.size()));
                     std::vector<int64_t> batchA(secretsA.begin() + startIdx, secretsA.begin() + endIdx);
                     std::vector<int64_t> batchB(secretsB.begin() + startIdx, secretsB.begin() + endIdx);
-                    return BoolEqualBatchOperator(&batchA, &batchB, width, 0,
-                                                  BoolEqualBatchOperator::tagStride() * b,
-                                                  -1).execute()->_zis;
+                    return BoolEqualBatchOperator(&batchA, &batchB, width, 0, BoolEqualBatchOperator::tagStride() * b,
+                                                  -1)
+                        .execute()
+                        ->_zis;
                 });
             }
-            for (auto &f: futures) {
+            for (auto& f : futures) {
                 auto v = f.get();
                 zs.insert(zs.end(), v.begin(), v.end());
             }
@@ -131,24 +132,24 @@ bool testJit(std::string pmt, int width, std::vector<int64_t> &originsA,
             // "!="
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
-            std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
+            std::vector<std::future<std::vector<int64_t>>> futures(batch_num);
             for (int b = 0; b < batch_num; ++b) {
                 futures[b] = ThreadPoolSupport::submit([&, b] {
                     int startIdx = b * batch_size;
                     int endIdx = std::min((b + 1) * batch_size, static_cast<int>(secretsA.size()));
                     std::vector<int64_t> batchA(secretsA.begin() + startIdx, secretsA.begin() + endIdx);
                     std::vector<int64_t> batchB(secretsB.begin() + startIdx, secretsB.begin() + endIdx);
-                    auto zsB = BoolEqualBatchOperator(&batchA, &batchB, width, 0,
-                                                      BoolEqualBatchOperator::tagStride() * b,
-                                                      -1).
-                            execute()->_zis;
-                    for (auto &t: zsB) {
+                    auto zsB =
+                        BoolEqualBatchOperator(&batchA, &batchB, width, 0, BoolEqualBatchOperator::tagStride() * b, -1)
+                            .execute()
+                            ->_zis;
+                    for (auto& t : zsB) {
                         t = t ^ Comm::rank();
                     }
                     return zsB;
                 });
             }
-            for (auto &f: futures) {
+            for (auto& f : futures) {
                 auto v = f.get();
                 zs.insert(zs.end(), v.begin(), v.end());
             }
@@ -156,22 +157,21 @@ bool testJit(std::string pmt, int width, std::vector<int64_t> &originsA,
             // "mux"
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
-            std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
+            std::vector<std::future<std::vector<int64_t>>> futures(batch_num);
             for (int b = 0; b < batch_num; ++b) {
                 futures[b] = ThreadPoolSupport::submit([&, b] {
                     int startIdx = b * batch_size;
                     int endIdx = std::min((b + 1) * batch_size, static_cast<int>(secretsA.size()));
                     std::vector<int64_t> batchA(secretsA.begin() + startIdx, secretsA.begin() + endIdx);
                     std::vector<int64_t> batchB(secretsB.begin() + startIdx, secretsB.begin() + endIdx);
-                    std::vector<int64_t> batchC(secretConditions.begin() + startIdx,
-                                                secretConditions.begin() + endIdx);
+                    std::vector<int64_t> batchC(secretConditions.begin() + startIdx, secretConditions.begin() + endIdx);
                     return BoolMutexBatchOperator(&batchA, &batchB, &batchC, width, 0,
-                                                  BoolMutexBatchOperator::tagStride() * b,
-                                                  -1).
-                            execute()->_zis;
+                                                  BoolMutexBatchOperator::tagStride() * b, -1)
+                        .execute()
+                        ->_zis;
                 });
             }
-            for (auto &f: futures) {
+            for (auto& f : futures) {
                 auto v = f.get();
                 zs.insert(zs.end(), v.begin(), v.end());
             }
@@ -193,11 +193,11 @@ bool testJit(std::string pmt, int width, std::vector<int64_t> &originsA,
     return true;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     System::init(argc, argv);
 
     // Read parameters from command line
-    std::string primitive = "==";  // default
+    std::string primitive = "=="; // default
     int num = 1000;               // default
     int width = 64;               // default
 
@@ -244,11 +244,11 @@ int main(int argc, char *argv[]) {
         double avgJitTime = (jitTime0 + jitTime1) / 2.0;
 
         // Output result in a format that Python can easily parse
-        std::cout << "RESULT:" << primitive << "," << num << "," << width << "," 
-                  << jitTime0 << "," << jitTime1 << "," << avgJitTime << std::endl;
-        
-        Log::i("JIT - Primitive: {}, Num: {}, Width: {} - Server0: {}ms, Server1: {}ms, Average: {}ms",
-               primitive, num, width, jitTime0, jitTime1, avgJitTime);
+        std::cout << "RESULT:" << primitive << "," << num << "," << width << "," << jitTime0 << "," << jitTime1 << ","
+                  << avgJitTime << std::endl;
+
+        Log::i("JIT - Primitive: {}, Num: {}, Width: {} - Server0: {}ms, Server1: {}ms, Average: {}ms", primitive, num,
+               width, jitTime0, jitTime1, avgJitTime);
     }
 
     System::finalize();

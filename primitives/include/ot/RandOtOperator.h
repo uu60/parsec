@@ -5,19 +5,15 @@
 
 namespace parsec {
 
-
-
 class RandOtOperator : public AbstractOtOperator {
-public:
-    RandOtOperator(int sender, int64_t m0, int64_t m1, int choice, int l, int taskTag,
-                   int msgTagOffset) : AbstractOtOperator(sender, m0, m1, choice, l, taskTag, msgTagOffset) {
-    }
+  public:
+    RandOtOperator(int sender, int64_t m0, int64_t m1, int choice, int l, int taskTag, int msgTagOffset)
+        : AbstractOtOperator(sender, m0, m1, choice, l, taskTag, msgTagOffset) {}
 
-    RandOtOperator *execute() override;
+    RandOtOperator* execute() override;
 
     static int tagStride(int width);
 };
-
 
 } // namespace parsec
 

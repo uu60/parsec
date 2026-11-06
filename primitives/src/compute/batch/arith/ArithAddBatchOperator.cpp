@@ -4,8 +4,7 @@
 
 namespace parsec {
 
-
-ArithAddBatchOperator * ArithAddBatchOperator::execute() {
+ArithAddBatchOperator* ArithAddBatchOperator::execute() {
     if (Comm::isClient()) {
         return this;
     }
@@ -19,8 +18,6 @@ ArithAddBatchOperator * ArithAddBatchOperator::execute() {
     return this;
 }
 
-int ArithAddBatchOperator::tagStride() {
-    return 0;
-}
+int ArithAddBatchOperator::tagStride() { return 0; }
 
 } // namespace parsec

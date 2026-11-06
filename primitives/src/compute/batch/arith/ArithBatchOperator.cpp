@@ -7,9 +7,9 @@
 
 namespace parsec {
 
-
-ArithBatchOperator::ArithBatchOperator(std::vector<int64_t> &zs, int width, int taskTag, int msgTagOffset,
-                                       int clientRank) : AbstractBatchOperator(width, taskTag, msgTagOffset) {
+ArithBatchOperator::ArithBatchOperator(std::vector<int64_t>& zs, int width, int taskTag, int msgTagOffset,
+                                       int clientRank)
+    : AbstractBatchOperator(width, taskTag, msgTagOffset) {
     if (clientRank < 0) {
         _zis = zs;
     } else {
@@ -17,7 +17,7 @@ ArithBatchOperator::ArithBatchOperator(std::vector<int64_t> &zs, int width, int 
             std::vector<int64_t> zv0, zv1;
             zv0.reserve(zs.size());
             zv1.reserve(zs.size());
-            for (auto z: zs) {
+            for (auto z : zs) {
                 int64_t z1 = Math::randInt();
                 int64_t z0 = Math::ringSubtract(z, z1, _width);
                 zv0.push_back(z0);
@@ -33,9 +33,9 @@ ArithBatchOperator::ArithBatchOperator(std::vector<int64_t> &zs, int width, int 
     }
 }
 
-ArithBatchOperator::ArithBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys, int width, int taskTag,
-                                       int msgTagOffset, int clientRank) : AbstractBatchOperator(
-    width, taskTag, msgTagOffset) {
+ArithBatchOperator::ArithBatchOperator(std::vector<int64_t>* xs, std::vector<int64_t>* ys, int width, int taskTag,
+                                       int msgTagOffset, int clientRank)
+    : AbstractBatchOperator(width, taskTag, msgTagOffset) {
     if (clientRank < 0) {
         _xis = xs;
         _yis = ys;
@@ -46,13 +46,13 @@ ArithBatchOperator::ArithBatchOperator(std::vector<int64_t> *xs, std::vector<int
             v0.reserve(2 * size);
             v1.reserve(2 * size);
 
-            for (auto x: *xs) {
+            for (auto x : *xs) {
                 int64_t x1 = Math::randInt();
                 int64_t x0 = Math::ringSubtract(x, x1, _width);
                 v0.push_back(x0);
                 v1.push_back(x1);
             }
-            for (auto y: *ys) {
+            for (auto y : *ys) {
                 int64_t y1 = Math::randInt();
                 int64_t y0 = Math::ringSubtract(y, y1, _width);
                 v0.push_back(y0);
@@ -77,7 +77,7 @@ ArithBatchOperator::ArithBatchOperator(std::vector<int64_t> *xs, std::vector<int
     }
 }
 
-ArithBatchOperator *ArithBatchOperator::reconstruct(int clientRank) {
+ArithBatchOperator* ArithBatchOperator::reconstruct(int clientRank) {
     _currentMsgTag = _startMsgTag;
     if (Comm::isServer()) {
         Comm::send(_zis, _width, clientRank, buildTag(_currentMsgTag));
@@ -94,8 +94,6 @@ ArithBatchOperator *ArithBatchOperator::reconstruct(int clientRank) {
     return this;
 }
 
-ArithBatchOperator *ArithBatchOperator::execute() {
-    throw std::runtime_error("Needs implementation.");
-}
+ArithBatchOperator* ArithBatchOperator::execute() { throw std::runtime_error("Needs implementation."); }
 
 } // namespace parsec

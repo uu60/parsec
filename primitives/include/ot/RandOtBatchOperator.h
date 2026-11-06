@@ -5,39 +5,33 @@
 
 namespace parsec {
 
-
-
 class RandOtBatchOperator : public AbstractOtBatchOperator {
-public:
+  public:
     inline static std::atomic_int64_t _totalTime = 0;
     bool _doBits{};
-    std::vector<int64_t> *_choiceBits{};
+    std::vector<int64_t>* _choiceBits{};
 
-public:
-    RandOtBatchOperator(int sender, std::vector<int64_t> *ms0, std::vector<int64_t> *ms1, std::vector<int> *choices,
-                        int width, int taskTag, int msgTagOffset) : AbstractOtBatchOperator(
-        sender, ms0, ms1, choices, width, taskTag, msgTagOffset) {
-    }
+  public:
+    RandOtBatchOperator(int sender, std::vector<int64_t>* ms0, std::vector<int64_t>* ms1, std::vector<int>* choices,
+                        int width, int taskTag, int msgTagOffset)
+        : AbstractOtBatchOperator(sender, ms0, ms1, choices, width, taskTag, msgTagOffset) {}
 
-    RandOtBatchOperator(int sender, std::vector<int64_t> *bits0, std::vector<int64_t> *bits1,
-                        std::vector<int64_t> *choiceBits, int taskTag, int msgTagOffset);
+    RandOtBatchOperator(int sender, std::vector<int64_t>* bits0, std::vector<int64_t>* bits1,
+                        std::vector<int64_t>* choiceBits, int taskTag, int msgTagOffset);
 
-    RandOtBatchOperator *execute() override;
+    RandOtBatchOperator* execute() override;
 
     static int tagStride();
 
-private:
+  private:
     void execute0();
 
     void executeForBits();
 
     void executeForBitsSingleTransfer();
 
-
     void executeForBitsAsync();
 };
-
-
 
 } // namespace parsec
 

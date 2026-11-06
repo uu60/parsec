@@ -1,46 +1,44 @@
 
 #ifndef BOOLANDBATCHEXECUTOR_H
 #define BOOLANDBATCHEXECUTOR_H
-#include "./BoolBatchOperator.h"
 #include "../../../intermediate/item/BitwiseBmt.h"
+#include "./BoolBatchOperator.h"
 
 namespace parsec {
 
-
 class BoolAndBatchOperator : public BoolBatchOperator {
-private:
+  private:
     std::vector<BitwiseBmt>* _bmts{};
 
-    std::vector<int64_t> *_conds_i{};
+    std::vector<int64_t>* _conds_i{};
     bool _doWithConditions{};
 
-public:
+  public:
     inline static std::atomic_int64_t _totalTime = 0;
 
-public:
-    BoolAndBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys, int width, int taskTag, int msgTagOffset,
-                       int clientRank) : BoolBatchOperator(xs, ys, width, taskTag, msgTagOffset, clientRank) {
-    }
+  public:
+    BoolAndBatchOperator(std::vector<int64_t>* xs, std::vector<int64_t>* ys, int width, int taskTag, int msgTagOffset,
+                         int clientRank)
+        : BoolBatchOperator(xs, ys, width, taskTag, msgTagOffset, clientRank) {}
 
-    BoolAndBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys, std::vector<int64_t> *conds, int width, int taskTag, int msgTagOffset);
+    BoolAndBatchOperator(std::vector<int64_t>* xs, std::vector<int64_t>* ys, std::vector<int64_t>* conds, int width,
+                         int taskTag, int msgTagOffset);
 
-    BoolAndBatchOperator *execute() override;
+    BoolAndBatchOperator* execute() override;
 
     [[nodiscard]] static int tagStride();
 
-    BoolAndBatchOperator *setBmts(std::vector<BitwiseBmt> *bmts);
+    BoolAndBatchOperator* setBmts(std::vector<BitwiseBmt>* bmts);
 
     static int bmtCount(int num, int width);
 
-private:
+  private:
     void execute0();
 
     void executeForMutex();
 
-    int prepareBmts(std::vector<BitwiseBmt> &bmts);
+    int prepareBmts(std::vector<BitwiseBmt>& bmts);
 };
-
-
 
 } // namespace parsec
 

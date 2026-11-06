@@ -7,33 +7,28 @@
 
 namespace parsec {
 
-
 class BaseOtBatchOperator : public AbstractOtBatchOperator {
-private:
+  private:
     std::vector<std::string> _rand0s{};
     std::vector<std::string> _rand1s{};
     std::vector<std::string> _randKs{};
 
-public:
+  public:
     inline static std::atomic_int64_t _totalTime = 0;
 
-    explicit BaseOtBatchOperator(int sender, std::vector<int64_t> *ms0, std::vector<int64_t> *ms1,
-                                  std::vector<int> *choices, int width, int taskTag, int msgTagOffset);
+    explicit BaseOtBatchOperator(int sender, std::vector<int64_t>* ms0, std::vector<int64_t>* ms1,
+                                 std::vector<int>* choices, int width, int taskTag, int msgTagOffset);
 
-    BaseOtBatchOperator *execute() override;
+    BaseOtBatchOperator* execute() override;
 
     [[nodiscard]] static int tagStride();
 
-private:
+  private:
     void generateAndShareRandoms();
 
     void process();
 };
 
-
-
 } // namespace parsec
 
 #endif
-
-

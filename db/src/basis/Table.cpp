@@ -1,6 +1,6 @@
 
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 #include <string>
 #include <utility>
 
@@ -11,9 +11,7 @@
 
 namespace parsec {
 
-
-
-Table::Table(std::string &tableName, std::vector<std::string> &fieldNames, std::vector<int> &fieldWidths,
+Table::Table(std::string& tableName, std::vector<std::string>& fieldNames, std::vector<int>& fieldWidths,
              std::string keyField) {
     this->_tableName = tableName;
     this->_fieldNames = fieldNames;
@@ -25,18 +23,17 @@ Table::Table(std::string &tableName, std::vector<std::string> &fieldNames, std::
         this->_fieldWidths.push_back(32);
     }
 
-    for (auto w: this->_fieldWidths) {
+    for (auto w : this->_fieldWidths) {
         _maxWidth = std::max(w, _maxWidth);
     }
 
     _dataCols.resize(_fieldNames.size(), {});
 }
 
-bool Table::insert(const std::vector<int64_t> &r) {
+bool Table::insert(const std::vector<int64_t>& r) {
     if (r.size() != colNum()) {
-        throw std::runtime_error(
-            "Table::insert: wrong column number, expected " + std::to_string(colNum()) + ", got " +
-            std::to_string(r.size()));
+        throw std::runtime_error("Table::insert: wrong column number, expected " + std::to_string(colNum()) + ", got " +
+                                 std::to_string(r.size()));
     }
     for (int i = 0; i < r.size(); i++) {
         _dataCols[i].push_back(r[i]);
@@ -44,7 +41,7 @@ bool Table::insert(const std::vector<int64_t> &r) {
     return true;
 }
 
-int Table::colIndex(const std::string &colName) const {
+int Table::colIndex(const std::string& colName) const {
     for (int i = 0; i < _dataCols.size(); i++) {
         if (_fieldNames[i] == colName) {
             return i;
@@ -53,9 +50,7 @@ int Table::colIndex(const std::string &colName) const {
     return -1;
 }
 
-size_t Table::colNum() const {
-    return _dataCols.size();
-}
+size_t Table::colNum() const { return _dataCols.size(); }
 
 size_t Table::rowNum() const {
     if (_dataCols.empty()) {

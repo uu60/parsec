@@ -1,14 +1,13 @@
 #include "intermediate/BmtGenerator.h"
 
-#include "utils/Math.h"
 #include "comm/Comm.h"
 #include "conf/Conf.h"
 #include "ot/IknpOtBatchOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Log.h"
+#include "utils/Math.h"
 
 namespace parsec {
-
 
 void BmtGenerator::generateRandomAB() {
     _bmt._a = ring(Math::randInt());
@@ -20,13 +19,9 @@ int64_t BmtGenerator::corr(int i, int64_t x) const {
     return Math::ringSubtract(Math::ringMultiply(_bmt._a, factor, _width), x, _width);
 }
 
-BmtGenerator *BmtGenerator::reconstruct(int clientRank) {
-    throw std::runtime_error("Not support.");
-}
+BmtGenerator* BmtGenerator::reconstruct(int clientRank) { throw std::runtime_error("Not support."); }
 
-int BmtGenerator::tagStride(int width) {
-    return 2 * IknpOtBatchOperator::tagStride();
-}
+int BmtGenerator::tagStride(int width) { return 2 * IknpOtBatchOperator::tagStride(); }
 
 void BmtGenerator::computeMix(int sender) {
     int64_t sum = 0;
@@ -50,8 +45,9 @@ void BmtGenerator::computeMix(int sender) {
     }
 
     auto results = IknpOtBatchOperator(sender, &ss0, &ss1, &choices, _width, _taskTag,
-                                       _currentMsgTag + sender * IknpOtBatchOperator::tagStride()).execute()->
-            _results;
+                                       _currentMsgTag + sender * IknpOtBatchOperator::tagStride())
+                       .execute()
+                       ->_results;
 
     if (isSender) {
         for (int i = 0; i < ss0.size(); ++i) {
@@ -79,7 +75,7 @@ void BmtGenerator::computeC() {
     _bmt._c = Math::ringAdd(product, Math::ringAdd(_ui, _vi, _width), _width);
 }
 
-BmtGenerator *BmtGenerator::execute() {
+BmtGenerator* BmtGenerator::execute() {
     _currentMsgTag = _startMsgTag;
 
     if (Comm::isClient()) {
@@ -89,9 +85,7 @@ BmtGenerator *BmtGenerator::execute() {
     generateRandomAB();
 
     if (!Conf::DISABLE_MULTI_THREAD && Conf::ENABLE_INTRA_OPERATOR_PARALLELISM) {
-        auto f = ThreadPoolSupport::submit([&] {
-            computeMix(0);
-        });
+        auto f = ThreadPoolSupport::submit([&] { computeMix(0); });
         computeMix(1);
         f.wait();
     } else {

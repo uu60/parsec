@@ -5,25 +5,20 @@
 
 namespace parsec {
 
-
-
 class BoolToArithOperator : public BoolOperator {
-public:
-    BoolToArithOperator(int64_t xi, int l, int taskTag, int msgTagOffset, int clientRank) : BoolOperator(
-        xi, l, taskTag, msgTagOffset, clientRank) {
+  public:
+    BoolToArithOperator(int64_t xi, int l, int taskTag, int msgTagOffset, int clientRank)
+        : BoolOperator(xi, l, taskTag, msgTagOffset, clientRank) {
         _xi = _zi;
         _zi = 0;
     }
 
-    BoolToArithOperator *execute() override;
+    BoolToArithOperator* execute() override;
 
     [[nodiscard]] static int tagStride(int width);
 
-    BoolToArithOperator *reconstruct(int clientRank) override;
+    BoolToArithOperator* reconstruct(int clientRank) override;
 };
-
-
-
 
 } // namespace parsec
 

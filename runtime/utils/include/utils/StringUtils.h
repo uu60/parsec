@@ -5,29 +5,26 @@
 #include <sstream>
 #include <vector>
 
-
 #include <string>
 
 namespace parsec {
 
 class StringUtils {
-public:
-    template<typename T>
-    static std::string vecToString(const std::vector<T> &vec) {
+  public:
+    template <typename T> static std::string vecToString(const std::vector<T>& vec) {
         std::ostringstream oss;
         oss << "[";
         for (size_t i = 0; i < vec.size(); ++i) {
             oss << vec[i];
-            if (i != vec.size() - 1) oss << ", ";
+            if (i != vec.size() - 1)
+                oss << ", ";
         }
         oss << "]";
         return oss.str();
     }
 
-    static bool hasPrefix(const std::string &str, const std::string &prefix);
+    static bool hasPrefix(const std::string& str, const std::string& prefix);
 };
-
-
 
 } // namespace parsec
 

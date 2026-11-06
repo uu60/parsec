@@ -8,25 +8,23 @@
 
 namespace parsec {
 
-
 class ArithLessOperator : public ArithOperator {
-private:
-    std::vector<BitwiseBmt> *_bmts{};
+  private:
+    std::vector<BitwiseBmt>* _bmts{};
 
-public:
+  public:
     ArithLessOperator(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset, int clientRank);
 
-    ArithLessOperator *execute() override;
+    ArithLessOperator* execute() override;
 
-    ArithLessOperator *reconstruct(int clientRank) override;
+    ArithLessOperator* reconstruct(int clientRank) override;
 
     [[nodiscard]] static int tagStride(int l);
 
     static int bmtCount(int width);
 
-    ArithLessOperator *setBmts(std::vector<BitwiseBmt> *bmts);
+    ArithLessOperator* setBmts(std::vector<BitwiseBmt>* bmts);
 };
-
 
 } // namespace parsec
 

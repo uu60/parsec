@@ -4,26 +4,24 @@
 #include "comm/Comm.h"
 
 #ifdef __AVX512F__
-    #include <immintrin.h>
-    #define SIMD_AVX512
+#include <immintrin.h>
+#define SIMD_AVX512
 #elif defined(__AVX2__)
-    #include <immintrin.h>
-    #define SIMD_AVX2
+#include <immintrin.h>
+#define SIMD_AVX2
 #elif defined(__SSE2__)
-    #include <emmintrin.h>
-    #define SIMD_SSE2
+#include <emmintrin.h>
+#define SIMD_SSE2
 #elif defined(__ARM_NEON)
 #include <arm_neon.h>
 #define SIMD_NEON
 #else
-    #define NO_SIMD
+#define NO_SIMD
 #endif
 
 namespace parsec {
 
-
-std::vector<int64_t> SimdSupport::xorV(const std::vector<int64_t> &arr0,
-                                       const std::vector<int64_t> &arr1) {
+std::vector<int64_t> SimdSupport::xorV(const std::vector<int64_t>& arr0, const std::vector<int64_t>& arr1) {
     int num = static_cast<int>(arr0.size());
     std::vector<int64_t> out(num);
 
@@ -80,8 +78,7 @@ std::vector<int64_t> SimdSupport::xorV(const std::vector<int64_t> &arr0,
     return out;
 }
 
-std::vector<int64_t> SimdSupport::andV(const std::vector<int64_t> &arr0,
-                                       const std::vector<int64_t> &arr1) {
+std::vector<int64_t> SimdSupport::andV(const std::vector<int64_t>& arr0, const std::vector<int64_t>& arr1) {
     int num = static_cast<int>(arr0.size());
     std::vector<int64_t> out(num);
 
@@ -138,7 +135,7 @@ std::vector<int64_t> SimdSupport::andV(const std::vector<int64_t> &arr0,
     return out;
 }
 
-std::vector<int64_t> SimdSupport::andVC(const std::vector<int64_t> &arr, int64_t constant) {
+std::vector<int64_t> SimdSupport::andVC(const std::vector<int64_t>& arr, int64_t constant) {
     int num = static_cast<int>(arr.size());
     std::vector<int64_t> output(num);
 
@@ -195,8 +192,7 @@ std::vector<int64_t> SimdSupport::andVC(const std::vector<int64_t> &arr, int64_t
     return output;
 }
 
-std::vector<int64_t> SimdSupport::orV(const std::vector<int64_t> &arr0,
-                                      const std::vector<int64_t> &arr1) {
+std::vector<int64_t> SimdSupport::orV(const std::vector<int64_t>& arr0, const std::vector<int64_t>& arr1) {
     int num = static_cast<int>(arr0.size());
     std::vector<int64_t> out(num);
 
@@ -253,7 +249,7 @@ std::vector<int64_t> SimdSupport::orV(const std::vector<int64_t> &arr0,
     return out;
 }
 
-std::vector<int64_t> SimdSupport::xorVC(const std::vector<int64_t> &arr, int64_t constant) {
+std::vector<int64_t> SimdSupport::xorVC(const std::vector<int64_t>& arr, int64_t constant) {
     int num = static_cast<int>(arr.size());
     std::vector<int64_t> output(num);
 
@@ -310,8 +306,8 @@ std::vector<int64_t> SimdSupport::xorVC(const std::vector<int64_t> &arr, int64_t
     return output;
 }
 
-std::vector<int64_t> SimdSupport::xor2VC(const std::vector<int64_t> &xis, const std::vector<int64_t> &yis,
-                                         int64_t a, int64_t b) {
+std::vector<int64_t> SimdSupport::xor2VC(const std::vector<int64_t>& xis, const std::vector<int64_t>& yis, int64_t a,
+                                         int64_t b) {
     int num = static_cast<int>(xis.size());
     std::vector<int64_t> out(num * 2);
 
@@ -389,7 +385,7 @@ std::vector<int64_t> SimdSupport::xor2VC(const std::vector<int64_t> &xis, const 
     return out;
 }
 
-std::vector<int64_t> SimdSupport::xor3(const int64_t *a, const int64_t *b, const int64_t *c, int num) {
+std::vector<int64_t> SimdSupport::xor3(const int64_t* a, const int64_t* b, const int64_t* c, int num) {
     std::vector<int64_t> output(num);
 
 #ifdef SIMD_AVX512
@@ -453,8 +449,8 @@ std::vector<int64_t> SimdSupport::xor3(const int64_t *a, const int64_t *b, const
     return output;
 }
 
-std::vector<int64_t> SimdSupport::xor3Concat(const int64_t *commonA, const int64_t *arrB, const int64_t *arrD,
-                                             const int64_t *commonC, int num) {
+std::vector<int64_t> SimdSupport::xor3Concat(const int64_t* commonA, const int64_t* arrB, const int64_t* arrD,
+                                             const int64_t* commonC, int num) {
     std::vector<int64_t> output(2 * num);
 
 #ifdef SIMD_AVX512
@@ -567,8 +563,7 @@ std::vector<int64_t> SimdSupport::xor3Concat(const int64_t *commonA, const int64
     return output;
 }
 
-std::vector<int64_t> SimdSupport::computeZ(const std::vector<int64_t> &efs, int64_t a, int64_t b,
-                                           int64_t c) {
+std::vector<int64_t> SimdSupport::computeZ(const std::vector<int64_t>& efs, int64_t a, int64_t b, int64_t c) {
     int num = static_cast<int>(efs.size() / 2);
     std::vector<int64_t> zis(num);
     int64_t extendedRank = Comm::rank() ? -1ll : 0;
@@ -662,16 +657,15 @@ std::vector<int64_t> SimdSupport::computeZ(const std::vector<int64_t> &efs, int6
     return zis;
 }
 
-std::vector<int64_t> SimdSupport::computeDiag(const std::vector<int64_t> &_yis,
-                                              const std::vector<int64_t> &x_xor_y) {
+std::vector<int64_t> SimdSupport::computeDiag(const std::vector<int64_t>& _yis, const std::vector<int64_t>& x_xor_y) {
     int n = static_cast<int>(_yis.size());
     std::vector<int64_t> diag(n);
     int64_t rank = Comm::rank();
 #ifdef SIMD_AVX512
     int i = 0;
-    __m512i one     = _mm512_set1_epi64(1);
+    __m512i one = _mm512_set1_epi64(1);
     __m512i not_one = _mm512_set1_epi64(~1ll);
-    __m512i rank_vec= _mm512_set1_epi64(rank);
+    __m512i rank_vec = _mm512_set1_epi64(rank);
     for (; i + 8 <= n; i += 8) {
         __m512i y_vec = _mm512_loadu_si512(&_yis[i]);
         __m512i x_vec = _mm512_loadu_si512(&x_xor_y[i]);
@@ -689,9 +683,9 @@ std::vector<int64_t> SimdSupport::computeDiag(const std::vector<int64_t> &_yis,
     }
 #elif defined(SIMD_AVX2)
     int i = 0;
-    __m256i one     = _mm256_set1_epi64x(1);
+    __m256i one = _mm256_set1_epi64x(1);
     __m256i not_one = _mm256_set1_epi64x(~1ll);
-    __m256i rank_vec= _mm256_set1_epi64x(rank);
+    __m256i rank_vec = _mm256_set1_epi64x(rank);
     for (; i + 4 <= n; i += 4) {
         __m256i y_vec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(&_yis[i]));
         __m256i x_vec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(&x_xor_y[i]));
@@ -709,9 +703,9 @@ std::vector<int64_t> SimdSupport::computeDiag(const std::vector<int64_t> &_yis,
     }
 #elif defined(SIMD_SSE2)
     int i = 0;
-    __m128i one     = _mm_set1_epi64x(1);
+    __m128i one = _mm_set1_epi64x(1);
     __m128i not_one = _mm_set1_epi64x(~1ll);
-    __m128i rank_vec= _mm_set1_epi64x(rank);
+    __m128i rank_vec = _mm_set1_epi64x(rank);
     for (; i + 2 <= n; i += 2) {
         __m128i y_vec = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&_yis[i]));
         __m128i x_vec = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&x_xor_y[i]));
@@ -767,10 +761,8 @@ void SimdSupport::xorU128ArrayWithConstant(U128* out, const U128* arr, const U12
 
 #ifdef SIMD_AVX512
     // AVX-512: process 4 U128 (512 bits) at a time
-    const __m512i const_vec = _mm512_set_epi64(
-        constant.hi, constant.lo, constant.hi, constant.lo,
-        constant.hi, constant.lo, constant.hi, constant.lo
-    );
+    const __m512i const_vec = _mm512_set_epi64(constant.hi, constant.lo, constant.hi, constant.lo, constant.hi,
+                                               constant.lo, constant.hi, constant.lo);
     size_t i = 0;
     for (; i + 4 <= count; i += 4) {
         __m512i data = _mm512_loadu_si512(&arr[i]);
@@ -932,8 +924,8 @@ void SimdSupport::conditionalXorU128(U128* out, const U128* src, const bool* mas
     }
 }
 
-void SimdSupport::selectBits(int64_t* result, const int64_t* y0, const int64_t* y1,
-                             const int64_t* choice, const int64_t* hashValues, size_t count) {
+void SimdSupport::selectBits(int64_t* result, const int64_t* y0, const int64_t* y1, const int64_t* choice,
+                             const int64_t* hashValues, size_t count) {
     // Optimized bit selection for IKNP receiver:
     // result[i] = ((y0[i] & ~choice[i]) | (y1[i] & choice[i])) ^ hashValues[i]
 
@@ -1027,6 +1019,5 @@ void SimdSupport::selectBits(int64_t* result, const int64_t* y0, const int64_t* 
     }
 #endif
 }
-
 
 } // namespace parsec

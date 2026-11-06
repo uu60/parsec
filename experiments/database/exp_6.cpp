@@ -1,23 +1,22 @@
 
 
-
 #include "secret/Secrets.h"
 #include "utils/System.h"
 
+#include "basis/Table.h"
 #include "basis/View.h"
 #include "basis/Views.h"
-#include "basis/Table.h"
-#include "utils/Log.h"
-#include "utils/Math.h"
 #include "compute/batch/bool/BoolLessBatchOperator.h"
 #include "parallel/ThreadPoolSupport.h"
+#include "utils/Log.h"
+#include "utils/Math.h"
 
-#include <string>
-#include <vector>
-#include <random>
 #include <algorithm>
 #include <map>
+#include <random>
 #include <set>
+#include <string>
+#include <vector>
 
 #include "compute/batch/bool/BoolAndBatchOperator.h"
 #include "conf/DbConf.h"
@@ -26,37 +25,32 @@
 using namespace parsec;
 
 static int64_t PLAIN_START_DATE = Math::randInt();
-static int64_t PLAIN_END_DATE   = PLAIN_START_DATE + 3;
+static int64_t PLAIN_END_DATE = PLAIN_START_DATE + 3;
 
-void generateTestData(int orders_rows, int lineitem_rows,
-                      std::vector<int64_t> &o_orderkey_data,
-                      std::vector<int64_t> &o_orderpriority_data,
-                      std::vector<int64_t> &o_orderdate_data,
-                      std::vector<int64_t> &l_orderkey_data,
-                      std::vector<int64_t> &l_commitdate_data,
-                      std::vector<int64_t> &l_receiptdate_data);
+void generateTestData(int orders_rows, int lineitem_rows, std::vector<int64_t>& o_orderkey_data,
+                      std::vector<int64_t>& o_orderpriority_data, std::vector<int64_t>& o_orderdate_data,
+                      std::vector<int64_t>& l_orderkey_data, std::vector<int64_t>& l_commitdate_data,
+                      std::vector<int64_t>& l_receiptdate_data);
 
-View createOrdersTable(std::vector<int64_t> &o_orderkey_shares,
-                       std::vector<int64_t> &o_orderpriority_shares,
-                       std::vector<int64_t> &o_orderdate_shares);
+View createOrdersTable(std::vector<int64_t>& o_orderkey_shares, std::vector<int64_t>& o_orderpriority_shares,
+                       std::vector<int64_t>& o_orderdate_shares);
 
-View createLineitemTable(std::vector<int64_t> &l_orderkey_shares,
-                         std::vector<int64_t> &l_commitdate_shares,
-                         std::vector<int64_t> &l_receiptdate_shares);
+View createLineitemTable(std::vector<int64_t>& l_orderkey_shares, std::vector<int64_t>& l_commitdate_shares,
+                         std::vector<int64_t>& l_receiptdate_shares);
 
-View filterOrdersByDate(View &orders_view, int64_t start_date, int64_t end_date, int tid);
+View filterOrdersByDate(View& orders_view, int64_t start_date, int64_t end_date, int tid);
 
-View filterLineitemByCommitDate(View &lineitem_view, int tid);
+View filterLineitemByCommitDate(View& lineitem_view, int tid);
 
-std::vector<int64_t> executeExistsClause(View &filtered_orders, View &filtered_lineitem, int tid);
+std::vector<int64_t> executeExistsClause(View& filtered_orders, View& filtered_lineitem, int tid);
 
-View filterOrdersByExists(View &filtered_orders, std::vector<int64_t> &exists_results, int tid);
+View filterOrdersByExists(View& filtered_orders, std::vector<int64_t>& exists_results, int tid);
 
-View executeGroupByCount(View &final_orders, int tid);
+View executeGroupByCount(View& final_orders, int tid);
 
-View executeSortByPriority(View &result_view, int tid);
+View executeSortByPriority(View& result_view, int tid);
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     System::init(argc, argv);
     DbConf::init();
     auto tid = System::nextTask() << (32 - Conf::TASK_TAG_BITS);
@@ -127,9 +121,8 @@ int main(int argc, char *argv[]) {
             filtered_orders = filterOrdersByDate(orders_view, start_date, end_date, tid);
             filtered_lineitem = filterLineitemByCommitDate(lineitem_view, tid);
         } else {
-            auto f = ThreadPoolSupport::submit([&] {
-                return filterOrdersByDate(orders_view, start_date, end_date, tid);
-            });
+            auto f =
+                ThreadPoolSupport::submit([&] { return filterOrdersByDate(orders_view, start_date, end_date, tid); });
             filtered_lineitem = filterLineitemByCommitDate(lineitem_view, tid + 10000);
             filtered_orders = f.get();
         }
@@ -138,7 +131,6 @@ int main(int argc, char *argv[]) {
         auto final_orders = filterOrdersByExists(filtered_orders, exists_results, tid);
 
         result_view = executeGroupByCount(final_orders, tid);
-
 
         auto query_end = System::currentTimeMillis();
         Log::i("Total query execution time: {}ms", query_end - query_start);
@@ -151,13 +143,15 @@ int main(int argc, char *argv[]) {
             out._dataCols[0] = result_view._dataCols[pidx];
             out._dataCols[1] = result_view._dataCols[cidx];
             out._dataCols[out.colNum() + View::VALID_COL_OFFSET] =
-                    result_view._dataCols[result_view.colNum() + View::VALID_COL_OFFSET];
+                result_view._dataCols[result_view.colNum() + View::VALID_COL_OFFSET];
             out._dataCols[out.colNum() + View::PADDING_COL_OFFSET] = std::vector<int64_t>(out._dataCols[0].size(), 0);
             out.clearInvalidEntries(tid + 7000);
             out.sort("o_orderpriority", true, tid + 8000);
-            if (Comm::rank() == 0) Log::i("CORRECTNESS_BEGIN");
+            if (Comm::rank() == 0)
+                Log::i("CORRECTNESS_BEGIN");
             Views::revealAndPrint(out);
-            if (Comm::rank() == 0) Log::i("CORRECTNESS_END");
+            if (Comm::rank() == 0)
+                Log::i("CORRECTNESS_END");
         }
     }
 
@@ -165,14 +159,10 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-
-void generateTestData(int orders_rows, int lineitem_rows,
-                      std::vector<int64_t> &o_orderkey_data,
-                      std::vector<int64_t> &o_orderpriority_data,
-                      std::vector<int64_t> &o_orderdate_data,
-                      std::vector<int64_t> &l_orderkey_data,
-                      std::vector<int64_t> &l_commitdate_data,
-                      std::vector<int64_t> &l_receiptdate_data) {
+void generateTestData(int orders_rows, int lineitem_rows, std::vector<int64_t>& o_orderkey_data,
+                      std::vector<int64_t>& o_orderpriority_data, std::vector<int64_t>& o_orderdate_data,
+                      std::vector<int64_t>& l_orderkey_data, std::vector<int64_t>& l_commitdate_data,
+                      std::vector<int64_t>& l_receiptdate_data) {
     if (Comm::rank() == 2) {
         o_orderkey_data.reserve(orders_rows);
         o_orderpriority_data.reserve(orders_rows);
@@ -180,7 +170,6 @@ void generateTestData(int orders_rows, int lineitem_rows,
         l_orderkey_data.reserve(lineitem_rows);
         l_commitdate_data.reserve(lineitem_rows);
         l_receiptdate_data.reserve(lineitem_rows);
-
 
         for (int i = 0; i < orders_rows; i++) {
             int64_t orderkey = Math::randInt();
@@ -204,9 +193,8 @@ void generateTestData(int orders_rows, int lineitem_rows,
     }
 }
 
-View createOrdersTable(std::vector<int64_t> &o_orderkey_shares,
-                       std::vector<int64_t> &o_orderpriority_shares,
-                       std::vector<int64_t> &o_orderdate_shares) {
+View createOrdersTable(std::vector<int64_t>& o_orderkey_shares, std::vector<int64_t>& o_orderpriority_shares,
+                       std::vector<int64_t>& o_orderdate_shares) {
     std::string table_name = "orders";
     std::vector<std::string> fields = {"o_orderkey", "o_orderpriority", "o_orderdate"};
     std::vector<int> widths = {64, 64, 64};
@@ -214,11 +202,7 @@ View createOrdersTable(std::vector<int64_t> &o_orderkey_shares,
     Table orders_table(table_name, fields, widths, "");
 
     for (size_t i = 0; i < o_orderkey_shares.size(); i++) {
-        std::vector<int64_t> row = {
-            o_orderkey_shares[i],
-            o_orderpriority_shares[i],
-            o_orderdate_shares[i]
-        };
+        std::vector<int64_t> row = {o_orderkey_shares[i], o_orderpriority_shares[i], o_orderdate_shares[i]};
         orders_table.insert(row);
     }
 
@@ -226,9 +210,8 @@ View createOrdersTable(std::vector<int64_t> &o_orderkey_shares,
     return orders_view;
 }
 
-View createLineitemTable(std::vector<int64_t> &l_orderkey_shares,
-                         std::vector<int64_t> &l_commitdate_shares,
-                         std::vector<int64_t> &l_receiptdate_shares) {
+View createLineitemTable(std::vector<int64_t>& l_orderkey_shares, std::vector<int64_t>& l_commitdate_shares,
+                         std::vector<int64_t>& l_receiptdate_shares) {
     std::string table_name = "lineitem";
     std::vector<std::string> fields = {"l_orderkey", "l_commitdate", "l_receiptdate"};
     std::vector<int> widths = {64, 64, 64};
@@ -236,11 +219,7 @@ View createLineitemTable(std::vector<int64_t> &l_orderkey_shares,
     Table lineitem_table(table_name, fields, widths, "");
 
     for (size_t i = 0; i < l_orderkey_shares.size(); i++) {
-        std::vector<int64_t> row = {
-            l_orderkey_shares[i],
-            l_commitdate_shares[i],
-            l_receiptdate_shares[i]
-        };
+        std::vector<int64_t> row = {l_orderkey_shares[i], l_commitdate_shares[i], l_receiptdate_shares[i]};
         lineitem_table.insert(row);
     }
 
@@ -248,11 +227,10 @@ View createLineitemTable(std::vector<int64_t> &l_orderkey_shares,
     return lineitem_view;
 }
 
-View filterOrdersByDate(View &orders_view, int64_t start_date, int64_t end_date, int tid) {
+View filterOrdersByDate(View& orders_view, int64_t start_date, int64_t end_date, int tid) {
     std::vector<std::string> fieldNames = {"o_orderdate", "o_orderdate"};
     std::vector<View::ComparatorType> comparatorTypes = {View::GREATER_EQ, View::LESS};
     std::vector<int64_t> constShares = {start_date, end_date};
-
 
     View filtered_view = orders_view;
     filtered_view.filterAndConditions(fieldNames, comparatorTypes, constShares, tid);
@@ -260,25 +238,27 @@ View filterOrdersByDate(View &orders_view, int64_t start_date, int64_t end_date,
     return filtered_view;
 }
 
-View filterLineitemByCommitDate(View &lineitem_view, int tid) {
+View filterLineitemByCommitDate(View& lineitem_view, int tid) {
     if (lineitem_view.rowNum() == 0) {
         return lineitem_view;
     }
 
-    auto &commitdate_col = lineitem_view._dataCols[lineitem_view.colIndex("l_commitdate")];
-    auto &receiptdate_col = lineitem_view._dataCols[lineitem_view.colIndex("l_receiptdate")];
+    auto& commitdate_col = lineitem_view._dataCols[lineitem_view.colIndex("l_commitdate")];
+    auto& receiptdate_col = lineitem_view._dataCols[lineitem_view.colIndex("l_receiptdate")];
 
     std::vector<int64_t> comparison_result;
 
     if (Conf::BATCH_SIZE <= 0 || Conf::DISABLE_MULTI_THREAD) {
-        comparison_result = BoolLessBatchOperator(&commitdate_col, &receiptdate_col, 64, tid, 0,
-                                                  SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        comparison_result =
+            BoolLessBatchOperator(&commitdate_col, &receiptdate_col, 64, tid, 0, SecureOperator::NO_CLIENT_COMPUTE)
+                .execute()
+                ->_zis;
     } else {
         size_t data_size = commitdate_col.size();
         int batchSize = Conf::BATCH_SIZE;
         int batchNum = (data_size + batchSize - 1) / batchSize;
 
-        std::vector<std::future<std::vector<int64_t> > > batch_futures(batchNum);
+        std::vector<std::future<std::vector<int64_t>>> batch_futures(batchNum);
 
         for (int b = 0; b < batchNum; ++b) {
             batch_futures[b] = ThreadPoolSupport::submit([&, b]() -> std::vector<int64_t> {
@@ -291,12 +271,14 @@ View filterLineitemByCommitDate(View &lineitem_view, int tid) {
                 int batch_tid = tid + b * BoolLessBatchOperator::tagStride();
 
                 return BoolLessBatchOperator(&batch_commitdate, &batch_receiptdate, 64, batch_tid, 0,
-                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+                                             SecureOperator::NO_CLIENT_COMPUTE)
+                    .execute()
+                    ->_zis;
             });
         }
 
         comparison_result.reserve(data_size);
-        for (auto &f: batch_futures) {
+        for (auto& f : batch_futures) {
             auto batch_res = f.get();
             comparison_result.insert(comparison_result.end(), batch_res.begin(), batch_res.end());
         }
@@ -309,7 +291,7 @@ View filterLineitemByCommitDate(View &lineitem_view, int tid) {
     return filtered_view;
 }
 
-std::vector<int64_t> executeExistsClause(View &filtered_orders, View &filtered_lineitem, int tid) {
+std::vector<int64_t> executeExistsClause(View& filtered_orders, View& filtered_lineitem, int tid) {
     auto orders_orderkey_col = filtered_orders._dataCols[0];
     auto lineitem_orderkey_col = filtered_lineitem._dataCols[0];
 
@@ -320,16 +302,18 @@ std::vector<int64_t> executeExistsClause(View &filtered_orders, View &filtered_l
     return exists_results;
 }
 
-View filterOrdersByExists(View &filtered_orders, std::vector<int64_t> &exists_results, int tid) {
+View filterOrdersByExists(View& filtered_orders, std::vector<int64_t>& exists_results, int tid) {
     int vIdx = filtered_orders.colNum() + View::VALID_COL_OFFSET;
-    auto new_valid = BoolAndBatchOperator(&filtered_orders._dataCols[vIdx], &exists_results, 1, 0,
-                        tid, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+    auto new_valid = BoolAndBatchOperator(&filtered_orders._dataCols[vIdx], &exists_results, 1, 0, tid,
+                                          SecureOperator::NO_CLIENT_COMPUTE)
+                         .execute()
+                         ->_zis;
     filtered_orders._dataCols[vIdx] = std::move(new_valid);
 
     return filtered_orders;
 }
 
-View executeGroupByCount(View &final_orders, int tid) {
+View executeGroupByCount(View& final_orders, int tid) {
     if (final_orders.rowNum() == 0) {
         std::vector<std::string> result_fields = {"o_orderpriority", "order_count"};
         std::vector<int> result_widths = {64, 64};
@@ -346,7 +330,7 @@ View executeGroupByCount(View &final_orders, int tid) {
     return final_orders;
 }
 
-View executeSortByPriority(View &result_view, int tid) {
+View executeSortByPriority(View& result_view, int tid) {
     if (result_view.rowNum() == 0) {
         return result_view;
     }

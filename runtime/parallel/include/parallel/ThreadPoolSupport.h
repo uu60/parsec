@@ -11,15 +11,13 @@
 
 namespace parsec {
 
-
-
 class ThreadPoolSupport {
-public:
-    inline static CtplThreadPool *_ctplPool = nullptr;
-    inline static TbbThreadPool *_tbbPool = nullptr;
-    inline static Async *_async = nullptr;
+  public:
+    inline static CtplThreadPool* _ctplPool = nullptr;
+    inline static TbbThreadPool* _tbbPool = nullptr;
+    inline static Async* _async = nullptr;
 
-public:
+  public:
     static void init() {
         if (Conf::DISABLE_MULTI_THREAD) {
             return;
@@ -41,8 +39,7 @@ public:
         delete _async;
     }
 
-    template <typename F>
-    static std::future<std::invoke_result_t<F>> callerRun(F &&f) {
+    template <typename F> static std::future<std::invoke_result_t<F>> callerRun(F&& f) {
         using ReturnType = std::invoke_result_t<F>;
         std::promise<ReturnType> promise;
         if constexpr (std::is_void_v<ReturnType>) {
@@ -54,8 +51,7 @@ public:
         return promise.get_future();
     }
 
-    template<typename F>
-    static auto submit(F &&f) -> std::future<std::invoke_result_t<F> > {
+    template <typename F> static auto submit(F&& f) -> std::future<std::invoke_result_t<F>> {
         if (Conf::DISABLE_MULTI_THREAD) {
             return callerRun(f);
         }
@@ -73,8 +69,6 @@ public:
         return callerRun(f);
     }
 };
-
-
 
 } // namespace parsec
 

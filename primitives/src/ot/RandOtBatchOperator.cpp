@@ -7,10 +7,9 @@
 
 namespace parsec {
 
-
-RandOtBatchOperator::RandOtBatchOperator(int sender, std::vector<int64_t> *bits0, std::vector<int64_t> *bits1,
-                                         std::vector<int64_t> *choiceBits, int taskTag,
-                                         int msgTagOffset) : AbstractOtBatchOperator(64, taskTag, msgTagOffset) {
+RandOtBatchOperator::RandOtBatchOperator(int sender, std::vector<int64_t>* bits0, std::vector<int64_t>* bits1,
+                                         std::vector<int64_t>* choiceBits, int taskTag, int msgTagOffset)
+    : AbstractOtBatchOperator(64, taskTag, msgTagOffset) {
     if (Comm::isClient()) {
         return;
     }
@@ -35,12 +34,10 @@ void RandOtBatchOperator::execute0() {
         toSend.resize(size * 2);
         Comm::wait(r0);
         for (int i = 0; i < size; ++i) {
-            toSend[i * 2] = (*_ms0)[i] ^ (ks[i] == 0
-                                              ? IntermediateDataSupport::_sRot0->_r0
-                                              : IntermediateDataSupport::_sRot0->_r1);
-            toSend[i * 2 + 1] = (*_ms1)[i] ^ (ks[i] == 0
-                                                  ? IntermediateDataSupport::_sRot0->_r1
-                                                  : IntermediateDataSupport::_sRot0->_r0);
+            toSend[i * 2] =
+                (*_ms0)[i] ^ (ks[i] == 0 ? IntermediateDataSupport::_sRot0->_r0 : IntermediateDataSupport::_sRot0->_r1);
+            toSend[i * 2 + 1] =
+                (*_ms1)[i] ^ (ks[i] == 0 ? IntermediateDataSupport::_sRot0->_r1 : IntermediateDataSupport::_sRot0->_r0);
         }
         auto r1 = Comm::serverSendAsync(toSend, _width, buildTag(_currentMsgTag));
         Comm::wait(r1);
@@ -237,7 +234,7 @@ void RandOtBatchOperator::executeForBitsAsync() {
     }
 }
 
-RandOtBatchOperator *RandOtBatchOperator::execute() {
+RandOtBatchOperator* RandOtBatchOperator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isClient()) {
         return this;
@@ -265,8 +262,6 @@ RandOtBatchOperator *RandOtBatchOperator::execute() {
     return this;
 }
 
-int RandOtBatchOperator::tagStride() {
-    return 1;
-}
+int RandOtBatchOperator::tagStride() { return 1; }
 
 } // namespace parsec

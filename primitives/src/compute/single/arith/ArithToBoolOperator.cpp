@@ -13,8 +13,7 @@
 
 namespace parsec {
 
-
-void ArithToBoolOperator::prepareBmts(BitwiseBmt &b0, BitwiseBmt &b1, BitwiseBmt &b2) const {
+void ArithToBoolOperator::prepareBmts(BitwiseBmt& b0, BitwiseBmt& b1, BitwiseBmt& b2) const {
     if (_bmts != nullptr) {
         b0 = _bmts->at(0);
         b1 = _bmts->at(1);
@@ -32,7 +31,7 @@ void ArithToBoolOperator::prepareBmts(BitwiseBmt &b0, BitwiseBmt &b1, BitwiseBmt
     }
 }
 
-ArithToBoolOperator *ArithToBoolOperator::execute() {
+ArithToBoolOperator* ArithToBoolOperator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isServer()) {
         int64_t xi_i = Math::randInt();
@@ -44,9 +43,9 @@ ArithToBoolOperator *ArithToBoolOperator::execute() {
 
         for (int i = 0; i < _width; i++) {
             bool ai, ao, bi, bo;
-            bool *self_i = Comm::rank() == 0 ? &ai : &bi;
-            bool *self_o = Comm::rank() == 0 ? &ao : &bo;
-            bool *other_i = Comm::rank() == 0 ? &bi : &ai;
+            bool* self_i = Comm::rank() == 0 ? &ai : &bi;
+            bool* self_o = Comm::rank() == 0 ? &ao : &bo;
+            bool* other_i = Comm::rank() == 0 ? &bi : &ai;
             *self_i = Math::getBit(xi_i, i);
             *self_o = Math::getBit(xi_o, i);
             std::vector self_ov = {static_cast<int64_t>(*self_o)};
@@ -67,20 +66,19 @@ ArithToBoolOperator *ArithToBoolOperator::execute() {
                 if (parallelGenerate) {
                     f = ThreadPoolSupport::submit([&] {
                         auto bmt = b0.extract(i);
-                        return BoolAndOperator(ai, bi, 1, _taskTag, cm, NO_CLIENT_COMPUTE).setBmt(
-                            &bmt)->execute()->_zi;
+                        return BoolAndOperator(ai, bi, 1, _taskTag, cm, NO_CLIENT_COMPUTE).setBmt(&bmt)->execute()->_zi;
                     });
                 } else {
                     auto bmt = b0.extract(i);
-                    generate_i = BoolAndOperator(ai, bi, 1, _taskTag, cm, NO_CLIENT_COMPUTE).setBmt(
-                        &bmt)->execute()->_zi;
+                    generate_i =
+                        BoolAndOperator(ai, bi, 1, _taskTag, cm, NO_CLIENT_COMPUTE).setBmt(&bmt)->execute()->_zi;
                 }
 
                 _currentMsgTag += BoolAndOperator::tagStride(1);
 
                 auto bmt = b1.extract(i);
-                bool tempCarry_i = BoolAndOperator(propagate_i, carry_i, 1, _taskTag, _currentMsgTag, -1).setBmt(
-                    &bmt)->execute()->_zi;
+                bool tempCarry_i =
+                    BoolAndOperator(propagate_i, carry_i, 1, _taskTag, _currentMsgTag, -1).setBmt(&bmt)->execute()->_zi;
 
                 if (parallelGenerate) {
                     generate_i = f.get();
@@ -88,8 +86,10 @@ ArithToBoolOperator *ArithToBoolOperator::execute() {
                 bool sum_i = generate_i ^ tempCarry_i;
 
                 bmt = b2.extract(i);
-                bool and_i = BoolAndOperator(generate_i, tempCarry_i, 1, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
-                        setBmt(&bmt)->execute()->_zi;
+                bool and_i = BoolAndOperator(generate_i, tempCarry_i, 1, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
+                                 .setBmt(&bmt)
+                                 ->execute()
+                                 ->_zi;
 
                 carry_i = sum_i ^ and_i;
             }
@@ -100,11 +100,9 @@ ArithToBoolOperator *ArithToBoolOperator::execute() {
     return this;
 }
 
-int ArithToBoolOperator::tagStride(int width) {
-    return static_cast<int>(2 * BoolAndOperator::tagStride(width));
-}
+int ArithToBoolOperator::tagStride(int width) { return static_cast<int>(2 * BoolAndOperator::tagStride(width)); }
 
-ArithToBoolOperator *ArithToBoolOperator::setBmts(std::vector<BitwiseBmt> *bmts) {
+ArithToBoolOperator* ArithToBoolOperator::setBmts(std::vector<BitwiseBmt>* bmts) {
     if (bmts != nullptr && bmts->size() != bmtCount(_width)) {
         throw std::runtime_error("Bmt size mismatch.");
     }
@@ -112,7 +110,7 @@ ArithToBoolOperator *ArithToBoolOperator::setBmts(std::vector<BitwiseBmt> *bmts)
     return this;
 }
 
-ArithToBoolOperator *ArithToBoolOperator::reconstruct(int clientRank) {
+ArithToBoolOperator* ArithToBoolOperator::reconstruct(int clientRank) {
     _currentMsgTag = _startMsgTag;
     BoolOperator e(_zi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
     e.reconstruct(clientRank);
@@ -122,8 +120,6 @@ ArithToBoolOperator *ArithToBoolOperator::reconstruct(int clientRank) {
     return this;
 }
 
-int ArithToBoolOperator::bmtCount(int width) {
-    return 3;
-}
+int ArithToBoolOperator::bmtCount(int width) { return 3; }
 
 } // namespace parsec

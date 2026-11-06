@@ -9,15 +9,14 @@
 
 namespace parsec {
 
-
 class ArithSecret : public Secret {
-public:
+  public:
     int64_t _data{};
     int _width{};
     int _taskTag{};
     int _currentMsgTag{};
 
-public:
+  public:
     ArithSecret();
 
     ArithSecret(int64_t x, int l, int taskTag);
@@ -44,8 +43,6 @@ public:
 
     BitSecret getBit(int n) const;
 };
-
-
 
 } // namespace parsec
 

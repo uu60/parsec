@@ -5,21 +5,17 @@
 
 namespace parsec {
 
-
-
 class BoolBatchOperator : public AbstractBatchOperator {
-public:
+  public:
     BoolBatchOperator(std::vector<int64_t>& zs, int width, int taskTag, int msgTagOffset, int clientRank);
 
-    BoolBatchOperator(std::vector<int64_t>* xs, std::vector<int64_t>* ys, int width, int taskTag, int msgTagOffset, int clientRank);
+    BoolBatchOperator(std::vector<int64_t>* xs, std::vector<int64_t>* ys, int width, int taskTag, int msgTagOffset,
+                      int clientRank);
 
-    BoolBatchOperator *reconstruct(int clientRank) override;
+    BoolBatchOperator* reconstruct(int clientRank) override;
 
-    BoolBatchOperator *execute() override;
+    BoolBatchOperator* execute() override;
 };
-
-
-
 
 } // namespace parsec
 

@@ -8,21 +8,16 @@
 
 namespace parsec {
 
-
-
 class ArithOperator : public AbstractSingleOperator {
-public:
-    
+  public:
     ArithOperator(int64_t z, int width, int taskTag, int msgTagOffset, int clientRank);
 
     ArithOperator(int64_t x, int64_t y, int width, int taskTag, int msgTagOffset, int clientRank);
 
-    ArithOperator *reconstruct(int clientRank) override;
+    ArithOperator* reconstruct(int clientRank) override;
 
-    ArithOperator *execute() override;
+    ArithOperator* execute() override;
 };
-
-
 
 } // namespace parsec
 

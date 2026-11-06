@@ -3,8 +3,8 @@
 
 #include "comm/Comm.h"
 #include "compute/batch/bool/BoolAndBatchOperator.h"
-#include "compute/single/arith/ArithToBoolOperator.h"
 #include "compute/batch/bool/BoolBatchOperator.h"
+#include "compute/single/arith/ArithToBoolOperator.h"
 #include "conf/Conf.h"
 #include "intermediate/BitwiseBmtBatchGenerator.h"
 #include "intermediate/BitwiseBmtGenerator.h"
@@ -16,19 +16,16 @@
 
 namespace parsec {
 
-
-ArithToBoolBatchOperator::ArithToBoolBatchOperator(std::vector<int64_t> *xs, int width, int taskTag, int msgTagOffset,
+ArithToBoolBatchOperator::ArithToBoolBatchOperator(std::vector<int64_t>* xs, int width, int taskTag, int msgTagOffset,
                                                    int clientRank)
     : ArithBatchOperator(*xs, width, taskTag, msgTagOffset, clientRank) {
     _xis = new std::vector<int64_t>(std::move(_zis));
     _zis.resize(xs->size(), 0);
 }
 
-ArithToBoolBatchOperator::~ArithToBoolBatchOperator() {
-    delete _xis;
-}
+ArithToBoolBatchOperator::~ArithToBoolBatchOperator() { delete _xis; }
 
-ArithToBoolBatchOperator *ArithToBoolBatchOperator::execute() {
+ArithToBoolBatchOperator* ArithToBoolBatchOperator::execute() {
     _currentMsgTag = _startMsgTag;
 
     if (Comm::isClient()) {
@@ -36,7 +33,8 @@ ArithToBoolBatchOperator *ArithToBoolBatchOperator::execute() {
     }
 
     if (Conf::BMT_METHOD != Conf::BMT_JIT && Conf::BMT_METHOD != Conf::BMT_FIXED) {
-        throw std::runtime_error("ArithToBoolBatchOperator: Temporarily only support BMT JIT or FIXED generation for experiment.");
+        throw std::runtime_error(
+            "ArithToBoolBatchOperator: Temporarily only support BMT JIT or FIXED generation for experiment.");
     }
 
     int64_t start = 0;
@@ -151,7 +149,7 @@ ArithToBoolBatchOperator *ArithToBoolBatchOperator::execute() {
     return this;
 }
 
-ArithToBoolBatchOperator *ArithToBoolBatchOperator::reconstruct(int clientRank) {
+ArithToBoolBatchOperator* ArithToBoolBatchOperator::reconstruct(int clientRank) {
     _currentMsgTag = _startMsgTag;
     BoolBatchOperator e(_zis, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
     e.reconstruct(clientRank);
@@ -161,8 +159,6 @@ ArithToBoolBatchOperator *ArithToBoolBatchOperator::reconstruct(int clientRank) 
     return this;
 }
 
-int ArithToBoolBatchOperator::tagStride(int width) {
-    return BoolAndBatchOperator::tagStride();
-}
+int ArithToBoolBatchOperator::tagStride(int width) { return BoolAndBatchOperator::tagStride(); }
 
 } // namespace parsec

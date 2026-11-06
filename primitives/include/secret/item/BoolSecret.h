@@ -8,15 +8,14 @@
 
 namespace parsec {
 
-
 class BoolSecret : public Secret {
-public:
+  public:
     int64_t _data{};
     int _width{};
     int _taskTag{};
     int _currentMsgTag{};
 
-public:
+  public:
     BoolSecret();
 
     BoolSecret(int64_t x, int l, int taskTag, int msgTagOffset);
@@ -41,9 +40,6 @@ public:
 
     BitSecret getBit(int n) const;
 };
-
-
-
 
 } // namespace parsec
 

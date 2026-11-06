@@ -6,8 +6,7 @@
 
 namespace parsec {
 
-
-PipelineBitwiseBmtBatchGenerator *PipelineBitwiseBmtBatchGenerator::execute() {
+PipelineBitwiseBmtBatchGenerator* PipelineBitwiseBmtBatchGenerator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isClient()) {
         return this;
@@ -20,14 +19,14 @@ PipelineBitwiseBmtBatchGenerator *PipelineBitwiseBmtBatchGenerator::execute() {
     return this;
 }
 
-void PipelineBitwiseBmtBatchGenerator::generateRandomAB(std::vector<int64_t> &as, std::vector<int64_t> &bs) {
+void PipelineBitwiseBmtBatchGenerator::generateRandomAB(std::vector<int64_t>& as, std::vector<int64_t>& bs) {
     int size = Conf::BMT_GEN_BATCH_SIZE;
     as.resize(size);
     bs.resize(size);
     auto bmts = std::vector<BitwiseBmt>(size);
 
     for (int i = 0; i < size; i++) {
-        auto &bmt = bmts[i];
+        auto& bmt = bmts[i];
         bmt._a = Math::randInt();
         bmt._b = Math::randInt();
         as[i] = bmt._a;
@@ -36,7 +35,7 @@ void PipelineBitwiseBmtBatchGenerator::generateRandomAB(std::vector<int64_t> &as
     _bmts.offer(std::move(bmts));
 }
 
-void PipelineBitwiseBmtBatchGenerator::compute(int sender, std::vector<int64_t> &as, std::vector<int64_t> &bs) {
+void PipelineBitwiseBmtBatchGenerator::compute(int sender, std::vector<int64_t>& as, std::vector<int64_t>& bs) {
     std::vector<int64_t> ssi, sso;
     std::vector<int64_t> choices;
 
@@ -61,12 +60,11 @@ void PipelineBitwiseBmtBatchGenerator::compute(int sender, std::vector<int64_t> 
     }
 }
 
-void PipelineBitwiseBmtBatchGenerator::otAsync(int sender, std::vector<int64_t> &bits0,
-                                               std::vector<int64_t> &bits1,
-                                               std::vector<int64_t> &choiceBits) {
+void PipelineBitwiseBmtBatchGenerator::otAsync(int sender, std::vector<int64_t>& bits0, std::vector<int64_t>& bits1,
+                                               std::vector<int64_t>& choiceBits) {
     if (Comm::rank() == sender) {
         int size = static_cast<int>(bits0.size());
-        auto send = std::make_unique<std::vector<int64_t> >(size * 4);
+        auto send = std::make_unique<std::vector<int64_t>>(size * 4);
 
         int64_t ir00 = IntermediateDataSupport::_sRot0->_r0;
         int64_t ir01 = IntermediateDataSupport::_sRot0->_r1;
@@ -144,7 +142,7 @@ void PipelineBitwiseBmtBatchGenerator::subThreadHandle() {
             for (int i = 0; i < size; ++i) {
                 int64_t ui = ssi[i];
                 int64_t vi = ssbs[i];
-                auto &bmt = bmts[i];
+                auto& bmt = bmts[i];
                 bmt._c = (bmt._a & bmt._b) ^ ui ^ vi;
                 IntermediateDataSupport::_bitwiseBmtQs[_index]->offer(bmt);
             }
@@ -152,11 +150,11 @@ void PipelineBitwiseBmtBatchGenerator::subThreadHandle() {
     });
 }
 
-int64_t PipelineBitwiseBmtBatchGenerator::corr(std::vector<int64_t> &as, int bmtIdx, int64_t x) {
+int64_t PipelineBitwiseBmtBatchGenerator::corr(std::vector<int64_t>& as, int bmtIdx, int64_t x) {
     return as[bmtIdx] ^ x;
 }
 
-PipelineBitwiseBmtBatchGenerator *PipelineBitwiseBmtBatchGenerator::reconstruct(int clientRank) {
+PipelineBitwiseBmtBatchGenerator* PipelineBitwiseBmtBatchGenerator::reconstruct(int clientRank) {
     throw std::runtime_error("reconstruct not implemented");
 }
 

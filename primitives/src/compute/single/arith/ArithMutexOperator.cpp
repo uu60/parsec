@@ -1,8 +1,8 @@
 
 #include "compute/single/arith/ArithMutexOperator.h"
 
-#include "compute/single/arith/ArithMultiplyOperator.h"
 #include "comm/Comm.h"
+#include "compute/single/arith/ArithMultiplyOperator.h"
 #include "compute/single/bool/BoolOperator.h"
 #include "compute/single/bool/BoolToArithOperator.h"
 #include "intermediate/BitwiseBmtGenerator.h"
@@ -14,9 +14,9 @@
 
 namespace parsec {
 
-
 ArithMutexOperator::ArithMutexOperator(int64_t x, int64_t y, bool cond, int l, int taskTag, int msgTagOffset,
-                                       int clientRank) : ArithOperator(x, y, l, taskTag, msgTagOffset, clientRank) {
+                                       int clientRank)
+    : ArithOperator(x, y, l, taskTag, msgTagOffset, clientRank) {
     if (clientRank < 0 && _width > 1) {
         _cond_i = BoolToArithOperator(cond, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).execute()->_zi;
     } else {
@@ -24,7 +24,7 @@ ArithMutexOperator::ArithMutexOperator(int64_t x, int64_t y, bool cond, int l, i
     }
 }
 
-ArithMutexOperator *ArithMutexOperator::execute() {
+ArithMutexOperator* ArithMutexOperator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isServer()) {
         Bmt bmt0, bmt1;
@@ -48,13 +48,14 @@ ArithMutexOperator *ArithMutexOperator::execute() {
                 return ret;
             });
         } else {
-            cx = ArithMultiplyOperator(_cond_i, _xi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmt(bp0)
-                    ->execute()->_zi;
+            cx = ArithMultiplyOperator(_cond_i, _xi, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
+                     .setBmt(bp0)
+                     ->execute()
+                     ->_zi;
         }
 
         auto mul1 = ArithMultiplyOperator(_cond_i, _yi, _width, _taskTag,
-                                          static_cast<int>(_currentMsgTag + ArithMultiplyOperator::tagStride(
-                                                                   _width)),
+                                          static_cast<int>(_currentMsgTag + ArithMultiplyOperator::tagStride(_width)),
                                           NO_CLIENT_COMPUTE);
         cy = mul1.setBmt(bp1)->execute()->_zi;
         if (Conf::ENABLE_INTRA_OPERATOR_PARALLELISM) {
@@ -65,13 +66,12 @@ ArithMutexOperator *ArithMutexOperator::execute() {
     return this;
 }
 
-
 int ArithMutexOperator::tagStride(int width) {
     return std::max(static_cast<int>(2 * ArithMultiplyOperator::tagStride(width)),
                     BoolToArithOperator::tagStride(width));
 }
 
-ArithMutexOperator *ArithMutexOperator::setBmts(std::vector<Bmt> *bmts) {
+ArithMutexOperator* ArithMutexOperator::setBmts(std::vector<Bmt>* bmts) {
     if (bmts != nullptr && bmts->size() != bmtCount(_width)) {
         throw std::runtime_error("Mismatch bmt size.");
     }
@@ -79,8 +79,6 @@ ArithMutexOperator *ArithMutexOperator::setBmts(std::vector<Bmt> *bmts) {
     return this;
 }
 
-int ArithMutexOperator::bmtCount(int width) {
-    return 2;
-}
+int ArithMutexOperator::bmtCount(int width) { return 2; }
 
 } // namespace parsec

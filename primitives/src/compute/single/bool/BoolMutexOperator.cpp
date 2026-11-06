@@ -8,16 +8,16 @@
 
 namespace parsec {
 
-
 BoolMutexOperator::BoolMutexOperator(int64_t x, int64_t y, bool cond, int width, int taskTag, int msgTagOffset,
-                                     int clientRank) : BoolOperator(x, y, width, taskTag, msgTagOffset, clientRank) {
+                                     int clientRank)
+    : BoolOperator(x, y, width, taskTag, msgTagOffset, clientRank) {
     _cond_i = BoolOperator(cond, 1, _taskTag, _currentMsgTag, clientRank)._zi;
     if (_cond_i) {
         _cond_i = ring(-1ll);
     }
 }
 
-bool BoolMutexOperator::prepareBmts(std::vector<BitwiseBmt> &bmts) {
+bool BoolMutexOperator::prepareBmts(std::vector<BitwiseBmt>& bmts) {
     if (_bmts != nullptr) {
         bmts = std::move(*_bmts);
         return true;
@@ -25,7 +25,7 @@ bool BoolMutexOperator::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     return false;
 }
 
-BoolMutexOperator *BoolMutexOperator::execute() {
+BoolMutexOperator* BoolMutexOperator::execute() {
     _currentMsgTag = _startMsgTag;
 
     if (Comm::isClient()) {
@@ -44,8 +44,10 @@ BoolMutexOperator *BoolMutexOperator::execute() {
 
     std::vector conds = {_cond_i, _cond_i};
     std::vector xy = {_xi, _yi};
-    auto temp = BoolAndBatchOperator(&conds, &xy, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
-            setBmts(gotBmt ? &bmts : nullptr)->execute()->_zis;
+    auto temp = BoolAndBatchOperator(&conds, &xy, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
+                    .setBmts(gotBmt ? &bmts : nullptr)
+                    ->execute()
+                    ->_zis;
     cx = temp[0];
     cy = temp[1];
 
@@ -58,7 +60,7 @@ BoolMutexOperator *BoolMutexOperator::execute() {
     return this;
 }
 
-BoolMutexOperator *BoolMutexOperator::setBmts(std::vector<BitwiseBmt> *bmts) {
+BoolMutexOperator* BoolMutexOperator::setBmts(std::vector<BitwiseBmt>* bmts) {
     if (bmts != nullptr && bmts->size() != bmtCount()) {
         throw std::runtime_error("Mismatched bmts count");
     }
@@ -66,12 +68,8 @@ BoolMutexOperator *BoolMutexOperator::setBmts(std::vector<BitwiseBmt> *bmts) {
     return this;
 }
 
-int BoolMutexOperator::tagStride(int width) {
-    return 2 * BoolAndOperator::tagStride(width);
-}
+int BoolMutexOperator::tagStride(int width) { return 2 * BoolAndOperator::tagStride(width); }
 
-int BoolMutexOperator::bmtCount() {
-    return 2;
-}
+int BoolMutexOperator::bmtCount() { return 2; }
 
 } // namespace parsec

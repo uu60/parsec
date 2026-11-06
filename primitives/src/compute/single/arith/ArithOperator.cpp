@@ -1,17 +1,16 @@
 
 #include "compute/single/arith/ArithOperator.h"
 
-#include "ot/BaseOtOperator.h"
 #include "comm/Comm.h"
 #include "conf/Conf.h"
+#include "ot/BaseOtOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Math.h"
 
 namespace parsec {
 
-
-ArithOperator::ArithOperator(int64_t z, int width, int taskTag, int msgTagOffset,
-                             int clientRank) : AbstractSingleOperator(width, taskTag, msgTagOffset) {
+ArithOperator::ArithOperator(int64_t z, int width, int taskTag, int msgTagOffset, int clientRank)
+    : AbstractSingleOperator(width, taskTag, msgTagOffset) {
     if (clientRank < 0) {
         _zi = z;
     } else {
@@ -28,8 +27,8 @@ ArithOperator::ArithOperator(int64_t z, int width, int taskTag, int msgTagOffset
     }
 }
 
-ArithOperator::ArithOperator(int64_t x, int64_t y, int width, int taskTag, int msgTagOffset,
-                             int clientRank) : AbstractSingleOperator(width, taskTag, msgTagOffset) {
+ArithOperator::ArithOperator(int64_t x, int64_t y, int width, int taskTag, int msgTagOffset, int clientRank)
+    : AbstractSingleOperator(width, taskTag, msgTagOffset) {
     if (clientRank < 0) {
         _xi = x;
         _yi = y;
@@ -54,11 +53,9 @@ ArithOperator::ArithOperator(int64_t x, int64_t y, int width, int taskTag, int m
     }
 }
 
-ArithOperator *ArithOperator::execute() {
-    throw std::runtime_error("Needs implementation.");
-}
+ArithOperator* ArithOperator::execute() { throw std::runtime_error("Needs implementation."); }
 
-ArithOperator *ArithOperator::reconstruct(int clientRank) {
+ArithOperator* ArithOperator::reconstruct(int clientRank) {
     _currentMsgTag = _startMsgTag;
     if (Comm::isServer()) {
         Comm::send(_zi, _width, clientRank, buildTag(_currentMsgTag));

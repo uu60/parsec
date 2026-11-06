@@ -10,7 +10,7 @@
 
 using namespace parsec;
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     System::init(argc, argv);
 
     if (Comm::isClient()) {
@@ -51,12 +51,8 @@ int main(int argc, char **argv) {
         Comm::receive(choiceBitsPacked, 64, 1 - sender, task * 1000 + 1);
     }
 
-    IknpOtBatchOperator op(sender,
-                           isSender ? &bits0Packed : nullptr,
-                           isSender ? &bits1Packed : nullptr,
-                           isSender ? nullptr : &choiceBitsPacked,
-                           task,
-                           task * 1000 + 10);
+    IknpOtBatchOperator op(sender, isSender ? &bits0Packed : nullptr, isSender ? &bits1Packed : nullptr,
+                           isSender ? nullptr : &choiceBitsPacked, task, task * 1000 + 10);
     op.execute();
 
     if (!isSender) {
@@ -85,10 +81,10 @@ int main(int argc, char **argv) {
             }
         }
 
-        Log::i(mism == 0 ? "[IKNP OT for bits correctness] PASS" : "[IKNP OT for bits correctness] FAIL mismatches={}", mism);
+        Log::i(mism == 0 ? "[IKNP OT for bits correctness] PASS" : "[IKNP OT for bits correctness] FAIL mismatches={}",
+               mism);
     }
 
     System::finalize();
     return 0;
 }
-

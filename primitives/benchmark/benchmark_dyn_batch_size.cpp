@@ -1,18 +1,18 @@
+#include "comm/Comm.h"
 #include "compute/batch/bool/BoolLessBatchOperator.h"
 #include "compute/single/arith/ArithLessOperator.h"
 #include "secret/Secrets.h"
 #include "utils/Log.h"
 #include "utils/Math.h"
 #include "utils/System.h"
-#include "comm/Comm.h"
-#include <fstream>
-#include <iomanip>
-#include <sstream>
-#include <chrono>
-#include <numeric>
-#include <map>
 #include <algorithm>
 #include <cfloat>
+#include <chrono>
+#include <fstream>
+#include <iomanip>
+#include <map>
+#include <numeric>
+#include <sstream>
 #include <string>
 #include <unordered_set>
 
@@ -23,8 +23,8 @@
 
 using namespace parsec;
 
-void prepareOrigins(int num, std::vector<int64_t> &originsA, std::vector<int64_t> &originsB,
-                    std::vector<int64_t> &conditions) {
+void prepareOrigins(int num, std::vector<int64_t>& originsA, std::vector<int64_t>& originsB,
+                    std::vector<int64_t>& conditions) {
     if (Comm::isClient()) {
         originsA.resize(num);
         originsB.resize(num);
@@ -37,16 +37,16 @@ void prepareOrigins(int num, std::vector<int64_t> &originsA, std::vector<int64_t
     }
 }
 
-void boolShare(int width, std::vector<int64_t> &originsA, std::vector<int64_t> &originsB,
-               std::vector<int64_t> &conditions, std::vector<int64_t> &secretsA,
-               std::vector<int64_t> &secretsB, std::vector<int64_t> &secretConditions) {
+void boolShare(int width, std::vector<int64_t>& originsA, std::vector<int64_t>& originsB,
+               std::vector<int64_t>& conditions, std::vector<int64_t>& secretsA, std::vector<int64_t>& secretsB,
+               std::vector<int64_t>& secretConditions) {
     secretsA = Secrets::boolShare(originsA, 2, width, 0);
     secretsB = Secrets::boolShare(originsB, 2, width, 0);
     secretConditions = Secrets::boolShare(conditions, 2, 1, 0);
 }
 
-bool test(std::vector<std::string> &testPmts, std::string pmt, int width, int batchSize, std::vector<int64_t> &originsA,
-          std::vector<int64_t> &originsB, std::vector<int64_t> &conditions, int64_t &jitTime) {
+bool test(std::vector<std::string>& testPmts, std::string pmt, int width, int batchSize, std::vector<int64_t>& originsA,
+          std::vector<int64_t>& originsB, std::vector<int64_t>& conditions, int64_t& jitTime) {
     std::vector<int64_t> secretsA;
     std::vector<int64_t> secretsB;
     std::vector<int64_t> secretConditions;
@@ -60,128 +60,127 @@ bool test(std::vector<std::string> &testPmts, std::string pmt, int width, int ba
         if (pmt == "<") {
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
-            std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
+            std::vector<std::future<std::vector<int64_t>>> futures(batch_num);
             for (int b = 0; b < batch_num; ++b) {
                 futures[b] = ThreadPoolSupport::submit([&, b] {
                     int startIdx = b * batchSize;
                     int endIdx = std::min((b + 1) * batchSize, static_cast<int>(secretsA.size()));
                     std::vector<int64_t> batchA(secretsA.begin() + startIdx, secretsA.begin() + endIdx);
                     std::vector<int64_t> batchB(secretsB.begin() + startIdx, secretsB.begin() + endIdx);
-                    return BoolLessBatchOperator(&batchA, &batchB, width, 0, BoolLessBatchOperator::tagStride() * b,
-                                                 -1).
-                            execute()->_zis;
+                    return BoolLessBatchOperator(&batchA, &batchB, width, 0, BoolLessBatchOperator::tagStride() * b, -1)
+                        .execute()
+                        ->_zis;
                 });
             }
-            for (auto &f: futures) {
+            for (auto& f : futures) {
                 auto v = f.get();
                 zs.insert(zs.end(), v.begin(), v.end());
             }
         } else if (pmt == "<=") {
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
-            std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
+            std::vector<std::future<std::vector<int64_t>>> futures(batch_num);
             for (int b = 0; b < batch_num; ++b) {
                 futures[b] = ThreadPoolSupport::submit([&, b] {
                     int startIdx = b * batchSize;
                     int endIdx = std::min((b + 1) * batchSize, static_cast<int>(secretsA.size()));
                     std::vector<int64_t> batchA(secretsA.begin() + startIdx, secretsA.begin() + endIdx);
                     std::vector<int64_t> batchB(secretsB.begin() + startIdx, secretsB.begin() + endIdx);
-                    auto zsB = BoolLessBatchOperator(&batchB, &batchA, width, 0,
-                                                     BoolLessBatchOperator::tagStride() * b,
-                                                     -1).
-                            execute()->_zis;
-                    for (auto &t: zsB) {
+                    auto zsB =
+                        BoolLessBatchOperator(&batchB, &batchA, width, 0, BoolLessBatchOperator::tagStride() * b, -1)
+                            .execute()
+                            ->_zis;
+                    for (auto& t : zsB) {
                         t = t ^ Comm::rank();
                     }
                     return zsB;
                 });
             }
-            for (auto &f: futures) {
+            for (auto& f : futures) {
                 auto v = f.get();
                 zs.insert(zs.end(), v.begin(), v.end());
             }
         } else if (pmt == "==") {
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
-            std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
+            std::vector<std::future<std::vector<int64_t>>> futures(batch_num);
             for (int b = 0; b < batch_num; ++b) {
                 futures[b] = ThreadPoolSupport::submit([&, b] {
                     int startIdx = b * batchSize;
                     int endIdx = std::min((b + 1) * batchSize, static_cast<int>(secretsA.size()));
                     std::vector<int64_t> batchA(secretsA.begin() + startIdx, secretsA.begin() + endIdx);
                     std::vector<int64_t> batchB(secretsB.begin() + startIdx, secretsB.begin() + endIdx);
-                    return BoolEqualBatchOperator(&batchA, &batchB, width, 0,
-                                                  BoolEqualBatchOperator::tagStride() * b,
-                                                  -1).execute()->_zis;
+                    return BoolEqualBatchOperator(&batchA, &batchB, width, 0, BoolEqualBatchOperator::tagStride() * b,
+                                                  -1)
+                        .execute()
+                        ->_zis;
                 });
             }
-            for (auto &f: futures) {
+            for (auto& f : futures) {
                 auto v = f.get();
                 zs.insert(zs.end(), v.begin(), v.end());
             }
         } else if (pmt == "!=") {
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
-            std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
+            std::vector<std::future<std::vector<int64_t>>> futures(batch_num);
             for (int b = 0; b < batch_num; ++b) {
                 futures[b] = ThreadPoolSupport::submit([&, b] {
                     int startIdx = b * batchSize;
                     int endIdx = std::min((b + 1) * batchSize, static_cast<int>(secretsA.size()));
                     std::vector<int64_t> batchA(secretsA.begin() + startIdx, secretsA.begin() + endIdx);
                     std::vector<int64_t> batchB(secretsB.begin() + startIdx, secretsB.begin() + endIdx);
-                    auto zsB = BoolEqualBatchOperator(&batchA, &batchB, width, 0,
-                                                      BoolEqualBatchOperator::tagStride() * b,
-                                                      -1).
-                            execute()->_zis;
-                    for (auto &t: zsB) {
+                    auto zsB =
+                        BoolEqualBatchOperator(&batchA, &batchB, width, 0, BoolEqualBatchOperator::tagStride() * b, -1)
+                            .execute()
+                            ->_zis;
+                    for (auto& t : zsB) {
                         t = t ^ Comm::rank();
                     }
                     return zsB;
                 });
             }
-            for (auto &f: futures) {
+            for (auto& f : futures) {
                 auto v = f.get();
                 zs.insert(zs.end(), v.begin(), v.end());
             }
         } else if (pmt == "mux") {
             std::vector<int64_t> zs;
             zs.reserve(secretsA.size());
-            std::vector<std::future<std::vector<int64_t> > > futures(batch_num);
+            std::vector<std::future<std::vector<int64_t>>> futures(batch_num);
             for (int b = 0; b < batch_num; ++b) {
                 futures[b] = ThreadPoolSupport::submit([&, b] {
                     int startIdx = b * batchSize;
                     int endIdx = std::min((b + 1) * batchSize, static_cast<int>(secretsA.size()));
                     std::vector<int64_t> batchA(secretsA.begin() + startIdx, secretsA.begin() + endIdx);
                     std::vector<int64_t> batchB(secretsB.begin() + startIdx, secretsB.begin() + endIdx);
-                    std::vector<int64_t> batchC(secretConditions.begin() + startIdx,
-                                                secretConditions.begin() + endIdx);
+                    std::vector<int64_t> batchC(secretConditions.begin() + startIdx, secretConditions.begin() + endIdx);
                     return BoolMutexBatchOperator(&batchA, &batchB, &batchC, width, 0,
-                                                  BoolMutexBatchOperator::tagStride() * b,
-                                                  -1).
-                            execute()->_zis;
+                                                  BoolMutexBatchOperator::tagStride() * b, -1)
+                        .execute()
+                        ->_zis;
                 });
             }
-            for (auto &f: futures) {
+            for (auto& f : futures) {
                 auto v = f.get();
                 zs.insert(zs.end(), v.begin(), v.end());
             }
         } else if (pmt == "ar") {
-            std::vector<std::future<void> > futures(batch_num);
+            std::vector<std::future<void>> futures(batch_num);
             std::atomic_int64_t sumShare = 0;
             for (int b = 0; b < batch_num; ++b) {
                 futures[b] = ThreadPoolSupport::submit([&, b] {
                     int startIdx = b * batchSize;
                     int endIdx = std::min((b + 1) * batchSize, static_cast<int>(secretsA.size()));
-                    std::vector<int64_t> batchN(secretConditions.begin() + startIdx,
-                                                secretConditions.begin() + endIdx);
-                    auto ta = BoolToArithBatchOperator(&batchN, 64, 0,
-                                                       BoolToArithBatchOperator::tagStride() * b,
-                                                       SecureOperator::NO_CLIENT_COMPUTE).
-                            execute()->_zis;
+                    std::vector<int64_t> batchN(secretConditions.begin() + startIdx, secretConditions.begin() + endIdx);
+                    auto ta = BoolToArithBatchOperator(&batchN, 64, 0, BoolToArithBatchOperator::tagStride() * b,
+                                                       SecureOperator::NO_CLIENT_COMPUTE)
+                                  .execute()
+                                  ->_zis;
                     sumShare += std::accumulate(ta.begin(), ta.end(), 0ll);
                 });
             }
-            for (auto &f: futures) {
+            for (auto& f : futures) {
                 f.wait();
             }
         } else if (pmt == "sort") {
@@ -201,7 +200,7 @@ bool test(std::vector<std::string> &testPmts, std::string pmt, int width, int ba
     return true;
 }
 
-std::vector<int> parseCommaSeparatedInts(const std::string &str) {
+std::vector<int> parseCommaSeparatedInts(const std::string& str) {
     std::vector<int> result;
     std::stringstream ss(str);
     std::string item;
@@ -213,7 +212,7 @@ std::vector<int> parseCommaSeparatedInts(const std::string &str) {
         if (!item.empty()) {
             try {
                 result.push_back(std::stoi(item));
-            } catch (const std::exception &e) {
+            } catch (const std::exception& e) {
                 Log::e("Invalid number in input: {}", item);
             }
         }
@@ -221,7 +220,7 @@ std::vector<int> parseCommaSeparatedInts(const std::string &str) {
     return result;
 }
 
-std::vector<std::string> parseCommaSeparatedStrings(const std::string &str) {
+std::vector<std::string> parseCommaSeparatedStrings(const std::string& str) {
     std::vector<std::string> result;
     std::stringstream ss(str);
     std::string item;
@@ -236,7 +235,7 @@ std::vector<std::string> parseCommaSeparatedStrings(const std::string &str) {
     return result;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     System::init(argc, argv);
 
     struct BenchmarkResult {
@@ -271,8 +270,8 @@ int main(int argc, char *argv[]) {
         if (testNums.empty()) {
             if (Comm::isClient()) {
                 Log::e("Invalid or empty nums parameter: {}", numsStr);
-                Log::i(
-                    "Usage: --nums=1000,10000,100000 --sort_nums=500,1000,5000 [--widths=1,2,4,8,16,32,64] [--batch_sizes=1,10,100,1000]");
+                Log::i("Usage: --nums=1000,10000,100000 --sort_nums=500,1000,5000 [--widths=1,2,4,8,16,32,64] "
+                       "[--batch_sizes=1,10,100,1000]");
             }
             System::finalize();
             return 1;
@@ -330,7 +329,7 @@ int main(int argc, char *argv[]) {
         std::unordered_set<std::string> allowedPmts(testPmts.begin(), testPmts.end());
         std::unordered_set<std::string> seen;
         std::vector<std::string> filtered;
-        for (const auto &pmt : requestedPmts) {
+        for (const auto& pmt : requestedPmts) {
             if (!allowedPmts.count(pmt)) {
                 if (Comm::isClient()) {
                     Log::e("Unknown primitive in pmts: {}", pmt);
@@ -366,10 +365,10 @@ int main(int argc, char *argv[]) {
     }
 
     int totalTests = 0;
-    for (const std::string &pmt: testPmts) {
+    for (const std::string& pmt : testPmts) {
         std::vector<int> currentNums = (pmt == "sort") ? testSortNums : testNums;
-        for (int num: currentNums) {
-            for (int batchSize: testBatchSizes) {
+        for (int num : currentNums) {
+            for (int batchSize : testBatchSizes) {
                 if (batchSize <= num) {
                     totalTests += testWidths.size();
                 }
@@ -382,15 +381,15 @@ int main(int argc, char *argv[]) {
         Log::i("Starting Dynamic Batch Size Benchmark...");
     }
 
-    for (std::string pmt: testPmts) {
+    for (std::string pmt : testPmts) {
         if (Comm::isClient()) {
             Log::i("Testing primitive: {}", pmt);
         }
 
         std::vector<int> currentNums = (pmt == "sort") ? testSortNums : testNums;
 
-        for (int num: currentNums) {
-            for (int width: testWidths) {
+        for (int num : currentNums) {
+            for (int width : testWidths) {
                 if (Comm::isClient()) {
                     Log::i("Testing num: {}, width: {}", num, width);
                 }
@@ -398,8 +397,9 @@ int main(int argc, char *argv[]) {
                 std::vector<int64_t> originsA, originsB, conditions;
                 prepareOrigins(num, originsA, originsB, conditions);
 
-                for (int batchSize: testBatchSizes) {
-                    if (batchSize > num) continue;
+                for (int batchSize : testBatchSizes) {
+                    if (batchSize > num)
+                        continue;
 
                     currentTest++;
                     if (Comm::isClient()) {
@@ -436,9 +436,9 @@ int main(int argc, char *argv[]) {
 
                         results.push_back(result);
 
-                        Log::i(
-                            "Primitive: {}, Num: {}, Width: {}, BatchSize: {} - Server0: {}ms, Server1: {}ms, Average: {}ms, Throughput: {} ops/sec",
-                            pmt, num, width, batchSize, time0, time1, avgTime, result.throughput);
+                        Log::i("Primitive: {}, Num: {}, Width: {}, BatchSize: {} - Server0: {}ms, Server1: {}ms, "
+                               "Average: {}ms, Throughput: {} ops/sec",
+                               pmt, num, width, batchSize, time0, time1, avgTime, result.throughput);
                     }
                 }
             }
@@ -450,19 +450,15 @@ int main(int argc, char *argv[]) {
         std::ofstream csvFile(filename);
 
         if (csvFile.is_open()) {
-            csvFile <<
-                    "Timestamp,Primitive,NumElements,Width,BatchSize,AvgExecutionTime_ms,Throughput_ops_per_sec,TimePerOperation_ms,TimePerBatch_ms\n";
+            csvFile << "Timestamp,Primitive,NumElements,Width,BatchSize,AvgExecutionTime_ms,Throughput_ops_per_sec,"
+                       "TimePerOperation_ms,TimePerBatch_ms\n";
 
-            for (const auto &result: results) {
-                csvFile << result.timestamp << ","
-                        << result.primitive << ","
-                        << result.num << ","
-                        << result.width << ","
-                        << result.batchSize << ","
-                        << std::fixed << std::setprecision(2) << result.avgExecutionTime << ","
-                        << std::fixed << std::setprecision(2) << result.throughput << ","
-                        << std::fixed << std::setprecision(6) << result.timePerOperation << ","
-                        << std::fixed << std::setprecision(4) << result.timePerBatch << "\n";
+            for (const auto& result : results) {
+                csvFile << result.timestamp << "," << result.primitive << "," << result.num << "," << result.width
+                        << "," << result.batchSize << "," << std::fixed << std::setprecision(2)
+                        << result.avgExecutionTime << "," << std::fixed << std::setprecision(2) << result.throughput
+                        << "," << std::fixed << std::setprecision(6) << result.timePerOperation << "," << std::fixed
+                        << std::setprecision(4) << result.timePerBatch << "\n";
             }
 
             csvFile.close();
@@ -479,18 +475,16 @@ int main(int argc, char *argv[]) {
         Log::i("Total configurations tested: {}", results.size());
 
         if (!results.empty()) {
-            auto bestResult = std::max_element(results.begin(), results.end(),
-                                               [](const BenchmarkResult &a, const BenchmarkResult &b) {
-                                                   return a.throughput < b.throughput;
-                                               });
+            auto bestResult = std::max_element(
+                results.begin(), results.end(),
+                [](const BenchmarkResult& a, const BenchmarkResult& b) { return a.throughput < b.throughput; });
 
-            Log::i("Best performance: {} with {} elements, width {}, batch size {} - {} ops/sec",
-                   bestResult->primitive, bestResult->num, bestResult->width,
-                   bestResult->batchSize, bestResult->throughput);
+            Log::i("Best performance: {} with {} elements, width {}, batch size {} - {} ops/sec", bestResult->primitive,
+                   bestResult->num, bestResult->width, bestResult->batchSize, bestResult->throughput);
 
             double totalThroughput = 0.0;
             double totalTime = 0.0;
-            for (const auto &result: results) {
+            for (const auto& result : results) {
                 totalThroughput += result.throughput;
                 totalTime += result.avgExecutionTime;
             }

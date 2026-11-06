@@ -5,22 +5,15 @@
 
 namespace parsec {
 
-
-
 class AbstractSingleOperator : public SecureOperator {
-public:
+  public:
     int64_t _result{};
     int64_t _xi{};
     int64_t _yi{};
     int64_t _zi{};
 
-    AbstractSingleOperator(int width, int taskTag, int msgTagOffset)
-        : SecureOperator(width, taskTag, msgTagOffset) {
-    }
+    AbstractSingleOperator(int width, int taskTag, int msgTagOffset) : SecureOperator(width, taskTag, msgTagOffset) {}
 };
-
-
-
 
 } // namespace parsec
 

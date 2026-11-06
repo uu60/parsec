@@ -1,21 +1,20 @@
 
 #include "utils/Math.h"
-#include <random>
-#include <string>
-#include <limits>
-#include <iomanip>
 #include <cstring>
-#include <stdexcept>
-#include <openssl/bn.h>
-#include <openssl/evp.h>
-#include <openssl/pem.h>
+#include <iomanip>
+#include <limits>
 #include <openssl/bio.h>
-#include <openssl/sha.h>
+#include <openssl/bn.h>
 #include <openssl/core_names.h>
+#include <openssl/evp.h>
 #include <openssl/param_build.h>
+#include <openssl/pem.h>
+#include <openssl/sha.h>
+#include <random>
+#include <stdexcept>
+#include <string>
 
 namespace parsec {
-
 
 RsaKeyContext::~RsaKeyContext() {
     if (pkey != nullptr) {
@@ -73,9 +72,9 @@ RsaKeyContext& RsaKeyContext::operator=(RsaKeyContext&& other) noexcept {
     return *this;
 }
 
-BIGNUM *bignum(const std::string &str, const bool positive) {
+BIGNUM* bignum(const std::string& str, const bool positive) {
     std::vector<uint8_t> binaryData = std::vector<uint8_t>(str.begin(), str.end());
-    BIGNUM *bn = BN_new();
+    BIGNUM* bn = BN_new();
     BN_bin2bn(binaryData.data(), binaryData.size(), bn);
     if (!positive) {
         BN_set_negative(bn, 1);
@@ -83,17 +82,15 @@ BIGNUM *bignum(const std::string &str, const bool positive) {
     return bn;
 }
 
-BIGNUM *bignum(const std::string &str) {
-    return bignum(str, true);
-}
+BIGNUM* bignum(const std::string& str) { return bignum(str, true); }
 
-std::string string(BIGNUM *bn) {
+std::string string(BIGNUM* bn) {
     int num_bytes = BN_num_bytes(bn);
     std::vector<unsigned char> bin(num_bytes);
     BN_bn2bin(bn, bin.data());
 
     std::string binary_str;
-    for (unsigned char byte: bin) {
+    for (unsigned char byte : bin) {
         for (int i = 7; i >= 0; --i) {
             binary_str.push_back((byte & (1 << i)) ? '1' : '0');
         }
@@ -107,19 +104,19 @@ std::string string(BIGNUM *bn) {
     return result;
 }
 
-BIGNUM *add_bignum_with_int(BIGNUM *add0, int64_t add1) {
-    BIGNUM *bn_add1 = BN_new();
+BIGNUM* add_bignum_with_int(BIGNUM* add0, int64_t add1) {
+    BIGNUM* bn_add1 = BN_new();
     BN_set_word(bn_add1, add1);
-    BIGNUM *result = BN_new();
+    BIGNUM* result = BN_new();
     BN_add(result, add0, bn_add1);
     BN_free(bn_add1);
     return result;
 }
 
-std::string add_or_minus(const std::string &add0, const std::string &add1, bool minus) {
-    BIGNUM *add0N = bignum(add0);
-    BIGNUM *add1N = bignum(add1, !minus);
-    BIGNUM *result = BN_new();
+std::string add_or_minus(const std::string& add0, const std::string& add1, bool minus) {
+    BIGNUM* add0N = bignum(add0);
+    BIGNUM* add1N = bignum(add1, !minus);
+    BIGNUM* result = BN_new();
     BN_add(result, add0N, add1N);
     std::string resultStr = string(result);
     BN_free(add0N);
@@ -128,9 +125,7 @@ std::string add_or_minus(const std::string &add0, const std::string &add1, bool 
     return resultStr;
 }
 
-int64_t Math::randInt() {
-    return randInt(0, INT64_MAX);
-}
+int64_t Math::randInt() { return randInt(0, INT64_MAX); }
 
 thread_local std::mt19937_64 generator(std::random_device{}());
 
@@ -140,9 +135,9 @@ int64_t Math::randInt(int64_t lowest, int64_t highest) {
     return dist(generator);
 }
 
-std::string Math::add(const std::string &add0, int64_t add1) {
-    BIGNUM *add0N = bignum(add0);
-    BIGNUM *sum = add_bignum_with_int(add0N, add1);
+std::string Math::add(const std::string& add0, int64_t add1) {
+    BIGNUM* add0N = bignum(add0);
+    BIGNUM* sum = add_bignum_with_int(add0N, add1);
     std::string result = string(sum);
     BN_free(add0N);
     BN_free(sum);
@@ -161,13 +156,9 @@ std::string Math::randString(int bytes) {
     return std::string(temp.begin(), temp.end());
 }
 
-std::string Math::add(const std::string &add0, const std::string &add1) {
-    return add_or_minus(add0, add1, false);
-}
+std::string Math::add(const std::string& add0, const std::string& add1) { return add_or_minus(add0, add1, false); }
 
-std::string Math::minus(const std::string &add0, const std::string &add1) {
-    return add_or_minus(add0, add1, true);
-}
+std::string Math::minus(const std::string& add0, const std::string& add1) { return add_or_minus(add0, add1, true); }
 
 namespace {
 int64_t fromUnsignedBits(uint64_t value) {
@@ -176,7 +167,7 @@ int64_t fromUnsignedBits(uint64_t value) {
     std::memcpy(&result, &value, sizeof(result));
     return result;
 }
-}
+} // namespace
 
 int64_t Math::ring(int64_t num, int width) {
     if (width <= 0 || width > 64) {
@@ -201,9 +192,7 @@ int64_t Math::ringMultiply(int64_t lhs, int64_t rhs, int width) {
     return ring(fromUnsignedBits(static_cast<uint64_t>(lhs) * static_cast<uint64_t>(rhs)), width);
 }
 
-bool Math::getBit(int64_t v, int i) {
-    return (static_cast<uint64_t>(v) >> i) & 1;
-}
+bool Math::getBit(int64_t v, int i) { return (static_cast<uint64_t>(v) >> i) & 1; }
 
 int64_t Math::changeBit(int64_t v, int i, bool b) {
     const uint64_t bit = uint64_t{1} << i;
@@ -222,7 +211,6 @@ int64_t Math::pow(int64_t base, int64_t exponent) {
     }
     return result;
 }
-
 
 RsaKeyContext Math::loadRsaPublicKey(const std::string& pem_str) {
     BIO* bio = BIO_new_mem_buf(pem_str.data(), static_cast<int>(pem_str.size()));
@@ -340,14 +328,16 @@ std::string Math::sampleZStarN(const RsaKeyContext& ctx) {
             BN_CTX_free(bn_ctx);
             throw std::runtime_error("sampleZStarN: BN_rand_range failed");
         }
-        if (BN_is_zero(x)) continue;
+        if (BN_is_zero(x))
+            continue;
         if (!BN_gcd(gcd, x, ctx.n, bn_ctx)) {
             BN_free(x);
             BN_free(gcd);
             BN_CTX_free(bn_ctx);
             throw std::runtime_error("sampleZStarN: BN_gcd failed");
         }
-        if (BN_is_one(gcd)) valid = true;
+        if (BN_is_one(gcd))
+            valid = true;
     }
 
     std::string result(ctx.nbytes, '\0');
@@ -362,16 +352,15 @@ std::string Math::sampleZStarN(const RsaKeyContext& ctx) {
     return result;
 }
 
-std::string Math::modExp(const std::string& base_bytes, const std::string& exp_bytes,
-                         const RsaKeyContext& ctx) {
+std::string Math::modExp(const std::string& base_bytes, const std::string& exp_bytes, const RsaKeyContext& ctx) {
     if (ctx.n == nullptr) {
         throw std::runtime_error("modExp: null modulus n");
     }
 
     BIGNUM* base = BN_bin2bn(reinterpret_cast<const unsigned char*>(base_bytes.data()),
-                              static_cast<int>(base_bytes.size()), nullptr);
+                             static_cast<int>(base_bytes.size()), nullptr);
     BIGNUM* exp = BN_bin2bn(reinterpret_cast<const unsigned char*>(exp_bytes.data()),
-                             static_cast<int>(exp_bytes.size()), nullptr);
+                            static_cast<int>(exp_bytes.size()), nullptr);
     if (base == nullptr || exp == nullptr) {
         BN_free(base);
         BN_free(exp);
@@ -409,16 +398,15 @@ std::string Math::modExp(const std::string& base_bytes, const std::string& exp_b
     return out;
 }
 
-std::string Math::modMul(const std::string& a_bytes, const std::string& b_bytes,
-                         const RsaKeyContext& ctx) {
+std::string Math::modMul(const std::string& a_bytes, const std::string& b_bytes, const RsaKeyContext& ctx) {
     if (ctx.n == nullptr) {
         throw std::runtime_error("modMul: null modulus n");
     }
 
-    BIGNUM* a = BN_bin2bn(reinterpret_cast<const unsigned char*>(a_bytes.data()),
-                           static_cast<int>(a_bytes.size()), nullptr);
-    BIGNUM* b = BN_bin2bn(reinterpret_cast<const unsigned char*>(b_bytes.data()),
-                           static_cast<int>(b_bytes.size()), nullptr);
+    BIGNUM* a =
+        BN_bin2bn(reinterpret_cast<const unsigned char*>(a_bytes.data()), static_cast<int>(a_bytes.size()), nullptr);
+    BIGNUM* b =
+        BN_bin2bn(reinterpret_cast<const unsigned char*>(b_bytes.data()), static_cast<int>(b_bytes.size()), nullptr);
     if (a == nullptr || b == nullptr) {
         BN_free(a);
         BN_free(b);
@@ -461,8 +449,8 @@ std::string Math::modInverse(const std::string& a_bytes, const RsaKeyContext& ct
         throw std::runtime_error("modInverse: null modulus n");
     }
 
-    BIGNUM* a = BN_bin2bn(reinterpret_cast<const unsigned char*>(a_bytes.data()),
-                           static_cast<int>(a_bytes.size()), nullptr);
+    BIGNUM* a =
+        BN_bin2bn(reinterpret_cast<const unsigned char*>(a_bytes.data()), static_cast<int>(a_bytes.size()), nullptr);
     if (a == nullptr) {
         throw std::runtime_error("modInverse: BN_bin2bn failed");
     }
@@ -500,8 +488,8 @@ std::string Math::rsaDecrypt(const std::string& v_bytes, const RsaKeyContext& ct
         throw std::runtime_error("rsaDecrypt: missing n or d in context");
     }
 
-    BIGNUM* v = BN_bin2bn(reinterpret_cast<const unsigned char*>(v_bytes.data()),
-                           static_cast<int>(v_bytes.size()), nullptr);
+    BIGNUM* v =
+        BN_bin2bn(reinterpret_cast<const unsigned char*>(v_bytes.data()), static_cast<int>(v_bytes.size()), nullptr);
     if (v == nullptr) {
         throw std::runtime_error("rsaDecrypt: BN_bin2bn failed");
     }
@@ -536,8 +524,7 @@ std::string Math::rsaDecrypt(const std::string& v_bytes, const RsaKeyContext& ct
 
 uint64_t Math::kdfSha256To8Bytes(const std::string& input) {
     unsigned char digest[SHA256_DIGEST_LENGTH];
-    if (SHA256(reinterpret_cast<const unsigned char*>(input.data()),
-               input.size(), digest) == nullptr) {
+    if (SHA256(reinterpret_cast<const unsigned char*>(input.data()), input.size(), digest) == nullptr) {
         throw std::runtime_error("kdfSha256To8Bytes: SHA256 failed");
     }
     uint64_t result = 0;
@@ -569,6 +556,5 @@ std::string Math::getExponentD(const RsaKeyContext& ctx) {
     }
     return out;
 }
-
 
 } // namespace parsec

@@ -1,25 +1,23 @@
 
 #ifndef BITWISEBMTBATCHGENERATOR_H
 #define BITWISEBMTBATCHGENERATOR_H
-#include "./AbstractBmtBatchGenerator.h"
 #include "../base/AbstractBatchOperator.h"
 #include "../intermediate/item/BitwiseBmt.h"
+#include "./AbstractBmtBatchGenerator.h"
 
 namespace parsec {
 
-
-
 class BitwiseBmtBatchGenerator : public AbstractBmtBatchGenerator<BitwiseBmt> {
-public:
+  public:
     inline static std::atomic_int64_t _totalTime = 0;
     int64_t _totalBits{};
     int _bc{};
 
     BitwiseBmtBatchGenerator(int count, int width, int taskTag, int msgTagOffset);
 
-    BitwiseBmtBatchGenerator *execute() override;
+    BitwiseBmtBatchGenerator* execute() override;
 
-private:
+  private:
     void generateRandomAB();
 
     void computeMix(int sender);
@@ -28,14 +26,11 @@ private:
 
     [[nodiscard]] int64_t corr(int bmtIdx, int64_t x) const;
 
-public:
-    SecureOperator * reconstruct(int clientRank) override;
+  public:
+    SecureOperator* reconstruct(int clientRank) override;
 
     static int tagStride();
 };
-
-
-
 
 } // namespace parsec
 

@@ -2,20 +2,20 @@
 #include "secret/Secrets.h"
 #include "utils/System.h"
 
+#include "basis/Table.h"
 #include "basis/View.h"
 #include "basis/Views.h"
-#include "basis/Table.h"
 #include "conf/DbConf.h"
 #include "utils/Log.h"
-#include "utils/StringUtils.h"
 #include "utils/Math.h"
+#include "utils/StringUtils.h"
 
 #include "compute/batch/bool/BoolToArithBatchOperator.h"
 
-#include <string>
-#include <vector>
 #include <algorithm>
 #include <cstdint>
+#include <string>
+#include <vector>
 
 #include "compute/batch/arith/ArithMultiplyBatchOperator.h"
 
@@ -27,32 +27,20 @@ static int64_t DISCOUNT_MIN = Math::randInt();
 static int64_t DISCOUNT_MAX = Math::randInt();
 static int64_t QUANTITY_TH = Math::randInt();
 
-void generateTestData(int lineitem_rows,
-                      std::vector<int64_t> &l_shipdate_data,
-                      std::vector<int64_t> &l_discount_data,
-                      std::vector<int64_t> &l_quantity_data,
-                      std::vector<int64_t> &l_extendedprice_data,
-                      std::vector<int64_t> &l_revenue_data);
+void generateTestData(int lineitem_rows, std::vector<int64_t>& l_shipdate_data, std::vector<int64_t>& l_discount_data,
+                      std::vector<int64_t>& l_quantity_data, std::vector<int64_t>& l_extendedprice_data,
+                      std::vector<int64_t>& l_revenue_data);
 
-View createLineitemTable(
-    std::vector<int64_t> &l_shipdate_b,
-    std::vector<int64_t> &l_discount_b,
-    std::vector<int64_t> &l_quantity_b,
-    std::vector<int64_t> &l_extendedprice_b,
-    std::vector<int64_t> &l_revenue_b);
+View createLineitemTable(std::vector<int64_t>& l_shipdate_b, std::vector<int64_t>& l_discount_b,
+                         std::vector<int64_t>& l_quantity_b, std::vector<int64_t>& l_extendedprice_b,
+                         std::vector<int64_t>& l_revenue_b);
 
-View filterAllConditions(
-    View v,
-    int64_t start_date_b,
-    int64_t end_date_b,
-    int64_t discount_min_b,
-    int64_t discount_max_b,
-    int64_t quantity_th_b,
-    int tid);
+View filterAllConditions(View v, int64_t start_date_b, int64_t end_date_b, int64_t discount_min_b,
+                         int64_t discount_max_b, int64_t quantity_th_b, int tid);
 
-int64_t calculateRevenue(View &filtered_view, int tid);
+int64_t calculateRevenue(View& filtered_view, int tid);
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     System::init(argc, argv);
     DbConf::init();
     const int tid = (System::nextTask() << (32 - Conf::TASK_TAG_BITS));
@@ -78,7 +66,6 @@ int main(int argc, char *argv[]) {
             l_revenue_p.push_back(l_extendedprice_p[i] * l_discount_p[i]);
         }
     }
-
 
     auto l_shipdate_b = Secrets::boolShare(l_shipdate_p, 2, 64, tid);
     auto l_discount_b = Secrets::boolShare(l_discount_p, 2, 64, tid);
@@ -142,12 +129,9 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-void generateTestData(int lineitem_rows,
-                      std::vector<int64_t> &l_shipdate_data,
-                      std::vector<int64_t> &l_discount_data,
-                      std::vector<int64_t> &l_quantity_data,
-                      std::vector<int64_t> &l_extendedprice_data,
-                      std::vector<int64_t> &l_revenue_data) {
+void generateTestData(int lineitem_rows, std::vector<int64_t>& l_shipdate_data, std::vector<int64_t>& l_discount_data,
+                      std::vector<int64_t>& l_quantity_data, std::vector<int64_t>& l_extendedprice_data,
+                      std::vector<int64_t>& l_revenue_data) {
     if (Comm::rank() == 2) {
         l_shipdate_data.reserve(lineitem_rows);
         l_discount_data.reserve(lineitem_rows);
@@ -165,76 +149,51 @@ void generateTestData(int lineitem_rows,
     }
 }
 
-View createLineitemTable(
-    std::vector<int64_t> &l_shipdate_b,
-    std::vector<int64_t> &l_discount_b,
-    std::vector<int64_t> &l_quantity_b,
-    std::vector<int64_t> &l_extendedprice_b,
-    std::vector<int64_t> &l_revenue_b) {
+View createLineitemTable(std::vector<int64_t>& l_shipdate_b, std::vector<int64_t>& l_discount_b,
+                         std::vector<int64_t>& l_quantity_b, std::vector<int64_t>& l_extendedprice_b,
+                         std::vector<int64_t>& l_revenue_b) {
     std::string tname = "lineitem";
-    std::vector<std::string> fields = {
-        "l_shipdate", "l_discount", "l_quantity", "l_extendedprice", "l_revenue"
-    };
+    std::vector<std::string> fields = {"l_shipdate", "l_discount", "l_quantity", "l_extendedprice", "l_revenue"};
     std::vector<int> widths = {64, 64, 64, 64, 64};
     Table t(tname, fields, widths, "");
 
     const size_t n = l_shipdate_b.size();
     for (size_t i = 0; i < n; ++i) {
-        t.insert({
-            l_shipdate_b[i], l_discount_b[i], l_quantity_b[i],
-            l_extendedprice_b[i], l_revenue_b[i]
-        });
+        t.insert({l_shipdate_b[i], l_discount_b[i], l_quantity_b[i], l_extendedprice_b[i], l_revenue_b[i]});
     }
     return Views::selectAll(t);
 }
 
-View filterAllConditions(
-    View v,
-    int64_t start_date_b,
-    int64_t end_date_b,
-    int64_t discount_min_b,
-    int64_t discount_max_b,
-    int64_t quantity_th_b,
-    int tid) {
-    std::vector<std::string> cols = {
-        "l_shipdate", "l_shipdate",
-        "l_discount", "l_discount",
-        "l_quantity"
-    };
-    std::vector<View::ComparatorType> cmps = {
-        View::GREATER_EQ,
-        View::LESS,
-        View::GREATER_EQ,
-        View::LESS_EQ,
-        View::LESS
-    };
-    std::vector<int64_t> consts = {
-        start_date_b, end_date_b, discount_min_b, discount_max_b, quantity_th_b
-    };
+View filterAllConditions(View v, int64_t start_date_b, int64_t end_date_b, int64_t discount_min_b,
+                         int64_t discount_max_b, int64_t quantity_th_b, int tid) {
+    std::vector<std::string> cols = {"l_shipdate", "l_shipdate", "l_discount", "l_discount", "l_quantity"};
+    std::vector<View::ComparatorType> cmps = {View::GREATER_EQ, View::LESS, View::GREATER_EQ, View::LESS_EQ,
+                                              View::LESS};
+    std::vector<int64_t> consts = {start_date_b, end_date_b, discount_min_b, discount_max_b, quantity_th_b};
 
     v.filterAndConditions(cols, cmps, consts, false, tid);
     return v;
 }
 
-int64_t calculateRevenue(View &filtered_view, int tid) {
-    if (filtered_view.rowNum() == 0) return 0;
+int64_t calculateRevenue(View& filtered_view, int tid) {
+    if (filtered_view.rowNum() == 0)
+        return 0;
 
-    auto &rev_b = filtered_view._dataCols[filtered_view.colIndex("l_revenue")];
-    auto &valid_b = filtered_view._dataCols[filtered_view.colNum() + View::VALID_COL_OFFSET];
+    auto& rev_b = filtered_view._dataCols[filtered_view.colIndex("l_revenue")];
+    auto& valid_b = filtered_view._dataCols[filtered_view.colNum() + View::VALID_COL_OFFSET];
 
     const int t0 = tid;
     const int t1 = tid + BoolToArithBatchOperator::tagStride();
 
-    auto rev_a = BoolToArithBatchOperator(&rev_b, 64, 0, t0,
-                                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-    auto valid_a = BoolToArithBatchOperator(&valid_b, 64, 0, t1,
-                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+    auto rev_a = BoolToArithBatchOperator(&rev_b, 64, 0, t0, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+    auto valid_a = BoolToArithBatchOperator(&valid_b, 64, 0, t1, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
     const int t2 = t1 + ArithMultiplyBatchOperator::tagStride(64);
-    auto masked = ArithMultiplyBatchOperator(&rev_a, &valid_a, 64, 0, t2,
-                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+    auto masked =
+        ArithMultiplyBatchOperator(&rev_a, &valid_a, 64, 0, t2, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
     int64_t acc = 0;
-    for (auto x: masked) acc += x;
+    for (auto x : masked)
+        acc += x;
     return acc;
 }

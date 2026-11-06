@@ -1,38 +1,35 @@
 
 #ifndef BOOLLESSTHANEXECUTOR_H
 #define BOOLLESSTHANEXECUTOR_H
-#include "./BoolOperator.h"
 #include "../../../intermediate/item/BitwiseBmt.h"
+#include "./BoolOperator.h"
 
 namespace parsec {
 
-
 class BoolLessOperator : public BoolOperator {
-private:
-    std::vector<BitwiseBmt> *_bmts{};
+  private:
+    std::vector<BitwiseBmt>* _bmts{};
 
-public:
+  public:
     inline static std::atomic_int64_t _totalTime = 0;
 
-public:
-    BoolLessOperator(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset, int clientRank) : BoolOperator(y, x, l, taskTag, msgTagOffset, clientRank) {};
+  public:
+    BoolLessOperator(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset, int clientRank)
+        : BoolOperator(y, x, l, taskTag, msgTagOffset, clientRank) {};
 
-    BoolLessOperator *execute() override;
+    BoolLessOperator* execute() override;
 
-    BoolLessOperator *setBmts(std::vector<BitwiseBmt> *bmts);
+    BoolLessOperator* setBmts(std::vector<BitwiseBmt>* bmts);
 
     static int tagStride(int width);
 
     static int bmtCount(int width);
 
-private:
+  private:
     int64_t shiftGreater(int64_t in, int r) const;
 
-    bool prepareBmts(std::vector<BitwiseBmt> &bmts);
+    bool prepareBmts(std::vector<BitwiseBmt>& bmts);
 };
-
-
-
 
 } // namespace parsec
 

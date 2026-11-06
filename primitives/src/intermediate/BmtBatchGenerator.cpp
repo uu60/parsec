@@ -8,13 +8,11 @@
 
 namespace parsec {
 
-
-BmtBatchGenerator::BmtBatchGenerator(int count, int l, int taskTag, int msgTagOffset) : AbstractBmtBatchGenerator(
-    count, l, taskTag, msgTagOffset) {
-}
+BmtBatchGenerator::BmtBatchGenerator(int count, int l, int taskTag, int msgTagOffset)
+    : AbstractBmtBatchGenerator(count, l, taskTag, msgTagOffset) {}
 
 void BmtBatchGenerator::generateRandomAB() {
-    for (auto &b: _bmts) {
+    for (auto& b : _bmts) {
         b._a = ring(Math::randInt());
         b._b = ring(Math::randInt());
     }
@@ -25,13 +23,9 @@ int64_t BmtBatchGenerator::corr(int bmtIdx, int round, int64_t x) const {
     return Math::ringSubtract(Math::ringMultiply(_bmts[bmtIdx]._a, factor, _width), x, _width);
 }
 
-BmtBatchGenerator *BmtBatchGenerator::reconstruct(int clientRank) {
-    throw std::runtime_error("Not support.");
-}
+BmtBatchGenerator* BmtBatchGenerator::reconstruct(int clientRank) { throw std::runtime_error("Not support."); }
 
-int BmtBatchGenerator::tagStride() {
-    return IknpOtBatchOperator::tagStride() * 2;
-}
+int BmtBatchGenerator::tagStride() { return IknpOtBatchOperator::tagStride() * 2; }
 
 void BmtBatchGenerator::computeMix(int sender) {
     bool isSender = Comm::rank() == sender;
@@ -60,8 +54,9 @@ void BmtBatchGenerator::computeMix(int sender) {
     }
 
     auto results = IknpOtBatchOperator(sender, &ss0, &ss1, &choices, _width, _taskTag,
-                                       _currentMsgTag + sender * IknpOtBatchOperator::tagStride()).execute()->
-            _results;
+                                       _currentMsgTag + sender * IknpOtBatchOperator::tagStride())
+                       .execute()
+                       ->_results;
 
     std::vector<int64_t> sums;
     sums.reserve(bmtCount);
@@ -87,7 +82,7 @@ void BmtBatchGenerator::computeMix(int sender) {
         }
     }
 
-    std::vector<int64_t> *mix = sender == 0 ? &_usi : &_vsi;
+    std::vector<int64_t>* mix = sender == 0 ? &_usi : &_vsi;
     mix->reserve(bmtCount);
     for (int i = 0; i < bmtCount; i++) {
         mix->push_back(sums[i]);
@@ -101,7 +96,7 @@ void BmtBatchGenerator::computeC() {
     }
 }
 
-BmtBatchGenerator *BmtBatchGenerator::execute() {
+BmtBatchGenerator* BmtBatchGenerator::execute() {
     _currentMsgTag = _startMsgTag;
 
     if (Comm::isClient()) {
@@ -110,9 +105,7 @@ BmtBatchGenerator *BmtBatchGenerator::execute() {
 
     generateRandomAB();
     if (Conf::ENABLE_INTRA_OPERATOR_PARALLELISM) {
-        auto f = ThreadPoolSupport::submit([&] {
-            computeMix(0);
-        });
+        auto f = ThreadPoolSupport::submit([&] { computeMix(0); });
         computeMix(1);
         f.wait();
     } else {

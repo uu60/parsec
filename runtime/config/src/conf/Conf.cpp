@@ -7,9 +7,8 @@
 
 namespace parsec {
 
-
 namespace {
-Conf::BmtT parseBmtMethod(const std::string &value) {
+Conf::BmtT parseBmtMethod(const std::string& value) {
     if (value == "bmt_background") {
         return Conf::BMT_BACKGROUND;
     }
@@ -25,7 +24,7 @@ Conf::BmtT parseBmtMethod(const std::string &value) {
     throw std::runtime_error("Unknown bmt_method value.");
 }
 
-Conf::QueueT parseQueueType(const std::string &value) {
+Conf::QueueT parseQueueType(const std::string& value) {
     if (value == "cas_queue" || value == "lock_free_queue") {
         return Conf::LOCK_FREE_QUEUE;
     }
@@ -38,7 +37,7 @@ Conf::QueueT parseQueueType(const std::string &value) {
     throw std::runtime_error("Unknown bmt_queue_type value.");
 }
 
-int parseThreadPool(const std::string &value) {
+int parseThreadPool(const std::string& value) {
     if (value == "ctpl_pool") {
         return Conf::CTPL_POOL;
     }
@@ -56,7 +55,7 @@ int parseThreadPool(const std::string &value) {
     throw std::runtime_error("Unknown thread_pool value.");
 }
 
-Conf::CommT parseCommType(const std::string &value) {
+Conf::CommT parseCommType(const std::string& value) {
     if (value == "mpi") {
         return Conf::MPI;
     }
@@ -67,40 +66,39 @@ Conf::CommT parseCommType(const std::string &value) {
 }
 
 void printHelp() {
-    std::cout
-            << "Allowed options:\n"
-            << "  --help\n"
-            << "  --bmt_method=bmt_background|bmt_jit|bmt_fixed|bmt_pipeline\n"
-            << "  --bmt_pre_gen_seconds=N\n"
-            << "  --max_bmts=N\n"
-            << "  --bmt_usage_limit=N\n"
-            << "  --bmt_queue_type=cas_queue|lock_free_queue|lock_queue|spsc_queue\n"
-            << "  --bmt_queue_num=N\n"
-            << "  --disable_arith=true|false\n"
-            << "  --bmt_gen_batch_size=N\n"
-            << "  --task_tag_bits=N\n"
-            << "  --disable_multi_thread=true|false\n"
-            << "  --enable_intra_operator_parallelism=true|false\n"
-            << "  --local_threads=N\n"
-            << "  --thread_pool=async|ctpl_pool|tbb_pool\n"
-            << "  --comm_type=mpi|tcp\n"
-            << "  --tcp_rank=N --tcp_size=N --tcp_host=IP --tcp_base_port=PORT\n"
-            << "  --batch_size=N\n"
-            << "  --enable_transfer_compression=true|false\n"
-            << "  --enable_redundant_ot=true|false\n"
-            << "  --enable_class_wise_timing=true|false\n"
-            << "  --enable_simd=true|false\n"
-            << "  --enable_iknp_multithread=true|false\n"
-            << "DB options:\n"
-            << "  --enable_hash_join=true|false\n"
-            << "  --shuffle_bucket_num=N\n"
-            << "  --baseline_mode=true|false\n"
-            << "  --no_compaction=true|false\n"
-            << "  --disable_precise_compaction=true|false\n";
+    std::cout << "Allowed options:\n"
+              << "  --help\n"
+              << "  --bmt_method=bmt_background|bmt_jit|bmt_fixed|bmt_pipeline\n"
+              << "  --bmt_pre_gen_seconds=N\n"
+              << "  --max_bmts=N\n"
+              << "  --bmt_usage_limit=N\n"
+              << "  --bmt_queue_type=cas_queue|lock_free_queue|lock_queue|spsc_queue\n"
+              << "  --bmt_queue_num=N\n"
+              << "  --disable_arith=true|false\n"
+              << "  --bmt_gen_batch_size=N\n"
+              << "  --task_tag_bits=N\n"
+              << "  --disable_multi_thread=true|false\n"
+              << "  --enable_intra_operator_parallelism=true|false\n"
+              << "  --local_threads=N\n"
+              << "  --thread_pool=async|ctpl_pool|tbb_pool\n"
+              << "  --comm_type=mpi|tcp\n"
+              << "  --tcp_rank=N --tcp_size=N --tcp_host=IP --tcp_base_port=PORT\n"
+              << "  --batch_size=N\n"
+              << "  --enable_transfer_compression=true|false\n"
+              << "  --enable_redundant_ot=true|false\n"
+              << "  --enable_class_wise_timing=true|false\n"
+              << "  --enable_simd=true|false\n"
+              << "  --enable_iknp_multithread=true|false\n"
+              << "DB options:\n"
+              << "  --enable_hash_join=true|false\n"
+              << "  --shuffle_bucket_num=N\n"
+              << "  --baseline_mode=true|false\n"
+              << "  --no_compaction=true|false\n"
+              << "  --disable_precise_compaction=true|false\n";
 }
-}
+} // namespace
 
-void Conf::init(int argc, char **argv) {
+void Conf::init(int argc, char** argv) {
     try {
         AppConfig::init(argc, argv);
         _userParams = AppConfig::params();
@@ -125,7 +123,7 @@ void Conf::init(int argc, char **argv) {
         TASK_TAG_BITS = AppConfig::getInt("task_tag_bits", TASK_TAG_BITS);
         DISABLE_MULTI_THREAD = AppConfig::getBool("disable_multi_thread", DISABLE_MULTI_THREAD);
         ENABLE_INTRA_OPERATOR_PARALLELISM =
-                AppConfig::getBool("enable_intra_operator_parallelism", ENABLE_INTRA_OPERATOR_PARALLELISM);
+            AppConfig::getBool("enable_intra_operator_parallelism", ENABLE_INTRA_OPERATOR_PARALLELISM);
         LOCAL_THREADS = AppConfig::getInt("local_threads", LOCAL_THREADS);
         if (AppConfig::has("thread_pool")) {
             THREAD_POOL_TYPE = parseThreadPool(AppConfig::getString("thread_pool", ""));
@@ -134,13 +132,12 @@ void Conf::init(int argc, char **argv) {
             COMM_TYPE = parseCommType(AppConfig::getString("comm_type", ""));
         }
         BATCH_SIZE = AppConfig::getInt("batch_size", BATCH_SIZE);
-        ENABLE_TRANSFER_COMPRESSION =
-                AppConfig::getBool("enable_transfer_compression", ENABLE_TRANSFER_COMPRESSION);
+        ENABLE_TRANSFER_COMPRESSION = AppConfig::getBool("enable_transfer_compression", ENABLE_TRANSFER_COMPRESSION);
         ENABLE_REDUNDANT_OT = AppConfig::getBool("enable_redundant_ot", ENABLE_REDUNDANT_OT);
         ENABLE_CLASS_WISE_TIMING = AppConfig::getBool("enable_class_wise_timing", ENABLE_CLASS_WISE_TIMING);
         ENABLE_SIMD = AppConfig::getBool("enable_simd", ENABLE_SIMD);
         ENABLE_IKNP_MULTITHREAD = AppConfig::getBool("enable_iknp_multithread", ENABLE_IKNP_MULTITHREAD);
-    } catch (const std::exception &ex) {
+    } catch (const std::exception& ex) {
         std::cerr << "Error: " << ex.what() << std::endl;
     }
 }

@@ -1,15 +1,14 @@
 
 #include "compute/single/bool/BoolEqualOperator.h"
 
-#include "compute/single/bool/BoolAndOperator.h"
 #include "comm/Comm.h"
+#include "compute/single/bool/BoolAndOperator.h"
 #include "intermediate/IntermediateDataSupport.h"
 #include "utils/Math.h"
 
 namespace parsec {
 
-
-BoolEqualOperator *BoolEqualOperator::execute() {
+BoolEqualOperator* BoolEqualOperator::execute() {
     if (Comm::isServer()) {
         int64_t diff = ring(_xi ^ _yi);
         if (Comm::rank() == 0) {
@@ -30,7 +29,7 @@ BoolEqualOperator *BoolEqualOperator::execute() {
 
             for (size_t i = 0; i + 1 < values.size(); i += 2) {
                 BitwiseBmt bmt;
-                BitwiseBmt *bmtPtr = nullptr;
+                BitwiseBmt* bmtPtr = nullptr;
                 if (_bmt != nullptr && !consumedExternalBmt) {
                     bmt = *_bmt;
                     bmtPtr = &bmt;
@@ -41,9 +40,9 @@ BoolEqualOperator *BoolEqualOperator::execute() {
                 }
 
                 auto zi = BoolAndOperator(values[i], values[i + 1], 1, _taskTag, msgTag, NO_CLIENT_COMPUTE)
-                        .setBmt(bmtPtr)
-                        ->execute()
-                        ->_zi;
+                              .setBmt(bmtPtr)
+                              ->execute()
+                              ->_zi;
                 next.push_back(zi & 1);
                 msgTag += BoolAndOperator::tagStride(1);
             }
@@ -59,7 +58,7 @@ BoolEqualOperator *BoolEqualOperator::execute() {
     return this;
 }
 
-BoolEqualOperator * BoolEqualOperator::setBmt(BitwiseBmt *bmt) {
+BoolEqualOperator* BoolEqualOperator::setBmt(BitwiseBmt* bmt) {
     _bmt = bmt;
     return this;
 }

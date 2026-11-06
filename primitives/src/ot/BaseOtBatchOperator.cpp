@@ -1,24 +1,21 @@
 #include "ot/BaseOtBatchOperator.h"
 
-#include <string>
-#include <cstring>
-#include <stdexcept>
 #include "comm/Comm.h"
+#include "conf/Conf.h"
 #include "intermediate/IntermediateDataSupport.h"
 #include "utils/Math.h"
-#include "conf/Conf.h"
 #include "utils/System.h"
+#include <cstring>
+#include <stdexcept>
+#include <string>
 
 namespace parsec {
 
+BaseOtBatchOperator::BaseOtBatchOperator(int sender, std::vector<int64_t>* ms0, std::vector<int64_t>* ms1,
+                                         std::vector<int>* choices, int width, int taskTag, int msgTagOffset)
+    : AbstractOtBatchOperator(sender, ms0, ms1, choices, width, taskTag, msgTagOffset) {}
 
-
-BaseOtBatchOperator::BaseOtBatchOperator(int sender, std::vector<int64_t> *ms0, std::vector<int64_t> *ms1,
-                                         std::vector<int> *choices, int width, int taskTag, int msgTagOffset)
-    : AbstractOtBatchOperator(sender, ms0, ms1, choices, width, taskTag, msgTagOffset) {
-}
-
-BaseOtBatchOperator *BaseOtBatchOperator::execute() {
+BaseOtBatchOperator* BaseOtBatchOperator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isClient()) {
         return this;
@@ -115,7 +112,6 @@ void BaseOtBatchOperator::generateAndShareRandoms() {
         }
     }
 }
-
 
 void BaseOtBatchOperator::process() {
     int size = _isSender ? static_cast<int>(_ms0->size()) : static_cast<int>(_choices->size());
@@ -260,8 +256,6 @@ void BaseOtBatchOperator::process() {
     }
 }
 
-int BaseOtBatchOperator::tagStride() {
-    return 1;
-}
+int BaseOtBatchOperator::tagStride() { return 1; }
 
 } // namespace parsec

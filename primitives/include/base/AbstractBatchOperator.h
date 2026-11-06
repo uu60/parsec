@@ -5,21 +5,17 @@
 
 namespace parsec {
 
-
-
 class AbstractBatchOperator : public SecureOperator {
-public:
+  public:
     std::vector<int64_t> _results{};
-    std::vector<int64_t> *_xis{};
-    std::vector<int64_t> *_yis{};
+    std::vector<int64_t>* _xis{};
+    std::vector<int64_t>* _yis{};
     std::vector<int64_t> _zis{};
 
     bool _dx{};
     bool _dy{};
 
-    AbstractBatchOperator(int width, int taskTag, int msgTagOffset)
-        : SecureOperator(width, taskTag, msgTagOffset) {
-    }
+    AbstractBatchOperator(int width, int taskTag, int msgTagOffset) : SecureOperator(width, taskTag, msgTagOffset) {}
 
     ~AbstractBatchOperator() override {
         if (_dx) {
@@ -30,9 +26,6 @@ public:
         }
     }
 };
-
-
-
 
 } // namespace parsec
 
