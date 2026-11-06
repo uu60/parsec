@@ -178,7 +178,7 @@ TEST(MathRandom, ThreadsDrawIndependentValues) {
 namespace {
 
 TEST(MathKdf, SixteenByteKdfExtendsEightByteKdf) {
-    for (const std::string input : {std::string(), std::string("abc"), std::string(300, 'x')}) {
+    for (const std::string& input : {std::string(), std::string("abc"), std::string(300, 'x')}) {
         const auto wide = Math::kdfSha256To16Bytes(input);
         EXPECT_EQ(wide[0], Math::kdfSha256To8Bytes(input));
         EXPECT_NE(wide[0], wide[1]);
