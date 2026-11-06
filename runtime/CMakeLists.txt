@@ -68,12 +68,22 @@ parsec_add_runtime_object(parsec_utils
         LIBS OpenSSL::SSL OpenSSL::Crypto)
 
 add_library(parsec_parallel INTERFACE)
+set_target_properties(parsec_parallel PROPERTIES EXPORT_NAME parallel)
 target_compile_features(parsec_parallel INTERFACE cxx_std_17)
-target_include_directories(parsec_parallel INTERFACE ${PARSEC_RUNTIME_INCLUDE_DIRS})
+parsec_build_include_dirs(PARSEC_RUNTIME_BUILD_INCLUDE_DIRS ${PARSEC_RUNTIME_INCLUDE_DIRS})
+target_include_directories(parsec_parallel INTERFACE
+        ${PARSEC_RUNTIME_BUILD_INCLUDE_DIRS}
+        $<INSTALL_INTERFACE:${PARSEC_INSTALL_INCLUDEDIR}>)
 target_link_libraries(parsec_parallel INTERFACE Boost::boost)
 if (TBB_FOUND)
     target_link_libraries(parsec_parallel INTERFACE ${TBB_LIBRARIES})
+    # Public headers change with this flag, so consumers must see it too.
+    target_compile_definitions(parsec_parallel INTERFACE PARSEC_HAS_TBB)
 endif ()
+install(TARGETS parsec_parallel EXPORT parsecTargets)
+foreach (dir ${PARSEC_RUNTIME_INCLUDE_DIRS})
+    install(DIRECTORY "${dir}/" DESTINATION ${PARSEC_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h")
+endforeach ()
 
 set(PARSEC_RUNTIME_INCLUDE_DIRS ${PARSEC_RUNTIME_INCLUDE_DIRS} PARENT_SCOPE)
 set(PARSEC_RUNTIME_OBJECT_MODULES

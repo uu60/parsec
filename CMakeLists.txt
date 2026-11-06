@@ -92,6 +92,19 @@ find_package(OpenSSL REQUIRED)
      message(STATUS "TBB not found - TBB thread pool will be disabled")
  endif ()
 
+include(GNUInstallDirs)
+# Installed headers keep their in-tree layout (for example `utils/Math.h`) under include/parsec.
+set(PARSEC_INSTALL_INCLUDEDIR "${CMAKE_INSTALL_INCLUDEDIR}/parsec")
+
+# Wrap source-tree include directories so they are used while building but not exported to consumers.
+function(parsec_build_include_dirs out)
+    set(result "")
+    foreach (dir ${ARGN})
+        list(APPEND result "$<BUILD_INTERFACE:${dir}>")
+    endforeach ()
+    set(${out} ${result} PARENT_SCOPE)
+endfunction()
+
 add_subdirectory(runtime)
 add_subdirectory(primitives)
 
@@ -104,3 +117,21 @@ if (PARSEC_BUILD_DATABASE)
         add_subdirectory(experiments/database)
     endif ()
 endif ()
+
+# Package export: `find_package(parsec)` provides parsec::parsec and, when built, parsec::db.
+include(CMakePackageConfigHelpers)
+set(PARSEC_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/parsec")
+install(EXPORT parsecTargets
+        NAMESPACE parsec::
+        DESTINATION ${PARSEC_INSTALL_CMAKEDIR})
+configure_package_config_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/parsecConfig.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/parsecConfig.cmake"
+        INSTALL_DESTINATION ${PARSEC_INSTALL_CMAKEDIR})
+write_basic_package_version_file(
+        "${CMAKE_CURRENT_BINARY_DIR}/parsecConfigVersion.cmake"
+        COMPATIBILITY SameMinorVersion)
+install(FILES
+        "${CMAKE_CURRENT_BINARY_DIR}/parsecConfig.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/parsecConfigVersion.cmake"
+        DESTINATION ${PARSEC_INSTALL_CMAKEDIR})

@@ -85,7 +85,7 @@ db/              Secure relational data structures and algorithms
 benchmarks/      Database performance benchmarks
 experiments/     Reproducible research experiments and correctness scripts
 tools/           Development and utility scripts, including tools/run-local.sh
-examples/        Templates for MPI hostfiles and rankfiles
+examples/        MPI hostfile/rankfile templates and a find_package example project
 build.sh         Convenience build script
 ```
 
@@ -142,6 +142,26 @@ cmake --build build
 
 For repeatable configurations, the repository also provides `dev`, `release`, and `ci` CMake presets. The `ci`
 preset builds the core library and registered correctness tests without the database components.
+
+### Use from another CMake project
+
+Install Parsec and import it with `find_package`. Headers are installed under `include/parsec` with their in-tree
+layout, so includes such as `"utils/Math.h"` work unchanged:
+
+```bash
+cmake --preset release
+cmake --build --preset release
+cmake --install build/release --prefix /opt/parsec
+```
+
+```cmake
+find_package(parsec 0.1 REQUIRED)
+target_link_libraries(my_app PRIVATE parsec::parsec)  # MPC primitives and runtime
+target_link_libraries(my_app PRIVATE parsec::db)      # plus the secure database core
+```
+
+A complete example is in [examples/find-package](examples/find-package). Pass `-DCMAKE_PREFIX_PATH=/opt/parsec` when
+configuring it.
 
 ## Run
 

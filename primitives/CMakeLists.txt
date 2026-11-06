@@ -61,8 +61,12 @@ set(PARSEC_PRIMITIVE_OBJECT_MODULES
         parsec_system)
 
 add_library(parsec STATIC)
+add_library(parsec::parsec ALIAS parsec)
 target_compile_features(parsec PUBLIC cxx_std_17)
-target_include_directories(parsec PUBLIC ${PARSEC_ALL_INCLUDE_DIRS})
+parsec_build_include_dirs(PARSEC_ALL_BUILD_INCLUDE_DIRS ${PARSEC_ALL_INCLUDE_DIRS})
+target_include_directories(parsec PUBLIC
+        ${PARSEC_ALL_BUILD_INCLUDE_DIRS}
+        $<INSTALL_INTERFACE:${PARSEC_INSTALL_INCLUDEDIR}>)
 
 foreach (module ${PARSEC_RUNTIME_OBJECT_MODULES} ${PARSEC_PRIMITIVE_OBJECT_MODULES})
     target_sources(parsec PRIVATE $<TARGET_OBJECTS:${module}>)
@@ -72,6 +76,10 @@ target_link_libraries(parsec PUBLIC ${PARSEC_RUNTIME_LINK_LIBS})
 if (TBB_FOUND)
     target_link_libraries(parsec PUBLIC ${TBB_LIBRARIES})
 endif ()
+
+install(TARGETS parsec EXPORT parsecTargets)
+install(DIRECTORY "${PARSEC_PRIMITIVES_INCLUDE_DIR}/" DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}
+        FILES_MATCHING PATTERN "*.h")
 
 if (PARSEC_BUILD_BENCHMARKS OR PARSEC_BUILD_TESTS)
     add_subdirectory(benchmark)
