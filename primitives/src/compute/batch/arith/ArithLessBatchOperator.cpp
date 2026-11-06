@@ -24,7 +24,7 @@ ArithLessBatchOperator *ArithLessBatchOperator::execute() {
         throw std::runtime_error("ArithLessBatchOperator: Temporarily only support BMT JIT or FIXED generation for experiment.");
     }
 
-    int64_t start;
+    int64_t start = 0;
     if (Conf::ENABLE_CLASS_WISE_TIMING) {
         start = System::currentTimeMillis();
     }

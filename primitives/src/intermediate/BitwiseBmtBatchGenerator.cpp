@@ -22,7 +22,7 @@ BitwiseBmtBatchGenerator *BitwiseBmtBatchGenerator::execute() {
         return this;
     }
 
-    int64_t start;
+    int64_t start = 0;
     if (Conf::ENABLE_CLASS_WISE_TIMING) {
         start = System::currentTimeMillis();
     }
