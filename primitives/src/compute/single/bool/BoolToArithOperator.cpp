@@ -36,7 +36,7 @@ BoolToArithOperator* BoolToArithOperator::execute() {
     for (int i = 0; i < _width; i++) {
         int xb = static_cast<int>(Math::getBit(_xi, i));
         if (isSender) {
-            int64_t r = Math::randInt();
+            int64_t r = Math::randBits();
             rs.push_back(r);
             int64_t s0 = Math::ringSubtract(Math::changeBit(0, i, xb != 0), r, _width);
             int64_t s1 = Math::ringSubtract(Math::changeBit(0, i, xb == 0), r, _width);

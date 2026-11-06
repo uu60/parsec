@@ -64,7 +64,7 @@ Stats statsOf(const std::vector<double>& xs) {
 static void fillVec64(std::vector<int64_t>& v, int n) {
     v.resize(n);
     for (int i = 0; i < n; ++i) {
-        v[i] = Math::randInt();
+        v[i] = Math::randBits();
     }
 }
 

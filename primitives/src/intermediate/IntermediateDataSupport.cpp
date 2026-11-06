@@ -126,8 +126,8 @@ void IntermediateDataSupport::prepareRot() {
         bool isSender = Comm::rank() == i;
         if (isSender) {
             _sRot0 = new SRot();
-            _sRot0->_r0 = Math::randInt();
-            _sRot0->_r1 = Math::randInt();
+            _sRot0->_r0 = Math::randBits();
+            _sRot0->_r1 = Math::randBits();
         } else {
             _rRot0 = new RRot();
             _rRot0->_b = static_cast<int>(Math::randInt(0, 1));
@@ -144,8 +144,8 @@ void IntermediateDataSupport::prepareRot() {
         bool isSender = Comm::rank() == i;
         if (isSender) {
             _sRot1 = new SRot();
-            _sRot1->_r0 = Math::randInt();
-            _sRot1->_r1 = Math::randInt();
+            _sRot1->_r0 = Math::randBits();
+            _sRot1->_r1 = Math::randBits();
         } else {
             _rRot1 = new RRot();
             _rRot1->_b = 1 - _rRot0->_b;
@@ -317,8 +317,8 @@ void IntermediateDataSupport::prepareIknp() {
             ms0.resize(128);
             ms1.resize(128);
             for (int i = 0; i < 128; ++i) {
-                ms0[i] = Math::randInt();
-                ms1[i] = Math::randInt();
+                ms0[i] = Math::randBits();
+                ms1[i] = Math::randBits();
             }
         } else {
             // rank 0: Base OT receiver, generate choice bits
@@ -378,8 +378,8 @@ void IntermediateDataSupport::prepareIknp() {
             ms0.resize(128);
             ms1.resize(128);
             for (int i = 0; i < 128; ++i) {
-                ms0[i] = Math::randInt();
-                ms1[i] = Math::randInt();
+                ms0[i] = Math::randBits();
+                ms1[i] = Math::randBits();
             }
         } else {
             // rank 1: Base OT receiver, generate choice bits

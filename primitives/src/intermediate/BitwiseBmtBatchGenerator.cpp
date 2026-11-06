@@ -48,8 +48,8 @@ BitwiseBmtBatchGenerator* BitwiseBmtBatchGenerator::execute() {
 
 void BitwiseBmtBatchGenerator::generateRandomAB() {
     for (auto& b : _bmts) {
-        b._a = Math::randInt();
-        b._b = Math::randInt();
+        b._a = Math::randBits();
+        b._b = Math::randBits();
     }
 }
 
@@ -63,7 +63,7 @@ void BitwiseBmtBatchGenerator::computeMix(int sender) {
         ss0.resize(_bc);
         ss1.resize(_bc);
         for (int i = 0; i < _bc; i++) {
-            int64_t random = Math::randInt();
+            int64_t random = Math::randBits();
             ss0[i] = random;
             ss1[i] = corr(i, random);
         }

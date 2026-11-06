@@ -35,8 +35,8 @@ BitwiseBmtGenerator* BitwiseBmtGenerator::execute() {
 }
 
 void BitwiseBmtGenerator::generateRandomAB() {
-    _bmt._a = ring(Math::randInt());
-    _bmt._b = ring(Math::randInt());
+    _bmt._a = ring(Math::randBits());
+    _bmt._b = ring(Math::randBits());
 }
 
 void BitwiseBmtGenerator::computeMix(int sender) {

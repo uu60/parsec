@@ -15,7 +15,7 @@ ArithOperator::ArithOperator(int64_t z, int width, int taskTag, int msgTagOffset
         _zi = z;
     } else {
         if (Comm::rank() == clientRank) {
-            int64_t z1 = Math::randInt();
+            int64_t z1 = Math::randBits();
             int64_t z0 = Math::ringSubtract(z, z1, _width);
             auto r0 = Comm::sendAsync(z0, _width, 0, buildTag(_currentMsgTag));
             auto r1 = Comm::sendAsync(z1, _width, 1, buildTag(_currentMsgTag));
@@ -34,9 +34,9 @@ ArithOperator::ArithOperator(int64_t x, int64_t y, int width, int taskTag, int m
         _yi = y;
     } else {
         if (Comm::rank() == clientRank) {
-            int64_t x1 = Math::randInt();
+            int64_t x1 = Math::randBits();
             int64_t x0 = Math::ringSubtract(x, x1, _width);
-            int64_t y1 = Math::randInt();
+            int64_t y1 = Math::randBits();
             int64_t y0 = Math::ringSubtract(y, y1, _width);
             std::vector xy0 = {x0, y0};
             std::vector xy1 = {x1, y1};

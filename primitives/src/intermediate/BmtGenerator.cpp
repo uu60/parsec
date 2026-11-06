@@ -10,8 +10,8 @@
 namespace parsec {
 
 void BmtGenerator::generateRandomAB() {
-    _bmt._a = ring(Math::randInt());
-    _bmt._b = ring(Math::randInt());
+    _bmt._a = ring(Math::randBits());
+    _bmt._b = ring(Math::randBits());
 }
 
 int64_t BmtGenerator::corr(int i, int64_t x) const {
@@ -34,7 +34,7 @@ void BmtGenerator::computeMix(int sender) {
         ss0.reserve(_width);
         ss1.reserve(_width);
         for (int i = 0; i < _width; ++i) {
-            ss0.push_back(Math::randInt());
+            ss0.push_back(Math::randBits());
             ss1.push_back(corr(i, ss0[i]));
         }
     } else {

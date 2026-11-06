@@ -13,8 +13,8 @@ BmtBatchGenerator::BmtBatchGenerator(int count, int l, int taskTag, int msgTagOf
 
 void BmtBatchGenerator::generateRandomAB() {
     for (auto& b : _bmts) {
-        b._a = ring(Math::randInt());
-        b._b = ring(Math::randInt());
+        b._a = ring(Math::randBits());
+        b._b = ring(Math::randBits());
     }
 }
 
@@ -40,7 +40,7 @@ void BmtBatchGenerator::computeMix(int sender) {
         ss1.reserve(all);
         for (int i = 0; i < bmtCount; i++) {
             for (int j = 0; j < _width; ++j) {
-                ss0.push_back(Math::randInt());
+                ss0.push_back(Math::randBits());
                 ss1.push_back(corr(i, j, ss0[i * _width + j]));
             }
         }

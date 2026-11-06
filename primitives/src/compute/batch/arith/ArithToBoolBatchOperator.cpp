@@ -47,7 +47,7 @@ ArithToBoolBatchOperator* ArithToBoolBatchOperator::execute() {
 
     std::vector<int64_t> xi_i_vec(num), xi_o_vec(num);
     for (int i = 0; i < num; i++) {
-        xi_i_vec[i] = Math::randInt();
+        xi_i_vec[i] = Math::randBits();
         xi_o_vec[i] = xi_i_vec[i] ^ (*_xis)[i];
     }
 
