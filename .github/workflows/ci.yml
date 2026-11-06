@@ -12,6 +12,7 @@ jobs:
   build-and-test:
     name: ${{ matrix.os }} / ${{ matrix.compiler }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -34,9 +35,8 @@ jobs:
 
       - name: Install dependencies (Ubuntu)
         if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ninja-build libopenmpi-dev openmpi-bin libssl-dev libboost-dev
+        timeout-minutes: 10
+        uses: ./.github/actions/setup-ubuntu
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
@@ -57,13 +57,13 @@ jobs:
   database-build:
     name: ubuntu / database
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ninja-build libopenmpi-dev openmpi-bin libssl-dev libboost-dev
+        timeout-minutes: 10
+        uses: ./.github/actions/setup-ubuntu
 
       - name: Configure
         run: cmake --preset ci-database
@@ -79,13 +79,13 @@ jobs:
     # regressions with the newest runner toolchain.
     name: ubuntu-latest / build all targets
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ninja-build libopenmpi-dev openmpi-bin libssl-dev libboost-dev
+        timeout-minutes: 10
+        uses: ./.github/actions/setup-ubuntu
 
       - name: Configure
         run: cmake --preset dev
@@ -96,13 +96,15 @@ jobs:
   sanitizers:
     name: ubuntu / sanitizers
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ninja-build clang libopenmpi-dev openmpi-bin libssl-dev libboost-dev
+        timeout-minutes: 10
+        uses: ./.github/actions/setup-ubuntu
+        with:
+          extra-packages: clang
 
       - name: Configure
         env:

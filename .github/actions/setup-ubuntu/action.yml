@@ -1,0 +1,27 @@
+name: Install Ubuntu build dependencies
+description: Install the apt packages needed to build and test Parsec, with retries and bounded network timeouts.
+inputs:
+  extra-packages:
+    description: Additional apt packages to install
+    required: false
+    default: ""
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        EXTRA_PACKAGES: ${{ inputs.extra-packages }}
+      run: |
+        # A stalled mirror connection once held this step for over 20 minutes. Bound each request and retry the
+        # whole install instead of waiting on the default timeouts.
+        apt_opts=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
+        packages=(ninja-build libopenmpi-dev openmpi-bin libssl-dev libboost-dev $EXTRA_PACKAGES)
+        for attempt in 1 2 3; do
+          if sudo apt-get "${apt_opts[@]}" update &&
+             sudo apt-get "${apt_opts[@]}" install -y --no-install-recommends "${packages[@]}"; then
+            exit 0
+          fi
+          echo "apt-get failed (attempt $attempt), retrying in $((attempt * 10))s" >&2
+          sleep $((attempt * 10))
+        done
+        exit 1
