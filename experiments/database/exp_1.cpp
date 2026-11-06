@@ -256,9 +256,12 @@ static View projectDiagCnt(View &v, std::string diag_field, std::string cnt_fiel
     std::vector<std::string> fields = {diag_field, cnt_field};
     std::vector<int> widths = {64, 64};
     View out(fields, widths);
-    out._dataCols.resize(2);
+    // `out` also carries the hidden $valid and $padding columns; take them from `v` instead of dropping them, since
+    // sorting and compaction locate them relative to colNum().
     if (d >= 0) out._dataCols[0] = v._dataCols[d];
     if (c >= 0) out._dataCols[1] = v._dataCols[c];
+    out._dataCols[out.colNum() + View::VALID_COL_OFFSET] = v._dataCols[v.colNum() + View::VALID_COL_OFFSET];
+    out._dataCols[out.colNum() + View::PADDING_COL_OFFSET] = v._dataCols[v.colNum() + View::PADDING_COL_OFFSET];
     return out;
 }
 

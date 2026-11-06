@@ -191,7 +191,8 @@ void RandOtBatchOperator::executeForBitsAsync() {
             toSend[i * 4 + 3] = (*_ms1)[i] ^ ir11;
         }
 
-        auto r = Comm::serverSendAsync(toSend, _width, buildTag(_currentMsgTag));
+        // Wait before toSend goes out of scope: MPI_Isend may still be reading from its buffer.
+        Comm::wait(Comm::serverSendAsync(toSend, _width, buildTag(_currentMsgTag)));
     } else {
         int size = static_cast<int>(_choiceBits->size());
         std::vector<int64_t> toRecv(size * 4);
