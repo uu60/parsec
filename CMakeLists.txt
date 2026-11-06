@@ -107,6 +107,9 @@ endfunction()
 
 add_subdirectory(runtime)
 add_subdirectory(primitives)
+if (PARSEC_BUILD_TESTS)
+    add_subdirectory(tests/unit)
+endif ()
 
 if (PARSEC_BUILD_DATABASE)
     add_subdirectory(db)

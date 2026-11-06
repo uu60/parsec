@@ -15,7 +15,7 @@ runs:
         # A stalled mirror connection once held this step for over 20 minutes. Bound each request and retry the
         # whole install instead of waiting on the default timeouts.
         apt_opts=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
-        packages=(ninja-build libopenmpi-dev openmpi-bin libssl-dev libboost-dev $EXTRA_PACKAGES)
+        packages=(ninja-build libopenmpi-dev openmpi-bin libssl-dev libboost-dev libgtest-dev $EXTRA_PACKAGES)
         for attempt in 1 2 3; do
           if sudo apt-get "${apt_opts[@]}" update &&
              sudo apt-get "${apt_opts[@]}" install -y --no-install-recommends "${packages[@]}"; then

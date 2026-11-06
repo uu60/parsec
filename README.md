@@ -84,6 +84,7 @@ primitives/     MPC operators, OT, BMT generation, and secret-sharing primitives
 db/              Secure relational data structures and algorithms
 benchmarks/      Database performance benchmarks
 experiments/     Reproducible research experiments and correctness scripts
+tests/unit/      GoogleTest unit tests (single process, label `unit`)
 tools/           Development and utility scripts, including tools/run-local.sh
 examples/        MPI hostfile/rankfile templates and a find_package example project
 build.sh         Convenience build script
@@ -103,14 +104,15 @@ Required:
 Optional:
 
 - TBB, for the `tbb_pool` thread-pool backend
+- GoogleTest, for the unit tests in `tests/unit` (skipped when not installed)
 
 macOS example:
 
 ```bash
-brew install cmake ninja openmpi openssl boost tbb
+brew install cmake ninja openmpi openssl boost tbb googletest
 ```
 
-Linux package names vary by distribution. Install the equivalent development packages, for example OpenMPI, OpenSSL headers, Boost, CMake, and Ninja.
+Linux package names vary by distribution. Install the equivalent development packages, for example OpenMPI, OpenSSL headers, Boost, GoogleTest, CMake, and Ninja.
 
 ## Build
 
