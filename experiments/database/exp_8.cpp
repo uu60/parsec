@@ -165,8 +165,6 @@ View createZerosCTE(View &customer_view, View &cnt_view, int tid) {
     std::string tname = "zeros";
     View zeros_view(tname, fields, widths);
 
-    const int dataCols = zeros_view.colNum();
-    const int validIdx = dataCols + View::VALID_COL_OFFSET;
     zeros_view._dataCols.resize(4);
 
     zeros_view._dataCols[0].push_back(0);

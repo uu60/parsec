@@ -151,7 +151,6 @@ void generateRandomData(int num_records,
                         std::vector<int64_t> &row_no_plus_1_data,
                         std::vector<int64_t> &diag_data) {
     if (Comm::rank() == 2) {
-        int num_pids = std::max(4, num_records / 16);
         pid_data.reserve(num_records);
         time_data.reserve(num_records);
         diag_data.reserve(num_records);
@@ -163,7 +162,6 @@ void generateRandomData(int num_records,
         for (int i = 0; i < num_records; i++) {
             int64_t pid = Math::randInt();
             int64_t t = Math::randInt();
-            bool is_cd = Math::randInt();
             int64_t d = Math::randInt();
 
             pid_data.push_back(pid);
