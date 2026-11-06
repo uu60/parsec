@@ -8,8 +8,6 @@ on:
 permissions:
   contents: read
 
-# Linux jobs are pinned to Ubuntu 24.04 (GCC 13, Open MPI 4.1) so results are reproducible. ubuntu-latest moved to
-# Ubuntu 26.04 with Open MPI 5, whose launcher currently fails to start the three test ranks on hosted runners.
 jobs:
   build-and-test:
     name: ${{ matrix.os }} / ${{ matrix.compiler }}
@@ -18,11 +16,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-24.04
+          - os: ubuntu-latest
             compiler: gcc
             cc: gcc
             cxx: g++
-          - os: ubuntu-24.04
+          - os: ubuntu-latest
             compiler: clang
             cc: clang
             cxx: clang++
@@ -58,14 +56,14 @@ jobs:
 
   database-build:
     name: ubuntu / database
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build libopenmpi-dev openmpi-bin libssl-dev libboost-dev libreadline-dev
+          sudo apt-get install -y ninja-build libopenmpi-dev openmpi-bin libssl-dev libboost-dev
 
       - name: Configure
         run: cmake --preset ci-database
@@ -77,8 +75,8 @@ jobs:
         run: ctest --preset ci-database
 
   latest-toolchain-build:
-    # Compile every target with the newest runner toolchain (GCC 15 on Ubuntu 26.04) to catch compiler regressions.
-    # Tests are not run here because the Open MPI 5 launcher on this image cannot start the three test ranks yet.
+    # Compile every target, including benchmarks and experiments that the test presets skip, to catch compiler
+    # regressions with the newest runner toolchain.
     name: ubuntu-latest / build all targets
     runs-on: ubuntu-latest
     steps:
@@ -87,7 +85,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build libopenmpi-dev openmpi-bin libssl-dev libboost-dev libreadline-dev
+          sudo apt-get install -y ninja-build libopenmpi-dev openmpi-bin libssl-dev libboost-dev
 
       - name: Configure
         run: cmake --preset dev
@@ -97,7 +95,7 @@ jobs:
 
   sanitizers:
     name: ubuntu / sanitizers
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 

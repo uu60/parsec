@@ -3,7 +3,7 @@
 [![CI](https://github.com/uu60/parsec/actions/workflows/ci.yml/badge.svg)](https://github.com/uu60/parsec/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-**Parsec** is a C++17 framework for **parallel secure computation** and secure database experiments. It provides MPC primitives, Boolean and arithmetic secret sharing, BMT generation, OT support, communication backends, parallel execution utilities, and a SQL-like secure database demo built on a three-party, two-server MPC model.
+**Parsec** is a C++17 framework for **parallel secure computation** and secure database experiments. It provides MPC primitives, Boolean and arithmetic secret sharing, BMT generation, OT support, communication backends, parallel execution utilities, and secure relational database operators built on a three-party, two-server MPC model.
 
 The name stands for **PARallel SEcure Computing/database**.
 
@@ -20,7 +20,6 @@ The name stands for **PARallel SEcure Computing/database**.
 - [Dependencies](#dependencies)
 - [Build](#build)
 - [Run](#run)
-- [Database Demo](#database-demo)
 - [Configuration](#configuration)
 - [Core API](#core-api)
 - [Development Notes](#development-notes)
@@ -53,7 +52,7 @@ cmake --build --preset ci
 ctest --preset ci
 ```
 
-For a full release build including the database demo and benchmarks:
+For a full release build including the database components and benchmarks:
 
 ```bash
 cmake --preset release
@@ -73,7 +72,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and
 - OT support, including base OT, random OT, and IKNP-style batch OT.
 - Communication abstraction with MPI and TCP implementations.
 - Parallel execution support through async, CTPL, and optional TBB thread pools.
-- SQL-like secure database demo with create/drop/use database, create/drop table, insert, select, filter, sort, and join operations.
+- Secure relational database operators for tables and views, including projection, filtering, sorting, and join.
 - Column-oriented table/view representation for efficient MPC execution.
 - Decoupled interface design for extending communication, operators, BMT generators, thread pools, and database components through inheritance or replacement implementations.
 
@@ -83,7 +82,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and
 runtime/        Configuration, communication, utilities, and parallel runtime support
 primitives/     MPC operators, OT, BMT generation, and secret-sharing primitives
 db/              Secure relational data structures and algorithms
-apps/sql_cli/    Optional SQL-like command-line demo, service, client, and parser
 benchmarks/      Database performance benchmarks
 experiments/     Reproducible research experiments and correctness scripts
 tools/           Development and utility scripts
@@ -104,15 +102,14 @@ Required:
 Optional:
 
 - TBB, for the `tbb_pool` thread-pool backend
-- Readline, when building the SQL command-line demo
 
 macOS example:
 
 ```bash
-brew install cmake ninja openmpi openssl boost readline tbb
+brew install cmake ninja openmpi openssl boost tbb
 ```
 
-Linux package names vary by distribution. Install the equivalent development packages, for example OpenMPI, OpenSSL headers, Boost, Readline, CMake, and Ninja.
+Linux package names vary by distribution. Install the equivalent development packages, for example OpenMPI, OpenSSL headers, Boost, CMake, and Ninja.
 
 ## Build
 
@@ -125,8 +122,7 @@ sh build.sh
 The script:
 
 1. Configures CMake with Ninja.
-2. Builds the optional SQL command-line demo and its bundled parser.
-3. Builds all runtime, primitive, database, benchmark, and experiment targets under `build/`.
+2. Builds all runtime, primitive, database, benchmark, and experiment targets under `build/`.
 
 Build options:
 
@@ -144,17 +140,7 @@ cmake --build build
 ```
 
 For repeatable configurations, the repository also provides `dev`, `release`, and `ci` CMake presets. The `ci`
-preset builds the core library and registered correctness tests without the database or SQL command-line demo.
-
-The database algorithms and SQL application can be selected independently:
-
-```bash
-cmake -S . -B build -G Ninja \
-  -DPARSEC_BUILD_DATABASE=ON \
-  -DPARSEC_BUILD_SQL_CLI=OFF
-```
-
-`PARSEC_BUILD_SQL_CLI=ON` requires `PARSEC_BUILD_DATABASE=ON` and Readline.
+preset builds the core library and registered correctness tests without the database components.
 
 ## Run
 
@@ -205,20 +191,6 @@ tools/run_tcp_ranks.py --base-port 18000 ./build/primitives/benchmark/correctnes
 TCP rank `r` listens on `tcp_base_port + r`. With the default base port, ranks listen on ports `18000`, `18001`, and `18002`.
 
 The current TCP backend uses one IPv4 `tcp_host` value for outbound peer connections and is restricted to `--tcp_size=3`. It is primarily intended for local or controlled single-host experiments; use MPI for general multi-machine placement.
-
-## Database Demo
-
-Parsec includes a simple secure database command-line demo to show how the MPC primitives can be composed into a SQL-like application. The demo consists of a three-rank database service and a lightweight local client, and is intended as a reference example rather than a full database product.
-
-The reusable relational algorithms live in `db/`; SQL parsing and interactive I/O are isolated in
-`apps/sql_cli/`. With the release preset, start the service and client from separate terminals:
-
-```bash
-mpirun -np 3 ./build/release/apps/sql_cli/db
-./build/release/apps/sql_cli/db_client
-```
-
-See [apps/sql_cli/README.md](apps/sql_cli/README.md) for the component boundary and build targets.
 
 ## Configuration
 
@@ -450,14 +422,8 @@ The reusable database core is organized around:
 - `View`: represents relational views over secret-shared columns.
 - `Views`: provides relational operations such as projection, filtering, sorting, and hash join.
 
-The optional SQL command-line application adds:
-
-- `SystemManager`: parses client commands, synchronizes rank-local metadata, and dispatches SQL operations.
-- `CreateSupport`, `DropSupport`, `InsertSupport`, `SelectSupport`: client/server handlers for SQL-like commands.
-
-Use the `db_core` CMake target for direct C++ integration. The `db` and `db_client` executables are demonstration
-front ends; research experiments and benchmarks use the core directly under `experiments/database` and
-`benchmarks/database`.
+Use the `db_core` CMake target for direct C++ integration. Research experiments and benchmarks use the core under
+`experiments/database` and `benchmarks/database`.
 
 ## Development Notes
 
@@ -466,8 +432,7 @@ front ends; research experiments and benchmarks use the core directly under `exp
 - Message tags isolate parallel operator streams. Reusing tags across concurrent operators can cause incorrect receives.
 - Larger batches reduce communication overhead but increase memory usage.
 - `baseline_mode=true` intentionally disables several optimizations and is useful for controlled experiments.
-- The bundled SQL parser is compiled as the `parsec_sqlparser` CMake target only when `PARSEC_BUILD_SQL_CLI` is enabled.
-- Set `PARSEC_BUILD_DATABASE`, `PARSEC_BUILD_SQL_CLI`, `PARSEC_BUILD_BENCHMARKS`, `PARSEC_BUILD_EXPERIMENTS`, and
+- Set `PARSEC_BUILD_DATABASE`, `PARSEC_BUILD_BENCHMARKS`, `PARSEC_BUILD_EXPERIMENTS`, and
   `PARSEC_BUILD_TESTS` to control optional targets.
 - Contributions should follow [CONTRIBUTING.md](CONTRIBUTING.md). Security-sensitive reports should follow
   [SECURITY.md](SECURITY.md).

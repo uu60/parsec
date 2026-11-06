@@ -13,8 +13,7 @@ primitives, and the database layer are welcome.
 
 ## Development setup
 
-Install a C++17 compiler, CMake 3.22 or newer, Ninja, MPI, OpenSSL, and Boost. The database demo additionally needs
-Readline and its bundled SQL parser.
+Install a C++17 compiler, CMake 3.22 or newer, Ninja, MPI, OpenSSL, and Boost.
 
 Build the core library and correctness tests:
 

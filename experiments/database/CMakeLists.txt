@@ -24,6 +24,9 @@ if (PARSEC_BUILD_TESTS)
                             --tcp-base-port 21000 --bin-dir $<TARGET_FILE_DIR:exp_${exp}>)
             set_tests_properties(database.exp_${exp}.mpi PROPERTIES
                     LABELS "correctness;database;mpi" PROCESSORS 3 TIMEOUT 180)
+            if (PARSEC_MPI_TEST_ENVIRONMENT)
+                set_property(TEST database.exp_${exp}.mpi PROPERTY ENVIRONMENT ${PARSEC_MPI_TEST_ENVIRONMENT})
+            endif ()
             set_tests_properties(database.exp_${exp}.tcp PROPERTIES
                     LABELS "correctness;database;tcp" PROCESSORS 3 TIMEOUT 180)
         endforeach ()
