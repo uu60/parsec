@@ -1,0 +1,6 @@
+# Open MPI rankfile pinning the Parsec ranks to hosts: ranks 0 and 1 are the MPC servers and rank 2 is the client.
+# This layout puts server 0 and the client on one machine and server 1 on the other. Copy it to `ranks` in the
+# repository root (ignored by git) and use the same addresses as your hostfile.
+rank 0=192.0.2.20 slot=0-7
+rank 1=192.0.2.10 slot=0-7
+rank 2=192.0.2.20 slot=0-7

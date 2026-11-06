@@ -84,7 +84,8 @@ primitives/     MPC operators, OT, BMT generation, and secret-sharing primitives
 db/              Secure relational data structures and algorithms
 benchmarks/      Database performance benchmarks
 experiments/     Reproducible research experiments and correctness scripts
-tools/           Development and utility scripts
+tools/           Development and utility scripts, including tools/run-local.sh
+examples/        Templates for MPI hostfiles and rankfiles
 build.sh         Convenience build script
 ```
 
@@ -161,10 +162,21 @@ mpirun -np 3 ./build/benchmarks/database/db_sort
 mpirun -np 3 ./build/benchmarks/database/db_join
 ```
 
-Run on multiple machines with an MPI hostfile:
+`tools/run-local.sh` starts all three ranks on this machine with either backend. With Open MPI it adds
+`--oversubscribe`, so three ranks also start on machines with fewer cores:
 
 ```bash
-mpirun -np 3 -hostfile hosts ./build/primitives/benchmark/correctness_ot
+tools/run-local.sh ./build/primitives/benchmark/correctness_ot
+tools/run-local.sh --comm tcp ./build/primitives/benchmark/correctness_ot
+```
+
+Run on multiple machines with an MPI hostfile and rankfile. Templates are in `examples/`; copy them to `hosts` and
+`ranks` in the repository root (both are ignored by git) and fill in your addresses:
+
+```bash
+cp examples/hosts.example hosts
+cp examples/rankfile.example ranks
+mpirun -np 3 --hostfile hosts --rankfile ranks ./build/primitives/benchmark/correctness_ot
 ```
 
 MPI ranks map directly to Parsec ranks: rank `0` and `1` are servers, rank `2` is the client.
@@ -181,11 +193,11 @@ Local example:
 ./build/primitives/benchmark/correctness_ot --comm_type=tcp --tcp_rank=2 --tcp_size=3 --tcp_host=127.0.0.1 --tcp_base_port=18000
 ```
 
-For local runs, `tools/run_tcp_ranks.py` starts all three ranks, waits for them, and returns a non-zero status if any
-rank fails:
+For local runs, `tools/run-local.sh --comm tcp` (a wrapper around `tools/run_tcp_ranks.py`) starts all three ranks,
+waits for them, and returns a non-zero status if any rank fails:
 
 ```bash
-tools/run_tcp_ranks.py --base-port 18000 ./build/primitives/benchmark/correctness_ot
+tools/run-local.sh --comm tcp --base-port 18000 ./build/primitives/benchmark/correctness_ot
 ```
 
 TCP rank `r` listens on `tcp_base_port + r`. With the default base port, ranks listen on ports `18000`, `18001`, and `18002`.
