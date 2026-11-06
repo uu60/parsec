@@ -4,10 +4,17 @@
 #include "intermediate/IntermediateDataSupport.h"
 #include "utils/Log.h"
 
+#include <mutex>
+
 namespace parsec {
 
 RandOtOperator* RandOtOperator::execute() {
     _currentMsgTag = _startMsgTag;
+    static std::once_flag warned;
+    std::call_once(warned, [] {
+        Log::w("RandOtOperator reuses one random OT for every transfer and is not secure; use IknpOtBatchOperator for "
+               "protocol computations");
+    });
     if (Comm::isServer()) {
         int64_t k, y0, y1;
         if (_isSender) {

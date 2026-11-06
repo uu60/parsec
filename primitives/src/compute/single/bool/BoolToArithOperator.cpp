@@ -4,10 +4,10 @@
 #include "compute/single/arith/ArithOperator.h"
 #include "intermediate/IntermediateDataSupport.h"
 #include "ot/IknpOtBatchOperator.h"
-#include "ot/RandOtBatchOperator.h"
-#include "ot/RandOtOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Math.h"
+
+#include <algorithm>
 
 namespace parsec {
 
@@ -47,7 +47,6 @@ BoolToArithOperator* BoolToArithOperator::execute() {
         }
     }
 
-    // RandOtBatchOperator e(0, &ss0, &ss1, &choices, _width, _taskTag, _currentMsgTag);
     IknpOtBatchOperator e(sender, &ss0, &ss1, &choices, _width, _taskTag, _currentMsgTag);
     e.execute();
 
@@ -65,7 +64,9 @@ BoolToArithOperator* BoolToArithOperator::execute() {
     return this;
 }
 
-int BoolToArithOperator::tagStride(int width) { return RandOtOperator::tagStride(width) * width; }
+// One IKNP execution, which needs IknpOtBatchOperator::tagStride() tags. Callers historically reserved `width` tags, so
+// keep that for wider inputs and only raise it where it was too small (width 1).
+int BoolToArithOperator::tagStride(int width) { return std::max(width, IknpOtBatchOperator::tagStride()); }
 
 BoolToArithOperator* BoolToArithOperator::reconstruct(int clientRank) {
     _currentMsgTag = _startMsgTag;

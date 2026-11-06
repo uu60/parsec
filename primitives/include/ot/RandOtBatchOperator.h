@@ -5,6 +5,10 @@
 
 namespace parsec {
 
+// INSECURE - do not use for protocol computations. Every transfer, in every call, is masked with the same single random
+// OT prepared once in IntermediateDataSupport::prepareRot() (_sRot0 / _rRot0). The receiver knows one of the two masks,
+// so the XOR of any two unchosen messages masked with the same pad leaks, and one known message reveals the others.
+// Kept only for benchmarks and as a performance baseline; protocol code uses IknpOtBatchOperator.
 class RandOtBatchOperator : public AbstractOtBatchOperator {
   public:
     inline static std::atomic_int64_t _totalTime = 0;

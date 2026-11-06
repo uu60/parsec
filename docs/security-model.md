@@ -38,6 +38,10 @@ receiver picks a fresh 128-bit nonce for every execution, so PRG output is never
 bits never leave the sender. The OT output hash is a fixed-key AES construction with an index tweak; libraries such as
 MP-SPDZ and EMP use the stronger tweakable correlation-robust form from Guo et al. (2020).
 
+`RandOtOperator` and `RandOtBatchOperator` are not secure: they mask every transfer with one random OT prepared at
+start-up, so the receiver can learn unchosen messages. They remain only for benchmarks, log a warning when used, and no
+protocol operator calls them.
+
 ## Observable information
 
 Depending on the selected operator and application flow, parties or the surrounding system may observe metadata such

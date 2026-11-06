@@ -5,6 +5,8 @@
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Log.h"
 
+#include <mutex>
+
 namespace parsec {
 
 RandOtBatchOperator::RandOtBatchOperator(int sender, std::vector<int64_t>* bits0, std::vector<int64_t>* bits1,
@@ -239,6 +241,11 @@ RandOtBatchOperator* RandOtBatchOperator::execute() {
     if (Comm::isClient()) {
         return this;
     }
+    static std::once_flag warned;
+    std::call_once(warned, [] {
+        Log::w("RandOtBatchOperator reuses one random OT for every transfer and is not secure; use IknpOtBatchOperator "
+               "for protocol computations");
+    });
 
     int64_t start = 0;
     if (Conf::ENABLE_CLASS_WISE_TIMING) {
