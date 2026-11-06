@@ -280,145 +280,66 @@ void IntermediateDataSupport::prepareIknp() {
     if (Comm::isClient()) {
         return;
     }
-
     if (!_iknpBaseSeeds0.empty()) {
         return; // Already initialized
     }
+    // Direction 0: rank 0 is the IKNP sender. Direction 1: rank 1 is the IKNP sender.
+    prepareIknpDirection(0, 100, _iknpBaseSeeds0, _iknpSenderChoices0);
+    prepareIknpDirection(1, 300, _iknpBaseSeeds1, _iknpSenderChoices1);
+}
 
-    // Prepare IKNP base data for BOTH directions:
-    // Direction 0: sender=0 (rank 0 is IKNP Sender, rank 1 is IKNP Receiver)
-    // Direction 1: sender=1 (rank 1 is IKNP Sender, rank 0 is IKNP Receiver)
+void IntermediateDataSupport::prepareIknpDirection(int iknpSender, int msgTagOffset,
+                                                   std::vector<std::array<U128, 2>>& seeds,
+                                                   std::vector<bool>& senderChoices) {
+    // IKNP reverses the base-OT roles: the IKNP receiver is the base-OT sender and supplies two seeds per row; the
+    // IKNP sender is the base-OT receiver, picks one seed per row with its secret choice bit s_i, and keeps s secret.
     //
-    // In IKNP, roles are REVERSED from base OT:
-    // - IKNP Sender acts as Base OT Receiver (gets one seed per choice bit)
-    // - IKNP Receiver acts as Base OT Sender (provides two seeds)
-
-    _iknpBaseSeeds0.resize(128);
-    _iknpBaseSeeds1.resize(128);
-    _iknpSenderChoices0.resize(128, false);
-    _iknpSenderChoices1.resize(128, false);
-
+    // Base OT carries 64-bit messages, so each 128-bit seed is transferred as two base OTs (low and high halves) that
+    // use the same choice bits.
+    constexpr int kRows = 128;
+    const int baseOtSender = 1 - iknpSender;
+    const bool isBaseOtSender = Comm::rank() == baseOtSender;
     const int taskTag = 1;
 
-    // ========== Direction 0: sender=0 ==========
-    // IKNP Sender = rank 0 = Base OT Receiver
-    // IKNP Receiver = rank 1 = Base OT Sender
-    {
-        const int baseOtSender = 1;
-        const int msgTagOffset = 100;
-
-        std::vector<int64_t> ms0, ms1;
-        std::vector<int> choices;
-
-        const bool isBaseOtSender = (Comm::rank() == baseOtSender);
-
-        if (isBaseOtSender) {
-            // rank 1: Base OT sender, generate seed pairs
-            ms0.resize(128);
-            ms1.resize(128);
-            for (int i = 0; i < 128; ++i) {
-                ms0[i] = Math::randBits();
-                ms1[i] = Math::randBits();
-            }
-        } else {
-            // rank 0: Base OT receiver, generate choice bits
-            choices.resize(128);
-            for (int i = 0; i < 128; ++i) {
-                choices[i] = static_cast<int>(Math::randInt(0, 1));
-            }
+    std::vector<int64_t> lo0, lo1, hi0, hi1;
+    std::vector<int> choices;
+    if (isBaseOtSender) {
+        lo0.resize(kRows);
+        lo1.resize(kRows);
+        hi0.resize(kRows);
+        hi1.resize(kRows);
+        for (int i = 0; i < kRows; ++i) {
+            lo0[i] = Math::randBits();
+            hi0[i] = Math::randBits();
+            lo1[i] = Math::randBits();
+            hi1[i] = Math::randBits();
         }
-
-        BaseOtBatchOperator baseOt(baseOtSender, &ms0, &ms1, &choices, 64, taskTag, msgTagOffset);
-        baseOt.execute();
-
-        if (isBaseOtSender) {
-            // rank 1 is IKNP Receiver for direction 0, stores both seeds
-            for (int i = 0; i < 128; ++i) {
-                _iknpBaseSeeds0[i] = {ms0[i], ms1[i]};
-            }
-        } else {
-            // rank 0 is IKNP Sender for direction 0, stores chosen seed
-            for (int i = 0; i < 128; ++i) {
-                _iknpBaseSeeds0[i] = {baseOt._results[i], baseOt._results[i]};
-                _iknpSenderChoices0[i] = (choices[i] != 0);
-            }
-        }
-
-        // Sync choice bits: IKNP Sender (rank 0) sends to IKNP Receiver (rank 1)
-        const int syncTag = 200;
-        if (!isBaseOtSender) {
-            std::vector<int64_t> choiceBits(128);
-            for (int i = 0; i < 128; ++i) {
-                choiceBits[i] = _iknpSenderChoices0[i] ? 1 : 0;
-            }
-            Comm::serverSend(choiceBits, 1, syncTag);
-        } else {
-            std::vector<int64_t> choiceBits;
-            Comm::serverReceive(choiceBits, 1, syncTag);
-            for (int i = 0; i < 128; ++i) {
-                _iknpSenderChoices0[i] = (choiceBits[i] & 1) != 0;
-            }
+    } else {
+        choices.resize(kRows);
+        for (int i = 0; i < kRows; ++i) {
+            choices[i] = static_cast<int>(Math::randInt(0, 1));
         }
     }
 
-    // ========== Direction 1: sender=1 ==========
-    // IKNP Sender = rank 1 = Base OT Receiver
-    // IKNP Receiver = rank 0 = Base OT Sender
-    {
-        const int baseOtSender = 0;
-        const int msgTagOffset = 300;
+    BaseOtBatchOperator loOt(baseOtSender, &lo0, &lo1, &choices, 64, taskTag, msgTagOffset);
+    loOt.execute();
+    BaseOtBatchOperator hiOt(baseOtSender, &hi0, &hi1, &choices, 64, taskTag, msgTagOffset + 10);
+    hiOt.execute();
 
-        std::vector<int64_t> ms0, ms1;
-        std::vector<int> choices;
-
-        const bool isBaseOtSender = (Comm::rank() == baseOtSender);
-
-        if (isBaseOtSender) {
-            // rank 0: Base OT sender, generate seed pairs
-            ms0.resize(128);
-            ms1.resize(128);
-            for (int i = 0; i < 128; ++i) {
-                ms0[i] = Math::randBits();
-                ms1[i] = Math::randBits();
-            }
-        } else {
-            // rank 1: Base OT receiver, generate choice bits
-            choices.resize(128);
-            for (int i = 0; i < 128; ++i) {
-                choices[i] = static_cast<int>(Math::randInt(0, 1));
-            }
+    seeds.assign(kRows, {});
+    if (isBaseOtSender) {
+        // IKNP receiver: keeps both seeds of every row.
+        for (int i = 0; i < kRows; ++i) {
+            seeds[i][0] = {static_cast<uint64_t>(lo0[i]), static_cast<uint64_t>(hi0[i])};
+            seeds[i][1] = {static_cast<uint64_t>(lo1[i]), static_cast<uint64_t>(hi1[i])};
         }
-
-        BaseOtBatchOperator baseOt(baseOtSender, &ms0, &ms1, &choices, 64, taskTag, msgTagOffset);
-        baseOt.execute();
-
-        if (isBaseOtSender) {
-            // rank 0 is IKNP Receiver for direction 1, stores both seeds
-            for (int i = 0; i < 128; ++i) {
-                _iknpBaseSeeds1[i] = {ms0[i], ms1[i]};
-            }
-        } else {
-            // rank 1 is IKNP Sender for direction 1, stores chosen seed
-            for (int i = 0; i < 128; ++i) {
-                _iknpBaseSeeds1[i] = {baseOt._results[i], baseOt._results[i]};
-                _iknpSenderChoices1[i] = (choices[i] != 0);
-            }
-        }
-
-        // Sync choice bits: IKNP Sender (rank 1) sends to IKNP Receiver (rank 0)
-        const int syncTag = 400;
-        if (!isBaseOtSender) {
-            std::vector<int64_t> choiceBits(128);
-            for (int i = 0; i < 128; ++i) {
-                choiceBits[i] = _iknpSenderChoices1[i] ? 1 : 0;
-            }
-            Comm::serverSend(choiceBits, 1, syncTag);
-        } else {
-            std::vector<int64_t> choiceBits;
-            Comm::serverReceive(choiceBits, 1, syncTag);
-            for (int i = 0; i < 128; ++i) {
-                _iknpSenderChoices1[i] = (choiceBits[i] & 1) != 0;
-            }
+    } else {
+        // IKNP sender: keeps the chosen seed k_i^{s_i} and the choice bits.
+        senderChoices.assign(kRows, false);
+        for (int i = 0; i < kRows; ++i) {
+            seeds[i][0] = {static_cast<uint64_t>(loOt._results[i]), static_cast<uint64_t>(hiOt._results[i])};
+            seeds[i][1] = seeds[i][0];
+            senderChoices[i] = choices[i] != 0;
         }
     }
 }

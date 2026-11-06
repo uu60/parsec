@@ -30,6 +30,9 @@
 #include <unordered_map>
 #include <vector>
 
+// Forward declaration of the OpenSSL cipher context (keeps OpenSSL headers out of this header).
+typedef struct evp_cipher_ctx_st EVP_CIPHER_CTX;
+
 namespace parsec {
 
 // 128-bit data structure for cryptographic operations
@@ -52,23 +55,25 @@ class Crypto {
     static std::string rsaEncrypt(const std::string& data, const std::string& publicKey);
     static std::string rsaDecrypt(const std::string& encryptedData, const std::string& privateKey);
 
-    // AES-CTR PRG (Pseudo-Random Generator)
-    class AesCtrPrg {
+    // PRG keyed by 128-bit seeds, used to expand IKNP base-OT seeds. Seed i is used as an AES-128 key, and block b of
+    // stream `stream` is AES_seed_i(nonce.lo ^ b || nonce.hi ^ stream). Key schedules are expanded once in the
+    // constructor, so one instance can be reused for many generate() calls with different nonces. An instance is not
+    // safe for concurrent use; give each thread its own.
+    class SeededPrg {
       public:
-        explicit AesCtrPrg(uint64_t seed);
-        ~AesCtrPrg();
+        SeededPrg(const U128* seeds, size_t numSeeds);
+        ~SeededPrg();
+        SeededPrg(const SeededPrg&) = delete;
+        SeededPrg& operator=(const SeededPrg&) = delete;
 
-        void generateBlocks(U128* out, size_t blocks) const;
+        // Writes blocksPerSeed blocks for every seed: out[i * blocksPerSeed + b].
+        void generate(const U128& nonce, uint64_t stream, U128* out, size_t blocksPerSeed) const;
+
+        size_t size() const { return _ctxs.size(); }
 
       private:
-        std::array<unsigned char, 16> _key{};
-        std::array<unsigned char, 16> _iv{};
+        std::vector<EVP_CIPHER_CTX*> _ctxs;
     };
-
-    // Batch PRG generation for multiple seeds - much faster than creating individual AesCtrPrg objects
-    // Generates PRG output for 128 seeds at once, each producing 'blocksPerSeed' U128 blocks
-    // Output layout: out[seed * blocksPerSeed + block]
-    static void batchPrgGenerate(const uint64_t* seeds, size_t numSeeds, U128* out, size_t blocksPerSeed);
 
     // Hash function for OT
     static uint64_t hash64(int index, uint64_t v);

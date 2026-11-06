@@ -94,6 +94,7 @@
 #include <cstring>
 #include <functional>
 #include <memory>
+#include <openssl/crypto.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
@@ -118,18 +119,6 @@ static inline void store_u64_le(uint64_t x, unsigned char out[8]) {
     out[6] = (unsigned char)(x >> 48);
     out[7] = (unsigned char)(x >> 56);
 }
-
-auto h = [](uint64_t in) -> uint64_t {
-    unsigned char digest[SHA256_DIGEST_LENGTH];
-    unsigned char buf[8];
-    store_u64_le(in, buf);
-
-    SHA256(buf, sizeof(buf), digest);
-
-    uint64_t out = 0;
-    std::memcpy(&out, digest, sizeof(out)); // first 8 bytes as u64
-    return out;
-};
 
 bool Crypto::generateRsaKeys(int bits) {
     if (_selfPubs.count(bits) > 0) {
@@ -211,117 +200,51 @@ std::string Crypto::rsaDecrypt(const std::string& encryptedData, const std::stri
     return decryptedStr;
 }
 
-// ============== AES-CTR PRG Implementation ==============
+// ============== Seeded PRG ==============
 
-Crypto::AesCtrPrg::AesCtrPrg(uint64_t seed) {
-    uint64_t k0 = h(seed ^ 0x9e3779b97f4a7c15ULL);
-    uint64_t k1 = h(seed ^ 0xbf58476d1ce4e5b9ULL);
-    std::memcpy(_key.data(), &k0, 8);
-    std::memcpy(_key.data() + 8, &k1, 8);
-    _iv.fill(0);
-}
-
-Crypto::AesCtrPrg::~AesCtrPrg() = default;
-
-void Crypto::AesCtrPrg::generateBlocks(U128* out, size_t blocks) const {
-    if (blocks == 0)
-        return;
-
-    std::unique_ptr<EVP_CIPHER_CTX, decltype(&EVP_CIPHER_CTX_free)> ctx(EVP_CIPHER_CTX_new(), &EVP_CIPHER_CTX_free);
-    if (!ctx) {
-        throw std::runtime_error("EVP_CIPHER_CTX_new failed");
-    }
-
-    if (EVP_EncryptInit_ex(ctx.get(), EVP_aes_128_ctr(), nullptr, _key.data(), _iv.data()) != 1) {
-        throw std::runtime_error("EVP_EncryptInit_ex failed");
-    }
-
-    unsigned char* bytes = reinterpret_cast<unsigned char*>(out);
-    const size_t nbytes = blocks * 16;
-
-    std::memset(bytes, 0, nbytes);
-
-    int outLen = 0;
-    if (EVP_EncryptUpdate(ctx.get(), bytes, &outLen, bytes, static_cast<int>(nbytes)) != 1) {
-        throw std::runtime_error("EVP_EncryptUpdate failed");
-    }
-}
-
-void Crypto::batchPrgGenerate(const uint64_t* seeds, size_t numSeeds, U128* out, size_t blocksPerSeed) {
-    if (numSeeds == 0 || blocksPerSeed == 0)
-        return;
-
-    // ---------------------------------------------------------------
-    // Fixed-key AES-ECB PRG:
-    //   out[seed * blocksPerSeed + blk] = AES_K(seed || blk) XOR (seed || blk)
-    //
-    // Benefits over per-seed AES-CTR:
-    //  1. Only ONE EVP_EncryptInit_ex call per batchPrgGenerate invocation
-    //     (key schedule loaded once, not once-per-seed).
-    //  2. All (numSeeds * blocksPerSeed) blocks are encrypted in a single
-    //     EVP_EncryptUpdate call, maximising AES-NI pipeline utilisation.
-    //  3. Davies-Meyer XOR gives correlation-robustness for OT security.
-    // ---------------------------------------------------------------
-
-    // Fixed PRG key (domain-separated from hash key)
-    static const unsigned char PRG_KEY[16] = {0x50, 0x52, 0x47, 0x5F, // "PRG_"
-                                              0x49, 0x4B, 0x4E, 0x50, // "IKNP"
-                                              0x4B, 0x45, 0x59, 0x32, // "KEY2"
-                                              0x00, 0x00, 0x00, 0x00};
-
-    // Thread-local context initialised once with the fixed key
-    thread_local struct PrgCtxHolder {
-        EVP_CIPHER_CTX* ctx = nullptr;
-        PrgCtxHolder() {
-            ctx = EVP_CIPHER_CTX_new();
-            if (ctx) {
-                EVP_EncryptInit_ex(ctx, EVP_aes_128_ecb(), nullptr, PRG_KEY, nullptr);
-                EVP_CIPHER_CTX_set_padding(ctx, 0);
-            }
-        }
-        ~PrgCtxHolder() {
-            if (ctx)
+Crypto::SeededPrg::SeededPrg(const U128* seeds, size_t numSeeds) : _ctxs(numSeeds, nullptr) {
+    for (size_t i = 0; i < numSeeds; ++i) {
+        unsigned char key[16];
+        store_u64_le(seeds[i].lo, key);
+        store_u64_le(seeds[i].hi, key + 8);
+        _ctxs[i] = EVP_CIPHER_CTX_new();
+        const bool ok = _ctxs[i] != nullptr &&
+                        EVP_EncryptInit_ex(_ctxs[i], EVP_aes_128_ecb(), nullptr, key, nullptr) == 1 &&
+                        EVP_CIPHER_CTX_set_padding(_ctxs[i], 0) == 1;
+        OPENSSL_cleanse(key, sizeof(key));
+        if (!ok) {
+            for (auto* ctx : _ctxs) {
                 EVP_CIPHER_CTX_free(ctx);
-        }
-    } holder;
-
-    EVP_CIPHER_CTX* ctx = holder.ctx;
-    if (!ctx)
-        throw std::runtime_error("EVP_CIPHER_CTX_new failed");
-
-    const size_t total = numSeeds * blocksPerSeed;
-
-    // Build plaintext buffer: each block = (seed XOR derived_lo) || (block_idx XOR derived_hi)
-    // We write directly into out[] then XOR in-place after encryption.
-    unsigned char* buf = reinterpret_cast<unsigned char*>(out);
-    for (size_t i = 0; i < numSeeds; ++i) {
-        // Derive two 64-bit words from the seed for key mixing
-        const uint64_t s0 = seeds[i] ^ 0x9e3779b97f4a7c15ULL;
-        const uint64_t s1 = seeds[i] ^ 0xbf58476d1ce4e5b9ULL;
-        for (size_t b = 0; b < blocksPerSeed; ++b) {
-            const size_t off = (i * blocksPerSeed + b) * 16;
-            const uint64_t lo = s0 + b;
-            const uint64_t hi = s1 ^ (b * 0x6c62272e07bb0142ULL);
-            std::memcpy(buf + off, &lo, 8);
-            std::memcpy(buf + off + 8, &hi, 8);
+            }
+            throw std::runtime_error("SeededPrg: AES key setup failed");
         }
     }
+}
 
-    // Encrypt all blocks in one call (maximises AES-NI throughput)
-    int outLen = 0;
-    if (EVP_EncryptUpdate(ctx, buf, &outLen, buf, static_cast<int>(total * 16)) != 1) {
-        throw std::runtime_error("EVP_EncryptUpdate failed in batchPrgGenerate");
+Crypto::SeededPrg::~SeededPrg() {
+    for (auto* ctx : _ctxs) {
+        EVP_CIPHER_CTX_free(ctx);
     }
+}
 
-    // Davies-Meyer XOR: out[i] ^= plaintext[i]  (already in buf before encrypt)
-    // We must re-derive the plaintext since we encrypted in-place.
-    for (size_t i = 0; i < numSeeds; ++i) {
-        const uint64_t s0 = seeds[i] ^ 0x9e3779b97f4a7c15ULL;
-        const uint64_t s1 = seeds[i] ^ 0xbf58476d1ce4e5b9ULL;
-        for (size_t b = 0; b < blocksPerSeed; ++b) {
-            U128& blk = out[i * blocksPerSeed + b];
-            blk.lo ^= s0 + b;
-            blk.hi ^= s1 ^ (b * 0x6c62272e07bb0142ULL);
+void Crypto::SeededPrg::generate(const U128& nonce, uint64_t stream, U128* out, size_t blocksPerSeed) const {
+    if (blocksPerSeed == 0) {
+        return;
+    }
+    // Counter blocks are identical for every seed: (nonce.lo ^ block, nonce.hi ^ stream). They are distinct for
+    // distinct (stream, block) under one nonce, so each AES key never encrypts the same input twice in a call
+    // sequence that uses a fresh nonce.
+    std::vector<unsigned char> counters(blocksPerSeed * 16);
+    for (size_t b = 0; b < blocksPerSeed; ++b) {
+        store_u64_le(nonce.lo ^ static_cast<uint64_t>(b), counters.data() + b * 16);
+        store_u64_le(nonce.hi ^ stream, counters.data() + b * 16 + 8);
+    }
+    for (size_t i = 0; i < _ctxs.size(); ++i) {
+        unsigned char* dst = reinterpret_cast<unsigned char*>(out + i * blocksPerSeed);
+        int outLen = 0;
+        if (EVP_EncryptUpdate(_ctxs[i], dst, &outLen, counters.data(), static_cast<int>(counters.size())) != 1 ||
+            outLen != static_cast<int>(counters.size())) {
+            throw std::runtime_error("SeededPrg: AES encryption failed");
         }
     }
 }

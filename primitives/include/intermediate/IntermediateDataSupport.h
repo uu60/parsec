@@ -11,6 +11,7 @@
 #include "./item/SRot.h"
 #include "conf/Conf.h"
 #include "sync/AbstractBlockingQueue.h"
+#include "utils/Crypto.h"
 
 namespace parsec {
 
@@ -36,15 +37,15 @@ class IntermediateDataSupport {
     inline static SRot* _sRot1 = nullptr;
     inline static RRot* _rRot1 = nullptr;
 
-    // IKNP base seeds derived from base OT; computed once in init().
-    // _iknpBaseSeeds[dir][i] where dir=0 means sender=0, dir=1 means sender=1
-    // For each direction, the IKNP sender has one seed per row, receiver has two
-    inline static std::vector<std::array<int64_t, 2>> _iknpBaseSeeds0; // For sender=0 direction
-    inline static std::vector<std::array<int64_t, 2>> _iknpBaseSeeds1; // For sender=1 direction
+    // IKNP base seeds (128-bit) from 128 base OTs, computed once in init(). Direction 0 has rank 0 as the IKNP
+    // sender, direction 1 has rank 1. The IKNP receiver of a direction holds both seeds {k_i^0, k_i^1}; the IKNP
+    // sender holds only k_i^{s_i} (stored in element 0) and its secret choice bits s, which are never sent.
+    inline static std::vector<std::array<U128, 2>> _iknpBaseSeeds0;
+    inline static std::vector<std::array<U128, 2>> _iknpBaseSeeds1;
 
-    // IKNP sender's choice bits (128 bits, one per base OT)
-    inline static std::vector<bool> _iknpSenderChoices0; // For sender=0 direction
-    inline static std::vector<bool> _iknpSenderChoices1; // For sender=1 direction
+    // The IKNP sender's secret choice bits s for each direction (only populated on the sender's rank).
+    inline static std::vector<bool> _iknpSenderChoices0;
+    inline static std::vector<bool> _iknpSenderChoices1;
 
     // RSA keys for BaseOT, pre-generated at initialization
     inline static std::string _baseOtSelfPub;
@@ -63,6 +64,9 @@ class IntermediateDataSupport {
     static void startGenerateBitwiseBmtsAsync();
 
     static void prepareIknp();
+
+    static void prepareIknpDirection(int iknpSender, int msgTagOffset, std::vector<std::array<U128, 2>>& seeds,
+                                     std::vector<bool>& senderChoices);
 
     static void init();
 
