@@ -60,7 +60,9 @@ Keep each pull request focused and include:
 4. Documentation updates for public behavior or configuration changes.
 
 Put library code in the `parsec` namespace; executables (benchmarks, experiments, tests) may use
-`using namespace parsec;`. Use the repository `.clang-format` for changed C++ files. Avoid unrelated formatting changes. New correctness tests
+`using namespace parsec;`. Format C++ changes with `tools/format.sh` (clang-format 21, the version CI checks with
+`tools/format.sh --check`). After the one-time bulk reformat, run `git config blame.ignoreRevsFile
+.git-blame-ignore-revs` so `git blame` skips it. New correctness tests
 must return a non-zero exit status on failure or provide an unambiguous pass/fail result that CTest can validate.
 
 ## Commit messages
