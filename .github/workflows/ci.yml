@@ -99,6 +99,13 @@ jobs:
       - name: Test
         run: ctest --preset dev
 
+      - name: Install and use with find_package
+        run: |
+          cmake --install build/dev --prefix "$RUNNER_TEMP/parsec"
+          cmake -S examples/find-package -B build/find-package -G Ninja -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/parsec"
+          cmake --build build/find-package
+          build/find-package/parsec_example
+
   sanitizers:
     name: ubuntu / sanitizers
     runs-on: ubuntu-latest
