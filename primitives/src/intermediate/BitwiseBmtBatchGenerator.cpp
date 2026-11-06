@@ -90,7 +90,7 @@ void BitwiseBmtBatchGenerator::computeMix(int sender) {
 void BitwiseBmtBatchGenerator::computeC() {
     for (int i = 0; i < _bmts.size(); i++) {
         auto &bmt = _bmts[i];
-        bmt._c = bmt._a & bmt._b ^ _usi[i] ^ _vsi[i];
+        bmt._c = (bmt._a & bmt._b) ^ _usi[i] ^ _vsi[i];
     }
 }
 

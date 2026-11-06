@@ -87,7 +87,6 @@ IknpOtBatchOperator *IknpOtBatchOperator::execute() {
 }
 
 void IknpOtBatchOperator::deriveSenderSeeds() {
-    const int64_t ts0 = System::currentTimeMillis();
     const auto &baseSeeds = (_senderRank == 0)
                                 ? IntermediateDataSupport::_iknpBaseSeeds0
                                 : IntermediateDataSupport::_iknpBaseSeeds1;
@@ -144,12 +143,10 @@ void IknpOtBatchOperator::senderExtendForBits() {
     }
 
     std::vector<int64_t> allUBuffer(totalUSize); {
-        const int64_t tc = System::currentTimeMillis();
         AbstractRequest *recvReq = Comm::serverReceiveAsync(
             allUBuffer, static_cast<int>(totalUSize), 64, buildTag(_currentMsgTag.load())); {
             alignas(32) uint64_t prgSeeds[TILE_ROWS];
             for (size_t i = 0; i < TILE_ROWS; ++i) prgSeeds[i] = _senderSeeds[i][0];
-            const int64_t tp = System::currentTimeMillis();
             Crypto::batchPrgGenerate(prgSeeds, TILE_ROWS, qRows, tileBlocks[0]);
         }
         Comm::wait(recvReq);
@@ -182,14 +179,11 @@ void IknpOtBatchOperator::senderExtendForBits() {
                 // PRG expand
                 alignas(32) uint64_t prgSeeds[TILE_ROWS];
                 for (size_t i = 0; i < TILE_ROWS; ++i)
-                    prgSeeds[i] = _senderSeeds[i][0] + t; {
-                    const int64_t tp = System::currentTimeMillis();
-                    Crypto::batchPrgGenerate(prgSeeds, TILE_ROWS, qRowsLocal, blocks_);
-                }
+                    prgSeeds[i] = _senderSeeds[i][0] + t;
+                Crypto::batchPrgGenerate(prgSeeds, TILE_ROWS, qRowsLocal, blocks_);
 
                 // XOR with U
                 const U128 *uRows_ = reinterpret_cast<const U128 *>(&allUBuffer[uOff_]); {
-                    const int64_t tx = System::currentTimeMillis();
                     if (Conf::ENABLE_SIMD) {
                         for (size_t i = 0; i < TILE_ROWS; ++i) {
                             if (senderChoices[i])
@@ -208,7 +202,6 @@ void IknpOtBatchOperator::senderExtendForBits() {
                         }
                     }
                 } {
-                    const int64_t th = System::currentTimeMillis();
                     for (size_t blk = 0; blk < blocks_; ++blk) {
                         for (size_t r = 0; r < TILE_ROWS; ++r)
                             tile[r] = qRowsLocal[r * blocks_ + blk];
@@ -328,7 +321,6 @@ void IknpOtBatchOperator::receiverExtendForBits() {
             for (size_t t = tStart; t < tEnd; ++t) {
                 const size_t offset_ = tileOffset[t];
                 const size_t uOff_ = tileUOffset[t];
-                const size_t chunk_ = std::min<size_t>(TILE_ROWS * W, totalBits - offset_);
                 const size_t blocks_ = tileBlocks[t];
 
                 std::memset(cBlocks, 0, blocks_ * sizeof(U128));
@@ -350,13 +342,11 @@ void IknpOtBatchOperator::receiverExtendForBits() {
                     prgSeeds0[i] = derivedSeeds0[i] + t;
                     prgSeeds1[i] = derivedSeeds1[i] + t;
                 } {
-                    const int64_t tp = System::currentTimeMillis();
                     Crypto::batchPrgGenerate(prgSeeds0, TILE_ROWS, tRowsLocal, blocks_);
                     Crypto::batchPrgGenerate(prgSeeds1, TILE_ROWS, uRowsLocal, blocks_);
                 }
 
                 std::memcpy(&allTBuffer[uOff_ / 2], tRowsLocal, TILE_ROWS * blocks_ * sizeof(U128)); {
-                    const int64_t tx = System::currentTimeMillis();
                     if (Conf::ENABLE_SIMD) {
                         for (size_t i = 0; i < TILE_ROWS; ++i) {
                             SimdSupport::xorU128Arrays(&uRowsLocal[i * blocks_], &uRowsLocal[i * blocks_],
@@ -413,7 +403,6 @@ void IknpOtBatchOperator::receiverExtendForBits() {
                 const size_t blocks_ = tileBlocks[t];
                 const U128 *cachedT = &allTBuffer[uOff_ / 2];
 
-                const int64_t th = System::currentTimeMillis();
                 for (size_t blk = 0; blk < blocks_; ++blk) {
                     for (size_t r = 0; r < TILE_ROWS; ++r)
                         tile[r] = cachedT[r * blocks_ + blk];
@@ -452,18 +441,15 @@ void IknpOtBatchOperator::receiverExtendForBits() {
             for (auto &f: futures) f.get();
         }
     } {
-        const int64_t tc = System::currentTimeMillis();
         Comm::wait(sendReq);
     }
 
     std::vector<int64_t> maskedMessages(n * 2); {
-        const int64_t tc = System::currentTimeMillis();
         AbstractRequest *recvReq = Comm::serverReceiveAsync(
             maskedMessages, static_cast<int>(n * 2), 64, buildTag(_currentMsgTag.load()));
         Comm::wait(recvReq);
     }
     _currentMsgTag.fetch_add(1, std::memory_order_relaxed); {
-        const int64_t tu = System::currentTimeMillis();
         if (Conf::ENABLE_SIMD) {
             std::vector<int64_t> y0Vec(n), y1Vec(n);
             for (size_t limb = 0; limb < n; ++limb) {

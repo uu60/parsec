@@ -7,7 +7,6 @@
 
 class PipelineBitwiseBmtBatchGenerator : public AbstractBatchOperator {
 private:
-    int64_t _totalBits{};
     int _index{};
     BoostSPSCQueue<std::vector<BitwiseBmt>, INT16_MAX> _bmts{};
     BoostSPSCQueue<std::vector<int64_t>, INT16_MAX> _ssis{};

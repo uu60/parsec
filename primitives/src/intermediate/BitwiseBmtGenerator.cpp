@@ -61,7 +61,6 @@ void BitwiseBmtGenerator::computeMix(int sender) {
         }
     }
 
-    auto s = Math::randInt();
     auto results = IknpOtBatchOperator(sender, &ss0, &ss1, &choices, 1, _taskTag,
                                        _currentMsgTag + sender * IknpOtBatchOperator::tagStride()).execute()->
             _results;
@@ -84,7 +83,7 @@ void BitwiseBmtGenerator::computeMix(int sender) {
 }
 
 void BitwiseBmtGenerator::computeC() {
-    _bmt._c = ring(_bmt._a & _bmt._b ^ _ui ^ _vi);
+    _bmt._c = ring((_bmt._a & _bmt._b) ^ _ui ^ _vi);
 }
 
 int64_t BitwiseBmtGenerator::corr(int i, int64_t x) const {

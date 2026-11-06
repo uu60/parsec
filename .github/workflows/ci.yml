@@ -46,7 +46,9 @@ jobs:
         env:
           CC: ${{ matrix.cc }}
           CXX: ${{ matrix.cxx }}
-        run: cmake --preset ci
+          # Warnings fail the build on Linux; Apple Clang is left out until its warning set has been cleaned up.
+          WARNINGS_AS_ERRORS: ${{ runner.os == 'Linux' && 'ON' || 'OFF' }}
+        run: cmake --preset ci -DPARSEC_WARNINGS_AS_ERRORS=$WARNINGS_AS_ERRORS
 
       - name: Build
         run: cmake --build --preset ci --parallel 2
@@ -66,7 +68,7 @@ jobs:
         uses: ./.github/actions/setup-ubuntu
 
       - name: Configure
-        run: cmake --preset ci-database
+        run: cmake --preset ci-database -DPARSEC_WARNINGS_AS_ERRORS=ON
 
       - name: Build
         run: cmake --build --preset ci-database --parallel 2
@@ -76,7 +78,8 @@ jobs:
 
   latest-toolchain-build:
     # Compile every target, including benchmarks and experiments that the test presets skip, to catch compiler
-    # regressions with the newest runner toolchain.
+    # regressions with the newest runner toolchain. The tests run in a Debug build, where libstdc++ bounds checks
+    # are enabled.
     name: ubuntu-latest / build all targets
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -88,10 +91,13 @@ jobs:
         uses: ./.github/actions/setup-ubuntu
 
       - name: Configure
-        run: cmake --preset dev
+        run: cmake --preset dev -DPARSEC_WARNINGS_AS_ERRORS=ON
 
       - name: Build
         run: cmake --build --preset dev --parallel 2
+
+      - name: Test
+        run: ctest --preset dev
 
   sanitizers:
     name: ubuntu / sanitizers
@@ -110,7 +116,7 @@ jobs:
         env:
           CC: clang
           CXX: clang++
-        run: cmake --preset ci-sanitizers
+        run: cmake --preset ci-sanitizers -DPARSEC_WARNINGS_AS_ERRORS=ON
 
       - name: Build
         run: cmake --build --preset ci-sanitizers --parallel 2

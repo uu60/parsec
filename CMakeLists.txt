@@ -7,10 +7,22 @@ option(PARSEC_BUILD_BENCHMARKS "Build benchmark executables" ON)
 option(PARSEC_BUILD_EXPERIMENTS "Build research experiment executables" ON)
 option(PARSEC_BUILD_TESTS "Build and register correctness tests" OFF)
 option(PARSEC_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+option(PARSEC_ENABLE_WARNINGS "Compile Parsec sources with -Wall -Wextra" ON)
+option(PARSEC_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+# Warning flags apply to this project's own targets only; they are not propagated to projects that consume Parsec.
+if (PARSEC_ENABLE_WARNINGS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    add_compile_options(-Wall -Wextra)
+    if (PARSEC_WARNINGS_AS_ERRORS)
+        # Existing signed/unsigned comparisons and unused parameters are known debt and stay warnings; every other
+        # warning fails the build.
+        add_compile_options(-Werror -Wno-error=sign-compare -Wno-error=unused-parameter)
+    endif ()
+endif ()
 
 if (PARSEC_ENABLE_SANITIZERS)
     if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")

@@ -2050,7 +2050,6 @@ void View::bitonicSortMultiBatches(const std::string &orderField, bool ascending
                                                               BoolMutexBatchOperator::tagStride() * c).execute()->
                                     _zis;
 
-                            int64_t time = System::currentTimeMillis();
                             for (int t = 0; t < cnt; ++t) {
                                 col[xIdx[start + t]] = zs2[t];
                                 col[yIdx[start + t]] = zs2[cnt + t];
@@ -3054,7 +3053,7 @@ void View::bitonicSortMultiBatches(const std::vector<std::string> &orderFields,
                     futures2.reserve(colNum() - 1);
 
                     for (int c = 0; c < colNum() - 1; ++c) {
-                        futures2.push_back(ThreadPoolSupport::submit([&, b, c, currentTag, start, end, cnt] {
+                        futures2.push_back(ThreadPoolSupport::submit([&, c, currentTag, start, end, cnt] {
                             auto &col = _dataCols[c];
                             std::vector<int64_t> subXs, subYs;
                             subXs.reserve(cnt);

@@ -8,7 +8,6 @@
 class BoolEqualBatchOperator : public BoolBatchOperator {
 private:
     std::vector<BitwiseBmt> *_bmts{};
-    bool _dbIn{};
 
 public:
     inline static std::atomic_int64_t _totalTime = 0;

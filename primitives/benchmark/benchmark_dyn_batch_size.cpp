@@ -166,7 +166,6 @@ bool test(std::vector<std::string> &testPmts, std::string pmt, int width, int ba
         } else if (pmt == "ar") {
             std::vector<std::future<void> > futures(batch_num);
             std::atomic_int64_t sumShare = 0;
-            int64_t sumShare1;
             for (int b = 0; b < batch_num; ++b) {
                 futures[b] = ThreadPoolSupport::submit([&, b] {
                     int startIdx = b * batchSize;

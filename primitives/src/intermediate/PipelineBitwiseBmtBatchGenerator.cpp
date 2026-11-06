@@ -142,7 +142,7 @@ void PipelineBitwiseBmtBatchGenerator::subThreadHandle() {
                 int64_t ui = ssi[i];
                 int64_t vi = ssbs[i];
                 auto &bmt = bmts[i];
-                bmt._c = bmt._a & bmt._b ^ ui ^ vi;
+                bmt._c = (bmt._a & bmt._b) ^ ui ^ vi;
                 IntermediateDataSupport::_bitwiseBmtQs[_index]->offer(bmt);
             }
         }

@@ -122,7 +122,6 @@ View Views::nestedLoopJoin(View &v0, View &v1, std::string &field0, std::string 
 
     const bool BASELINE = DbConf::BASELINE_MODE;
     const bool PRECISE = (!DbConf::BASELINE_MODE) && (!DbConf::DISABLE_PRECISE_COMPACTION);
-    const bool APPROX = (!DbConf::BASELINE_MODE) && (DbConf::DISABLE_PRECISE_COMPACTION);
 
     const int validIdx0 = v0.colNum() + View::VALID_COL_OFFSET;
     const int validIdx1 = v1.colNum() + View::VALID_COL_OFFSET;
@@ -607,7 +606,6 @@ View Views::leftOuterJoin(View &v0, View &v1, std::string &field0, std::string &
     const int v0_valid_idx = v0.colNum() + View::VALID_COL_OFFSET;
     const int v1_valid_idx = v1.colNum() + View::VALID_COL_OFFSET;
     const auto &left_valid = v0._dataCols[v0_valid_idx];
-    const auto &right_valid = v1._dataCols[v1_valid_idx];
 
     std::vector<int64_t> has_match =
             in(const_cast<std::vector<int64_t> &>(left_keys),

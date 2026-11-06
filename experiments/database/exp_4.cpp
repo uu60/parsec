@@ -147,7 +147,7 @@ std::vector<int64_t> markGroupsCountGT1(View &v, int tid) {
         std::vector<int64_t> pwd_prev2(pwd_col.begin(), pwd_col.end() - 1);
         eq_pwd_prev = BoolEqualBatchOperator(&pwd_prev, &pwd_prev2, 64, 0,
                                              tid, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-        eq_id_prev = std::move(f.get());
+        eq_id_prev = f.get();
     }
 
     auto same_prev = BoolAndBatchOperator(&eq_id_prev, &eq_pwd_prev, 1, 0,
@@ -176,7 +176,7 @@ std::vector<int64_t> markGroupsCountGT1(View &v, int tid) {
         std::vector<int64_t> pwd_next2(pwd_col.begin() + 1, pwd_col.end());
         eq_pwd_next = BoolEqualBatchOperator(&pwd_next, &pwd_next2, 64, 0,
                                              tid, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-        eq_id_next = std::move(f.get());
+        eq_id_next = f.get();
     }
 
     auto same_next = BoolAndBatchOperator(&eq_id_next, &eq_pwd_next, 1, 0,
@@ -225,7 +225,7 @@ std::vector<int64_t> buildGroupHeads(View &v, int tid) {
         std::vector<int64_t> pwd_prev2(pwd_col.begin(), pwd_col.end() - 1);
         eq_pwd_prev = BoolEqualBatchOperator(&pwd_prev, &pwd_prev2, 64, 0,
                                              tid, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
-        eq_id_prev = std::move(f.get());
+        eq_id_prev = f.get();
     }
 
     auto same_prev = BoolAndBatchOperator(&eq_id_prev, &eq_pwd_prev, 1, 0,
