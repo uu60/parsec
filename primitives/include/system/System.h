@@ -7,18 +7,16 @@
 
 namespace parsec {
 
-
 class System {
-private:
-    
+  private:
     inline static int PRESERVED_TASK_TAGS = 2 * Conf::BMT_QUEUE_NUM;
     inline static std::atomic_int _currentTaskTag = PRESERVED_TASK_TAGS;
 
-public:
+  public:
     inline static std::atomic_bool _shutdown = false;
 
-public:
-    static void init(int argc, char **argv);
+  public:
+    static void init(int argc, char** argv);
 
     static void finalize();
 
@@ -26,8 +24,6 @@ public:
 
     static int64_t currentTimeMillis();
 };
-
-
 
 } // namespace parsec
 

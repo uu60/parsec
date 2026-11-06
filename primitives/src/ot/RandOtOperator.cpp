@@ -6,8 +6,7 @@
 
 namespace parsec {
 
-
-RandOtOperator *RandOtOperator::execute() {
+RandOtOperator* RandOtOperator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isServer()) {
         int64_t k, y0, y1;
@@ -32,8 +31,6 @@ RandOtOperator *RandOtOperator::execute() {
     return this;
 }
 
-int RandOtOperator::tagStride(int width) {
-    return 1;
-}
+int RandOtOperator::tagStride(int width) { return 1; }
 
 } // namespace parsec

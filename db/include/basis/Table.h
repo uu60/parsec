@@ -9,7 +9,7 @@
 namespace parsec {
 
 class Table {
-public:
+  public:
     inline static const std::string BUCKET_TAG_PREFIX = "$tag:";
 
     virtual ~Table() = default;
@@ -18,26 +18,25 @@ public:
     std::vector<std::string> _fieldNames;
     std::string _keyField;
     std::vector<int> _fieldWidths;
-    std::vector<std::vector<int64_t> > _dataCols;
+    std::vector<std::vector<int64_t>> _dataCols;
     int _maxWidth{};
 
     inline static std::vector<int64_t> EMPTY_COL{};
 
-public:
+  public:
     Table() = default;
 
-    explicit Table(std::string &tableName, std::vector<std::string> &fieldNames, std::vector<int> &fieldWidths, std::string keyField);
+    explicit Table(std::string& tableName, std::vector<std::string>& fieldNames, std::vector<int>& fieldWidths,
+                   std::string keyField);
 
-    bool insert(const std::vector<int64_t> &r);
+    bool insert(const std::vector<int64_t>& r);
 
-    [[nodiscard]] int colIndex(const std::string &colName) const;
+    [[nodiscard]] int colIndex(const std::string& colName) const;
 
     [[nodiscard]] size_t colNum() const;
 
     [[nodiscard]] size_t rowNum() const;
 };
-
-
 
 } // namespace parsec
 

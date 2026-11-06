@@ -9,7 +9,7 @@
 
 using namespace parsec;
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     System::init(argc, argv);
 
     if (Comm::isClient()) {
@@ -31,15 +31,10 @@ int main(int argc, char *argv[]) {
     }
 
     // Test BaseOtBatchOperator
-    std::vector<int64_t> results = BaseOtBatchOperator(
-        0,
-        isSender ? &ss0 : nullptr,
-        isSender ? &ss1 : nullptr,
-        !isSender ? &choices : nullptr,
-        64,
-        1,
-        0
-    ).execute()->_results;
+    std::vector<int64_t> results = BaseOtBatchOperator(0, isSender ? &ss0 : nullptr, isSender ? &ss1 : nullptr,
+                                                       !isSender ? &choices : nullptr, 64, 1, 0)
+                                       .execute()
+                                       ->_results;
 
     if (Comm::rank() == 1) {
         Log::i("BaseOtBatchOperator results: {}", StringUtils::vecToString(results));
@@ -58,5 +53,3 @@ int main(int argc, char *argv[]) {
     System::finalize();
     return passed ? 0 : 1;
 }
-
-

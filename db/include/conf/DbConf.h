@@ -8,9 +8,8 @@
 
 namespace parsec {
 
-
 class DbConf {
-public:
+  public:
     inline static bool ENABLE_HASH_JOIN = true;
     inline static int SHUFFLE_BUCKET_NUM = 32;
     inline static bool DISABLE_PRECISE_COMPACTION = true;
@@ -22,8 +21,7 @@ public:
         SHUFFLE_BUCKET_NUM = AppConfig::getInt("shuffle_bucket_num", SHUFFLE_BUCKET_NUM);
         BASELINE_MODE = AppConfig::getBool("baseline_mode", BASELINE_MODE);
         NO_COMPACTION = AppConfig::getBool("no_compaction", NO_COMPACTION);
-        DISABLE_PRECISE_COMPACTION =
-                AppConfig::getBool("disable_precise_compaction", DISABLE_PRECISE_COMPACTION);
+        DISABLE_PRECISE_COMPACTION = AppConfig::getBool("disable_precise_compaction", DISABLE_PRECISE_COMPACTION);
 
         if (BASELINE_MODE) {
             NO_COMPACTION = true;
@@ -34,8 +32,6 @@ public:
         }
     };
 };
-
-
 
 } // namespace parsec
 

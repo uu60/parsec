@@ -12,9 +12,9 @@ using namespace parsec;
 namespace {
 
 // Bit `c` of a 128-bit row: columns 0-63 live in `lo`, 64-127 in `hi`.
-bool getBit(const U128 &row, int c) { return c < 64 ? ((row.lo >> c) & 1u) : ((row.hi >> (c - 64)) & 1u); }
+bool getBit(const U128& row, int c) { return c < 64 ? ((row.lo >> c) & 1u) : ((row.hi >> (c - 64)) & 1u); }
 
-void setBit(U128 &row, int c) {
+void setBit(U128& row, int c) {
     if (c < 64) {
         row.lo |= uint64_t{1} << c;
     } else {
@@ -25,16 +25,17 @@ void setBit(U128 &row, int c) {
 std::array<U128, 128> randomMatrix(uint64_t seed) {
     std::mt19937_64 rng(seed);
     std::array<U128, 128> m{};
-    for (auto &row : m) {
+    for (auto& row : m) {
         row.lo = rng();
         row.hi = rng();
     }
     return m;
 }
 
-bool equal(const std::array<U128, 128> &a, const std::array<U128, 128> &b) {
+bool equal(const std::array<U128, 128>& a, const std::array<U128, 128>& b) {
     for (size_t i = 0; i < a.size(); ++i) {
-        if (a[i].lo != b[i].lo || a[i].hi != b[i].hi) return false;
+        if (a[i].lo != b[i].lo || a[i].hi != b[i].hi)
+            return false;
     }
     return true;
 }
@@ -46,8 +47,8 @@ TEST(CryptoTranspose, MovesEachBitToMirroredPosition) {
         Crypto::transpose128x128_inplace(m.data());
         for (int i = 0; i < 128; ++i) {
             for (int j = 0; j < 128; ++j) {
-                ASSERT_EQ(getBit(m[i], j), i == c && j == r) << "bit (" << r << "," << c << ") -> (" << i << "," << j
-                                                             << ")";
+                ASSERT_EQ(getBit(m[i], j), i == c && j == r)
+                    << "bit (" << r << "," << c << ") -> (" << i << "," << j << ")";
             }
         }
     }

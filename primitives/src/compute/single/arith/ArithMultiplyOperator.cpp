@@ -1,16 +1,15 @@
 
 #include "compute/single/arith/ArithMultiplyOperator.h"
 
-#include "intermediate/IntermediateDataSupport.h"
 #include "comm/Comm.h"
 #include "intermediate/BmtGenerator.h"
+#include "intermediate/IntermediateDataSupport.h"
 #include "utils/Log.h"
 #include "utils/Math.h"
 
 namespace parsec {
 
-
-ArithMultiplyOperator *ArithMultiplyOperator::execute() {
+ArithMultiplyOperator* ArithMultiplyOperator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isServer()) {
         Bmt bmt;
@@ -38,11 +37,9 @@ ArithMultiplyOperator *ArithMultiplyOperator::execute() {
     return this;
 }
 
-int ArithMultiplyOperator::tagStride(int width) {
-    return BmtGenerator::tagStride(width);
-}
+int ArithMultiplyOperator::tagStride(int width) { return BmtGenerator::tagStride(width); }
 
-ArithMultiplyOperator *ArithMultiplyOperator::setBmt(Bmt *bmt) {
+ArithMultiplyOperator* ArithMultiplyOperator::setBmt(Bmt* bmt) {
     _bmt = bmt;
     return this;
 }

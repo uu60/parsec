@@ -7,15 +7,13 @@
 
 namespace parsec {
 
-
-
 class BmtBatchGenerator : public AbstractBmtBatchGenerator<Bmt> {
-public:
+  public:
     BmtBatchGenerator(int count, int l, int taskTag, int msgTagOffset);
 
-    BmtBatchGenerator *execute() override;
+    BmtBatchGenerator* execute() override;
 
-protected:
+  protected:
     virtual void generateRandomAB();
 
     virtual void computeMix(int sender);
@@ -24,14 +22,11 @@ protected:
 
     virtual int64_t corr(int bmtIdx, int round, int64_t x) const;
 
-public:
-    BmtBatchGenerator *reconstruct(int clientRank) override;
+  public:
+    BmtBatchGenerator* reconstruct(int clientRank) override;
 
     static int tagStride();
 };
-
-
-
 
 } // namespace parsec
 

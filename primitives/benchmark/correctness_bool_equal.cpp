@@ -44,8 +44,8 @@ bool testBatchWidth(int width) {
     }
     for (size_t i = 0; i < expected.size(); ++i) {
         if (op._results[i] != expected[i]) {
-            Log::e("BoolEqual batch MISMATCH width={} index={} expected={} got={}",
-                   width, i, expected[i], op._results[i]);
+            Log::e("BoolEqual batch MISMATCH width={} index={} expected={} got={}", width, i, expected[i],
+                   op._results[i]);
             return false;
         }
     }
@@ -62,23 +62,23 @@ bool testSingleWidth(int width) {
         BoolEqualOperator op(x, y, width, System::nextTask(), 0, 2);
         op.execute()->reconstruct(2);
         if (Comm::isClient() && op._result != (equal ? 1 : 0)) {
-            Log::e("BoolEqual single MISMATCH width={} case={} expected={} got={}",
-                   width, i, equal ? 1 : 0, op._result);
+            Log::e("BoolEqual single MISMATCH width={} case={} expected={} got={}", width, i, equal ? 1 : 0,
+                   op._result);
             passed = false;
         }
     }
     return passed;
 }
-}
+} // namespace
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     System::init(argc, argv);
     bool passed = true;
 
-    for (int width: std::array<int, 9>{1, 2, 3, 7, 8, 31, 32, 63, 64}) {
+    for (int width : std::array<int, 9>{1, 2, 3, 7, 8, 31, 32, 63, 64}) {
         passed = testBatchWidth(width) && passed;
     }
-    for (int width: std::array<int, 3>{1, 7, 64}) {
+    for (int width : std::array<int, 3>{1, 7, 64}) {
         passed = testSingleWidth(width) && passed;
     }
 

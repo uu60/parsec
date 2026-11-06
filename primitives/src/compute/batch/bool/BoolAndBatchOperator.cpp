@@ -11,8 +11,7 @@
 
 namespace parsec {
 
-
-int BoolAndBatchOperator::prepareBmts(std::vector<BitwiseBmt> &bmts) {
+int BoolAndBatchOperator::prepareBmts(std::vector<BitwiseBmt>& bmts) {
     if (_bmts != nullptr) {
         bmts = std::move(*_bmts);
         return bmts.size();
@@ -39,15 +38,14 @@ int BoolAndBatchOperator::prepareBmts(std::vector<BitwiseBmt> &bmts) {
     return bc;
 }
 
-BoolAndBatchOperator::BoolAndBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys,
-                                           std::vector<int64_t> *conds, int width, int taskTag,
-                                           int msgTagOffset) : BoolBatchOperator(
-    xs, ys, width, taskTag, msgTagOffset, NO_CLIENT_COMPUTE) {
+BoolAndBatchOperator::BoolAndBatchOperator(std::vector<int64_t>* xs, std::vector<int64_t>* ys,
+                                           std::vector<int64_t>* conds, int width, int taskTag, int msgTagOffset)
+    : BoolBatchOperator(xs, ys, width, taskTag, msgTagOffset, NO_CLIENT_COMPUTE) {
     _conds_i = conds;
     _doWithConditions = true;
 }
 
-BoolAndBatchOperator *BoolAndBatchOperator::execute() {
+BoolAndBatchOperator* BoolAndBatchOperator::execute() {
     _currentMsgTag = _startMsgTag;
 
     if (Comm::isClient()) {
@@ -79,14 +77,12 @@ int BoolAndBatchOperator::tagStride() {
     return BitwiseBmtBatchGenerator::tagStride();
 }
 
-BoolAndBatchOperator *BoolAndBatchOperator::setBmts(std::vector<BitwiseBmt> *bmts) {
+BoolAndBatchOperator* BoolAndBatchOperator::setBmts(std::vector<BitwiseBmt>* bmts) {
     _bmts = bmts;
     return this;
 }
 
-int BoolAndBatchOperator::bmtCount(int num, int width) {
-    return (num * width + 63) / 64;
-}
+int BoolAndBatchOperator::bmtCount(int num, int width) { return (num * width + 63) / 64; }
 
 void BoolAndBatchOperator::execute0() {
     std::vector<BitwiseBmt> bmts;
@@ -139,10 +135,10 @@ void BoolAndBatchOperator::execute0() {
         for (int i = 0; i < num; i++) {
             int64_t e = efs[i];
             int64_t f = efs[num + i];
-            _zis[i] = Math::ring((extendedRank & e & f) ^ (
-                                     f & IntermediateDataSupport::_fixedBitwiseBmt._a) ^ (
-                                     e & IntermediateDataSupport::_fixedBitwiseBmt._b) ^
-                                 IntermediateDataSupport::_fixedBitwiseBmt._c, _width);
+            _zis[i] = Math::ring((extendedRank & e & f) ^ (f & IntermediateDataSupport::_fixedBitwiseBmt._a) ^
+                                     (e & IntermediateDataSupport::_fixedBitwiseBmt._b) ^
+                                     IntermediateDataSupport::_fixedBitwiseBmt._c,
+                                 _width);
         }
     } else {
         if (_width < 64 && bc != -2) {
@@ -233,10 +229,10 @@ void BoolAndBatchOperator::executeForMutex() {
         for (int i = 0; i < num * 2; i++) {
             int64_t e = efs[i];
             int64_t f = efs[num * 2 + i];
-            _zis[i] = Math::ring((extendedRank & e & f) ^ (
-                                     f & IntermediateDataSupport::_fixedBitwiseBmt._a) ^ (
-                                     e & IntermediateDataSupport::_fixedBitwiseBmt._b) ^
-                                 IntermediateDataSupport::_fixedBitwiseBmt._c, _width);
+            _zis[i] = Math::ring((extendedRank & e & f) ^ (f & IntermediateDataSupport::_fixedBitwiseBmt._a) ^
+                                     (e & IntermediateDataSupport::_fixedBitwiseBmt._b) ^
+                                     IntermediateDataSupport::_fixedBitwiseBmt._c,
+                                 _width);
         }
     } else {
         if (_width < 64 && bc != -2) {

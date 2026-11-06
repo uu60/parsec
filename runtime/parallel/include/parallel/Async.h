@@ -5,12 +5,9 @@
 
 namespace parsec {
 
-
-
 class Async {
-public:
-    template<typename F>
-    auto submit(F &&f) -> std::future<decltype(f())> {
+  public:
+    template <typename F> auto submit(F&& f) -> std::future<decltype(f())> {
         using ReturnType = decltype(f());
 
         std::promise<ReturnType> promise;
@@ -19,11 +16,11 @@ public:
         std::thread([p = std::move(promise), func = std::forward<F>(f)]() mutable {
             try {
                 if constexpr (std::is_void_v<ReturnType>) {
-                  func();
-                  p.set_value();
-              } else {
-                  p.set_value(func());
-              }
+                    func();
+                    p.set_value();
+                } else {
+                    p.set_value(func());
+                }
             } catch (...) {
                 p.set_exception(std::current_exception());
             }
@@ -32,8 +29,6 @@ public:
         return fut;
     }
 };
-
-
 
 } // namespace parsec
 

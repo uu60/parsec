@@ -4,16 +4,10 @@
 
 namespace parsec {
 
-
-
-
 class Secret {
-public:
+  public:
     bool _padding{};
 };
-
-
-
 
 } // namespace parsec
 

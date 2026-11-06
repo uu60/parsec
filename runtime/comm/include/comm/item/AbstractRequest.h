@@ -4,18 +4,12 @@
 
 namespace parsec {
 
-
-
-
 class AbstractRequest {
-public:
+  public:
     virtual ~AbstractRequest() = default;
 
     virtual void wait() = 0;
 };
-
-
-
 
 } // namespace parsec
 

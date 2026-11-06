@@ -7,8 +7,7 @@
 
 namespace parsec {
 
-
-BoolEqualBatchOperator *BoolEqualBatchOperator::execute() {
+BoolEqualBatchOperator* BoolEqualBatchOperator::execute() {
     if (Comm::isClient()) {
         return this;
     }
@@ -16,13 +15,11 @@ BoolEqualBatchOperator *BoolEqualBatchOperator::execute() {
     std::vector<BitwiseBmt> allBmts;
     bool gotBmt = prepareBmts(allBmts);
 
-    auto diff = BoolXorBatchOperator(_xis, _yis, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
-            .execute()
-            ->_zis;
+    auto diff = BoolXorBatchOperator(_xis, _yis, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).execute()->_zis;
 
     std::vector<int64_t> values;
     values.reserve(diff.size() * _width);
-    for (auto v: diff) {
+    for (auto v : diff) {
         auto equalBits = Math::ring(Comm::rank() == 0 ? ~v : v, _width);
         for (int bit = 0; bit < _width; ++bit) {
             values.push_back(Math::getBit(equalBits, bit));
@@ -64,9 +61,9 @@ BoolEqualBatchOperator *BoolEqualBatchOperator::execute() {
                 bmtOffset += roundBmtCount;
             }
             andResult = BoolAndBatchOperator(&lhs, &rhs, 1, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
-                    .setBmts(gotBmt ? &roundBmts : nullptr)
-                    ->execute()
-                    ->_zis;
+                            .setBmts(gotBmt ? &roundBmts : nullptr)
+                            ->execute()
+                            ->_zis;
         }
 
         std::vector<int64_t> next;
@@ -92,7 +89,7 @@ BoolEqualBatchOperator *BoolEqualBatchOperator::execute() {
     return this;
 }
 
-BoolEqualBatchOperator *BoolEqualBatchOperator::setBmts(std::vector<BitwiseBmt> *bmts) {
+BoolEqualBatchOperator* BoolEqualBatchOperator::setBmts(std::vector<BitwiseBmt>* bmts) {
     if (bmts != nullptr && bmts->size() != bmtCount(static_cast<int>(_xis->size()), _width)) {
         throw std::runtime_error("BoolEqualBatchOperator BMT count mismatch");
     }
@@ -100,9 +97,7 @@ BoolEqualBatchOperator *BoolEqualBatchOperator::setBmts(std::vector<BitwiseBmt> 
     return this;
 }
 
-int BoolEqualBatchOperator::tagStride() {
-    return BoolAndBatchOperator::tagStride();
-}
+int BoolEqualBatchOperator::tagStride() { return BoolAndBatchOperator::tagStride(); }
 
 int BoolEqualBatchOperator::bmtCount(int num, int width) {
     int count = 0;
@@ -114,7 +109,7 @@ int BoolEqualBatchOperator::bmtCount(int num, int width) {
     return count;
 }
 
-bool BoolEqualBatchOperator::prepareBmts(std::vector<BitwiseBmt> &bmts) {
+bool BoolEqualBatchOperator::prepareBmts(std::vector<BitwiseBmt>& bmts) {
     if (_bmts != nullptr) {
         bmts = std::move(*_bmts);
         return true;

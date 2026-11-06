@@ -7,10 +7,8 @@
 
 namespace parsec {
 
-
-BitwiseBmtBatchGenerator::BitwiseBmtBatchGenerator(int count, int width, int taskTag,
-                                                   int msgTagOffset) : AbstractBmtBatchGenerator(count,
-    width, taskTag, msgTagOffset) {
+BitwiseBmtBatchGenerator::BitwiseBmtBatchGenerator(int count, int width, int taskTag, int msgTagOffset)
+    : AbstractBmtBatchGenerator(count, width, taskTag, msgTagOffset) {
     if (Comm::isClient()) {
         return;
     }
@@ -19,7 +17,7 @@ BitwiseBmtBatchGenerator::BitwiseBmtBatchGenerator(int count, int width, int tas
     _bmts.resize(_bc);
 }
 
-BitwiseBmtBatchGenerator *BitwiseBmtBatchGenerator::execute() {
+BitwiseBmtBatchGenerator* BitwiseBmtBatchGenerator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isClient()) {
         return this;
@@ -33,9 +31,7 @@ BitwiseBmtBatchGenerator *BitwiseBmtBatchGenerator::execute() {
     generateRandomAB();
 
     if (!Conf::DISABLE_MULTI_THREAD && Conf::ENABLE_INTRA_OPERATOR_PARALLELISM) {
-        auto f = ThreadPoolSupport::submit([&] {
-            computeMix(0);
-        });
+        auto f = ThreadPoolSupport::submit([&] { computeMix(0); });
         computeMix(1);
         f.wait();
     } else {
@@ -51,7 +47,7 @@ BitwiseBmtBatchGenerator *BitwiseBmtBatchGenerator::execute() {
 }
 
 void BitwiseBmtBatchGenerator::generateRandomAB() {
-    for (auto &b: _bmts) {
+    for (auto& b : _bmts) {
         b._a = Math::randInt();
         b._b = Math::randInt();
     }
@@ -79,11 +75,14 @@ void BitwiseBmtBatchGenerator::computeMix(int sender) {
     }
 
     auto results = IknpOtBatchOperator(sender, &ss0, &ss1, &choices, _taskTag,
-                                       _currentMsgTag + sender * IknpOtBatchOperator::tagStride()).execute()->_results;
+                                       _currentMsgTag + sender * IknpOtBatchOperator::tagStride())
+                       .execute()
+                       ->_results;
     // auto results = RandOtBatchOperator(sender, &ss0, &ss1, &choices, _taskTag,
-    //                                    _currentMsgTag + sender * RandOtBatchOperator::tagStride()).execute()->_results;
+    //                                    _currentMsgTag + sender *
+    //                                    RandOtBatchOperator::tagStride()).execute()->_results;
 
-    std::vector<int64_t> *mix = sender == 0 ? &_usi : &_vsi;
+    std::vector<int64_t>* mix = sender == 0 ? &_usi : &_vsi;
     mix->resize(_bc);
     for (int i = 0; i < _bc; i++) {
         (*mix)[i] = isSender ? ss0[i] : results[i];
@@ -92,21 +91,15 @@ void BitwiseBmtBatchGenerator::computeMix(int sender) {
 
 void BitwiseBmtBatchGenerator::computeC() {
     for (int i = 0; i < _bmts.size(); i++) {
-        auto &bmt = _bmts[i];
+        auto& bmt = _bmts[i];
         bmt._c = (bmt._a & bmt._b) ^ _usi[i] ^ _vsi[i];
     }
 }
 
-int64_t BitwiseBmtBatchGenerator::corr(int bmtIdx, int64_t x) const {
-    return _bmts[bmtIdx]._a ^ x;
-}
+int64_t BitwiseBmtBatchGenerator::corr(int bmtIdx, int64_t x) const { return _bmts[bmtIdx]._a ^ x; }
 
-SecureOperator *BitwiseBmtBatchGenerator::reconstruct(int clientRank) {
-    throw std::runtime_error("Not support.");
-}
+SecureOperator* BitwiseBmtBatchGenerator::reconstruct(int clientRank) { throw std::runtime_error("Not support."); }
 
-int BitwiseBmtBatchGenerator::tagStride() {
-    return 2 * IknpOtBatchOperator::tagStride();
-}
+int BitwiseBmtBatchGenerator::tagStride() { return 2 * IknpOtBatchOperator::tagStride(); }
 
 } // namespace parsec

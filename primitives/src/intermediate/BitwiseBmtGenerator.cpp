@@ -1,13 +1,12 @@
 #include "intermediate/BitwiseBmtGenerator.h"
-#include "utils/Math.h"
 #include "conf/Conf.h"
 #include "ot/IknpOtBatchOperator.h"
 #include "parallel/ThreadPoolSupport.h"
+#include "utils/Math.h"
 
 namespace parsec {
 
-
-BitwiseBmtGenerator *BitwiseBmtGenerator::execute() {
+BitwiseBmtGenerator* BitwiseBmtGenerator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isClient()) {
         return this;
@@ -20,9 +19,7 @@ BitwiseBmtGenerator *BitwiseBmtGenerator::execute() {
 
     generateRandomAB();
     if (!Conf::DISABLE_MULTI_THREAD && Conf::ENABLE_INTRA_OPERATOR_PARALLELISM) {
-        auto f = ThreadPoolSupport::submit([&] {
-            computeMix(0);
-        });
+        auto f = ThreadPoolSupport::submit([&] { computeMix(0); });
         computeMix(1);
         f.wait();
     } else {
@@ -65,8 +62,9 @@ void BitwiseBmtGenerator::computeMix(int sender) {
     }
 
     auto results = IknpOtBatchOperator(sender, &ss0, &ss1, &choices, 1, _taskTag,
-                                       _currentMsgTag + sender * IknpOtBatchOperator::tagStride()).execute()->
-            _results;
+                                       _currentMsgTag + sender * IknpOtBatchOperator::tagStride())
+                       .execute()
+                       ->_results;
 
     if (isSender) {
         for (int i = 0; i < _width; ++i) {
@@ -85,20 +83,12 @@ void BitwiseBmtGenerator::computeMix(int sender) {
     }
 }
 
-void BitwiseBmtGenerator::computeC() {
-    _bmt._c = ring((_bmt._a & _bmt._b) ^ _ui ^ _vi);
-}
+void BitwiseBmtGenerator::computeC() { _bmt._c = ring((_bmt._a & _bmt._b) ^ _ui ^ _vi); }
 
-int64_t BitwiseBmtGenerator::corr(int i, int64_t x) const {
-    return (Math::getBit(_bmt._a, i) - x) & 1;
-}
+int64_t BitwiseBmtGenerator::corr(int i, int64_t x) const { return (Math::getBit(_bmt._a, i) - x) & 1; }
 
-SecureOperator *BitwiseBmtGenerator::reconstruct(int clientRank) {
-    throw std::runtime_error("Not support.");
-}
+SecureOperator* BitwiseBmtGenerator::reconstruct(int clientRank) { throw std::runtime_error("Not support."); }
 
-int BitwiseBmtGenerator::tagStride(int width) {
-    return 2 * IknpOtBatchOperator::tagStride();
-}
+int BitwiseBmtGenerator::tagStride(int width) { return 2 * IknpOtBatchOperator::tagStride(); }
 
 } // namespace parsec

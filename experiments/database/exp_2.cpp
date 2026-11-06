@@ -6,16 +6,16 @@
 #include "basis/Views.h"
 #include "utils/Log.h"
 
-#include <string>
-#include <vector>
 #include <algorithm>
 #include <future>
+#include <string>
 #include <tuple>
+#include <vector>
 
-#include "utils/Math.h"
 #include "compute/batch/bool/BoolAndBatchOperator.h"
-#include "compute/batch/bool/BoolLessBatchOperator.h"
 #include "compute/batch/bool/BoolEqualBatchOperator.h"
+#include "compute/batch/bool/BoolLessBatchOperator.h"
+#include "utils/Math.h"
 
 #include "basis/Table.h"
 #include "conf/DbConf.h"
@@ -23,34 +23,25 @@
 
 using namespace parsec;
 
-void generateRandomData(int num_records,
-                        std::vector<int64_t> &pid_data,
-                        std::vector<int64_t> &pid_hash_data,
-                        std::vector<int64_t> &time_data,
-                        std::vector<int64_t> &time_plus_15_data,
-                        std::vector<int64_t> &time_plus_56_data,
-                        std::vector<int64_t> &row_no_data,
-                        std::vector<int64_t> &row_no_plus_1_data,
-                        std::vector<int64_t> &diag_data);
+void generateRandomData(int num_records, std::vector<int64_t>& pid_data, std::vector<int64_t>& pid_hash_data,
+                        std::vector<int64_t>& time_data, std::vector<int64_t>& time_plus_15_data,
+                        std::vector<int64_t>& time_plus_56_data, std::vector<int64_t>& row_no_data,
+                        std::vector<int64_t>& row_no_plus_1_data, std::vector<int64_t>& diag_data);
 
-View createDiagnosisTable(std::vector<int64_t> &pid_shares,
-                          std::vector<int64_t> &pid_hash_shares,
-                          std::vector<int64_t> &time_shares,
-                          std::vector<int64_t> &time_plus_15_shares,
-                          std::vector<int64_t> &time_plus_56_shares,
-                          std::vector<int64_t> &row_no_shares,
-                          std::vector<int64_t> &row_no_plus_1_shares,
-                          std::vector<int64_t> &diag_shares);
+View createDiagnosisTable(std::vector<int64_t>& pid_shares, std::vector<int64_t>& pid_hash_shares,
+                          std::vector<int64_t>& time_shares, std::vector<int64_t>& time_plus_15_shares,
+                          std::vector<int64_t>& time_plus_56_shares, std::vector<int64_t>& row_no_shares,
+                          std::vector<int64_t>& row_no_plus_1_shares, std::vector<int64_t>& diag_shares);
 
 View buildRcdNoJoin(View diagnosis_view, int64_t cdiff_code, int tid);
 
 View markAdjacentPairsWithinPid(View rcd_view, int tid);
 
-View selectDistinctPid(View &filtered_view, int tid);
+View selectDistinctPid(View& filtered_view, int tid);
 
 static int64_t CDIFF_CODE = Math::randInt();
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     System::init(argc, argv);
     DbConf::init();
     auto tid = System::nextTask() << (32 - Conf::TASK_TAG_BITS);
@@ -68,8 +59,8 @@ int main(int argc, char *argv[]) {
     std::vector<int64_t> pid_data, pid_hash_data, time_data, time_plus_15_data, time_plus_56_data;
     std::vector<int64_t> row_no_data, row_no_plus_1_data, diag_data;
 
-    generateRandomData(num_records, pid_data, pid_hash_data, time_data, time_plus_15_data,
-                       time_plus_56_data, row_no_data, row_no_plus_1_data, diag_data);
+    generateRandomData(num_records, pid_data, pid_hash_data, time_data, time_plus_15_data, time_plus_56_data,
+                       row_no_data, row_no_plus_1_data, diag_data);
     if (check_mode && Comm::isClient()) {
         const int64_t code = 999;
         pid_data = {1, 1, 1, 2, 2, 3, 3};
@@ -79,12 +70,13 @@ int main(int argc, char *argv[]) {
         row_no_plus_1_data = {2, 3, 4, 5, 6, 7, 8};
         time_plus_15_data.clear();
         time_plus_56_data.clear();
-        for (auto t: time_data) {
+        for (auto t : time_data) {
             time_plus_15_data.push_back(t + 15);
             time_plus_56_data.push_back(t + 56);
         }
         pid_hash_data.clear();
-        for (auto p: pid_data) pid_hash_data.push_back(Views::hash(p));
+        for (auto p : pid_data)
+            pid_hash_data.push_back(Views::hash(p));
     }
 
     auto pid_shares = Secrets::boolShare(pid_data, 2, 64, tid);
@@ -108,9 +100,9 @@ int main(int argc, char *argv[]) {
     }
 
     if (Comm::isServer()) {
-        auto diagnosis_view = createDiagnosisTable(pid_shares, pid_hash_shares, time_shares,
-                                                   time_plus_15_shares, time_plus_56_shares,
-                                                   row_no_shares, row_no_plus_1_shares, diag_shares);
+        auto diagnosis_view =
+            createDiagnosisTable(pid_shares, pid_hash_shares, time_shares, time_plus_15_shares, time_plus_56_shares,
+                                 row_no_shares, row_no_plus_1_shares, diag_shares);
         auto query_start = System::currentTimeMillis();
 
         auto rcd_view = buildRcdNoJoin(diagnosis_view, cdiff_code, tid);
@@ -127,14 +119,16 @@ int main(int argc, char *argv[]) {
             View check_view(fields, widths);
             check_view._dataCols[0] = result_view._dataCols[result_view.colIndex("pid")];
             check_view._dataCols[check_view.colNum() + View::VALID_COL_OFFSET] =
-                    result_view._dataCols[result_view.colNum() + View::VALID_COL_OFFSET];
+                result_view._dataCols[result_view.colNum() + View::VALID_COL_OFFSET];
             check_view._dataCols[check_view.colNum() + View::PADDING_COL_OFFSET] =
-                    std::vector<int64_t>(check_view._dataCols[0].size(), 0);
+                std::vector<int64_t>(check_view._dataCols[0].size(), 0);
             check_view.clearInvalidEntries(tid + 3000);
             check_view.sort("pid", true, tid + 4000);
-            if (Comm::rank() == 0) Log::i("CORRECTNESS_BEGIN");
+            if (Comm::rank() == 0)
+                Log::i("CORRECTNESS_BEGIN");
             Views::revealAndPrint(check_view);
-            if (Comm::rank() == 0) Log::i("CORRECTNESS_END");
+            if (Comm::rank() == 0)
+                Log::i("CORRECTNESS_END");
         }
     }
 
@@ -142,16 +136,10 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-
-void generateRandomData(int num_records,
-                        std::vector<int64_t> &pid_data,
-                        std::vector<int64_t> &pid_hash_data,
-                        std::vector<int64_t> &time_data,
-                        std::vector<int64_t> &time_plus_15_data,
-                        std::vector<int64_t> &time_plus_56_data,
-                        std::vector<int64_t> &row_no_data,
-                        std::vector<int64_t> &row_no_plus_1_data,
-                        std::vector<int64_t> &diag_data) {
+void generateRandomData(int num_records, std::vector<int64_t>& pid_data, std::vector<int64_t>& pid_hash_data,
+                        std::vector<int64_t>& time_data, std::vector<int64_t>& time_plus_15_data,
+                        std::vector<int64_t>& time_plus_56_data, std::vector<int64_t>& row_no_data,
+                        std::vector<int64_t>& row_no_plus_1_data, std::vector<int64_t>& diag_data) {
     if (Comm::rank() == 2) {
         pid_data.reserve(num_records);
         time_data.reserve(num_records);
@@ -178,25 +166,19 @@ void generateRandomData(int num_records,
         }
 
         pid_hash_data.reserve(num_records);
-        for (int64_t key: pid_data) {
+        for (int64_t key : pid_data) {
             pid_hash_data.push_back(Views::hash(key));
         }
     }
 }
 
-View createDiagnosisTable(std::vector<int64_t> &pid_shares,
-                          std::vector<int64_t> &pid_hash_shares,
-                          std::vector<int64_t> &time_shares,
-                          std::vector<int64_t> &time_plus_15_shares,
-                          std::vector<int64_t> &time_plus_56_shares,
-                          std::vector<int64_t> &row_no_shares,
-                          std::vector<int64_t> &row_no_plus_1_shares,
-                          std::vector<int64_t> &diag_shares) {
+View createDiagnosisTable(std::vector<int64_t>& pid_shares, std::vector<int64_t>& pid_hash_shares,
+                          std::vector<int64_t>& time_shares, std::vector<int64_t>& time_plus_15_shares,
+                          std::vector<int64_t>& time_plus_56_shares, std::vector<int64_t>& row_no_shares,
+                          std::vector<int64_t>& row_no_plus_1_shares, std::vector<int64_t>& diag_shares) {
     std::string table_name = "diagnosis";
-    std::vector<std::string> fields = {
-        "pid", "time", "time_plus_15", "time_plus_56",
-        "row_no", "row_no_plus_1", "diag"
-    };
+    std::vector<std::string> fields = {"pid",    "time",          "time_plus_15", "time_plus_56",
+                                       "row_no", "row_no_plus_1", "diag"};
     std::vector<int> widths = {64, 64, 64, 64, 64, 64, 64};
 
     Table diagnosis_table(table_name, fields, widths, "pid");
@@ -204,14 +186,8 @@ View createDiagnosisTable(std::vector<int64_t> &pid_shares,
     const size_t n = pid_shares.size();
     for (size_t i = 0; i < n; i++) {
         std::vector<int64_t> row = {
-            pid_shares[i],
-            time_shares[i],
-            time_plus_15_shares[i],
-            time_plus_56_shares[i],
-            row_no_shares[i],
-            row_no_plus_1_shares[i],
-            diag_shares[i],
-            pid_hash_shares[i],
+            pid_shares[i],    time_shares[i],          time_plus_15_shares[i], time_plus_56_shares[i],
+            row_no_shares[i], row_no_plus_1_shares[i], diag_shares[i],         pid_hash_shares[i],
         };
         diagnosis_table.insert(row);
     }
@@ -233,36 +209,39 @@ View buildRcdNoJoin(View diagnosis_view, int64_t cdiff_code, int tid) {
 
 View markAdjacentPairsWithinPid(View rcd_view, int tid) {
     const int n_rows = rcd_view.rowNum();
-    if (n_rows <= 1) return rcd_view;
+    if (n_rows <= 1)
+        return rcd_view;
 
     const int pid_idx = rcd_view.colIndex("pid");
     const int t_idx = rcd_view.colIndex("time");
     const int t15_idx = rcd_view.colIndex("time_plus_15");
     const int t56_idx = rcd_view.colIndex("time_plus_56");
     const int valid_idx = rcd_view.colNum() + View::VALID_COL_OFFSET;
-    if (pid_idx < 0 || t_idx < 0 || t15_idx < 0 || t56_idx < 0) return rcd_view;
+    if (pid_idx < 0 || t_idx < 0 || t15_idx < 0 || t56_idx < 0)
+        return rcd_view;
 
-    auto &pid = rcd_view._dataCols[pid_idx];
-    auto &t = rcd_view._dataCols[t_idx];
-    auto &t15 = rcd_view._dataCols[t15_idx];
-    auto &t56 = rcd_view._dataCols[t56_idx];
-    auto &valid = rcd_view._dataCols[valid_idx];
+    auto& pid = rcd_view._dataCols[pid_idx];
+    auto& t = rcd_view._dataCols[t_idx];
+    auto& t15 = rcd_view._dataCols[t15_idx];
+    auto& t56 = rcd_view._dataCols[t56_idx];
+    auto& valid = rcd_view._dataCols[valid_idx];
 
-    const size_t n = (size_t) n_rows;
+    const size_t n = (size_t)n_rows;
     std::vector<int64_t> final_cond(n, 0);
 
-    const int B = (Conf::BATCH_SIZE > 0 ? Conf::BATCH_SIZE : (int) n);
-    const int batches = (int) ((n + B - 1) / B);
+    const int B = (Conf::BATCH_SIZE > 0 ? Conf::BATCH_SIZE : (int)n);
+    const int batches = (int)((n + B - 1) / B);
 
     const int strideLess64 = BoolLessBatchOperator::tagStride();
     const int strideEq64 = BoolEqualBatchOperator::tagStride();
     const int strideAnd1 = BoolAndBatchOperator::tagStride();
     const int stridePerBatch = 2 * strideLess64 + 3 * strideEq64 + 5 * strideAnd1;
 
-    auto workBatch = [&](int b) -> std::pair<int, std::vector<int64_t> > {
+    auto workBatch = [&](int b) -> std::pair<int, std::vector<int64_t>> {
         const int start = b * B;
-        const int endExclusive = std::min(start + B, (int) n - 1);
-        if (start >= endExclusive) return {start, {}};
+        const int endExclusive = std::min(start + B, (int)n - 1);
+        if (start >= endExclusive)
+            return {start, {}};
 
         const int L = endExclusive - start;
 
@@ -277,49 +256,46 @@ View markAdjacentPairsWithinPid(View rcd_view, int tid) {
 
         int bt = tid + b * stridePerBatch;
 
-        auto lt_t15 = BoolLessBatchOperator(&t15_i, &t_j, 64, 0, bt,
-                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto lt_t15 = BoolLessBatchOperator(&t15_i, &t_j, 64, 0, bt, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         bt += strideLess64;
-        auto eq_t15 = BoolEqualBatchOperator(&t15_i, &t_j, 64, 0, bt,
-                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto eq_t15 =
+            BoolEqualBatchOperator(&t15_i, &t_j, 64, 0, bt, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         bt += strideEq64;
-        auto ltANDt15 = BoolAndBatchOperator(&lt_t15, &eq_t15, 1, 0, bt,
-                                             SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto ltANDt15 =
+            BoolAndBatchOperator(&lt_t15, &eq_t15, 1, 0, bt, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         bt += strideAnd1;
         std::vector<int64_t> ge15 = lt_t15;
-        for (int k = 0; k < L; ++k) ge15[k] ^= eq_t15[k];
-        for (int k = 0; k < L; ++k) ge15[k] ^= ltANDt15[k];
+        for (int k = 0; k < L; ++k)
+            ge15[k] ^= eq_t15[k];
+        for (int k = 0; k < L; ++k)
+            ge15[k] ^= ltANDt15[k];
 
-        auto lt_56 = BoolLessBatchOperator(&t_j, &t56_i, 64, 0, bt,
-                                           SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto lt_56 = BoolLessBatchOperator(&t_j, &t56_i, 64, 0, bt, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         bt += strideLess64;
-        auto eq_56 = BoolEqualBatchOperator(&t_j, &t56_i, 64, 0, bt,
-                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto eq_56 = BoolEqualBatchOperator(&t_j, &t56_i, 64, 0, bt, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         bt += strideEq64;
-        auto ltAND56 = BoolAndBatchOperator(&lt_56, &eq_56, 1, 0, bt,
-                                            SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto ltAND56 =
+            BoolAndBatchOperator(&lt_56, &eq_56, 1, 0, bt, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         bt += strideAnd1;
         std::vector<int64_t> le56 = lt_56;
-        for (int k = 0; k < L; ++k) le56[k] ^= eq_56[k];
-        for (int k = 0; k < L; ++k) le56[k] ^= ltAND56[k];
+        for (int k = 0; k < L; ++k)
+            le56[k] ^= eq_56[k];
+        for (int k = 0; k < L; ++k)
+            le56[k] ^= ltAND56[k];
 
-        auto inrng = BoolAndBatchOperator(&ge15, &le56, 1, 0, bt,
-                                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto inrng = BoolAndBatchOperator(&ge15, &le56, 1, 0, bt, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         bt += strideAnd1;
 
-        auto samepid = BoolEqualBatchOperator(&pid_i, &pid_j, 64, 0, bt,
-                                              SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto samepid =
+            BoolEqualBatchOperator(&pid_i, &pid_j, 64, 0, bt, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         bt += strideEq64;
 
-        auto bothv = BoolAndBatchOperator(&v_i, &v_j, 1, 0, bt,
-                                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto bothv = BoolAndBatchOperator(&v_i, &v_j, 1, 0, bt, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         bt += strideAnd1;
 
-        auto hit1 = BoolAndBatchOperator(&inrng, &samepid, 1, 0, bt,
-                                         SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto hit1 = BoolAndBatchOperator(&inrng, &samepid, 1, 0, bt, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
         bt += strideAnd1;
-        auto hit = BoolAndBatchOperator(&hit1, &bothv, 1, 0, bt,
-                                        SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        auto hit = BoolAndBatchOperator(&hit1, &bothv, 1, 0, bt, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
         return {start, hit};
     };
@@ -327,19 +303,19 @@ View markAdjacentPairsWithinPid(View rcd_view, int tid) {
     if (Conf::BATCH_SIZE <= 0 || Conf::DISABLE_MULTI_THREAD) {
         auto pr = workBatch(0);
         const int start = pr.first;
-        auto &part = pr.second;
+        auto& part = pr.second;
         if (!part.empty()) {
             std::copy(part.begin(), part.end(), final_cond.begin() + start);
         }
     } else {
-        std::vector<std::future<std::pair<int, std::vector<int64_t> > > > futs(batches);
+        std::vector<std::future<std::pair<int, std::vector<int64_t>>>> futs(batches);
         for (int b = 0; b < batches; ++b)
             futs[b] = ThreadPoolSupport::submit([&, b]() { return workBatch(b); });
 
         for (int b = 0; b < batches; ++b) {
             auto pr = futs[b].get();
             const int start = pr.first;
-            auto &part = pr.second;
+            auto& part = pr.second;
             if (!part.empty()) {
                 std::copy(part.begin(), part.end(), final_cond.begin() + start);
             }
@@ -356,7 +332,7 @@ View markAdjacentPairsWithinPid(View rcd_view, int tid) {
     return v;
 }
 
-View selectDistinctPid(View &filtered_view, int tid) {
+View selectDistinctPid(View& filtered_view, int tid) {
     if (filtered_view.rowNum() == 0) {
         std::vector<std::string> result_fields = {"pid"};
         std::vector<int> result_widths = {64};

@@ -6,17 +6,13 @@
 
 namespace parsec {
 
-
 class ArithAddOperator : public ArithOperator {
-public:
-    ArithAddOperator(int64_t x, int64_t y, int width, int taskTag, int msgTagOffset,
-                int clientRank) : ArithOperator(x, y, width, taskTag, msgTagOffset, clientRank) {
-    }
+  public:
+    ArithAddOperator(int64_t x, int64_t y, int width, int taskTag, int msgTagOffset, int clientRank)
+        : ArithOperator(x, y, width, taskTag, msgTagOffset, clientRank) {}
 
-    ArithAddOperator *execute() override;
+    ArithAddOperator* execute() override;
 };
-
-
 
 } // namespace parsec
 

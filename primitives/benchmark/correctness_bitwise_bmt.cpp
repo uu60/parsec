@@ -10,7 +10,7 @@
 
 using namespace parsec;
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     System::init(argc, argv);
     bool passed = true;
 
@@ -61,18 +61,17 @@ int main(int argc, char **argv) {
             if (expected != c) {
                 ++mismatch;
                 if (mismatch <= 10) {
-                    Log::e("MISMATCH i={}: a={} b={} a&b={} c={}",
-                           i, static_cast<uint64_t>(a), static_cast<uint64_t>(b),
-                           static_cast<uint64_t>(expected), static_cast<uint64_t>(c));
+                    Log::e("MISMATCH i={}: a={} b={} a&b={} c={}", i, static_cast<uint64_t>(a),
+                           static_cast<uint64_t>(b), static_cast<uint64_t>(expected), static_cast<uint64_t>(c));
                 }
             }
         }
 
         passed = mismatch == 0;
-        Log::i(mismatch == 0 ? "[BitwiseBmt correctness] PASS" : "[BitwiseBmt correctness] FAIL mismatches={}", mismatch);
+        Log::i(mismatch == 0 ? "[BitwiseBmt correctness] PASS" : "[BitwiseBmt correctness] FAIL mismatches={}",
+               mismatch);
     }
 
     System::finalize();
     return passed ? 0 : 1;
 }
-

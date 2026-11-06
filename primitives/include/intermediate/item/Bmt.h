@@ -5,17 +5,12 @@
 
 namespace parsec {
 
-
-
 class Bmt {
-public:
+  public:
     int64_t _a{};
     int64_t _b{};
     int64_t _c{};
 };
-
-
-
 
 } // namespace parsec
 

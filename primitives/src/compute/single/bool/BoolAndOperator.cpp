@@ -1,8 +1,8 @@
 
 #include "compute/single/bool/BoolAndOperator.h"
 
-#include "compute/single/arith/ArithMultiplyOperator.h"
 #include "comm/Comm.h"
+#include "compute/single/arith/ArithMultiplyOperator.h"
 #include "intermediate/BitwiseBmtGenerator.h"
 #include "intermediate/IntermediateDataSupport.h"
 #include "utils/Log.h"
@@ -10,8 +10,7 @@
 
 namespace parsec {
 
-
-BoolAndOperator *BoolAndOperator::execute() {
+BoolAndOperator* BoolAndOperator::execute() {
     _currentMsgTag = _startMsgTag;
 
     int64_t start = 0;
@@ -20,7 +19,7 @@ BoolAndOperator *BoolAndOperator::execute() {
     }
 
     BitwiseBmt generatedBmt;
-    BitwiseBmt *bmt = _bmt;
+    BitwiseBmt* bmt = _bmt;
     if (bmt == nullptr) {
         if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
             bmt = &IntermediateDataSupport::_fixedBitwiseBmt;
@@ -35,7 +34,6 @@ BoolAndOperator *BoolAndOperator::execute() {
 
     int64_t ei = _xi ^ bmt->_a;
     int64_t fi = _yi ^ bmt->_b;
-
 
     int64_t e, f;
     std::vector<int64_t> efo;
@@ -58,11 +56,9 @@ BoolAndOperator *BoolAndOperator::execute() {
     return this;
 }
 
-int BoolAndOperator::tagStride(int width) {
-    return BitwiseBmtGenerator::tagStride(width);
-}
+int BoolAndOperator::tagStride(int width) { return BitwiseBmtGenerator::tagStride(width); }
 
-BoolAndOperator *BoolAndOperator::setBmt(BitwiseBmt *bmt) {
+BoolAndOperator* BoolAndOperator::setBmt(BitwiseBmt* bmt) {
     _bmt = bmt;
     return this;
 }

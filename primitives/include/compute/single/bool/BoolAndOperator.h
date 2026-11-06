@@ -1,32 +1,28 @@
 
 #ifndef INTANDEXECUTOR_H
 #define INTANDEXECUTOR_H
-#include "./BoolOperator.h"
 #include "../../../intermediate/item/BitwiseBmt.h"
+#include "./BoolOperator.h"
 
 namespace parsec {
 
-
 class BoolAndOperator : public BoolOperator {
-private:
+  private:
     BitwiseBmt* _bmt{};
 
-public:
+  public:
     inline static std::atomic_int64_t _totalTime = 0;
 
-public:
-    BoolAndOperator(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset,
-                       int clientRank) : BoolOperator(x, y, l, taskTag, msgTagOffset, clientRank) {
-    }
+  public:
+    BoolAndOperator(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset, int clientRank)
+        : BoolOperator(x, y, l, taskTag, msgTagOffset, clientRank) {}
 
-    BoolAndOperator *execute() override;
+    BoolAndOperator* execute() override;
 
     [[nodiscard]] static int tagStride(int width);
 
-    BoolAndOperator *setBmt(BitwiseBmt *bmt);
+    BoolAndOperator* setBmt(BitwiseBmt* bmt);
 };
-
-
 
 } // namespace parsec
 

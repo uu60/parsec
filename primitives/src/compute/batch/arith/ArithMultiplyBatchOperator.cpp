@@ -3,52 +3,47 @@
 
 #include "comm/Comm.h"
 #include "conf/Conf.h"
-#include "intermediate/IntermediateDataSupport.h"
 #include "intermediate/BmtBatchGenerator.h"
+#include "intermediate/IntermediateDataSupport.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Log.h"
 #include "utils/Math.h"
 
 namespace parsec {
 
+ArithMultiplyBatchOperator::ArithMultiplyBatchOperator(std::vector<int64_t>* xs, std::vector<int64_t>* ys, int width,
+                                                       int taskTag, int msgTagOffset, int clientRank)
+    : ArithBatchOperator(xs, ys, width, taskTag, msgTagOffset, clientRank) {}
 
-ArithMultiplyBatchOperator::ArithMultiplyBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys,
-                                                       int width, int taskTag, int msgTagOffset, int clientRank)
-    : ArithBatchOperator(xs, ys, width, taskTag, msgTagOffset, clientRank)
-{
-}
-
-ArithMultiplyBatchOperator *ArithMultiplyBatchOperator::execute()
-{
+ArithMultiplyBatchOperator* ArithMultiplyBatchOperator::execute() {
     _currentMsgTag = _startMsgTag;
 
-    if (Comm::isClient())
-    {
+    if (Comm::isClient()) {
         return this;
     }
 
-    if (Conf::BMT_METHOD != Conf::BMT_JIT && Conf::BMT_METHOD != Conf::BMT_FIXED)
-    {
-        throw std::runtime_error("ArithMultiplyBatchOperator: Temporarily only support BMT JIT or FIXED generation for experiment.");
+    if (Conf::BMT_METHOD != Conf::BMT_JIT && Conf::BMT_METHOD != Conf::BMT_FIXED) {
+        throw std::runtime_error(
+            "ArithMultiplyBatchOperator: Temporarily only support BMT JIT or FIXED generation for experiment.");
     }
 
     int num = static_cast<int>(_xis->size());
     _zis.resize(num);
 
-    std::vector<Bmt> bmts = Conf::BMT_METHOD == Conf::BMT_JIT ? BmtBatchGenerator(num, _width, _taskTag, _currentMsgTag).execute()->_bmts : std::vector<Bmt>(num, IntermediateDataSupport::_fixedBmt);
+    std::vector<Bmt> bmts = Conf::BMT_METHOD == Conf::BMT_JIT
+                                ? BmtBatchGenerator(num, _width, _taskTag, _currentMsgTag).execute()->_bmts
+                                : std::vector<Bmt>(num, IntermediateDataSupport::_fixedBmt);
 
     std::vector<int64_t> eis(num), fis(num);
-    for (int i = 0; i < num; i++)
-    {
-        const Bmt &bmt = bmts[i];
+    for (int i = 0; i < num; i++) {
+        const Bmt& bmt = bmts[i];
         eis[i] = Math::ringSubtract((*_xis)[i], bmt._a, _width);
         fis[i] = Math::ringSubtract((*_yis)[i], bmt._b, _width);
     }
 
     std::vector<int64_t> batchEFI;
     batchEFI.reserve(num * 2);
-    for (int i = 0; i < num; i++)
-    {
+    for (int i = 0; i < num; i++) {
         batchEFI.push_back(eis[i]);
         batchEFI.push_back(fis[i]);
     }
@@ -62,12 +57,11 @@ ArithMultiplyBatchOperator *ArithMultiplyBatchOperator::execute()
     Comm::wait(r0);
     Comm::wait(r1);
 
-    for (int i = 0; i < num; i++)
-    {
+    for (int i = 0; i < num; i++) {
         int64_t e_sum = Math::ringAdd(eis[i], batchEFO[2 * i], _width);
         int64_t f_sum = Math::ringAdd(fis[i], batchEFO[2 * i + 1], _width);
 
-        const Bmt &bmt = bmts[i];
+        const Bmt& bmt = bmts[i];
         const int64_t ef = Comm::rank() == 0 ? 0 : Math::ringMultiply(e_sum, f_sum, _width);
         const int64_t fa = Math::ringMultiply(f_sum, bmt._a, _width);
         const int64_t eb = Math::ringMultiply(e_sum, bmt._b, _width);
@@ -77,15 +71,11 @@ ArithMultiplyBatchOperator *ArithMultiplyBatchOperator::execute()
     return this;
 }
 
-ArithMultiplyBatchOperator *ArithMultiplyBatchOperator::reconstruct(int clientRank)
-{
+ArithMultiplyBatchOperator* ArithMultiplyBatchOperator::reconstruct(int clientRank) {
     ArithBatchOperator::reconstruct(clientRank);
     return this;
 }
 
-int ArithMultiplyBatchOperator::tagStride(int width)
-{
-    return BmtBatchGenerator::tagStride();
-}
+int ArithMultiplyBatchOperator::tagStride(int width) { return BmtBatchGenerator::tagStride(); }
 
 } // namespace parsec

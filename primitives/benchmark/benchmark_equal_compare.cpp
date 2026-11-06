@@ -24,53 +24,40 @@ struct BenchConfig {
     int warmup = 1;
 };
 
-int64_t nowMs() {
-    return System::currentTimeMillis();
-}
+int64_t nowMs() { return System::currentTimeMillis(); }
 
-int oldEqualTagStride() {
-    return 2 * BoolLessBatchOperator::tagStride() + BoolAndBatchOperator::tagStride();
-}
+int oldEqualTagStride() { return 2 * BoolLessBatchOperator::tagStride() + BoolAndBatchOperator::tagStride(); }
 
-std::vector<int64_t> oldEqual(std::vector<int64_t> *xs,
-                              std::vector<int64_t> *ys,
-                              int width,
-                              int taskTag,
+std::vector<int64_t> oldEqual(std::vector<int64_t>* xs, std::vector<int64_t>* ys, int width, int taskTag,
                               int msgTagOffset) {
-    auto lessXy = BoolLessBatchOperator(xs, ys, width, taskTag, msgTagOffset, SecureOperator::NO_CLIENT_COMPUTE)
-            .execute()
-            ->_zis;
-    auto lessYx = BoolLessBatchOperator(ys, xs, width, taskTag,
-                                        msgTagOffset + BoolLessBatchOperator::tagStride(),
+    auto lessXy =
+        BoolLessBatchOperator(xs, ys, width, taskTag, msgTagOffset, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+    auto lessYx = BoolLessBatchOperator(ys, xs, width, taskTag, msgTagOffset + BoolLessBatchOperator::tagStride(),
                                         SecureOperator::NO_CLIENT_COMPUTE)
-            .execute()
-            ->_zis;
+                      .execute()
+                      ->_zis;
 
-    for (auto &v: lessXy) {
+    for (auto& v : lessXy) {
         v ^= Comm::rank();
     }
-    for (auto &v: lessYx) {
+    for (auto& v : lessYx) {
         v ^= Comm::rank();
     }
 
-    return BoolAndBatchOperator(&lessXy, &lessYx, 1, taskTag,
-                                msgTagOffset + 2 * BoolLessBatchOperator::tagStride(),
+    return BoolAndBatchOperator(&lessXy, &lessYx, 1, taskTag, msgTagOffset + 2 * BoolLessBatchOperator::tagStride(),
                                 SecureOperator::NO_CLIENT_COMPUTE)
-            .execute()
-            ->_zis;
+        .execute()
+        ->_zis;
 }
 
-std::vector<int64_t> newEqual(std::vector<int64_t> *xs,
-                              std::vector<int64_t> *ys,
-                              int width,
-                              int taskTag,
+std::vector<int64_t> newEqual(std::vector<int64_t>* xs, std::vector<int64_t>* ys, int width, int taskTag,
                               int msgTagOffset) {
     return BoolEqualBatchOperator(xs, ys, width, taskTag, msgTagOffset, SecureOperator::NO_CLIENT_COMPUTE)
-            .execute()
-            ->_zis;
+        .execute()
+        ->_zis;
 }
 
-void prepareInputs(int num, int width, std::vector<int64_t> &plainX, std::vector<int64_t> &plainY) {
+void prepareInputs(int num, int width, std::vector<int64_t>& plainX, std::vector<int64_t>& plainY) {
     if (Comm::isClient()) {
         plainX.resize(num);
         plainY.resize(num);
@@ -85,13 +72,11 @@ void prepareInputs(int num, int width, std::vector<int64_t> &plainX, std::vector
     }
 }
 
-int64_t checksum(const std::vector<int64_t> &values) {
-    return std::accumulate(values.begin(), values.end(), int64_t{0}, [](int64_t acc, int64_t v) {
-        return acc ^ v;
-    });
+int64_t checksum(const std::vector<int64_t>& values) {
+    return std::accumulate(values.begin(), values.end(), int64_t{0}, [](int64_t acc, int64_t v) { return acc ^ v; });
 }
 
-double average(const std::vector<int64_t> &values) {
+double average(const std::vector<int64_t>& values) {
     if (values.empty()) {
         return 0.0;
     }
@@ -99,7 +84,7 @@ double average(const std::vector<int64_t> &values) {
     return static_cast<double>(sum) / static_cast<double>(values.size());
 }
 
-void printResult(const std::string &name, const BenchConfig &cfg, const std::vector<int64_t> &times) {
+void printResult(const std::string& name, const BenchConfig& cfg, const std::vector<int64_t>& times) {
     if (!Comm::isServer() || Comm::rank() != 0) {
         return;
     }
@@ -108,12 +93,12 @@ void printResult(const std::string &name, const BenchConfig &cfg, const std::vec
     auto min = sorted.empty() ? 0 : sorted.front();
     auto max = sorted.empty() ? 0 : sorted.back();
     auto median = sorted.empty() ? 0 : sorted[sorted.size() / 2];
-    Log::i("EQUAL_COMPARE impl={} num={} width={} rounds={} avg_ms={} median_ms={} min_ms={} max_ms={}",
-           name, cfg.num, cfg.width, cfg.rounds, average(times), median, min, max);
+    Log::i("EQUAL_COMPARE impl={} num={} width={} rounds={} avg_ms={} median_ms={} min_ms={} max_ms={}", name, cfg.num,
+           cfg.width, cfg.rounds, average(times), median, min, max);
 }
-}
+} // namespace
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     System::init(argc, argv);
 
     BenchConfig cfg;

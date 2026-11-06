@@ -1,8 +1,8 @@
-#include "ot/RandOtBatchOperator.h"
-#include "ot/IknpOtBatchOperator.h"
-#include "intermediate/IntermediateDataSupport.h"
 #include "comm/Comm.h"
 #include "conf/Conf.h"
+#include "intermediate/IntermediateDataSupport.h"
+#include "ot/IknpOtBatchOperator.h"
+#include "ot/RandOtBatchOperator.h"
 #include "utils/Log.h"
 #include "utils/Math.h"
 #include "utils/System.h"
@@ -17,8 +17,8 @@ using namespace parsec;
 namespace {
 
 struct Config {
-    int n = 1 << 16;   // number of OTs (for IKNP). RandOT uses packed mode with nPacked = ceil(n/64).
-    int width = 64;    // message width for IKNP; RandOT packed is always 64-bit limbs.
+    int n = 1 << 16; // number of OTs (for IKNP). RandOT uses packed mode with nPacked = ceil(n/64).
+    int width = 64;  // message width for IKNP; RandOT packed is always 64-bit limbs.
     int rounds = 5;
     int warmup = 1;
     int sender = 0;
@@ -27,11 +27,16 @@ struct Config {
 
 Config loadConfig() {
     Config cfg;
-    if (Conf::_userParams.count("n")) cfg.n = std::stoi(Conf::_userParams["n"]);
-    if (Conf::_userParams.count("width")) cfg.width = std::stoi(Conf::_userParams["width"]);
-    if (Conf::_userParams.count("rounds")) cfg.rounds = std::stoi(Conf::_userParams["rounds"]);
-    if (Conf::_userParams.count("warmup")) cfg.warmup = std::stoi(Conf::_userParams["warmup"]);
-    if (Conf::_userParams.count("sender")) cfg.sender = std::stoi(Conf::_userParams["sender"]);
+    if (Conf::_userParams.count("n"))
+        cfg.n = std::stoi(Conf::_userParams["n"]);
+    if (Conf::_userParams.count("width"))
+        cfg.width = std::stoi(Conf::_userParams["width"]);
+    if (Conf::_userParams.count("rounds"))
+        cfg.rounds = std::stoi(Conf::_userParams["rounds"]);
+    if (Conf::_userParams.count("warmup"))
+        cfg.warmup = std::stoi(Conf::_userParams["warmup"]);
+    if (Conf::_userParams.count("sender"))
+        cfg.sender = std::stoi(Conf::_userParams["sender"]);
     return cfg;
 }
 
@@ -41,9 +46,10 @@ struct Stats {
     double maxMs = 0;
 };
 
-Stats statsOf(const std::vector<double> &xs) {
+Stats statsOf(const std::vector<double>& xs) {
     Stats s;
-    if (xs.empty()) return s;
+    if (xs.empty())
+        return s;
     s.minMs = s.maxMs = xs[0];
     double sum = 0;
     for (double v : xs) {
@@ -55,14 +61,14 @@ Stats statsOf(const std::vector<double> &xs) {
     return s;
 }
 
-static void fillVec64(std::vector<int64_t> &v, int n) {
+static void fillVec64(std::vector<int64_t>& v, int n) {
     v.resize(n);
     for (int i = 0; i < n; ++i) {
         v[i] = Math::randInt();
     }
 }
 
-static void fillChoices01(std::vector<int> &v, int n) {
+static void fillChoices01(std::vector<int>& v, int n) {
     v.resize(n);
     for (int i = 0; i < n; ++i) {
         v[i] = static_cast<int>(Math::randInt(0, 1));
@@ -71,7 +77,7 @@ static void fillChoices01(std::vector<int> &v, int n) {
 
 } // namespace
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     System::init(argc, argv);
 
     if (Comm::isClient()) {
@@ -98,12 +104,8 @@ int main(int argc, char **argv) {
     }
 
     auto runRand = [&](int taskTag, int msgTagOffset) -> double {
-        RandOtBatchOperator op(cfg.sender,
-                               isSender ? &randSs0 : nullptr,
-                               isSender ? &randSs1 : nullptr,
-                               !isSender ? &randChoicesPacked : nullptr,
-                               taskTag,
-                               msgTagOffset);
+        RandOtBatchOperator op(cfg.sender, isSender ? &randSs0 : nullptr, isSender ? &randSs1 : nullptr,
+                               !isSender ? &randChoicesPacked : nullptr, taskTag, msgTagOffset);
         const int64_t t0 = System::currentTimeMillis();
         op.execute();
         const int64_t t1 = System::currentTimeMillis();
@@ -123,13 +125,8 @@ int main(int argc, char **argv) {
     }
 
     auto runIknp = [&](int taskTag, int msgTagOffset) -> double {
-        IknpOtBatchOperator op(cfg.sender,
-                               isSender ? &iknpMs0 : nullptr,
-                               isSender ? &iknpMs1 : nullptr,
-                               isSender ? nullptr : &iknpChoices,
-                               cfg.width,
-                               taskTag,
-                               msgTagOffset);
+        IknpOtBatchOperator op(cfg.sender, isSender ? &iknpMs0 : nullptr, isSender ? &iknpMs1 : nullptr,
+                               isSender ? nullptr : &iknpChoices, cfg.width, taskTag, msgTagOffset);
         const int64_t t0 = System::currentTimeMillis();
         op.execute();
         const int64_t t1 = System::currentTimeMillis();
@@ -161,21 +158,11 @@ int main(int argc, char **argv) {
 
         Log::i("[OT speed] rounds={}, warmup={}, sender={}", cfg.rounds, cfg.warmup, cfg.sender);
 
-        Log::i("[OT speed] RandOT(bits) nPacked={} ({} OTs): avg={}ms min={}ms max={}ms ({}us/OT)",
-               nPacked,
-               static_cast<int64_t>(randTotalOT),
-               r.avgMs,
-               r.minMs,
-               r.maxMs,
-               (r.avgMs * 1000.0) / randTotalOT);
+        Log::i("[OT speed] RandOT(bits) nPacked={} ({} OTs): avg={}ms min={}ms max={}ms ({}us/OT)", nPacked,
+               static_cast<int64_t>(randTotalOT), r.avgMs, r.minMs, r.maxMs, (r.avgMs * 1000.0) / randTotalOT);
 
-        Log::i("[OT speed] IKNP n={} ({} OTs): avg={}ms min={}ms max={}ms ({}us/OT)",
-               cfg.n,
-               static_cast<int64_t>(iknpTotalOT),
-               k.avgMs,
-               k.minMs,
-               k.maxMs,
-               (k.avgMs * 1000.0) / iknpTotalOT);
+        Log::i("[OT speed] IKNP n={} ({} OTs): avg={}ms min={}ms max={}ms ({}us/OT)", cfg.n,
+               static_cast<int64_t>(iknpTotalOT), k.avgMs, k.minMs, k.maxMs, (k.avgMs * 1000.0) / iknpTotalOT);
 
         if (k.avgMs > 0) {
             Log::i("[OT speed] (avg ms) Rand/Iknp = {}x", r.avgMs / k.avgMs);

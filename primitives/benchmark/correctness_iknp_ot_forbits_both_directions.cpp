@@ -38,12 +38,8 @@ void testDirection(int sender, int task, int limbs) {
         Comm::receive(choiceBitsPacked, 64, 1 - sender, task * 1000 + 1);
     }
 
-    IknpOtBatchOperator op(sender,
-                           isSender ? &bits0Packed : nullptr,
-                           isSender ? &bits1Packed : nullptr,
-                           isSender ? nullptr : &choiceBitsPacked,
-                           task,
-                           task * 1000 + 10);
+    IknpOtBatchOperator op(sender, isSender ? &bits0Packed : nullptr, isSender ? &bits1Packed : nullptr,
+                           isSender ? nullptr : &choiceBitsPacked, task, task * 1000 + 10);
     op.execute();
 
     if (!isSender) {
@@ -72,11 +68,12 @@ void testDirection(int sender, int task, int limbs) {
             }
         }
 
-        Log::i(mism == 0 ? "[IKNP OT forbits sender={}] PASS" : "[IKNP OT forbits sender={}] FAIL mismatches={}", sender, mism);
+        Log::i(mism == 0 ? "[IKNP OT forbits sender={}] PASS" : "[IKNP OT forbits sender={}] FAIL mismatches={}",
+               sender, mism);
     }
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     System::init(argc, argv);
 
     if (Comm::isClient()) {
@@ -92,8 +89,6 @@ int main(int argc, char **argv) {
     // Test sender=1
     testDirection(1, System::nextTask(), limbs);
 
-
     System::finalize();
     return 0;
 }
-

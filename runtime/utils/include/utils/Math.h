@@ -2,10 +2,10 @@
 #ifndef MPC_PACKAGE_MATH_H
 #define MPC_PACKAGE_MATH_H
 
-#include <string>
 #include <bitset>
-#include <vector>
 #include <cstdint>
+#include <string>
+#include <vector>
 
 // Forward declarations for OpenSSL types (avoid including OpenSSL headers in header)
 typedef struct evp_pkey_st EVP_PKEY;
@@ -14,17 +14,16 @@ typedef struct bignum_ctx BN_CTX;
 
 namespace parsec {
 
-
 /**
  * RAII wrapper for RSA key using EVP_PKEY (OpenSSL 3.0+ compatible).
  * Manages key lifecycle and provides access to n, e, d components.
  */
 class RsaKeyContext {
-public:
+  public:
     EVP_PKEY* pkey = nullptr;
-    BIGNUM* n = nullptr;   // owned, must be freed
-    BIGNUM* e = nullptr;   // owned, must be freed
-    BIGNUM* d = nullptr;   // owned, must be freed (nullptr for public key)
+    BIGNUM* n = nullptr; // owned, must be freed
+    BIGNUM* e = nullptr; // owned, must be freed
+    BIGNUM* d = nullptr; // owned, must be freed (nullptr for public key)
     int nbytes = 0;
 
     RsaKeyContext() = default;
@@ -40,7 +39,7 @@ public:
 };
 
 class Math {
-public:
+  public:
     static int64_t randInt();
 
     static int64_t randInt(int64_t lowest, int64_t highest);
@@ -49,11 +48,11 @@ public:
 
     static std::string randString(int bytes);
 
-    static std::string add(const std::string &add0, int64_t add1);
+    static std::string add(const std::string& add0, int64_t add1);
 
-    static std::string add(const std::string &add0, const std::string &add1);
+    static std::string add(const std::string& add0, const std::string& add1);
 
-    static std::string minus(const std::string &add0, const std::string &add1);
+    static std::string minus(const std::string& add0, const std::string& add1);
 
     static int64_t ring(int64_t num, int width);
 
@@ -67,10 +66,7 @@ public:
 
     static int64_t changeBit(int64_t v, int i, bool b);
 
-    template<int width>
-    static std::string toBinString(int64_t v) {
-        return std::bitset<width>(v).to_string();
-    };
+    template <int width> static std::string toBinString(int64_t v) { return std::bitset<width>(v).to_string(); };
 
     // ========== RSA-OT Helper Functions ==========
 
@@ -114,8 +110,7 @@ public:
      * @return Result as fixed-length byte string
      * @throws std::runtime_error on failure
      */
-    static std::string modExp(const std::string& base_bytes, const std::string& exp_bytes,
-                              const RsaKeyContext& ctx);
+    static std::string modExp(const std::string& base_bytes, const std::string& exp_bytes, const RsaKeyContext& ctx);
 
     /**
      * Compute (a * b) mod n.
@@ -125,8 +120,7 @@ public:
      * @return Result as fixed-length byte string
      * @throws std::runtime_error on failure
      */
-    static std::string modMul(const std::string& a_bytes, const std::string& b_bytes,
-                              const RsaKeyContext& ctx);
+    static std::string modMul(const std::string& a_bytes, const std::string& b_bytes, const RsaKeyContext& ctx);
 
     /**
      * Compute modular inverse: a^(-1) mod n.
@@ -169,8 +163,6 @@ public:
      */
     static std::string getExponentD(const RsaKeyContext& ctx);
 };
-
-
 
 } // namespace parsec
 

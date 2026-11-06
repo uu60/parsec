@@ -30,53 +30,40 @@ struct PairInput {
     std::vector<int64_t> right;
 };
 
-int64_t nowMs() {
-    return System::currentTimeMillis();
-}
+int64_t nowMs() { return System::currentTimeMillis(); }
 
-int oldEqualTagStride() {
-    return 2 * BoolLessBatchOperator::tagStride() + BoolAndBatchOperator::tagStride();
-}
+int oldEqualTagStride() { return 2 * BoolLessBatchOperator::tagStride() + BoolAndBatchOperator::tagStride(); }
 
-std::vector<int64_t> oldEqual(std::vector<int64_t> *xs,
-                              std::vector<int64_t> *ys,
-                              int width,
-                              int taskTag,
+std::vector<int64_t> oldEqual(std::vector<int64_t>* xs, std::vector<int64_t>* ys, int width, int taskTag,
                               int msgTagOffset) {
-    auto lessXy = BoolLessBatchOperator(xs, ys, width, taskTag, msgTagOffset, SecureOperator::NO_CLIENT_COMPUTE)
-            .execute()
-            ->_zis;
-    auto lessYx = BoolLessBatchOperator(ys, xs, width, taskTag,
-                                        msgTagOffset + BoolLessBatchOperator::tagStride(),
+    auto lessXy =
+        BoolLessBatchOperator(xs, ys, width, taskTag, msgTagOffset, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+    auto lessYx = BoolLessBatchOperator(ys, xs, width, taskTag, msgTagOffset + BoolLessBatchOperator::tagStride(),
                                         SecureOperator::NO_CLIENT_COMPUTE)
-            .execute()
-            ->_zis;
+                      .execute()
+                      ->_zis;
 
-    for (auto &v: lessXy) {
+    for (auto& v : lessXy) {
         v ^= Comm::rank();
     }
-    for (auto &v: lessYx) {
+    for (auto& v : lessYx) {
         v ^= Comm::rank();
     }
 
-    return BoolAndBatchOperator(&lessXy, &lessYx, 1, taskTag,
-                                msgTagOffset + 2 * BoolLessBatchOperator::tagStride(),
+    return BoolAndBatchOperator(&lessXy, &lessYx, 1, taskTag, msgTagOffset + 2 * BoolLessBatchOperator::tagStride(),
                                 SecureOperator::NO_CLIENT_COMPUTE)
-            .execute()
-            ->_zis;
+        .execute()
+        ->_zis;
 }
 
-std::vector<int64_t> newEqual(std::vector<int64_t> *xs,
-                              std::vector<int64_t> *ys,
-                              int width,
-                              int taskTag,
+std::vector<int64_t> newEqual(std::vector<int64_t>* xs, std::vector<int64_t>* ys, int width, int taskTag,
                               int msgTagOffset) {
     return BoolEqualBatchOperator(xs, ys, width, taskTag, msgTagOffset, SecureOperator::NO_CLIENT_COMPUTE)
-            .execute()
-            ->_zis;
+        .execute()
+        ->_zis;
 }
 
-void preparePlainTables(const BenchConfig &cfg, std::vector<std::vector<int64_t> > &tables) {
+void preparePlainTables(const BenchConfig& cfg, std::vector<std::vector<int64_t>>& tables) {
     tables.resize(cfg.tableNum);
     for (int tableIdx = 0; tableIdx < cfg.tableNum; ++tableIdx) {
         tables[tableIdx].resize(cfg.rows);
@@ -94,7 +81,7 @@ void preparePlainTables(const BenchConfig &cfg, std::vector<std::vector<int64_t>
     }
 }
 
-std::vector<PairInput> buildPairInputs(const std::vector<std::vector<int64_t> > &shares, const BenchConfig &cfg) {
+std::vector<PairInput> buildPairInputs(const std::vector<std::vector<int64_t>>& shares, const BenchConfig& cfg) {
     std::vector<PairInput> inputs;
     if (!Comm::isServer()) {
         return inputs;
@@ -117,13 +104,11 @@ std::vector<PairInput> buildPairInputs(const std::vector<std::vector<int64_t> > 
     return inputs;
 }
 
-int64_t checksum(const std::vector<int64_t> &values) {
-    return std::accumulate(values.begin(), values.end(), int64_t{0}, [](int64_t acc, int64_t v) {
-        return acc ^ v;
-    });
+int64_t checksum(const std::vector<int64_t>& values) {
+    return std::accumulate(values.begin(), values.end(), int64_t{0}, [](int64_t acc, int64_t v) { return acc ^ v; });
 }
 
-double average(const std::vector<int64_t> &values) {
+double average(const std::vector<int64_t>& values) {
     if (values.empty()) {
         return 0.0;
     }
@@ -131,10 +116,7 @@ double average(const std::vector<int64_t> &values) {
     return static_cast<double>(sum) / static_cast<double>(values.size());
 }
 
-void printResult(const std::string &name,
-                 const BenchConfig &cfg,
-                 size_t pairCount,
-                 const std::vector<int64_t> &times) {
+void printResult(const std::string& name, const BenchConfig& cfg, size_t pairCount, const std::vector<int64_t>& times) {
     if (!Comm::isServer() || Comm::rank() != 0) {
         return;
     }
@@ -143,12 +125,13 @@ void printResult(const std::string &name,
     auto median = sorted.empty() ? 0 : sorted[sorted.size() / 2];
     auto min = sorted.empty() ? 0 : sorted.front();
     auto max = sorted.empty() ? 0 : sorted.back();
-    Log::i("DB_JOIN_EQUAL_COMPARE impl={} rows={} table_num={} width={} pair_comparisons={} rounds={} avg_ms={} median_ms={} min_ms={} max_ms={}",
+    Log::i("DB_JOIN_EQUAL_COMPARE impl={} rows={} table_num={} width={} pair_comparisons={} rounds={} avg_ms={} "
+           "median_ms={} min_ms={} max_ms={}",
            name, cfg.rows, cfg.tableNum, cfg.width, pairCount, cfg.rounds, average(times), median, min, max);
 }
-}
+} // namespace
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     System::init(argc, argv);
     DbConf::init();
 
@@ -169,18 +152,17 @@ int main(int argc, char *argv[]) {
         throw std::runtime_error("width must be in [1, 64].");
     }
 
-    std::vector<std::vector<int64_t> > tables;
+    std::vector<std::vector<int64_t>> tables;
     preparePlainTables(cfg, tables);
 
-    std::vector<std::vector<int64_t> > shares(cfg.tableNum);
+    std::vector<std::vector<int64_t>> shares(cfg.tableNum);
     for (int tableIdx = 0; tableIdx < cfg.tableNum; ++tableIdx) {
         shares[tableIdx] = Secrets::boolShare(tables[tableIdx], 2, cfg.width, 0);
     }
 
     auto pairInputs = buildPairInputs(shares, cfg);
-    const size_t pairCount = static_cast<size_t>(cfg.tableNum - 1) *
-                             static_cast<size_t>(cfg.rows) *
-                             static_cast<size_t>(cfg.rows);
+    const size_t pairCount =
+        static_cast<size_t>(cfg.tableNum - 1) * static_cast<size_t>(cfg.rows) * static_cast<size_t>(cfg.rows);
 
     std::vector<int64_t> oldTimes;
     std::vector<int64_t> newTimes;
@@ -193,7 +175,7 @@ int main(int argc, char *argv[]) {
             int tag = 0;
             int64_t combined = 0;
             auto start = nowMs();
-            for (auto &input: pairInputs) {
+            for (auto& input : pairInputs) {
                 auto result = oldEqual(&input.left, &input.right, cfg.width, task, tag);
                 combined ^= checksum(result);
                 tag += oldEqualTagStride();
@@ -214,7 +196,7 @@ int main(int argc, char *argv[]) {
             int tag = 0;
             int64_t combined = 0;
             auto start = nowMs();
-            for (auto &input: pairInputs) {
+            for (auto& input : pairInputs) {
                 auto result = newEqual(&input.left, &input.right, cfg.width, task, tag);
                 combined ^= checksum(result);
                 tag += BoolEqualBatchOperator::tagStride();
@@ -236,7 +218,8 @@ int main(int argc, char *argv[]) {
         const int batchCount = static_cast<int>(pairCount);
         Log::i("DB_JOIN_EQUAL_COMPARE tag_stride_old={} tag_stride_new={} bmt_count_old={} bmt_count_new={}",
                oldEqualTagStride(), BoolEqualBatchOperator::tagStride(),
-               2 * BoolLessBatchOperator::bmtCount(batchCount, cfg.width) + BoolAndBatchOperator::bmtCount(batchCount, 1),
+               2 * BoolLessBatchOperator::bmtCount(batchCount, cfg.width) +
+                   BoolAndBatchOperator::bmtCount(batchCount, 1),
                BoolEqualBatchOperator::bmtCount(batchCount, cfg.width));
     }
 

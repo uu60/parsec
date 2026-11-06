@@ -7,17 +7,15 @@
 
 namespace parsec {
 
-
 class TcpRequestWrapper : public AbstractRequest {
-private:
+  private:
     std::future<void> _future;
 
-public:
+  public:
     explicit TcpRequestWrapper(std::future<void> future);
 
     void wait() override;
 };
-
 
 } // namespace parsec
 

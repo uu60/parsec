@@ -5,14 +5,11 @@
 
 namespace parsec {
 
-
-BoolXorOperator *BoolXorOperator::execute() {
+BoolXorOperator* BoolXorOperator::execute() {
     _zi = _xi ^ _yi;
     return this;
 }
 
-int BoolXorOperator::tagStride() {
-    return 0;
-}
+int BoolXorOperator::tagStride() { return 0; }
 
 } // namespace parsec

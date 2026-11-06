@@ -5,23 +5,18 @@
 
 namespace parsec {
 
-
-
 class AbstractOtOperator : public AbstractSingleOperator {
-protected:
+  protected:
     int64_t _m0{};
     int64_t _m1{};
     int _choice;
     bool _isSender{};
 
-public:
+  public:
     AbstractOtOperator(int sender, int64_t m0, int64_t m1, int choice, int l, int taskTag, int msgTagOffset);
 
-    AbstractOtOperator *reconstruct(int clientRank) override;
+    AbstractOtOperator* reconstruct(int clientRank) override;
 };
-
-
-
 
 } // namespace parsec
 

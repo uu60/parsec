@@ -5,8 +5,7 @@
 
 namespace parsec {
 
-
-BoolXorBatchOperator * BoolXorBatchOperator::execute() {
+BoolXorBatchOperator* BoolXorBatchOperator::execute() {
     if (Conf::ENABLE_SIMD) {
         _zis = SimdSupport::xorV(*_xis, *_yis);
     } else {
@@ -18,9 +17,6 @@ BoolXorBatchOperator * BoolXorBatchOperator::execute() {
     return this;
 }
 
-int BoolXorBatchOperator::tagStride() {
-    return 0;
-}
-
+int BoolXorBatchOperator::tagStride() { return 0; }
 
 } // namespace parsec

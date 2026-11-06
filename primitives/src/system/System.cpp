@@ -12,8 +12,7 @@
 
 namespace parsec {
 
-
-void System::init(int argc, char **argv) {
+void System::init(int argc, char** argv) {
     Conf::init(argc, argv);
 
     if (Conf::BMT_METHOD == Conf::BMT_BACKGROUND) {

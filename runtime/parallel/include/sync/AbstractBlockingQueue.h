@@ -4,10 +4,8 @@
 
 namespace parsec {
 
-
-template <typename T>
-class AbstractBlockingQueue {
-public:
+template <typename T> class AbstractBlockingQueue {
+  public:
     virtual ~AbstractBlockingQueue() = default;
 
     virtual void offer(T item) = 0;
@@ -18,8 +16,6 @@ public:
 
     [[nodiscard]] virtual size_t capacity() const = 0;
 };
-
-
 
 } // namespace parsec
 

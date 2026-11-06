@@ -82,8 +82,10 @@ TEST(MathBigNum, AddAndMinusBinaryStrings) {
     std::mt19937_64 rng(7);
     for (int i = 0; i < 50; ++i) {
         std::string a(16, '\0'), b(16, '\0');
-        for (auto &ch : a) ch = static_cast<char>(rng());
-        for (auto &ch : b) ch = static_cast<char>(rng());
+        for (auto& ch : a)
+            ch = static_cast<char>(rng());
+        for (auto& ch : b)
+            ch = static_cast<char>(rng());
         a[0] = static_cast<char>(a[0] | 0x01); // keep a non-zero leading byte so lengths round-trip
         EXPECT_EQ(Math::minus(Math::add(a, b), b), a);
     }

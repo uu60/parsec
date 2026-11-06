@@ -5,16 +5,11 @@
 
 namespace parsec {
 
-
-
 class RRot {
-public:
+  public:
     int64_t _rb{};
     int _b{};
 };
-
-
-
 
 } // namespace parsec
 

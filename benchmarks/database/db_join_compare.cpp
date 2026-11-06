@@ -32,39 +32,31 @@ struct BenchConfig {
     bool hash = false;
 };
 
-std::vector<int64_t> oldEqual(std::vector<int64_t> *xs,
-                              std::vector<int64_t> *ys,
-                              int width,
-                              int taskTag,
+std::vector<int64_t> oldEqual(std::vector<int64_t>* xs, std::vector<int64_t>* ys, int width, int taskTag,
                               int msgTagOffset) {
-    auto lessXy = BoolLessBatchOperator(xs, ys, width, taskTag, msgTagOffset, SecureOperator::NO_CLIENT_COMPUTE)
-            .execute()
-            ->_zis;
-    auto lessYx = BoolLessBatchOperator(ys, xs, width, taskTag,
-                                        msgTagOffset + BoolLessBatchOperator::tagStride(),
+    auto lessXy =
+        BoolLessBatchOperator(xs, ys, width, taskTag, msgTagOffset, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+    auto lessYx = BoolLessBatchOperator(ys, xs, width, taskTag, msgTagOffset + BoolLessBatchOperator::tagStride(),
                                         SecureOperator::NO_CLIENT_COMPUTE)
-            .execute()
-            ->_zis;
+                      .execute()
+                      ->_zis;
 
-    for (auto &v: lessXy) {
+    for (auto& v : lessXy) {
         v ^= Comm::rank();
     }
-    for (auto &v: lessYx) {
+    for (auto& v : lessYx) {
         v ^= Comm::rank();
     }
 
-    return BoolAndBatchOperator(&lessXy, &lessYx, 1, taskTag,
-                                msgTagOffset + 2 * BoolLessBatchOperator::tagStride(),
+    return BoolAndBatchOperator(&lessXy, &lessYx, 1, taskTag, msgTagOffset + 2 * BoolLessBatchOperator::tagStride(),
                                 SecureOperator::NO_CLIENT_COMPUTE)
-            .execute()
-            ->_zis;
+        .execute()
+        ->_zis;
 }
 
-int oldEqualTagStride() {
-    return 2 * BoolLessBatchOperator::tagStride() + BoolAndBatchOperator::tagStride();
-}
+int oldEqualTagStride() { return 2 * BoolLessBatchOperator::tagStride() + BoolAndBatchOperator::tagStride(); }
 
-View nestedLoopJoinOldEqual(View &v0, View &v1, std::string &field0, std::string &field1, bool compress) {
+View nestedLoopJoinOldEqual(View& v0, View& v1, std::string& field0, std::string& field1, bool compress) {
     const size_t effectiveFieldNum0 = v0.colNum() - 2;
     const size_t effectiveFieldNum1 = v1.colNum() - 2;
 
@@ -73,7 +65,7 @@ View nestedLoopJoinOldEqual(View &v0, View &v1, std::string &field0, std::string
     std::string tableName1 = v1._tableName.empty() ? "$t1" : v1._tableName;
 
     const std::string prefix = Table::BUCKET_TAG_PREFIX;
-    auto decorate = [&](const std::string &tableName, const std::string &raw) -> std::string {
+    auto decorate = [&](const std::string& tableName, const std::string& raw) -> std::string {
         if (raw.compare(0, prefix.size(), prefix) == 0) {
             return prefix + tableName + "." + raw.substr(prefix.size());
         }
@@ -117,16 +109,16 @@ View nestedLoopJoinOldEqual(View &v0, View &v1, std::string &field0, std::string
         return joined;
     }
 
-    auto &col0 = v0._dataCols[colIndex0];
-    auto &col1 = v1._dataCols[colIndex1];
+    auto& col0 = v0._dataCols[colIndex0];
+    auto& col1 = v1._dataCols[colIndex1];
     const int keyWidth = v0._fieldWidths[colIndex0];
 
     const bool baseline = DbConf::BASELINE_MODE;
     const bool precise = (!DbConf::BASELINE_MODE) && (!DbConf::DISABLE_PRECISE_COMPACTION);
     const int validIdx0 = v0.colNum() + View::VALID_COL_OFFSET;
     const int validIdx1 = v1.colNum() + View::VALID_COL_OFFSET;
-    const auto &lvalid = v0._dataCols[validIdx0];
-    const auto &rvalid = v1._dataCols[validIdx1];
+    const auto& lvalid = v0._dataCols[validIdx0];
+    const auto& rvalid = v1._dataCols[validIdx1];
     const int batchSize = Conf::BATCH_SIZE;
 
     if (DbConf::BASELINE_MODE || batchSize <= 0 || Conf::DISABLE_MULTI_THREAD) {
@@ -164,24 +156,22 @@ View nestedLoopJoinOldEqual(View &v0, View &v1, std::string &field0, std::string
         if (precise) {
             joined._dataCols[joined.colNum() + View::VALID_COL_OFFSET] = std::move(eqRes);
         } else {
-            auto pairValid = BoolAndBatchOperator(&bigLValid, &bigRValid, 1,
-                                                  0, oldEqualTagStride(),
+            auto pairValid = BoolAndBatchOperator(&bigLValid, &bigRValid, 1, 0, oldEqualTagStride(),
                                                   SecureOperator::NO_CLIENT_COMPUTE)
+                                 .execute()
+                                 ->_zis;
+            joined._dataCols[joined.colNum() + View::VALID_COL_OFFSET] =
+                BoolAndBatchOperator(&eqRes, &pairValid, 1, 0, oldEqualTagStride() + BoolAndBatchOperator::tagStride(),
+                                     SecureOperator::NO_CLIENT_COMPUTE)
                     .execute()
                     ->_zis;
-            joined._dataCols[joined.colNum() + View::VALID_COL_OFFSET] =
-                    BoolAndBatchOperator(&eqRes, &pairValid, 1,
-                                         0, oldEqualTagStride() + BoolAndBatchOperator::tagStride(),
-                                         SecureOperator::NO_CLIENT_COMPUTE)
-                            .execute()
-                            ->_zis;
         }
     } else {
         const int eqStride = oldEqualTagStride();
         const int andStride = BoolAndBatchOperator::tagStride();
         const int blockStride = eqStride + 2 * andStride;
         const int batchNum = static_cast<int>((n + batchSize - 1) / batchSize);
-        std::vector<std::future<std::vector<int64_t> > > futures(batchNum);
+        std::vector<std::future<std::vector<int64_t>>> futures(batchNum);
 
         for (int b = 0; b < batchNum; ++b) {
             futures[b] = ThreadPoolSupport::submit([&, b]() {
@@ -213,16 +203,14 @@ View nestedLoopJoinOldEqual(View &v0, View &v1, std::string &field0, std::string
                     return eqRes;
                 }
 
-                auto pairValid = BoolAndBatchOperator(&lval, &rval, 1,
-                                                      0, baseTag + eqStride,
-                                                      SecureOperator::NO_CLIENT_COMPUTE)
+                auto pairValid =
+                    BoolAndBatchOperator(&lval, &rval, 1, 0, baseTag + eqStride, SecureOperator::NO_CLIENT_COMPUTE)
                         .execute()
                         ->_zis;
-                return BoolAndBatchOperator(&eqRes, &pairValid, 1,
-                                            0, baseTag + eqStride + andStride,
+                return BoolAndBatchOperator(&eqRes, &pairValid, 1, 0, baseTag + eqStride + andStride,
                                             SecureOperator::NO_CLIENT_COMPUTE)
-                        .execute()
-                        ->_zis;
+                    .execute()
+                    ->_zis;
             });
         }
 
@@ -240,9 +228,9 @@ View nestedLoopJoinOldEqual(View &v0, View &v1, std::string &field0, std::string
         }
 
         rowIndex = 0;
-        for (auto &future: futures) {
+        for (auto& future : futures) {
             auto result = future.get();
-            for (auto bit: result) {
+            for (auto bit : result) {
                 joined._dataCols[joined.colNum() + View::VALID_COL_OFFSET][rowIndex++] = bit;
             }
         }
@@ -254,12 +242,10 @@ View nestedLoopJoinOldEqual(View &v0, View &v1, std::string &field0, std::string
     return joined;
 }
 
-std::vector<std::vector<std::vector<int64_t> > > butterflyPermutationLocal(View &view,
-                                                                            int tagColIndex,
-                                                                            int msgTagBase) {
+std::vector<std::vector<std::vector<int64_t>>> butterflyPermutationLocal(View& view, int tagColIndex, int msgTagBase) {
     int numBuckets = DbConf::SHUFFLE_BUCKET_NUM;
     int numLayers = static_cast<int>(std::log2(numBuckets));
-    std::vector<std::vector<std::vector<int64_t> > > buckets(numBuckets);
+    std::vector<std::vector<std::vector<int64_t>>> buckets(numBuckets);
     int rowNum = view.rowNum();
 
     for (int b = 0; b < numBuckets; b++) {
@@ -299,8 +285,8 @@ std::vector<std::vector<std::vector<int64_t> > > butterflyPermutationLocal(View 
                     continue;
                 }
 
-                auto &bucket1 = buckets[idx1];
-                auto &bucket2 = buckets[idx2];
+                auto& bucket1 = buckets[idx1];
+                auto& bucket2 = buckets[idx2];
                 int bitPosition = numLayers - layer - 1;
                 size_t rows1 = bucket1.empty() ? 0 : bucket1[0].size();
                 size_t rows2 = bucket2.empty() ? 0 : bucket2[0].size();
@@ -333,17 +319,16 @@ std::vector<std::vector<std::vector<int64_t> > > butterflyPermutationLocal(View 
 
         std::vector<int64_t> allResults;
         if (Conf::DISABLE_MULTI_THREAD || Conf::BATCH_SIZE <= 0 || mergedDatas.size() <= Conf::BATCH_SIZE) {
-            allResults = BoolMutexBatchOperator(&mergedDatas, &dummyDatas, &routingBits,
-                                                view._maxWidth, 0, msgTagBase)
-                    .execute()
-                    ->_zis;
+            allResults = BoolMutexBatchOperator(&mergedDatas, &dummyDatas, &routingBits, view._maxWidth, 0, msgTagBase)
+                             .execute()
+                             ->_zis;
         } else {
             const size_t totalCnt = mergedDatas.size();
             const int batchSize = Conf::BATCH_SIZE;
             const int numBatches = static_cast<int>((totalCnt + batchSize - 1) / batchSize);
             allResults.resize(totalCnt * 2);
             const int tagStride = BoolMutexBatchOperator::tagStride();
-            std::vector<std::future<std::vector<int64_t> > > futures;
+            std::vector<std::future<std::vector<int64_t>>> futures;
             futures.reserve(numBatches);
 
             for (int b = 0; b < numBatches; ++b) {
@@ -358,16 +343,16 @@ std::vector<std::vector<std::vector<int64_t> > > butterflyPermutationLocal(View 
                     std::copy_n(dummyDatas.begin() + start, cnt, subDummy.begin());
                     std::copy_n(routingBits.begin() + start, cnt, subRouting.begin());
 
-                    return BoolMutexBatchOperator(&subMerged, &subDummy, &subRouting,
-                                                  view._maxWidth, 0, msgTagBase + tagStride * b)
-                            .execute()
-                            ->_zis;
+                    return BoolMutexBatchOperator(&subMerged, &subDummy, &subRouting, view._maxWidth, 0,
+                                                  msgTagBase + tagStride * b)
+                        .execute()
+                        ->_zis;
                 }));
             }
 
             size_t frontPos = 0;
             size_t backPos = totalCnt;
-            for (auto &f: futures) {
+            for (auto& f : futures) {
                 auto subResult = f.get();
                 int subHalf = static_cast<int>(subResult.size() / 2);
                 std::copy_n(subResult.begin(), subHalf, allResults.begin() + frontPos);
@@ -383,10 +368,10 @@ std::vector<std::vector<std::vector<int64_t> > > butterflyPermutationLocal(View 
             if (totalRowsV[i] == 0) {
                 continue;
             }
-            auto &bucket1 = buckets[indices1[i]];
-            auto &bucket2 = buckets[indices2[i]];
-            std::vector<std::vector<int64_t> > newBucket1;
-            std::vector<std::vector<int64_t> > newBucket2;
+            auto& bucket1 = buckets[indices1[i]];
+            auto& bucket2 = buckets[indices2[i]];
+            std::vector<std::vector<int64_t>> newBucket1;
+            std::vector<std::vector<int64_t>> newBucket2;
 
             for (int col = 0; col < bucket1.size(); col++) {
                 auto data1Start = allResults.begin() + resultIndex;
@@ -419,20 +404,14 @@ std::vector<std::vector<std::vector<int64_t> > > butterflyPermutationLocal(View 
     return buckets;
 }
 
-View performBucketJoinsLocal(std::vector<std::vector<std::vector<int64_t> > > &buckets0,
-                             std::vector<std::vector<std::vector<int64_t> > > &buckets1,
-                             View &v0,
-                             View &v1,
-                             std::string &field0,
-                             std::string &field1,
-                             bool compress,
-                             bool useOldEqual) {
+View performBucketJoinsLocal(std::vector<std::vector<std::vector<int64_t>>>& buckets0,
+                             std::vector<std::vector<std::vector<int64_t>>>& buckets1, View& v0, View& v1,
+                             std::string& field0, std::string& field1, bool compress, bool useOldEqual) {
     bool firstResult = true;
     View result;
 
     for (size_t b = 0; b < buckets0.size(); ++b) {
-        if (buckets0[b].empty() || buckets1[b].empty() ||
-            buckets0[b][0].empty() || buckets1[b][0].empty()) {
+        if (buckets0[b].empty() || buckets1[b].empty() || buckets0[b][0].empty() || buckets1[b][0].empty()) {
             continue;
         }
 
@@ -443,9 +422,8 @@ View performBucketJoinsLocal(std::vector<std::vector<std::vector<int64_t> > > &b
         right._dataCols = buckets1[b];
         right._dataCols.emplace_back(right.rowNum(), 0);
 
-        View joined = useOldEqual
-                              ? nestedLoopJoinOldEqual(left, right, field0, field1, compress)
-                              : Views::nestedLoopJoin(left, right, field0, field1, compress);
+        View joined = useOldEqual ? nestedLoopJoinOldEqual(left, right, field0, field1, compress)
+                                  : Views::nestedLoopJoin(left, right, field0, field1, compress);
         if (joined._dataCols.empty() || joined._dataCols[0].empty()) {
             continue;
         }
@@ -455,8 +433,7 @@ View performBucketJoinsLocal(std::vector<std::vector<std::vector<int64_t> > > &b
             firstResult = false;
         } else {
             for (size_t col = 0; col < result._dataCols.size(); ++col) {
-                result._dataCols[col].insert(result._dataCols[col].end(),
-                                             joined._dataCols[col].begin(),
+                result._dataCols[col].insert(result._dataCols[col].end(), joined._dataCols[col].begin(),
                                              joined._dataCols[col].end());
             }
         }
@@ -485,11 +462,10 @@ View performBucketJoinsLocal(std::vector<std::vector<std::vector<int64_t> > > &b
     return result;
 }
 
-View hashJoinLocal(View &v0, View &v1, std::string &field0, std::string &field1, bool compress, bool useOldEqual) {
+View hashJoinLocal(View& v0, View& v1, std::string& field0, std::string& field1, bool compress, bool useOldEqual) {
     if (DbConf::BASELINE_MODE) {
-        return useOldEqual
-                       ? nestedLoopJoinOldEqual(v0, v1, field0, field1, compress)
-                       : Views::nestedLoopJoin(v0, v1, field0, field1, compress);
+        return useOldEqual ? nestedLoopJoinOldEqual(v0, v1, field0, field1, compress)
+                           : Views::nestedLoopJoin(v0, v1, field0, field1, compress);
     }
 
     int tagColIndex0 = -1;
@@ -508,9 +484,8 @@ View hashJoinLocal(View &v0, View &v1, std::string &field0, std::string &field1,
     }
 
     if (tagColIndex0 == -1 || tagColIndex1 == -1) {
-        return useOldEqual
-                       ? nestedLoopJoinOldEqual(v0, v1, field0, field1, compress)
-                       : Views::nestedLoopJoin(v0, v1, field0, field1, compress);
+        return useOldEqual ? nestedLoopJoinOldEqual(v0, v1, field0, field1, compress)
+                           : Views::nestedLoopJoin(v0, v1, field0, field1, compress);
     }
 
     auto buckets0 = butterflyPermutationLocal(v0, tagColIndex0, 0);
@@ -518,7 +493,7 @@ View hashJoinLocal(View &v0, View &v1, std::string &field0, std::string &field1,
     return performBucketJoinsLocal(buckets0, buckets1, v0, v1, field0, field1, compress, useOldEqual);
 }
 
-void normalizeJoinResult(View &joinResult) {
+void normalizeJoinResult(View& joinResult) {
     if (joinResult._fieldNames.empty()) {
         return;
     }
@@ -537,9 +512,8 @@ void normalizeJoinResult(View &joinResult) {
     joinResult.select(fieldNames);
 }
 
-std::vector<View> buildViews(const std::vector<std::vector<int64_t> > &idShares,
-                             const std::vector<std::vector<int64_t> > &tagShares,
-                             const BenchConfig &cfg) {
+std::vector<View> buildViews(const std::vector<std::vector<int64_t>>& idShares,
+                             const std::vector<std::vector<int64_t>>& tagShares, const BenchConfig& cfg) {
     std::vector<Table> tables;
     std::vector<View> views;
     tables.reserve(cfg.tableNum);
@@ -563,7 +537,7 @@ std::vector<View> buildViews(const std::vector<std::vector<int64_t> > &idShares,
     return views;
 }
 
-View runJoin(std::vector<View> views, const BenchConfig &cfg, bool useOldEqual) {
+View runJoin(std::vector<View> views, const BenchConfig& cfg, bool useOldEqual) {
     View joinResult = views[0];
     std::string joinField = "id";
 
@@ -581,7 +555,7 @@ View runJoin(std::vector<View> views, const BenchConfig &cfg, bool useOldEqual) 
     return joinResult;
 }
 
-double average(const std::vector<int64_t> &values) {
+double average(const std::vector<int64_t>& values) {
     if (values.empty()) {
         return 0.0;
     }
@@ -589,7 +563,7 @@ double average(const std::vector<int64_t> &values) {
     return static_cast<double>(sum) / static_cast<double>(values.size());
 }
 
-void printResult(const std::string &name, const BenchConfig &cfg, const std::vector<int64_t> &times, size_t rows) {
+void printResult(const std::string& name, const BenchConfig& cfg, const std::vector<int64_t>& times, size_t rows) {
     if (!Comm::isServer() || Comm::rank() != 0) {
         return;
     }
@@ -598,12 +572,13 @@ void printResult(const std::string &name, const BenchConfig &cfg, const std::vec
     auto median = sorted.empty() ? 0 : sorted[sorted.size() / 2];
     auto min = sorted.empty() ? 0 : sorted.front();
     auto max = sorted.empty() ? 0 : sorted.back();
-    Log::i("DB_JOIN_COMPARE impl={} hash={} rows={} table_num={} width={} final_rows={} rounds={} avg_ms={} median_ms={} min_ms={} max_ms={}",
+    Log::i("DB_JOIN_COMPARE impl={} hash={} rows={} table_num={} width={} final_rows={} rounds={} avg_ms={} "
+           "median_ms={} min_ms={} max_ms={}",
            name, cfg.hash, cfg.rows, cfg.tableNum, cfg.width, rows, cfg.rounds, average(times), median, min, max);
 }
-}
+} // namespace
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     System::init(argc, argv);
     DbConf::init();
 
@@ -624,8 +599,8 @@ int main(int argc, char *argv[]) {
     if (cfg.width < 1 || cfg.width > 64) {
         throw std::runtime_error("width must be in [1, 64].");
     }
-    std::vector<std::vector<int64_t> > plainIds(cfg.tableNum);
-    std::vector<std::vector<int64_t> > plainTags(cfg.tableNum);
+    std::vector<std::vector<int64_t>> plainIds(cfg.tableNum);
+    std::vector<std::vector<int64_t>> plainTags(cfg.tableNum);
     int64_t mask = cfg.width >= 63 ? -1LL : ((1LL << cfg.width) - 1);
 
     for (int tableIdx = 0; tableIdx < cfg.tableNum; ++tableIdx) {
@@ -642,8 +617,8 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    std::vector<std::vector<int64_t> > idShares(cfg.tableNum);
-    std::vector<std::vector<int64_t> > tagShares(cfg.tableNum);
+    std::vector<std::vector<int64_t>> idShares(cfg.tableNum);
+    std::vector<std::vector<int64_t>> tagShares(cfg.tableNum);
     for (int tableIdx = 0; tableIdx < cfg.tableNum; ++tableIdx) {
         idShares[tableIdx] = Secrets::boolShare(plainIds[tableIdx], 2, cfg.width, 0);
         tagShares[tableIdx] = Secrets::boolShare(plainTags[tableIdx], 2, cfg.width, 0);

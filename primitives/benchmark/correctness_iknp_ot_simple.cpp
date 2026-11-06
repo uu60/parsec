@@ -11,7 +11,7 @@
 
 using namespace parsec;
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     System::init(argc, argv);
     bool passed = true;
 
@@ -49,22 +49,19 @@ int main(int argc, char **argv) {
     // Send choices to sender for verification.
     if (!isSender) {
         std::vector<int64_t> c64(n);
-        for (int i = 0; i < n; ++i) c64[i] = choices[i];
+        for (int i = 0; i < n; ++i)
+            c64[i] = choices[i];
         Comm::send(c64, 1, sender, task * 1000 + 1);
     } else {
         std::vector<int64_t> c64;
         Comm::receive(c64, 1, 1 - sender, task * 1000 + 1);
         choices.resize(n);
-        for (int i = 0; i < n; ++i) choices[i] = static_cast<int>(c64[i]);
+        for (int i = 0; i < n; ++i)
+            choices[i] = static_cast<int>(c64[i]);
     }
 
-    IknpOtBatchOperator op(sender,
-                           isSender ? &ms0 : nullptr,
-                           isSender ? &ms1 : nullptr,
-                           isSender ? nullptr : &choices,
-                           width,
-                           task,
-                           task * 1000 + 10);
+    IknpOtBatchOperator op(sender, isSender ? &ms0 : nullptr, isSender ? &ms1 : nullptr, isSender ? nullptr : &choices,
+                           width, task, task * 1000 + 10);
     op.execute();
 
     if (!isSender) {
@@ -93,4 +90,3 @@ int main(int argc, char **argv) {
     System::finalize();
     return passed ? 0 : 1;
 }
-

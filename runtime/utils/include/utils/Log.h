@@ -1,21 +1,20 @@
 #ifndef MPC_PACKAGE_LOG_H
 #define MPC_PACKAGE_LOG_H
 
-#include <string>
-#include <sstream>
-#include <iostream>
-#include <vector>
+#include "comm/Comm.h"
 #include <chrono>
 #include <iomanip>
-#include <unistd.h>
+#include <iostream>
 #include <mutex>
-#include "comm/Comm.h"
+#include <sstream>
+#include <string>
+#include <unistd.h>
+#include <vector>
 
 namespace parsec {
 
-
 class Log {
-private:
+  private:
     static inline const std::string INFO = "INFO";
     static inline const std::string DEBUG = "DEBUG";
     static inline const std::string WARN = "WARN";
@@ -23,55 +22,49 @@ private:
     static inline std::string HOSTNAME = "";
     static inline std::mutex logMutex;
 
-public:
-    template<typename... Args>
-    static void i(const std::string &msg, Args &&... args) {
+  public:
+    template <typename... Args> static void i(const std::string& msg, Args&&... args) {
         log(INFO, msg, std::forward<Args>(args)...);
     }
 
-    template<typename... Args>
-    static void d(const std::string &msg, Args &&... args) {
+    template <typename... Args> static void d(const std::string& msg, Args&&... args) {
         log(DEBUG, msg, std::forward<Args>(args)...);
     }
 
-    template<typename... Args>
-    static void w(const std::string &msg, Args &&... args) {
+    template <typename... Args> static void w(const std::string& msg, Args&&... args) {
         log(WARN, msg, std::forward<Args>(args)...);
     }
 
-    template<typename... Args>
-    static void e(const std::string &msg, Args &&... args) {
+    template <typename... Args> static void e(const std::string& msg, Args&&... args) {
         log(ERROR, msg, std::forward<Args>(args)...);
     }
 
-    template<typename... Args>
-    static void ir(int rank, const std::string &msg, Args &&... args) {
-        if (Comm::rank() != rank) return;
+    template <typename... Args> static void ir(int rank, const std::string& msg, Args&&... args) {
+        if (Comm::rank() != rank)
+            return;
         log(INFO, msg, std::forward<Args>(args)...);
     }
 
-    template<typename... Args>
-    static void dr(int rank, const std::string &msg, Args &&... args) {
-        if (Comm::rank() != rank) return;
+    template <typename... Args> static void dr(int rank, const std::string& msg, Args&&... args) {
+        if (Comm::rank() != rank)
+            return;
         log(DEBUG, msg, std::forward<Args>(args)...);
     }
 
-    template<typename... Args>
-    static void wr(int rank, const std::string &msg, Args &&... args) {
-        if (Comm::rank() != rank) return;
+    template <typename... Args> static void wr(int rank, const std::string& msg, Args&&... args) {
+        if (Comm::rank() != rank)
+            return;
         log(WARN, msg, std::forward<Args>(args)...);
     }
 
-    template<typename... Args>
-    static void er(int rank, const std::string &msg, Args &&... args) {
-        if (Comm::rank() != rank) return;
+    template <typename... Args> static void er(int rank, const std::string& msg, Args&&... args) {
+        if (Comm::rank() != rank)
+            return;
         log(ERROR, msg, std::forward<Args>(args)...);
     }
 
-private:
-    template<typename... Args>
-    static void
-    log(const std::string &level, const std::string &msg, Args &&... args) {
+  private:
+    template <typename... Args> static void log(const std::string& level, const std::string& msg, Args&&... args) {
         std::lock_guard<std::mutex> lock(logMutex);
         if (HOSTNAME.empty()) {
             char hostName[128];
@@ -80,30 +73,27 @@ private:
         }
         std::string formatted_msg = format(msg, std::forward<Args>(args)...);
         std::cout << "[" << HOSTNAME + ":" + std::to_string(getpid()) << "] "
-                << "[" << getCurrentTimestampStr() << "] "
-                << "[" << Comm::rank() << "] "
-                << "[" << level << "] "
-                << formatted_msg << std::endl;
+                  << "[" << getCurrentTimestampStr() << "] "
+                  << "[" << Comm::rank() << "] "
+                  << "[" << level << "] " << formatted_msg << std::endl;
     }
 
-    template<typename T>
-    static std::string to_string_any(T &&value) {
+    template <typename T> static std::string to_string_any(T&& value) {
         std::ostringstream oss;
         oss << value;
         return oss.str();
     }
 
-    template<typename... Args>
-    static std::string format(const std::string &msg, Args &&... args) {
+    template <typename... Args> static std::string format(const std::string& msg, Args&&... args) {
         std::string formatted_msg = msg;
         std::vector<std::string> arg_strings = {to_string_any(std::forward<Args>(args))...};
-        for (const auto &arg: arg_strings) {
+        for (const auto& arg : arg_strings) {
             replaceFirstPlaceholder(formatted_msg, arg);
         }
         return formatted_msg;
     }
 
-    static void replaceFirstPlaceholder(std::string &msg, const std::string &value) {
+    static void replaceFirstPlaceholder(std::string& msg, const std::string& value) {
         size_t pos = msg.find("{}");
         if (pos != std::string::npos) {
             msg.replace(pos, 2, value);
@@ -121,7 +111,6 @@ private:
         return oss.str();
     }
 };
-
 
 } // namespace parsec
 

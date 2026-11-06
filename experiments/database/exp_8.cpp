@@ -1,7 +1,7 @@
 
+#include "conf/DbConf.h"
 #include "secret/Secrets.h"
 #include "utils/System.h"
-#include "conf/DbConf.h"
 
 #include "basis/Table.h"
 #include "basis/View.h"
@@ -12,9 +12,9 @@
 #include "utils/Math.h"
 #include "utils/StringUtils.h"
 
-#include <vector>
-#include <map>
 #include <algorithm>
+#include <map>
+#include <vector>
 
 #include "compute/batch/arith/ArithToBoolBatchOperator.h"
 #include "compute/batch/bool/BoolAndBatchOperator.h"
@@ -23,18 +23,15 @@
 
 using namespace parsec;
 
-
 struct OrderRow {
     int64_t cust;
     int64_t orderkey;
     int64_t flag;
 };
 
-void generateTestData(int customer_rows, int orders_rows,
-                      std::vector<int64_t> &c_custkey_data,
-                      std::vector<int64_t> &o_custkey_data,
-                      std::vector<int64_t> &o_orderkey_data,
-                      std::vector<int64_t> &o_comment_flag_data) {
+void generateTestData(int customer_rows, int orders_rows, std::vector<int64_t>& c_custkey_data,
+                      std::vector<int64_t>& o_custkey_data, std::vector<int64_t>& o_orderkey_data,
+                      std::vector<int64_t>& o_comment_flag_data) {
     if (Comm::rank() == 2) {
         c_custkey_data.reserve(customer_rows);
 
@@ -59,7 +56,7 @@ void generateTestData(int customer_rows, int orders_rows,
     }
 }
 
-View createCustomerTable(std::vector<int64_t> &c_custkey_shares) {
+View createCustomerTable(std::vector<int64_t>& c_custkey_shares) {
     std::string table_name = "customer";
     std::vector<std::string> fields = {"c_custkey"};
     std::vector<int> widths = {64};
@@ -70,9 +67,8 @@ View createCustomerTable(std::vector<int64_t> &c_custkey_shares) {
     return Views::selectAll(t);
 }
 
-View createOrdersTable(std::vector<int64_t> &o_custkey_shares,
-                       std::vector<int64_t> &o_orderkey_shares,
-                       std::vector<int64_t> &o_comment_flag_shares) {
+View createOrdersTable(std::vector<int64_t>& o_custkey_shares, std::vector<int64_t>& o_orderkey_shares,
+                       std::vector<int64_t>& o_comment_flag_shares) {
     std::string table_name = "orders";
     std::vector<std::string> fields = {"o_custkey", "o_orderkey", "o_comment_flag"};
     std::vector<int> widths = {64, 64, 64};
@@ -83,7 +79,7 @@ View createOrdersTable(std::vector<int64_t> &o_custkey_shares,
     return Views::selectAll(t);
 }
 
-View createCntCTE(View &orders_view, int64_t word, int tid) {
+View createCntCTE(View& orders_view, int64_t word, int tid) {
     std::vector<std::string> fields = {"o_comment_flag"};
     std::vector<View::ComparatorType> cmps = {View::EQUALS};
     std::vector<int64_t> consts = {word};
@@ -104,7 +100,7 @@ View createCntCTE(View &orders_view, int64_t word, int tid) {
     return filtered_orders;
 }
 
-View createHistCTE(View &cnt_view, int tid) {
+View createHistCTE(View& cnt_view, int tid) {
     std::vector<std::string> group_fields = {"c_count"};
     cnt_view.select(group_fields);
 
@@ -119,48 +115,39 @@ View createHistCTE(View &cnt_view, int tid) {
     return cnt_view;
 }
 
-View createZerosCTE(View &customer_view, View &cnt_view, int tid) {
+View createZerosCTE(View& customer_view, View& cnt_view, int tid) {
     const int cust_key_idx = customer_view.colIndex("c_custkey");
     const int cnt_key_idx = cnt_view.colIndex("o_custkey");
     const int cust_valid_i = customer_view.colNum() + View::VALID_COL_OFFSET;
     const int cnt_valid_i = cnt_view.colNum() + View::VALID_COL_OFFSET;
 
-    auto &customer_keys = customer_view._dataCols[cust_key_idx];
-    auto &cnt_keys = cnt_view._dataCols[cnt_key_idx];
-    auto &customer_valid = customer_view._dataCols[cust_valid_i];
-    auto &cnt_valid = cnt_view._dataCols[cnt_valid_i];
+    auto& customer_keys = customer_view._dataCols[cust_key_idx];
+    auto& cnt_keys = cnt_view._dataCols[cnt_key_idx];
+    auto& customer_valid = customer_view._dataCols[cust_valid_i];
+    auto& cnt_valid = cnt_view._dataCols[cnt_valid_i];
 
     std::vector<int64_t> in_mask = Views::in(customer_keys, cnt_keys, customer_valid, cnt_valid);
 
     std::vector<int64_t> one_mask(in_mask.size(), (Comm::rank() == 1 ? 1 : 0));
     auto not_in_mask =
-            BoolXorBatchOperator(&in_mask, &one_mask,
-                                 64,
-                                 0, tid,
-                                 SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        BoolXorBatchOperator(&in_mask, &one_mask, 64, 0, tid, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
     auto zero_bucket_valid =
-            BoolAndBatchOperator(&customer_valid, &not_in_mask,
-                                 1,
-                                 0, tid,
-                                 SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        BoolAndBatchOperator(&customer_valid, &not_in_mask, 1, 0, tid, SecureOperator::NO_CLIENT_COMPUTE)
+            .execute()
+            ->_zis;
 
     auto zero_valid_arith_vec =
-            BoolToArithBatchOperator(&zero_bucket_valid,
-                                     64,
-                                     0, tid,
-                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        BoolToArithBatchOperator(&zero_bucket_valid, 64, 0, tid, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
     unsigned long long acc = 0ULL;
-    for (auto z: zero_valid_arith_vec) acc += (unsigned long long) z;
-    int64_t zero_bucket_arith = (int64_t) acc;
+    for (auto z : zero_valid_arith_vec)
+        acc += (unsigned long long)z;
+    int64_t zero_bucket_arith = (int64_t)acc;
 
     std::vector<int64_t> one_elem_arith{zero_bucket_arith};
     auto zero_bucket_bool =
-            ArithToBoolBatchOperator(&one_elem_arith,
-                                     64,
-                                     0, tid,
-                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+        ArithToBoolBatchOperator(&one_elem_arith, 64, 0, tid, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
     std::vector<std::string> fields = {"c_count", "custdist"};
     std::vector<int> widths = {64, 64};
@@ -177,7 +164,7 @@ View createZerosCTE(View &customer_view, View &cnt_view, int tid) {
     return zeros_view;
 }
 
-View unionHistAndZeros(View &hist_view, View &zeros_view, int tid) {
+View unionHistAndZeros(View& hist_view, View& zeros_view, int tid) {
     std::vector<std::string> fields = {"c_count", "custdist"};
     std::vector<int> widths = {64, 64};
     View result_view(fields, widths);
@@ -190,8 +177,7 @@ View unionHistAndZeros(View &hist_view, View &zeros_view, int tid) {
 
     if (zeros_view.rowNum() > 0) {
         for (size_t i = 0; i < zeros_view._dataCols.size() && i < result_view._dataCols.size(); ++i) {
-            result_view._dataCols[i].insert(result_view._dataCols[i].end(),
-                                            zeros_view._dataCols[i].begin(),
+            result_view._dataCols[i].insert(result_view._dataCols[i].end(), zeros_view._dataCols[i].begin(),
                                             zeros_view._dataCols[i].end());
         }
     }
@@ -199,7 +185,7 @@ View unionHistAndZeros(View &hist_view, View &zeros_view, int tid) {
     return result_view;
 }
 
-View sortFinalResults(View &final_view, int tid) {
+View sortFinalResults(View& final_view, int tid) {
     if (final_view.rowNum() == 0) {
         return final_view;
     }
@@ -211,7 +197,7 @@ View sortFinalResults(View &final_view, int tid) {
     return final_view;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     System::init(argc, argv);
     DbConf::init();
     auto tid = System::nextTask() << (32 - Conf::TASK_TAG_BITS);
@@ -219,8 +205,10 @@ int main(int argc, char *argv[]) {
 
     int customer_rows = 14;
     int orders_rows = 24;
-    if (Conf::_userParams.count("rows1")) customer_rows = std::stoi(Conf::_userParams["rows1"]);
-    if (Conf::_userParams.count("rows2")) orders_rows = std::stoi(Conf::_userParams["rows2"]);
+    if (Conf::_userParams.count("rows1"))
+        customer_rows = std::stoi(Conf::_userParams["rows1"]);
+    if (Conf::_userParams.count("rows2"))
+        orders_rows = std::stoi(Conf::_userParams["rows2"]);
 
     if (Comm::isClient()) {
         Log::i("Optimized query data size: customer={}, orders={}", customer_rows, orders_rows);
@@ -265,9 +253,7 @@ int main(int argc, char *argv[]) {
 
             vZeros = createZerosCTE(vCustomer, vCnt_copy, tid);
         } else {
-            auto f = ThreadPoolSupport::submit([&] {
-                return createHistCTE(vCnt, tid);
-            });
+            auto f = ThreadPoolSupport::submit([&] { return createHistCTE(vCnt, tid); });
             vZeros = createZerosCTE(vCustomer, vCnt_copy, tid + 1000);
             vHist = f.get();
         }
@@ -279,9 +265,11 @@ int main(int argc, char *argv[]) {
         if (check_mode) {
             auto check_view = vResult;
             check_view.clearInvalidEntries(tid + 6000);
-            if (Comm::rank() == 0) Log::i("CORRECTNESS_BEGIN");
+            if (Comm::rank() == 0)
+                Log::i("CORRECTNESS_BEGIN");
             Views::revealAndPrint(check_view);
-            if (Comm::rank() == 0) Log::i("CORRECTNESS_END");
+            if (Comm::rank() == 0)
+                Log::i("CORRECTNESS_END");
         }
     }
 

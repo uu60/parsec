@@ -12,7 +12,7 @@
 
 using namespace parsec;
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     System::init(argc, argv);
 
     if (Comm::isClient()) {
@@ -44,7 +44,8 @@ int main(int argc, char *argv[]) {
 
     // std::vector<int64_t> results;
     // for (int i = 0; i < 10; i++) {
-    //     results.push_back(BaseOtOperator(0, isSender ? ss0[i] : -1, isSender ? ss1[i] : -1, !isSender ? choices[i] : -1, 64, 1, 0).execute()->_result);
+    //     results.push_back(BaseOtOperator(0, isSender ? ss0[i] : -1, isSender ? ss1[i] : -1, !isSender ? choices[i] :
+    //     -1, 64, 1, 0).execute()->_result);
     // }
 
     if (Comm::rank() == 1) {

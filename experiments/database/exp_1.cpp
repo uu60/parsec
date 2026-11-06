@@ -7,51 +7,47 @@
 #include "utils/Log.h"
 #include "utils/StringUtils.h"
 
+#include <algorithm>
+#include <random>
+#include <set>
 #include <string>
 #include <vector>
-#include <random>
-#include <algorithm>
-#include <set>
 
-#include "utils/Math.h"
-#include "compute/batch/bool/BoolToArithBatchOperator.h"
-#include "compute/batch/arith/ArithMultiplyBatchOperator.h"
 #include "compute/batch/arith/ArithAddBatchOperator.h"
-#include "compute/batch/bool/BoolXorBatchOperator.h"
-#include "compute/batch/bool/BoolAndBatchOperator.h"
+#include "compute/batch/arith/ArithMultiplyBatchOperator.h"
 #include "compute/batch/arith/ArithToBoolBatchOperator.h"
+#include "compute/batch/bool/BoolAndBatchOperator.h"
+#include "compute/batch/bool/BoolToArithBatchOperator.h"
+#include "compute/batch/bool/BoolXorBatchOperator.h"
 #include "conf/DbConf.h"
+#include "utils/Math.h"
 
 using namespace parsec;
 
-void generateTestData(int rows1, int rows2,
-                      std::vector<int64_t> &diagnosis_pid_data,
-                      std::vector<int64_t> &diagnosis_diag_data,
-                      std::vector<int64_t> &diagnosis_extra_data,
-                      std::vector<int64_t> &cdiff_cohort_pid_data);
+void generateTestData(int rows1, int rows2, std::vector<int64_t>& diagnosis_pid_data,
+                      std::vector<int64_t>& diagnosis_diag_data, std::vector<int64_t>& diagnosis_extra_data,
+                      std::vector<int64_t>& cdiff_cohort_pid_data);
 
-View createDiagnosisTable(std::vector<int64_t> &diagnosis_pid_shares,
-                          std::vector<int64_t> &diagnosis_diag_shares,
-                          std::vector<int64_t> &diagnosis_extra_shares);
+View createDiagnosisTable(std::vector<int64_t>& diagnosis_pid_shares, std::vector<int64_t>& diagnosis_diag_shares,
+                          std::vector<int64_t>& diagnosis_extra_shares);
 
-View createCohortTable(std::vector<int64_t> &cdiff_cohort_pid_shares);
+View createCohortTable(std::vector<int64_t>& cdiff_cohort_pid_shares);
 
-std::vector<int64_t> executeWhereInClause(View &diagnosis_view, View &cdiff_cohort_view);
+std::vector<int64_t> executeWhereInClause(View& diagnosis_view, View& cdiff_cohort_view);
 
-View filterDiagnosisTable(View &diagnosis_view, std::vector<int64_t> &in_results, int tid);
+View filterDiagnosisTable(View& diagnosis_view, std::vector<int64_t>& in_results, int tid);
 
-View executeGroupByCount(View &filtered_diagnosis, int tid);
+View executeGroupByCount(View& filtered_diagnosis, int tid);
 
 View executeTopKByCount(View grouped_diag_cnt, int k, int tid);
 
-static View sliceRows(View &v, size_t start, size_t len);
+static View sliceRows(View& v, size_t start, size_t len);
 
-static View concatSameSchema(View &a, View &b);
+static View concatSameSchema(View& a, View& b);
 
-static View projectDiagCnt(View &v, std::string diag_field, std::string cnt_field);
+static View projectDiagCnt(View& v, std::string diag_field, std::string cnt_field);
 
-
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     System::init(argc, argv);
     DbConf::init();
     auto tid = System::nextTask() << (32 - Conf::TASK_TAG_BITS);
@@ -71,8 +67,8 @@ int main(int argc, char *argv[]) {
 
     std::vector<int64_t> diagnosis_pid_data, diagnosis_diag_data, diagnosis_extra_data;
     std::vector<int64_t> cdiff_cohort_pid_data;
-    generateTestData(rows1, rows2, diagnosis_pid_data, diagnosis_diag_data,
-                     diagnosis_extra_data, cdiff_cohort_pid_data);
+    generateTestData(rows1, rows2, diagnosis_pid_data, diagnosis_diag_data, diagnosis_extra_data,
+                     cdiff_cohort_pid_data);
     if (check_mode && Comm::isClient()) {
         diagnosis_pid_data = {1, 2, 3, 4, 5};
         diagnosis_diag_data = {10, 10, 20, 20, 30};
@@ -106,9 +102,11 @@ int main(int argc, char *argv[]) {
             auto check_view = result_view;
             check_view.clearInvalidEntries(tid + 1000);
             check_view.sort("diag", true, tid + 2000);
-            if (Comm::rank() == 0) Log::i("CORRECTNESS_BEGIN");
+            if (Comm::rank() == 0)
+                Log::i("CORRECTNESS_BEGIN");
             Views::revealAndPrint(check_view);
-            if (Comm::rank() == 0) Log::i("CORRECTNESS_END");
+            if (Comm::rank() == 0)
+                Log::i("CORRECTNESS_END");
         }
     }
 
@@ -116,12 +114,9 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-
-void generateTestData(int rows1, int rows2,
-                      std::vector<int64_t> &diagnosis_pid_data,
-                      std::vector<int64_t> &diagnosis_diag_data,
-                      std::vector<int64_t> &diagnosis_extra_data,
-                      std::vector<int64_t> &cdiff_cohort_pid_data) {
+void generateTestData(int rows1, int rows2, std::vector<int64_t>& diagnosis_pid_data,
+                      std::vector<int64_t>& diagnosis_diag_data, std::vector<int64_t>& diagnosis_extra_data,
+                      std::vector<int64_t>& cdiff_cohort_pid_data) {
     if (Comm::rank() == 2) {
         diagnosis_pid_data.reserve(rows1);
         diagnosis_diag_data.reserve(rows1);
@@ -140,20 +135,15 @@ void generateTestData(int rows1, int rows2,
     }
 }
 
-View createDiagnosisTable(std::vector<int64_t> &diagnosis_pid_shares,
-                          std::vector<int64_t> &diagnosis_diag_shares,
-                          std::vector<int64_t> &diagnosis_extra_shares) {
+View createDiagnosisTable(std::vector<int64_t>& diagnosis_pid_shares, std::vector<int64_t>& diagnosis_diag_shares,
+                          std::vector<int64_t>& diagnosis_extra_shares) {
     std::string diagnosis_name = "diagnosis";
     std::vector<std::string> diagnosis_fields = {"pid", "diag", "extra_field"};
     std::vector<int> diagnosis_widths = {64, 64, 64};
 
     Table diagnosis_table(diagnosis_name, diagnosis_fields, diagnosis_widths, "");
     for (size_t i = 0; i < diagnosis_pid_shares.size(); i++) {
-        std::vector<int64_t> row = {
-            diagnosis_pid_shares[i],
-            diagnosis_diag_shares[i],
-            diagnosis_extra_shares[i]
-        };
+        std::vector<int64_t> row = {diagnosis_pid_shares[i], diagnosis_diag_shares[i], diagnosis_extra_shares[i]};
         diagnosis_table.insert(row);
     }
 
@@ -161,7 +151,7 @@ View createDiagnosisTable(std::vector<int64_t> &diagnosis_pid_shares,
     return diagnosis_view;
 }
 
-View createCohortTable(std::vector<int64_t> &cdiff_cohort_pid_shares) {
+View createCohortTable(std::vector<int64_t>& cdiff_cohort_pid_shares) {
     std::string cohort_name = "cdiff_cohort";
     std::vector<std::string> cohort_fields = {"pid"};
     std::vector<int> cohort_widths = {64};
@@ -176,7 +166,7 @@ View createCohortTable(std::vector<int64_t> &cdiff_cohort_pid_shares) {
     return cdiff_cohort_view;
 }
 
-std::vector<int64_t> executeWhereInClause(View &diagnosis_view, View &cdiff_cohort_view) {
+std::vector<int64_t> executeWhereInClause(View& diagnosis_view, View& cdiff_cohort_view) {
     auto diagnosis_pid_col = diagnosis_view._dataCols[0];
     auto cdiff_cohort_pid_col = cdiff_cohort_view._dataCols[0];
 
@@ -187,14 +177,14 @@ std::vector<int64_t> executeWhereInClause(View &diagnosis_view, View &cdiff_coho
     return in_results;
 }
 
-View filterDiagnosisTable(View &diagnosis_view, std::vector<int64_t> &in_results, int tid) {
+View filterDiagnosisTable(View& diagnosis_view, std::vector<int64_t>& in_results, int tid) {
     View filtered_diagnosis = diagnosis_view;
     filtered_diagnosis._dataCols[filtered_diagnosis.colNum() + View::VALID_COL_OFFSET] = in_results;
     filtered_diagnosis.clearInvalidEntries(tid);
     return filtered_diagnosis;
 }
 
-View executeGroupByCount(View &filtered_diagnosis, int tid) {
+View executeGroupByCount(View& filtered_diagnosis, int tid) {
     std::string diag_field = "diag";
     auto group_heads = filtered_diagnosis.groupBy(diag_field, tid);
 
@@ -209,10 +199,8 @@ View executeGroupByCount(View &filtered_diagnosis, int tid) {
     std::vector<std::string> group_fields = {diag_field};
     filtered_diagnosis.count(group_fields, group_heads, "cnt", tid);
 
-
     return projectDiagCnt(filtered_diagnosis, "diag", "cnt");
 }
-
 
 View executeTopKByCount(View grouped_diag_cnt, int k, int tid) {
     std::string count_field = "cnt";
@@ -222,12 +210,12 @@ View executeTopKByCount(View grouped_diag_cnt, int k, int tid) {
     }
 
     size_t n = grouped_diag_cnt.rowNum();
-    if (n <= (size_t) k) {
+    if (n <= (size_t)k) {
         grouped_diag_cnt.sort(count_field, false, tid);
         return grouped_diag_cnt;
     }
 
-    size_t first_block = std::min(n, (size_t) (2 * k));
+    size_t first_block = std::min(n, (size_t)(2 * k));
     View buf = sliceRows(grouped_diag_cnt, 0, first_block);
     buf.sort(count_field, false, tid);
     for (int c = 0; c < buf.colNum(); ++c) {
@@ -236,7 +224,7 @@ View executeTopKByCount(View grouped_diag_cnt, int k, int tid) {
 
     size_t off = first_block;
     while (off < n) {
-        size_t take = std::min((size_t) k, n - off);
+        size_t take = std::min((size_t)k, n - off);
         View chunk = sliceRows(grouped_diag_cnt, off, take);
         off += take;
 
@@ -251,8 +239,7 @@ View executeTopKByCount(View grouped_diag_cnt, int k, int tid) {
     return buf;
 }
 
-
-static View projectDiagCnt(View &v, std::string diag_field, std::string cnt_field) {
+static View projectDiagCnt(View& v, std::string diag_field, std::string cnt_field) {
     int d = v.colIndex(diag_field);
     int c = v.colIndex(cnt_field);
     std::vector<std::string> fields = {diag_field, cnt_field};
@@ -260,14 +247,16 @@ static View projectDiagCnt(View &v, std::string diag_field, std::string cnt_fiel
     View out(fields, widths);
     // `out` also carries the hidden $valid and $padding columns; take them from `v` instead of dropping them, since
     // sorting and compaction locate them relative to colNum().
-    if (d >= 0) out._dataCols[0] = v._dataCols[d];
-    if (c >= 0) out._dataCols[1] = v._dataCols[c];
+    if (d >= 0)
+        out._dataCols[0] = v._dataCols[d];
+    if (c >= 0)
+        out._dataCols[1] = v._dataCols[c];
     out._dataCols[out.colNum() + View::VALID_COL_OFFSET] = v._dataCols[v.colNum() + View::VALID_COL_OFFSET];
     out._dataCols[out.colNum() + View::PADDING_COL_OFFSET] = v._dataCols[v.colNum() + View::PADDING_COL_OFFSET];
     return out;
 }
 
-static View sliceRows(View &v, size_t start, size_t len) {
+static View sliceRows(View& v, size_t start, size_t len) {
     std::vector<std::string> fields = v._fieldNames;
     std::vector<int> widths = v._fieldWidths;
     View out(fields, widths);
@@ -284,7 +273,7 @@ static View sliceRows(View &v, size_t start, size_t len) {
     return out;
 }
 
-static View concatSameSchema(View &a, View &b) {
+static View concatSameSchema(View& a, View& b) {
     View out(a._fieldNames, a._fieldWidths);
     out._dataCols.resize(a.colNum());
     for (int col = 0; col < a.colNum(); ++col) {

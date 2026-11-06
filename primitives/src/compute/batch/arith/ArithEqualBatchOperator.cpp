@@ -10,13 +10,11 @@
 
 namespace parsec {
 
-
-ArithEqualBatchOperator::ArithEqualBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys, int width,
+ArithEqualBatchOperator::ArithEqualBatchOperator(std::vector<int64_t>* xs, std::vector<int64_t>* ys, int width,
                                                  int taskTag, int msgTagOffset, int clientRank)
-    : ArithBatchOperator(xs, ys, width, taskTag, msgTagOffset, clientRank) {
-}
+    : ArithBatchOperator(xs, ys, width, taskTag, msgTagOffset, clientRank) {}
 
-ArithEqualBatchOperator *ArithEqualBatchOperator::execute() {
+ArithEqualBatchOperator* ArithEqualBatchOperator::execute() {
     _currentMsgTag = _startMsgTag;
 
     if (Comm::isClient()) {
@@ -24,7 +22,8 @@ ArithEqualBatchOperator *ArithEqualBatchOperator::execute() {
     }
 
     if (Conf::BMT_METHOD != Conf::BMT_JIT && Conf::BMT_METHOD != Conf::BMT_FIXED) {
-        throw std::runtime_error("ArithEqualBatchOperator: Temporarily only support BMT JIT or FIXED generation for experiment.");
+        throw std::runtime_error(
+            "ArithEqualBatchOperator: Temporarily only support BMT JIT or FIXED generation for experiment.");
     }
 
     int64_t start = 0;
@@ -47,19 +46,18 @@ ArithEqualBatchOperator *ArithEqualBatchOperator::execute() {
     // std::vector<int64_t> ltv(gtv_ltv.begin() + gtv_ltv.size() / 2, gtv_ltv.end());
     // std::vector<int64_t> gtv = std::move(gtv_ltv);
     // gtv.resize(gtv.size() / 2);
-    std::vector<int64_t> ltv = ArithLessBatchOperator(_xis, _yis, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
-            execute()->_zis;
-    std::vector<int64_t> gtv = ArithLessBatchOperator(_yis, _xis, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
-            execute()->_zis;
-    for (auto &v: ltv) {
+    std::vector<int64_t> ltv =
+        ArithLessBatchOperator(_xis, _yis, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).execute()->_zis;
+    std::vector<int64_t> gtv =
+        ArithLessBatchOperator(_yis, _xis, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).execute()->_zis;
+    for (auto& v : ltv) {
         v = v ^ Comm::rank();
     }
-    for (auto &v: gtv) {
+    for (auto& v : gtv) {
         v = v ^ Comm::rank();
     }
 
     _zis = BoolAndBatchOperator(&gtv, &ltv, 1, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).execute()->_zis;
-
 
     if (Conf::ENABLE_CLASS_WISE_TIMING) {
         _totalTime += System::currentTimeMillis() - start;
@@ -68,7 +66,7 @@ ArithEqualBatchOperator *ArithEqualBatchOperator::execute() {
     return this;
 }
 
-ArithEqualBatchOperator *ArithEqualBatchOperator::reconstruct(int clientRank) {
+ArithEqualBatchOperator* ArithEqualBatchOperator::reconstruct(int clientRank) {
     ArithBatchOperator::reconstruct(clientRank);
 
     if (Comm::rank() == clientRank) {

@@ -30,7 +30,7 @@ bool testBmtOtLogic(int sender, int task, int bc) {
         for (int i = 0; i < bc; i++) {
             int64_t random = static_cast<int64_t>(i) * 0x1234567L + 7;
             ss0[i] = random;
-            ss1[i] = local_a[i] ^ random;  // corr(i, random) = _bmts[i]._a ^ x
+            ss1[i] = local_a[i] ^ random; // corr(i, random) = _bmts[i]._a ^ x
         }
     } else {
         choices.resize(bc);
@@ -51,12 +51,8 @@ bool testBmtOtLogic(int sender, int task, int bc) {
     }
 
     // Run OT
-    IknpOtBatchOperator op(sender,
-                           isSender ? &ss0 : nullptr,
-                           isSender ? &ss1 : nullptr,
-                           isSender ? nullptr : &choices,
-                           task,
-                           task * 1000 + 10);
+    IknpOtBatchOperator op(sender, isSender ? &ss0 : nullptr, isSender ? &ss1 : nullptr, isSender ? nullptr : &choices,
+                           task, task * 1000 + 10);
     op.execute();
 
     if (!isSender) {
@@ -71,20 +67,21 @@ bool testBmtOtLogic(int sender, int task, int bc) {
                 if (expected_bit != got_bit) {
                     ++mismatch;
                     if (mismatch <= 10) {
-                        Log::e("sender={} limb={} bit={} choice={} exp={} got={}",
-                               sender, limb, bit, c, expected_bit, got_bit);
+                        Log::e("sender={} limb={} bit={} choice={} exp={} got={}", sender, limb, bit, c, expected_bit,
+                               got_bit);
                     }
                 }
             }
         }
-        Log::i(mismatch == 0 ? "[BMT OT Logic sender={}] PASS" : "[BMT OT Logic sender={}] FAIL mismatches={}", sender, mismatch);
+        Log::i(mismatch == 0 ? "[BMT OT Logic sender={}] PASS" : "[BMT OT Logic sender={}] FAIL mismatches={}", sender,
+               mismatch);
         return mismatch == 0;
     }
 
     return true;
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     System::init(argc, argv);
     bool passed = true;
 
@@ -93,7 +90,7 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    const int bc = 100;  // Same as BMT test
+    const int bc = 100; // Same as BMT test
 
     // Test sender=0
     passed = testBmtOtLogic(0, System::nextTask(), bc) && passed;
@@ -104,4 +101,3 @@ int main(int argc, char **argv) {
     System::finalize();
     return passed ? 0 : 1;
 }
-

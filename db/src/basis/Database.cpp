@@ -6,18 +6,12 @@
 
 namespace parsec {
 
+Database::Database(std::string databaseName) { this->_databaseName = std::move(databaseName); }
 
-Database::Database(std::string databaseName) {
-    this->_databaseName = std::move(databaseName);
-}
+std::string Database::name() { return this->_databaseName; }
 
-std::string Database::name() {
-    return this->_databaseName;
-}
-
-bool
-Database::createTable(std::string &tableName, std::vector<std::string> &fieldNames, std::vector<int> &fieldWidths,
-                      std::string &keyField, std::string &msg) {
+bool Database::createTable(std::string& tableName, std::vector<std::string>& fieldNames, std::vector<int>& fieldWidths,
+                           std::string& keyField, std::string& msg) {
     if (getTable(tableName)) {
         msg = "Table already exists.";
         return false;
@@ -26,7 +20,7 @@ Database::createTable(std::string &tableName, std::vector<std::string> &fieldNam
     return true;
 }
 
-bool Database::dropTable(const std::string &tableName, std::string &msg) {
+bool Database::dropTable(const std::string& tableName, std::string& msg) {
     if (!getTable(tableName)) {
         msg = "Table not existed.";
         return false;
@@ -34,7 +28,7 @@ bool Database::dropTable(const std::string &tableName, std::string &msg) {
     return true;
 }
 
-Table *Database::getTable(const std::string &tableName) {
+Table* Database::getTable(const std::string& tableName) {
     if (_tables.find(tableName) == _tables.end()) {
         return nullptr;
     }

@@ -13,7 +13,8 @@ namespace {
 std::vector<int64_t> randomVector(size_t n, uint64_t seed) {
     std::mt19937_64 rng(seed);
     std::vector<int64_t> v(n);
-    for (auto &x : v) x = static_cast<int64_t>(rng());
+    for (auto& x : v)
+        x = static_cast<int64_t>(rng());
     return v;
 }
 

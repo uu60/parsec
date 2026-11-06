@@ -17,7 +17,6 @@
 
 namespace parsec {
 
-
 namespace {
 struct MessageHeader {
     int32_t senderRank;
@@ -25,19 +24,19 @@ struct MessageHeader {
     uint64_t payloadSize;
 };
 
-int64_t parseIntParam(const std::string &name, int64_t defaultValue) {
+int64_t parseIntParam(const std::string& name, int64_t defaultValue) {
     if (!AppConfig::has(name)) {
         return defaultValue;
     }
     auto value = AppConfig::getString(name, "");
     try {
         return std::stoll(value);
-    } catch (const std::exception &ex) {
+    } catch (const std::exception& ex) {
         throw std::runtime_error("Invalid integer for " + name + ": " + value);
     }
 }
 
-std::string parseStringParam(const std::string &name, const std::string &defaultValue) {
+std::string parseStringParam(const std::string& name, const std::string& defaultValue) {
     return AppConfig::getString(name, defaultValue);
 }
 
@@ -60,22 +59,18 @@ void configurePeerSocket(int fd) {
 
 constexpr int64_t SHUTDOWN_TIMEOUT_MS = 30000;
 
-std::runtime_error socketError(const std::string &message) {
+std::runtime_error socketError(const std::string& message) {
     return std::runtime_error(message + ": " + std::strerror(errno));
 }
-}
+} // namespace
 
 TcpComm::TcpComm() : _peerFds(3, -1), _sendMutexes(3), _readerThreads(3) {}
 
-TcpComm::~TcpComm() {
-    finalize_();
-}
+TcpComm::~TcpComm() { finalize_(); }
 
-int TcpComm::rank_() {
-    return _rank;
-}
+int TcpComm::rank_() { return _rank; }
 
-void TcpComm::init_(int argc, char **argv) {
+void TcpComm::init_(int argc, char** argv) {
     parseConfig(argc, argv);
     if (_size != 3) {
         throw std::runtime_error("3 parties restricted.");
@@ -115,7 +110,7 @@ void TcpComm::finalize_() {
                                           [this]() { return _activeReaders == 0; });
         if (!drained) {
             // A peer did not close its side in time (crashed or never finalized). Force blocked readers to return.
-            for (int fd: _peerFds) {
+            for (int fd : _peerFds) {
                 if (fd >= 0) {
                     ::shutdown(fd, SHUT_RDWR);
                 }
@@ -123,76 +118,70 @@ void TcpComm::finalize_() {
         }
     }
 
-    for (auto &reader: _readerThreads) {
+    for (auto& reader : _readerThreads) {
         if (reader.joinable()) {
             reader.join();
         }
     }
-    for (auto &fd: _peerFds) {
+    for (auto& fd : _peerFds) {
         closeFd(fd);
     }
 }
 
-bool TcpComm::isServer_() {
-    return _rank == 0 || _rank == 1;
-}
+bool TcpComm::isServer_() { return _rank == 0 || _rank == 1; }
 
-bool TcpComm::isClient_() {
-    return !isServer_();
-}
+bool TcpComm::isClient_() { return !isServer_(); }
 
 void TcpComm::send_(int64_t source, int width, int receiverRank, int tag) {
     sendPayload(receiverRank, tag, encodeInt(source, width));
 }
 
-void TcpComm::send_(const std::vector<int64_t> &source, int width, int receiverRank, int tag) {
+void TcpComm::send_(const std::vector<int64_t>& source, int width, int receiverRank, int tag) {
     sendPayload(receiverRank, tag, encodeVector(source, width));
 }
 
-void TcpComm::send_(const std::string &source, int receiverRank, int tag) {
+void TcpComm::send_(const std::string& source, int receiverRank, int tag) {
     sendPayload(receiverRank, tag, std::vector<char>(source.begin(), source.end()));
 }
 
-void TcpComm::receive_(int64_t &source, int width, int senderRank, int tag) {
+void TcpComm::receive_(int64_t& source, int width, int senderRank, int tag) {
     source = decodeInt(receivePayload(senderRank, tag), width);
 }
 
-void TcpComm::receive_(std::vector<int64_t> &source, int width, int senderRank, int tag) {
+void TcpComm::receive_(std::vector<int64_t>& source, int width, int senderRank, int tag) {
     decodeVector(receivePayload(senderRank, tag), width, source);
 }
 
-void TcpComm::receive_(std::string &target, int senderRank, int tag) {
+void TcpComm::receive_(std::string& target, int senderRank, int tag) {
     auto payload = receivePayload(senderRank, tag);
     target.assign(payload.begin(), payload.end());
 }
 
-TcpRequestWrapper *TcpComm::sendAsync_(const std::vector<int64_t> &source, int width, int receiverRank, int tag) {
+TcpRequestWrapper* TcpComm::sendAsync_(const std::vector<int64_t>& source, int width, int receiverRank, int tag) {
     auto sourceCopy = source;
-    return new TcpRequestWrapper(std::async(std::launch::async, [this, sourceCopy = std::move(sourceCopy), width, receiverRank, tag]() {
-        send_(sourceCopy, width, receiverRank, tag);
-    }));
+    return new TcpRequestWrapper(
+        std::async(std::launch::async, [this, sourceCopy = std::move(sourceCopy), width, receiverRank, tag]() {
+            send_(sourceCopy, width, receiverRank, tag);
+        }));
 }
 
-TcpRequestWrapper *TcpComm::sendAsync_(const int64_t &source, int width, int receiverRank, int tag) {
-    return new TcpRequestWrapper(std::async(std::launch::async, [this, source, width, receiverRank, tag]() {
-        send_(source, width, receiverRank, tag);
-    }));
+TcpRequestWrapper* TcpComm::sendAsync_(const int64_t& source, int width, int receiverRank, int tag) {
+    return new TcpRequestWrapper(std::async(
+        std::launch::async, [this, source, width, receiverRank, tag]() { send_(source, width, receiverRank, tag); }));
 }
 
-TcpRequestWrapper *TcpComm::sendAsync_(const std::string &source, int receiverRank, int tag) {
+TcpRequestWrapper* TcpComm::sendAsync_(const std::string& source, int receiverRank, int tag) {
     auto sourceCopy = source;
-    return new TcpRequestWrapper(std::async(std::launch::async, [this, sourceCopy = std::move(sourceCopy), receiverRank, tag]() {
-        send_(sourceCopy, receiverRank, tag);
-    }));
+    return new TcpRequestWrapper(std::async(std::launch::async, [this, sourceCopy = std::move(sourceCopy), receiverRank,
+                                                                 tag]() { send_(sourceCopy, receiverRank, tag); }));
 }
 
-TcpRequestWrapper *TcpComm::receiveAsync_(int64_t &target, int width, int senderRank, int tag) {
-    return new TcpRequestWrapper(std::async(std::launch::async, [this, &target, width, senderRank, tag]() {
-        receive_(target, width, senderRank, tag);
-    }));
+TcpRequestWrapper* TcpComm::receiveAsync_(int64_t& target, int width, int senderRank, int tag) {
+    return new TcpRequestWrapper(std::async(
+        std::launch::async, [this, &target, width, senderRank, tag]() { receive_(target, width, senderRank, tag); }));
 }
 
-TcpRequestWrapper *TcpComm::receiveAsync_(std::vector<int64_t> &target, int count, int width, int senderRank, int tag) {
+TcpRequestWrapper* TcpComm::receiveAsync_(std::vector<int64_t>& target, int count, int width, int senderRank, int tag) {
     return new TcpRequestWrapper(std::async(std::launch::async, [this, &target, count, width, senderRank, tag]() {
         receive_(target, width, senderRank, tag);
         if (count >= 0 && static_cast<int>(target.size()) > count) {
@@ -201,7 +190,7 @@ TcpRequestWrapper *TcpComm::receiveAsync_(std::vector<int64_t> &target, int coun
     }));
 }
 
-TcpRequestWrapper *TcpComm::receiveAsync_(std::string &target, int length, int senderRank, int tag) {
+TcpRequestWrapper* TcpComm::receiveAsync_(std::string& target, int length, int senderRank, int tag) {
     return new TcpRequestWrapper(std::async(std::launch::async, [this, &target, length, senderRank, tag]() {
         receive_(target, senderRank, tag);
         if (length >= 0 && static_cast<int>(target.size()) > length) {
@@ -210,9 +199,9 @@ TcpRequestWrapper *TcpComm::receiveAsync_(std::string &target, int length, int s
     }));
 }
 
-void TcpComm::parseConfig(int argc, char **argv) {
-    (void) argc;
-    (void) argv;
+void TcpComm::parseConfig(int argc, char** argv) {
+    (void)argc;
+    (void)argv;
     _rank = static_cast<int>(parseIntParam("tcp_rank", 0));
     _size = static_cast<int>(parseIntParam("tcp_size", 3));
     _basePort = static_cast<int>(parseIntParam("tcp_base_port", 18000));
@@ -251,9 +240,7 @@ void TcpComm::startReaderThreads() {
             std::lock_guard<std::mutex> lock(_messageMutex);
             ++_activeReaders;
         }
-        _readerThreads[peer] = std::thread([this, peer]() {
-            readerLoop(peer);
-        });
+        _readerThreads[peer] = std::thread([this, peer]() { readerLoop(peer); });
     }
 }
 
@@ -305,7 +292,7 @@ int TcpComm::createListenSocket(int port) {
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
     addr.sin_port = htons(static_cast<uint16_t>(port));
 
-    if (bind(fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) < 0) {
+    if (bind(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
         close(fd);
         throw socketError("bind failed");
     }
@@ -333,7 +320,7 @@ int TcpComm::connectToPeer(int peerRank) {
         if (fd < 0) {
             throw socketError("socket failed");
         }
-        if (connect(fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) == 0) {
+        if (connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == 0) {
             configurePeerSocket(fd);
             int32_t rank = _rank;
             writeAll(fd, &rank, sizeof(rank));
@@ -358,14 +345,14 @@ int TcpComm::acceptPeer() {
     return fd;
 }
 
-void TcpComm::closeFd(int &fd) {
+void TcpComm::closeFd(int& fd) {
     if (fd >= 0) {
         close(fd);
         fd = -1;
     }
 }
 
-void TcpComm::sendPayload(int receiverRank, int tag, const std::vector<char> &payload) {
+void TcpComm::sendPayload(int receiverRank, int tag, const std::vector<char>& payload) {
     if (receiverRank < 0 || receiverRank >= _size || receiverRank == _rank) {
         throw std::runtime_error("Invalid receiver rank.");
     }
@@ -414,7 +401,7 @@ std::vector<char> TcpComm::receivePayload(int senderRank, int tag) {
     throw std::runtime_error("TCP receive interrupted.");
 }
 
-bool TcpComm::readNextMessage(int senderRank, int &tag, std::vector<char> &payload) {
+bool TcpComm::readNextMessage(int senderRank, int& tag, std::vector<char>& payload) {
     MessageHeader header{};
     if (!readAll(_peerFds[senderRank], &header, sizeof(header))) {
         return false;
@@ -433,8 +420,8 @@ bool TcpComm::readNextMessage(int senderRank, int &tag, std::vector<char> &paylo
     return true;
 }
 
-void TcpComm::writeAll(int fd, const void *data, size_t length) {
-    auto *cursor = static_cast<const char *>(data);
+void TcpComm::writeAll(int fd, const void* data, size_t length) {
+    auto* cursor = static_cast<const char*>(data);
     while (length > 0) {
         ssize_t written = ::send(fd, cursor, length, SEND_FLAGS);
         if (written < 0) {
@@ -451,8 +438,8 @@ void TcpComm::writeAll(int fd, const void *data, size_t length) {
     }
 }
 
-bool TcpComm::readAll(int fd, void *data, size_t length) {
-    auto *cursor = static_cast<char *>(data);
+bool TcpComm::readAll(int fd, void* data, size_t length) {
+    auto* cursor = static_cast<char*>(data);
     while (length > 0) {
         ssize_t received = recv(fd, cursor, length, 0);
         if (received < 0) {
@@ -494,11 +481,11 @@ std::vector<char> TcpComm::encodeInt(int64_t value, int width) {
     return payload;
 }
 
-std::vector<char> TcpComm::encodeVector(const std::vector<int64_t> &values, int width) {
+std::vector<char> TcpComm::encodeVector(const std::vector<int64_t>& values, int width) {
     size_t itemSize = (!Conf::ENABLE_TRANSFER_COMPRESSION || width > 32) ? sizeof(int64_t) : elementSize(width);
     std::vector<char> payload(values.size() * itemSize);
-    char *cursor = payload.data();
-    for (auto value: values) {
+    char* cursor = payload.data();
+    for (auto value : values) {
         auto one = encodeInt(value, width);
         std::memcpy(cursor, one.data(), itemSize);
         cursor += itemSize;
@@ -506,7 +493,7 @@ std::vector<char> TcpComm::encodeVector(const std::vector<int64_t> &values, int 
     return payload;
 }
 
-int64_t TcpComm::decodeInt(const std::vector<char> &payload, int width) {
+int64_t TcpComm::decodeInt(const std::vector<char>& payload, int width) {
     if (!Conf::ENABLE_TRANSFER_COMPRESSION || width > 32) {
         int64_t value = 0;
         std::memcpy(&value, payload.data(), sizeof(value));
@@ -532,7 +519,7 @@ int64_t TcpComm::decodeInt(const std::vector<char> &payload, int width) {
     return value;
 }
 
-void TcpComm::decodeVector(const std::vector<char> &payload, int width, std::vector<int64_t> &target) {
+void TcpComm::decodeVector(const std::vector<char>& payload, int width, std::vector<int64_t>& target) {
     size_t itemSize = (!Conf::ENABLE_TRANSFER_COMPRESSION || width > 32) ? sizeof(int64_t) : elementSize(width);
     if (itemSize == 0 || payload.size() % itemSize != 0) {
         throw std::runtime_error("Invalid TCP vector payload size.");

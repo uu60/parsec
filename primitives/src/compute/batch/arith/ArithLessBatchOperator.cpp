@@ -12,19 +12,18 @@
 
 namespace parsec {
 
-
-ArithLessBatchOperator::ArithLessBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys, int width,
+ArithLessBatchOperator::ArithLessBatchOperator(std::vector<int64_t>* xs, std::vector<int64_t>* ys, int width,
                                                int taskTag, int msgTagOffset, int clientRank)
-    : ArithBatchOperator(xs, ys, width, taskTag, msgTagOffset, clientRank) {
-}
+    : ArithBatchOperator(xs, ys, width, taskTag, msgTagOffset, clientRank) {}
 
-ArithLessBatchOperator *ArithLessBatchOperator::execute() {
+ArithLessBatchOperator* ArithLessBatchOperator::execute() {
     if (Comm::isClient()) {
         return this;
     }
 
     if (Conf::BMT_METHOD != Conf::BMT_JIT && Conf::BMT_METHOD != Conf::BMT_FIXED) {
-        throw std::runtime_error("ArithLessBatchOperator: Temporarily only support BMT JIT or FIXED generation for experiment.");
+        throw std::runtime_error(
+            "ArithLessBatchOperator: Temporarily only support BMT JIT or FIXED generation for experiment.");
     }
 
     int64_t start = 0;
@@ -54,7 +53,7 @@ ArithLessBatchOperator *ArithLessBatchOperator::execute() {
     return this;
 }
 
-ArithLessBatchOperator *ArithLessBatchOperator::reconstruct(int clientRank) {
+ArithLessBatchOperator* ArithLessBatchOperator::reconstruct(int clientRank) {
     ArithBatchOperator::reconstruct(clientRank);
 
     if (Comm::rank() == clientRank) {
@@ -66,8 +65,6 @@ ArithLessBatchOperator *ArithLessBatchOperator::reconstruct(int clientRank) {
     return this;
 }
 
-int ArithLessBatchOperator::tagStride(int width) {
-    return ArithToBoolBatchOperator::tagStride(width);
-}
+int ArithLessBatchOperator::tagStride(int width) { return ArithToBoolBatchOperator::tagStride(width); }
 
 } // namespace parsec

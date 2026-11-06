@@ -2,17 +2,16 @@
 #ifndef BITWISEBMT_H
 #define BITWISEBMT_H
 #include "./Bmt.h"
-#include "utils/Math.h"
 #include "utils/Log.h"
+#include "utils/Math.h"
 
 #include <cstdint>
 #include <stdexcept>
 
 namespace parsec {
 
-
 class BitwiseBmt : public Bmt {
-public:
+  public:
     [[nodiscard]] BitwiseBmt extract(int i) const {
         BitwiseBmt b;
         b._a = Math::getBit(_a, i);
@@ -21,7 +20,7 @@ public:
         return b;
     }
 
-    static BitwiseBmt extract(std::vector<BitwiseBmt> &bmts, int i, int width) {
+    static BitwiseBmt extract(std::vector<BitwiseBmt>& bmts, int i, int width) {
         if (i < 0 || width <= 0 || width > 64) {
             throw std::invalid_argument("BitwiseBmt::extract received an invalid index or width");
         }
@@ -41,8 +40,6 @@ public:
         return b;
     }
 };
-
-
 
 } // namespace parsec
 

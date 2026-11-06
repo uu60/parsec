@@ -1,6 +1,6 @@
 #include "comm/Comm.h"
-#include "intermediate/BmtBatchGenerator.h"
 #include "intermediate/BitwiseBmtBatchGenerator.h"
+#include "intermediate/BmtBatchGenerator.h"
 #include "intermediate/IntermediateDataSupport.h"
 #include "utils/Log.h"
 #include "utils/System.h"
@@ -10,7 +10,7 @@
 
 using namespace parsec;
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     System::init(argc, argv);
 
     if (Comm::isClient()) {
@@ -72,4 +72,3 @@ int main(int argc, char **argv) {
     System::finalize();
     return 0;
 }
-

@@ -7,13 +7,11 @@
 
 namespace parsec {
 
-
 namespace {
-bool parseBool(const std::string &value) {
+bool parseBool(const std::string& value) {
     std::string normalized = value;
-    std::transform(normalized.begin(), normalized.end(), normalized.begin(), [](unsigned char c) {
-        return static_cast<char>(std::tolower(c));
-    });
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
     if (normalized == "true" || normalized == "1" || normalized == "yes" || normalized == "on") {
         return true;
@@ -23,9 +21,9 @@ bool parseBool(const std::string &value) {
     }
     throw std::runtime_error("Invalid bool value: " + value);
 }
-}
+} // namespace
 
-void AppConfig::init(int argc, char **argv) {
+void AppConfig::init(int argc, char** argv) {
     _params.clear();
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -43,11 +41,9 @@ void AppConfig::init(int argc, char **argv) {
     }
 }
 
-bool AppConfig::has(const std::string &name) {
-    return _params.count(name) != 0;
-}
+bool AppConfig::has(const std::string& name) { return _params.count(name) != 0; }
 
-std::string AppConfig::getString(const std::string &name, const std::string &defaultValue) {
+std::string AppConfig::getString(const std::string& name, const std::string& defaultValue) {
     auto it = _params.find(name);
     if (it == _params.end()) {
         return defaultValue;
@@ -55,7 +51,7 @@ std::string AppConfig::getString(const std::string &name, const std::string &def
     return it->second;
 }
 
-int AppConfig::getInt(const std::string &name, int defaultValue) {
+int AppConfig::getInt(const std::string& name, int defaultValue) {
     auto it = _params.find(name);
     if (it == _params.end()) {
         return defaultValue;
@@ -63,7 +59,7 @@ int AppConfig::getInt(const std::string &name, int defaultValue) {
     return std::stoi(it->second);
 }
 
-bool AppConfig::getBool(const std::string &name, bool defaultValue) {
+bool AppConfig::getBool(const std::string& name, bool defaultValue) {
     auto it = _params.find(name);
     if (it == _params.end()) {
         return defaultValue;
@@ -71,8 +67,6 @@ bool AppConfig::getBool(const std::string &name, bool defaultValue) {
     return parseBool(it->second);
 }
 
-const std::map<std::string, std::string> &AppConfig::params() {
-    return _params;
-}
+const std::map<std::string, std::string>& AppConfig::params() { return _params; }
 
 } // namespace parsec

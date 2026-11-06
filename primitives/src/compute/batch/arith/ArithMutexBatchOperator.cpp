@@ -6,18 +6,17 @@
 #include "compute/batch/bool/BoolToArithBatchOperator.h"
 #include "compute/single/bool/BoolToArithOperator.h"
 #include "conf/Conf.h"
-#include "intermediate/IntermediateDataSupport.h"
 #include "intermediate/BmtBatchGenerator.h"
+#include "intermediate/IntermediateDataSupport.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Log.h"
 #include "utils/Math.h"
 
 namespace parsec {
 
-
-ArithMutexBatchOperator::ArithMutexBatchOperator(std::vector<int64_t> *xs, std::vector<int64_t> *ys, 
-                                                 std::vector<int64_t> *conds, int width, int taskTag, 
-                                                 int msgTagOffset, int clientRank)
+ArithMutexBatchOperator::ArithMutexBatchOperator(std::vector<int64_t>* xs, std::vector<int64_t>* ys,
+                                                 std::vector<int64_t>* conds, int width, int taskTag, int msgTagOffset,
+                                                 int clientRank)
     : ArithBatchOperator(xs, ys, width, taskTag, msgTagOffset, clientRank) {
     if (clientRank < 0 && _width > 1) {
         _conds_i = BoolToArithBatchOperator(conds, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).execute()->_zis;
@@ -26,7 +25,7 @@ ArithMutexBatchOperator::ArithMutexBatchOperator(std::vector<int64_t> *xs, std::
     }
 }
 
-ArithMutexBatchOperator *ArithMutexBatchOperator::execute() {
+ArithMutexBatchOperator* ArithMutexBatchOperator::execute() {
     _currentMsgTag = _startMsgTag;
 
     if (Comm::isClient()) {
@@ -41,7 +40,8 @@ ArithMutexBatchOperator *ArithMutexBatchOperator::execute() {
 
     if (Conf::ENABLE_INTRA_OPERATOR_PARALLELISM) {
         f = ThreadPoolSupport::submit([&]() -> std::vector<int64_t> {
-            auto mul_cx = ArithMultiplyBatchOperator(&_conds_i, _xis, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
+            auto mul_cx =
+                ArithMultiplyBatchOperator(&_conds_i, _xis, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE);
             return mul_cx.execute()->_zis;
         });
     } else {
@@ -49,9 +49,9 @@ ArithMutexBatchOperator *ArithMutexBatchOperator::execute() {
         cx_results = mul_cx.execute()->_zis;
     }
 
-    auto mul_cy = ArithMultiplyBatchOperator(&_conds_i, _yis, _width, _taskTag,
-                                           _currentMsgTag + ArithMultiplyBatchOperator::tagStride(_width), 
-                                           NO_CLIENT_COMPUTE);
+    auto mul_cy =
+        ArithMultiplyBatchOperator(&_conds_i, _yis, _width, _taskTag,
+                                   _currentMsgTag + ArithMultiplyBatchOperator::tagStride(_width), NO_CLIENT_COMPUTE);
     cy_results = mul_cy.execute()->_zis;
 
     if (Conf::ENABLE_INTRA_OPERATOR_PARALLELISM) {
@@ -65,7 +65,7 @@ ArithMutexBatchOperator *ArithMutexBatchOperator::execute() {
     return this;
 }
 
-ArithMutexBatchOperator *ArithMutexBatchOperator::reconstruct(int clientRank) {
+ArithMutexBatchOperator* ArithMutexBatchOperator::reconstruct(int clientRank) {
     ArithBatchOperator::reconstruct(clientRank);
     return this;
 }
@@ -75,11 +75,9 @@ int ArithMutexBatchOperator::tagStride(int width) {
                     BoolToArithBatchOperator::tagStride());
 }
 
-int ArithMutexBatchOperator::bmtCount(int width, int batchSize) {
-    return 2 * batchSize;
-}
+int ArithMutexBatchOperator::bmtCount(int width, int batchSize) { return 2 * batchSize; }
 
-ArithMutexBatchOperator *ArithMutexBatchOperator::setBmts(std::vector<Bmt> *bmts) {
+ArithMutexBatchOperator* ArithMutexBatchOperator::setBmts(std::vector<Bmt>* bmts) {
     if (bmts != nullptr && bmts->size() != bmtCount(_width, static_cast<int>(_xis->size()))) {
         throw std::runtime_error("Mismatch bmt size.");
     }

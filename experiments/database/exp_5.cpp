@@ -2,39 +2,31 @@
 #include "secret/Secrets.h"
 #include "utils/System.h"
 
+#include "basis/Table.h"
 #include "basis/View.h"
 #include "basis/Views.h"
-#include "basis/Table.h"
 #include "conf/DbConf.h"
 #include "utils/Log.h"
-#include "utils/StringUtils.h"
 #include "utils/Math.h"
+#include "utils/StringUtils.h"
 
-#include "compute/batch/bool/BoolLessBatchOperator.h"
 #include "compute/batch/bool/BoolAndBatchOperator.h"
+#include "compute/batch/bool/BoolLessBatchOperator.h"
 #include "parallel/ThreadPoolSupport.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <string>
 #include <vector>
-#include <cstdint>
 
 using namespace parsec;
 
-void generateRandomData(
-    int rows,
-    std::vector<int64_t> &id_data,
-    std::vector<int64_t> &cs_data,
-    std::vector<int64_t> &year_data,
-    std::vector<int64_t> &cs_plus_data,
-    int64_t &chosen_year,
-    int64_t &chosen_c
-);
+void generateRandomData(int rows, std::vector<int64_t>& id_data, std::vector<int64_t>& cs_data,
+                        std::vector<int64_t>& year_data, std::vector<int64_t>& cs_plus_data, int64_t& chosen_year,
+                        int64_t& chosen_c);
 
-View createR(std::vector<int64_t> &id_b,
-             std::vector<int64_t> &cs_b,
-             std::vector<int64_t> &year_b,
-             std::vector<int64_t> &cs_plus_b);
+View createR(std::vector<int64_t>& id_b, std::vector<int64_t>& cs_b, std::vector<int64_t>& year_b,
+             std::vector<int64_t>& cs_plus_b);
 
 View filterByYear(View v, int64_t year_share, int tid);
 
@@ -42,7 +34,7 @@ View groupMinCsPlusMaxCs(View v, int tid);
 
 View finalizeByLess(View v, int tid);
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     System::init(argc, argv);
     DbConf::init();
     auto tid = (System::nextTask() << (32 - Conf::TASK_TAG_BITS));
@@ -59,8 +51,7 @@ int main(int argc, char *argv[]) {
     std::vector<int64_t> id_plain, cs_plain, year_plain, cs_plus_plain;
     int64_t target_year_plain = 0;
     int64_t c_plain = 0;
-    generateRandomData(rows, id_plain, cs_plain, year_plain, cs_plus_plain,
-                       target_year_plain, c_plain);
+    generateRandomData(rows, id_plain, cs_plain, year_plain, cs_plus_plain, target_year_plain, c_plain);
     if (check_mode && Comm::isClient()) {
         id_plain = {1, 1, 2, 2, 3};
         cs_plain = {10, 30, 8, 9, 50};
@@ -98,9 +89,11 @@ int main(int argc, char *argv[]) {
             auto check_view = out;
             check_view.clearInvalidEntries(tid + 4000);
             check_view.sort("ID", true, tid + 5000);
-            if (Comm::rank() == 0) Log::i("CORRECTNESS_BEGIN");
+            if (Comm::rank() == 0)
+                Log::i("CORRECTNESS_BEGIN");
             Views::revealAndPrint(check_view);
-            if (Comm::rank() == 0) Log::i("CORRECTNESS_END");
+            if (Comm::rank() == 0)
+                Log::i("CORRECTNESS_END");
         }
     }
 
@@ -108,17 +101,10 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-
-void generateRandomData(
-    int rows,
-    std::vector<int64_t> &id,
-    std::vector<int64_t> &cs,
-    std::vector<int64_t> &year,
-    std::vector<int64_t> &cs_plus,
-    int64_t &chosen_year,
-    int64_t &chosen_c
-) {
-    if (Comm::rank() != 2) return;
+void generateRandomData(int rows, std::vector<int64_t>& id, std::vector<int64_t>& cs, std::vector<int64_t>& year,
+                        std::vector<int64_t>& cs_plus, int64_t& chosen_year, int64_t& chosen_c) {
+    if (Comm::rank() != 2)
+        return;
 
     id.reserve(rows);
     cs.reserve(rows);
@@ -143,10 +129,8 @@ void generateRandomData(
     chosen_year = 2019;
 }
 
-View createR(std::vector<int64_t> &id_b,
-             std::vector<int64_t> &cs_b,
-             std::vector<int64_t> &year_b,
-             std::vector<int64_t> &cs_plus_b) {
+View createR(std::vector<int64_t>& id_b, std::vector<int64_t>& cs_b, std::vector<int64_t>& year_b,
+             std::vector<int64_t>& cs_plus_b) {
     std::string tname = "R";
     std::vector<std::string> fields = {"ID", "CS", "year", "CS_PLUS"};
     std::vector<int> widths = {64, 64, 64, 64};
@@ -167,14 +151,16 @@ View filterByYear(View v, int64_t year_share, int tid) {
 }
 
 View groupMinCsPlusMaxCs(View v, int tid) {
-    if (v.rowNum() == 0) return v;
+    if (v.rowNum() == 0)
+        return v;
     auto heads = v.groupBy("ID", tid);
     v.minAndMax(heads, "CS_PLUS", "CS", "cs1_plus", "cs2", tid);
     return v;
 }
 
 View finalizeByLess(View v, int tid) {
-    if (v.rowNum() == 0) return v;
+    if (v.rowNum() == 0)
+        return v;
 
     const int a = v.colIndex("cs1_plus");
     const int b = v.colIndex("cs2");
@@ -183,16 +169,17 @@ View finalizeByLess(View v, int tid) {
         return v;
     }
 
-    auto &min_plus = v._dataCols[a];
-    auto &max_cs = v._dataCols[b];
+    auto& min_plus = v._dataCols[a];
+    auto& max_cs = v._dataCols[b];
 
-    auto lessBits = BoolLessBatchOperator(&min_plus, &max_cs, 64, 0, tid,
-                                          SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+    auto lessBits =
+        BoolLessBatchOperator(&min_plus, &max_cs, 64, 0, tid, SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
 
     int vidx = v.colNum() + View::VALID_COL_OFFSET;
-    auto validAnd = BoolAndBatchOperator(&lessBits, &v._dataCols[vidx], 1, 0,
-                                         tid + BoolLessBatchOperator::tagStride(),
-                                         SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
+    auto validAnd = BoolAndBatchOperator(&lessBits, &v._dataCols[vidx], 1, 0, tid + BoolLessBatchOperator::tagStride(),
+                                         SecureOperator::NO_CLIENT_COMPUTE)
+                        .execute()
+                        ->_zis;
     v._dataCols[vidx] = std::move(validAnd);
 
     std::vector<std::string> fields = {"ID"};

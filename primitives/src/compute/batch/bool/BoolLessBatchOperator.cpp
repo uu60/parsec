@@ -12,8 +12,7 @@
 
 namespace parsec {
 
-
-BoolLessBatchOperator *BoolLessBatchOperator::execute() {
+BoolLessBatchOperator* BoolLessBatchOperator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isClient()) {
         return this;
@@ -38,7 +37,7 @@ BoolLessBatchOperator *BoolLessBatchOperator::execute() {
         lbs = x_xor_y;
     } else {
         lbs.reserve(x_xor_y.size());
-        for (int64_t e: x_xor_y) {
+        for (int64_t e : x_xor_y) {
             lbs.push_back(e ^ mask);
         }
     }
@@ -52,7 +51,9 @@ BoolLessBatchOperator *BoolLessBatchOperator::execute() {
         allBmts.resize(allBmts.size() - bmtCount);
     }
     lbs = BoolAndBatchOperator(&lbs, &shifted_1, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
-            .setBmts(gotBmt ? &bmts : nullptr)->execute()->_zis;
+              .setBmts(gotBmt ? &bmts : nullptr)
+              ->execute()
+              ->_zis;
 
     std::vector<int64_t> diag;
 
@@ -69,8 +70,10 @@ BoolLessBatchOperator *BoolLessBatchOperator::execute() {
         bmts = std::vector(allBmts.end() - bmtCount, allBmts.end());
         allBmts.resize(allBmts.size() - bmtCount);
     }
-    diag = BoolAndBatchOperator(&diag, _xis, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).setBmts(
-        gotBmt ? &bmts : nullptr)->execute()->_zis;
+    diag = BoolAndBatchOperator(&diag, _xis, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
+               .setBmts(gotBmt ? &bmts : nullptr)
+               ->execute()
+               ->_zis;
 
     int rounds = static_cast<int>(std::floor(std::log2(_width)));
     for (int r = 2; r <= rounds; r++) {
@@ -80,8 +83,10 @@ BoolLessBatchOperator *BoolLessBatchOperator::execute() {
             bmts = std::vector(allBmts.end() - bmtCount, allBmts.end());
             allBmts.resize(allBmts.size() - bmtCount);
         }
-        lbs = BoolAndBatchOperator(&lbs, &shifted_r, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE).
-                setBmts(gotBmt ? &bmts : nullptr)->execute()->_zis;
+        lbs = BoolAndBatchOperator(&lbs, &shifted_r, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
+                  .setBmts(gotBmt ? &bmts : nullptr)
+                  ->execute()
+                  ->_zis;
     }
 
     std::vector<int64_t> shifted_accum;
@@ -91,7 +96,9 @@ BoolLessBatchOperator *BoolLessBatchOperator::execute() {
     }
 
     auto final_accum = BoolAndBatchOperator(&shifted_accum, &diag, _width, _taskTag, _currentMsgTag, NO_CLIENT_COMPUTE)
-            .setBmts(gotBmt ? &allBmts : nullptr)->execute()->_zis;
+                           .setBmts(gotBmt ? &allBmts : nullptr)
+                           ->execute()
+                           ->_zis;
 
     int fn = static_cast<int>(final_accum.size());
     _zis.resize(fn);
@@ -110,22 +117,19 @@ BoolLessBatchOperator *BoolLessBatchOperator::execute() {
     return this;
 }
 
-BoolLessBatchOperator *BoolLessBatchOperator::setBmts(std::vector<BitwiseBmt> *bmts) {
+BoolLessBatchOperator* BoolLessBatchOperator::setBmts(std::vector<BitwiseBmt>* bmts) {
     if (bmts == nullptr) {
         return this;
     }
     if (bmts->size() != bmtCount(_xis->size(), _width)) {
-        throw std::runtime_error(
-            "Invalid BMT size for BoolLessBatchOperator. Given: " + std::to_string(bmts->size()) + ", expected: " +
-            std::to_string(bmtCount(_xis->size(), _width)) + ".");
+        throw std::runtime_error("Invalid BMT size for BoolLessBatchOperator. Given: " + std::to_string(bmts->size()) +
+                                 ", expected: " + std::to_string(bmtCount(_xis->size(), _width)) + ".");
     }
     this->_bmts = bmts;
     return this;
 }
 
-int BoolLessBatchOperator::tagStride() {
-    return BoolAndBatchOperator::tagStride();
-}
+int BoolLessBatchOperator::tagStride() { return BoolAndBatchOperator::tagStride(); }
 
 int BoolLessBatchOperator::bmtCount(int num, int width) {
     if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
@@ -134,7 +138,7 @@ int BoolLessBatchOperator::bmtCount(int num, int width) {
     return ((std::floor(std::log2(width))) + 3) * BoolAndBatchOperator::bmtCount(num, width);
 }
 
-std::vector<int64_t> BoolLessBatchOperator::shiftGreater(std::vector<int64_t> &in, int r) const {
+std::vector<int64_t> BoolLessBatchOperator::shiftGreater(std::vector<int64_t>& in, int r) const {
     int part_size = 1 << r;
     if (part_size > _width) {
         return in;
@@ -144,7 +148,7 @@ std::vector<int64_t> BoolLessBatchOperator::shiftGreater(std::vector<int64_t> &i
     std::vector<int64_t> out;
     out.reserve(in.size());
 
-    for (int64_t ini: in) {
+    for (int64_t ini : in) {
         for (int i = 0; i < _width; i += part_size) {
             int start = i + offset;
             if (start >= _width) {
@@ -167,7 +171,7 @@ std::vector<int64_t> BoolLessBatchOperator::shiftGreater(std::vector<int64_t> &i
     return out;
 }
 
-bool BoolLessBatchOperator::prepareBmts(std::vector<BitwiseBmt> &bmts) {
+bool BoolLessBatchOperator::prepareBmts(std::vector<BitwiseBmt>& bmts) {
     if (_bmts != nullptr) {
         bmts = std::move(*_bmts);
         return true;

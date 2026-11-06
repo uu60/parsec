@@ -7,8 +7,7 @@
 
 namespace parsec {
 
-
-BoolToArithBatchOperator *BoolToArithBatchOperator::execute() {
+BoolToArithBatchOperator* BoolToArithBatchOperator::execute() {
     _currentMsgTag = _startMsgTag;
     if (Comm::isClient()) {
         return this;
@@ -66,8 +65,6 @@ BoolToArithBatchOperator *BoolToArithBatchOperator::execute() {
     return this;
 }
 
-int BoolToArithBatchOperator::tagStride() {
-    return IknpOtBatchOperator::tagStride();
-}
+int BoolToArithBatchOperator::tagStride() { return IknpOtBatchOperator::tagStride(); }
 
 } // namespace parsec

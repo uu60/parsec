@@ -1,16 +1,15 @@
 #ifndef CONF_H
 #define CONF_H
-#include <thread>
 #include <climits>
 #include <map>
+#include <thread>
 
 #include <string>
 
 namespace parsec {
 
-
 class Conf {
-public:
+  public:
     inline static std::map<std::string, std::string> _userParams{};
 
     enum PoolT {
@@ -27,20 +26,12 @@ public:
         SPSC_QUEUE,
     };
 
-    enum CommT {
-        MPI,
-        TCP
-    };
+    enum CommT { MPI, TCP };
 
-    enum BmtT {
-        BMT_BACKGROUND,
-        BMT_JIT,
-        BMT_FIXED,
-        BMT_PIPELINE
-    };
+    enum BmtT { BMT_BACKGROUND, BMT_JIT, BMT_FIXED, BMT_PIPELINE };
 
-public:
-    static void init(int argc, char **argv);
+  public:
+    static void init(int argc, char** argv);
 
     inline static BmtT BMT_METHOD = BMT_JIT;
     inline static int BMT_PRE_GEN_SECONDS = 0;
@@ -67,8 +58,6 @@ public:
     inline static bool ENABLE_SIMD = true;
     inline static bool ENABLE_IKNP_MULTITHREAD = true;
 };
-
-
 
 } // namespace parsec
 

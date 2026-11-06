@@ -2,22 +2,19 @@
 #ifndef BOOSTSPSCQUEUE_H
 #define BOOSTSPSCQUEUE_H
 
-
+#include "utils/Log.h"
 #include <boost/lockfree/spsc_queue.hpp>
 #include <thread>
-#include "utils/Log.h"
 
 #include "AbstractBlockingQueue.h"
 
 namespace parsec {
 
-
-template <typename T, size_t C>
-class BoostSPSCQueue : public AbstractBlockingQueue<T> {
-private:
+template <typename T, size_t C> class BoostSPSCQueue : public AbstractBlockingQueue<T> {
+  private:
     boost::lockfree::spsc_queue<T, boost::lockfree::capacity<C>> _queue;
 
-public:
+  public:
     BoostSPSCQueue() : _queue() {}
 
     void offer(T item) override {
@@ -34,17 +31,10 @@ public:
         return item;
     }
 
-    [[nodiscard]] size_t size() const override {
-        return -1;
-    }
+    [[nodiscard]] size_t size() const override { return -1; }
 
-    [[nodiscard]] size_t capacity() const override {
-        return C;
-    }
+    [[nodiscard]] size_t capacity() const override { return C; }
 };
-
-
-
 
 } // namespace parsec
 
