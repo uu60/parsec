@@ -1,9 +1,11 @@
 #include "utils/Crypto.h"
 
 #include <gtest/gtest.h>
+#include <openssl/evp.h>
 
 #include <array>
 #include <cstdint>
+#include <cstring>
 #include <random>
 #include <vector>
 
@@ -80,50 +82,84 @@ TEST(CryptoTranspose, ColumnExtractionMatchesFullTranspose) {
     EXPECT_EQ(col64.hi, transposed[64].hi);
 }
 
-TEST(CryptoPrg, BatchIsDeterministicAndSeedDependent) {
-    constexpr size_t kSeeds = 4;
-    constexpr size_t kBlocks = 8;
-    const uint64_t seeds[kSeeds] = {1, 2, 3, 1};
-    std::vector<U128> first(kSeeds * kBlocks), second(kSeeds * kBlocks);
-    Crypto::batchPrgGenerate(seeds, kSeeds, first.data(), kBlocks);
-    Crypto::batchPrgGenerate(seeds, kSeeds, second.data(), kBlocks);
-
-    for (size_t i = 0; i < first.size(); ++i) {
-        EXPECT_EQ(first[i].lo, second[i].lo);
-        EXPECT_EQ(first[i].hi, second[i].hi);
+std::vector<U128> randomSeeds(size_t n, uint64_t seed) {
+    std::mt19937_64 rng(seed);
+    std::vector<U128> seeds(n);
+    for (auto& s : seeds) {
+        s = {rng(), rng()};
     }
-    // Seed 0 and seed 3 are equal, seeds 0 and 1 differ.
-    for (size_t b = 0; b < kBlocks; ++b) {
-        EXPECT_EQ(first[0 * kBlocks + b].lo, first[3 * kBlocks + b].lo);
-        EXPECT_EQ(first[0 * kBlocks + b].hi, first[3 * kBlocks + b].hi);
-    }
-    bool differs = false;
-    for (size_t b = 0; b < kBlocks; ++b) {
-        differs |= first[0 * kBlocks + b].lo != first[1 * kBlocks + b].lo;
-    }
-    EXPECT_TRUE(differs);
+    return seeds;
 }
 
-// AesCtrPrg is a separate construction from batchPrgGenerate (per-seed AES-CTR vs fixed-key AES), so only its own
-// properties are checked here.
-TEST(CryptoPrg, AesCtrIsDeterministicAndPrefixStable) {
-    std::vector<U128> a(8), b(8), prefix(3), other(8);
-    Crypto::AesCtrPrg(0x1234).generateBlocks(a.data(), a.size());
-    Crypto::AesCtrPrg(0x1234).generateBlocks(b.data(), b.size());
-    Crypto::AesCtrPrg(0x1234).generateBlocks(prefix.data(), prefix.size());
-    Crypto::AesCtrPrg(0x1235).generateBlocks(other.data(), other.size());
+// Reference: block b of stream t for seed k is AES-128_k(le64(nonce.lo ^ b) || le64(nonce.hi ^ t)).
+U128 referenceBlock(const U128& seed, const U128& nonce, uint64_t stream, uint64_t block) {
+    unsigned char key[16], in[16], out[32];
+    for (int i = 0; i < 8; ++i) {
+        key[i] = static_cast<unsigned char>(seed.lo >> (8 * i));
+        key[8 + i] = static_cast<unsigned char>(seed.hi >> (8 * i));
+        in[i] = static_cast<unsigned char>((nonce.lo ^ block) >> (8 * i));
+        in[8 + i] = static_cast<unsigned char>((nonce.hi ^ stream) >> (8 * i));
+    }
+    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    int len = 0;
+    EVP_EncryptInit_ex(ctx, EVP_aes_128_ecb(), nullptr, key, nullptr);
+    EVP_CIPHER_CTX_set_padding(ctx, 0);
+    EVP_EncryptUpdate(ctx, out, &len, in, 16);
+    EVP_CIPHER_CTX_free(ctx);
+    U128 r{};
+    std::memcpy(&r, out, 16);
+    return r;
+}
 
-    bool differs = false;
-    for (size_t i = 0; i < a.size(); ++i) {
-        EXPECT_EQ(a[i].lo, b[i].lo);
-        EXPECT_EQ(a[i].hi, b[i].hi);
-        differs |= a[i].lo != other[i].lo || a[i].hi != other[i].hi;
+TEST(CryptoSeededPrg, MatchesAesReference) {
+    const auto seeds = randomSeeds(4, 11);
+    const U128 nonce{0x0123456789abcdefULL, 0x0fedcba987654321ULL};
+    constexpr size_t kBlocks = 5;
+    Crypto::SeededPrg prg(seeds.data(), seeds.size());
+    std::vector<U128> out(seeds.size() * kBlocks);
+    prg.generate(nonce, 7, out.data(), kBlocks);
+    for (size_t i = 0; i < seeds.size(); ++i) {
+        for (size_t b = 0; b < kBlocks; ++b) {
+            const U128 expected = referenceBlock(seeds[i], nonce, 7, b);
+            EXPECT_EQ(out[i * kBlocks + b].lo, expected.lo) << "seed " << i << " block " << b;
+            EXPECT_EQ(out[i * kBlocks + b].hi, expected.hi) << "seed " << i << " block " << b;
+        }
     }
-    for (size_t i = 0; i < prefix.size(); ++i) {
-        EXPECT_EQ(prefix[i].lo, a[i].lo);
-        EXPECT_EQ(prefix[i].hi, a[i].hi);
+}
+
+TEST(CryptoSeededPrg, OutputDependsOnSeedNonceAndStream) {
+    const auto seeds = randomSeeds(2, 12);
+    Crypto::SeededPrg prg(seeds.data(), seeds.size());
+    const U128 nonceA{1, 2}, nonceB{1, 3};
+    std::vector<U128> a(2), again(2), otherNonce(2), otherStream(2);
+    prg.generate(nonceA, 0, a.data(), 1);
+    prg.generate(nonceA, 0, again.data(), 1);
+    prg.generate(nonceB, 0, otherNonce.data(), 1);
+    prg.generate(nonceA, 1, otherStream.data(), 1);
+    for (size_t i = 0; i < 2; ++i) {
+        EXPECT_EQ(a[i].lo, again[i].lo);
+        EXPECT_EQ(a[i].hi, again[i].hi);
+        EXPECT_FALSE(a[i].lo == otherNonce[i].lo && a[i].hi == otherNonce[i].hi);
+        EXPECT_FALSE(a[i].lo == otherStream[i].lo && a[i].hi == otherStream[i].hi);
     }
-    EXPECT_TRUE(differs);
+    // Seeds that differ only in the high 64 bits must give different streams (full 128-bit keys).
+    const U128 pair[2] = {{5, 0}, {5, 1}};
+    Crypto::SeededPrg hiOnly(pair, 2);
+    std::vector<U128> out(2);
+    hiOnly.generate(nonceA, 0, out.data(), 1);
+    EXPECT_FALSE(out[0].lo == out[1].lo && out[0].hi == out[1].hi);
+}
+
+TEST(CryptoSeededPrg, BlocksWithinAStreamAreDistinct) {
+    const auto seeds = randomSeeds(1, 13);
+    Crypto::SeededPrg prg(seeds.data(), 1);
+    std::vector<U128> out(64);
+    prg.generate({9, 9}, 3, out.data(), out.size());
+    for (size_t i = 0; i < out.size(); ++i) {
+        for (size_t j = i + 1; j < out.size(); ++j) {
+            EXPECT_FALSE(out[i].lo == out[j].lo && out[i].hi == out[j].hi);
+        }
+    }
 }
 
 TEST(CryptoHash, DeterministicAndIndexDependent) {

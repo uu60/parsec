@@ -87,6 +87,29 @@ int main(int argc, char** argv) {
         Log::i(passed ? "[IKNP OT correctness] PASS" : "[IKNP OT correctness] FAIL mismatches={}", mism);
     }
 
+    // The IKNP sender's choice bits s must stay on the sender: a receiver that learned s could recover both of the
+    // sender's messages. Direction d has rank d as the IKNP sender.
+    for (int direction = 0; direction < 2; ++direction) {
+        const auto& choicesOfDirection = direction == 0 ? IntermediateDataSupport::_iknpSenderChoices0
+                                                        : IntermediateDataSupport::_iknpSenderChoices1;
+        const auto& seedsOfDirection =
+            direction == 0 ? IntermediateDataSupport::_iknpBaseSeeds0 : IntermediateDataSupport::_iknpBaseSeeds1;
+        const bool isIknpSender = Comm::rank() == direction;
+        if (!isIknpSender && !choicesOfDirection.empty()) {
+            Log::e("[IKNP OT correctness] FAIL: receiver holds the sender's choice bits (direction {})", direction);
+            passed = false;
+        }
+        // Base seeds are 128-bit: the high halves must not all be zero.
+        bool anyHigh = false;
+        for (const auto& pair : seedsOfDirection) {
+            anyHigh |= pair[0].hi != 0;
+        }
+        if (!anyHigh) {
+            Log::e("[IKNP OT correctness] FAIL: base seeds have no high 64 bits (direction {})", direction);
+            passed = false;
+        }
+    }
+
     System::finalize();
     return passed ? 0 : 1;
 }

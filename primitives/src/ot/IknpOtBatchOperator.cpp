@@ -6,10 +6,12 @@
 #include "intermediate/IntermediateDataSupport.h"
 #include "parallel/ThreadPoolSupport.h"
 #include "utils/Crypto.h"
+#include "utils/Math.h"
 #include "utils/System.h"
 #include <algorithm>
 #include <cstring>
 #include <future>
+#include <memory>
 #include <stdexcept>
 #include <vector>
 
@@ -18,6 +20,45 @@ namespace parsec {
 constexpr size_t MAX_TILE_WIDTH = 64;
 constexpr size_t TILE_ROWS = 128;
 constexpr size_t MAX_TILE_SIZE = TILE_ROWS * MAX_TILE_WIDTH;
+
+// The receiver's first message starts with a fresh 128-bit nonce (two 64-bit words) followed by the u matrix.
+constexpr size_t NONCE_WORDS = 2;
+
+namespace {
+
+// PRG over the base seeds of one direction. `which` selects k^0 (0) or k^1 (1); the IKNP sender stores its chosen
+// seed k^{s_i} in element 0. Base seeds are fixed after IntermediateDataSupport::prepareIknp(), so each thread expands
+// the AES key schedules once and reuses them.
+const Crypto::SeededPrg& basePrg(int senderRank, int which) {
+    thread_local std::unique_ptr<Crypto::SeededPrg> cache[2][2];
+    auto& slot = cache[senderRank][which];
+    if (!slot) {
+        const auto& base =
+            (senderRank == 0) ? IntermediateDataSupport::_iknpBaseSeeds0 : IntermediateDataSupport::_iknpBaseSeeds1;
+        if (base.size() < TILE_ROWS) {
+            throw std::runtime_error("IKNP: base seeds not prepared; call IntermediateDataSupport::init() first");
+        }
+        std::array<U128, TILE_ROWS> seeds{};
+        for (size_t i = 0; i < TILE_ROWS; ++i) {
+            seeds[i] = base[i][which];
+        }
+        slot = std::make_unique<Crypto::SeededPrg>(seeds.data(), seeds.size());
+    }
+    return *slot;
+}
+
+U128 freshNonce() { return {static_cast<uint64_t>(Math::randBits()), static_cast<uint64_t>(Math::randBits())}; }
+
+void writeNonce(std::vector<int64_t>& message, const U128& nonce) {
+    message[0] = static_cast<int64_t>(nonce.lo);
+    message[1] = static_cast<int64_t>(nonce.hi);
+}
+
+U128 readNonce(const std::vector<int64_t>& message) {
+    return {static_cast<uint64_t>(message[0]), static_cast<uint64_t>(message[1])};
+}
+
+} // namespace
 
 IknpOtBatchOperator::IknpOtBatchOperator(int sender, std::vector<int64_t>* bits0Packed,
                                          std::vector<int64_t>* bits1Packed, std::vector<int64_t>* choiceBitsPacked,
@@ -58,7 +99,6 @@ IknpOtBatchOperator* IknpOtBatchOperator::execute() {
     const int64_t t0 = System::currentTimeMillis();
 
     if (_isSender) {
-        deriveSenderSeeds();
         if (_doBits) {
             senderExtendForBits();
         } else {
@@ -76,25 +116,6 @@ IknpOtBatchOperator* IknpOtBatchOperator::execute() {
     _totalTime.fetch_add(t1 - t0, std::memory_order_relaxed);
 
     return this;
-}
-
-void IknpOtBatchOperator::deriveSenderSeeds() {
-    const auto& baseSeeds =
-        (_senderRank == 0) ? IntermediateDataSupport::_iknpBaseSeeds0 : IntermediateDataSupport::_iknpBaseSeeds1;
-
-    if (baseSeeds.size() < SECURITY_PARAM) {
-        throw std::runtime_error("IKNP: base seeds not prepared; call IntermediateDataSupport::init() first");
-    }
-
-    _senderSeeds.resize(SECURITY_PARAM);
-    const uint64_t derivationSalt = static_cast<uint64_t>(_taskTag) << 32 | static_cast<uint64_t>(_startMsgTag);
-
-    for (size_t i = 0; i < SECURITY_PARAM; ++i) {
-        const uint64_t mix = Crypto::hash64(static_cast<int>(i), derivationSalt);
-
-        _senderSeeds[i][0] = static_cast<uint64_t>(baseSeeds[i][0]) ^ mix;
-        _senderSeeds[i][1] = 0; // Not used
-    }
 }
 
 void IknpOtBatchOperator::senderExtendForBits() {
@@ -120,8 +141,6 @@ void IknpOtBatchOperator::senderExtendForBits() {
         }
     }
 
-    alignas(32) U128 qRows[MAX_TILE_SIZE];
-
     const auto& senderChoices = (_senderRank == 0) ? IntermediateDataSupport::_iknpSenderChoices0
                                                    : IntermediateDataSupport::_iknpSenderChoices1;
 
@@ -135,18 +154,13 @@ void IknpOtBatchOperator::senderExtendForBits() {
             sBlock.hi |= (1ULL << (i - 64));
     }
 
-    std::vector<int64_t> allUBuffer(totalUSize);
+    std::vector<int64_t> allUBuffer(NONCE_WORDS + totalUSize);
     {
-        AbstractRequest* recvReq =
-            Comm::serverReceiveAsync(allUBuffer, static_cast<int>(totalUSize), 64, buildTag(_currentMsgTag.load()));
-        {
-            alignas(32) uint64_t prgSeeds[TILE_ROWS];
-            for (size_t i = 0; i < TILE_ROWS; ++i)
-                prgSeeds[i] = _senderSeeds[i][0];
-            Crypto::batchPrgGenerate(prgSeeds, TILE_ROWS, qRows, tileBlocks[0]);
-        }
+        AbstractRequest* recvReq = Comm::serverReceiveAsync(allUBuffer, static_cast<int>(allUBuffer.size()), 64,
+                                                            buildTag(_currentMsgTag.load()));
         Comm::wait(recvReq);
     }
+    const U128 nonce = readNonce(allUBuffer);
     _currentMsgTag.fetch_add(1, std::memory_order_relaxed);
     {
         const size_t nThreads = std::min<size_t>(numTiles, std::max<size_t>(1, std::thread::hardware_concurrency()));
@@ -167,20 +181,18 @@ void IknpOtBatchOperator::senderExtendForBits() {
             alignas(32) U128 tile[TILE_ROWS];
             alignas(32) U128 tile_xor_s[TILE_ROWS];
 
+            const Crypto::SeededPrg& prg = basePrg(_senderRank, 0);
             for (size_t t = tStart; t < tEnd; ++t) {
                 const size_t offset_ = tileOffset[t];
                 const size_t chunk_ = std::min<size_t>(TILE_ROWS * W, totalBits - offset_);
                 const size_t blocks_ = tileBlocks[t];
                 const size_t uOff_ = tileUOffset[t];
 
-                // PRG expand
-                alignas(32) uint64_t prgSeeds[TILE_ROWS];
-                for (size_t i = 0; i < TILE_ROWS; ++i)
-                    prgSeeds[i] = _senderSeeds[i][0] + t;
-                Crypto::batchPrgGenerate(prgSeeds, TILE_ROWS, qRowsLocal, blocks_);
+                // PRG expand: G(k^{s_i}) for every row
+                prg.generate(nonce, t, qRowsLocal, blocks_);
 
                 // XOR with U
-                const U128* uRows_ = reinterpret_cast<const U128*>(&allUBuffer[uOff_]);
+                const U128* uRows_ = reinterpret_cast<const U128*>(&allUBuffer[NONCE_WORDS + uOff_]);
                 {
                     if (Conf::ENABLE_SIMD) {
                         for (size_t i = 0; i < TILE_ROWS; ++i) {
@@ -297,20 +309,10 @@ void IknpOtBatchOperator::receiverExtendForBits() {
         }
     }
 
-    std::vector<int64_t> allUBuffer(totalUSize);
+    std::vector<int64_t> allUBuffer(NONCE_WORDS + totalUSize);
     std::vector<U128> allTBuffer(totalUSize / 2);
-
-    const auto& baseSeeds =
-        (_senderRank == 0) ? IntermediateDataSupport::_iknpBaseSeeds0 : IntermediateDataSupport::_iknpBaseSeeds1;
-
-    const uint64_t derivationSalt = static_cast<uint64_t>(_taskTag) << 32 | static_cast<uint64_t>(_startMsgTag);
-    std::vector<uint64_t> derivedSeeds0(TILE_ROWS);
-    std::vector<uint64_t> derivedSeeds1(TILE_ROWS);
-    for (size_t i = 0; i < TILE_ROWS; ++i) {
-        const uint64_t mix = Crypto::hash64(static_cast<int>(i), derivationSalt);
-        derivedSeeds0[i] = static_cast<uint64_t>(baseSeeds[i][0]) ^ mix;
-        derivedSeeds1[i] = static_cast<uint64_t>(baseSeeds[i][1]) ^ mix;
-    }
+    const U128 nonce = freshNonce();
+    writeNonce(allUBuffer, nonce);
 
     const size_t nThreads = std::min<size_t>(numTiles, std::max<size_t>(1, std::thread::hardware_concurrency()));
     {
@@ -318,6 +320,8 @@ void IknpOtBatchOperator::receiverExtendForBits() {
             alignas(32) U128 tRowsLocal[MAX_TILE_SIZE];
             alignas(32) U128 uRowsLocal[MAX_TILE_SIZE];
             alignas(32) U128 cBlocks[W];
+            const Crypto::SeededPrg& prg0 = basePrg(_senderRank, 0);
+            const Crypto::SeededPrg& prg1 = basePrg(_senderRank, 1);
 
             for (size_t t = tStart; t < tEnd; ++t) {
                 const size_t offset_ = tileOffset[t];
@@ -340,16 +344,8 @@ void IknpOtBatchOperator::receiverExtendForBits() {
                     }
                 }
 
-                alignas(32) uint64_t prgSeeds0[TILE_ROWS];
-                alignas(32) uint64_t prgSeeds1[TILE_ROWS];
-                for (size_t i = 0; i < TILE_ROWS; ++i) {
-                    prgSeeds0[i] = derivedSeeds0[i] + t;
-                    prgSeeds1[i] = derivedSeeds1[i] + t;
-                }
-                {
-                    Crypto::batchPrgGenerate(prgSeeds0, TILE_ROWS, tRowsLocal, blocks_);
-                    Crypto::batchPrgGenerate(prgSeeds1, TILE_ROWS, uRowsLocal, blocks_);
-                }
+                prg0.generate(nonce, t, tRowsLocal, blocks_);
+                prg1.generate(nonce, t, uRowsLocal, blocks_);
 
                 std::memcpy(&allTBuffer[uOff_ / 2], tRowsLocal, TILE_ROWS * blocks_ * sizeof(U128));
                 {
@@ -372,7 +368,7 @@ void IknpOtBatchOperator::receiverExtendForBits() {
                     }
                 }
 
-                std::memcpy(&allUBuffer[uOff_], uRowsLocal, TILE_ROWS * blocks_ * sizeof(U128));
+                std::memcpy(&allUBuffer[NONCE_WORDS + uOff_], uRowsLocal, TILE_ROWS * blocks_ * sizeof(U128));
             }
         };
 
@@ -502,12 +498,13 @@ void IknpOtBatchOperator::senderExtend() {
         if (senderChoices[i])
             sBlock.hi |= (1ULL << (i - 64));
 
-    std::vector<int64_t> allUBuffer(totalUSize);
+    std::vector<int64_t> allUBuffer(NONCE_WORDS + totalUSize);
     {
-        AbstractRequest* recvReq =
-            Comm::serverReceiveAsync(allUBuffer, static_cast<int>(totalUSize), 64, buildTag(_currentMsgTag.load()));
+        AbstractRequest* recvReq = Comm::serverReceiveAsync(allUBuffer, static_cast<int>(allUBuffer.size()), 64,
+                                                            buildTag(_currentMsgTag.load()));
         Comm::wait(recvReq);
     }
+    const U128 nonce = readNonce(allUBuffer);
     _currentMsgTag.fetch_add(1, std::memory_order_relaxed);
     {
         const size_t nThreads = std::min<size_t>(numTiles, std::max<size_t>(1, std::thread::hardware_concurrency()));
@@ -515,18 +512,16 @@ void IknpOtBatchOperator::senderExtend() {
         auto workerSender = [&](size_t tStart, size_t tEnd) {
             alignas(32) U128 qRows[TILE_ROWS];
             alignas(32) U128 tile[TILE_ROWS];
+            const Crypto::SeededPrg& prg = basePrg(_senderRank, 0);
 
             for (size_t tileIdx = tStart; tileIdx < tEnd; ++tileIdx) {
                 const size_t offset = tileIdx * OTS_PER_TILE;
                 const size_t chunk = std::min<size_t>(OTS_PER_TILE, n - offset);
                 const size_t uOff = tileIdx * TILE_ROWS * 2;
 
-                for (size_t i = 0; i < TILE_ROWS; ++i) {
-                    Crypto::AesCtrPrg prg(_senderSeeds[i][0] + tileIdx);
-                    prg.generateBlocks(&qRows[i], 1);
-                }
+                prg.generate(nonce, tileIdx, qRows, 1);
 
-                const U128* uRows = reinterpret_cast<const U128*>(&allUBuffer[uOff]);
+                const U128* uRows = reinterpret_cast<const U128*>(&allUBuffer[NONCE_WORDS + uOff]);
                 for (size_t i = 0; i < TILE_ROWS; ++i) {
                     if (senderChoices[i]) {
                         qRows[i].lo ^= uRows[i].lo;
@@ -583,24 +578,16 @@ void IknpOtBatchOperator::receiverExtend() {
 
     const size_t nThreads = std::min<size_t>(numTiles, std::max<size_t>(1, std::thread::hardware_concurrency()));
 
-    const auto& baseSeeds =
-        (_senderRank == 0) ? IntermediateDataSupport::_iknpBaseSeeds0 : IntermediateDataSupport::_iknpBaseSeeds1;
-
-    const uint64_t derivationSalt = static_cast<uint64_t>(_taskTag) << 32 | static_cast<uint64_t>(_startMsgTag);
-    std::vector<uint64_t> derivedSeeds0(TILE_ROWS);
-    std::vector<uint64_t> derivedSeeds1(TILE_ROWS);
-    for (size_t i = 0; i < TILE_ROWS; ++i) {
-        const uint64_t mix = Crypto::hash64(static_cast<int>(i), derivationSalt);
-        derivedSeeds0[i] = static_cast<uint64_t>(baseSeeds[i][0]) ^ mix;
-        derivedSeeds1[i] = static_cast<uint64_t>(baseSeeds[i][1]) ^ mix;
-    }
-
-    std::vector<int64_t> allUBuffer(totalUSize);
+    std::vector<int64_t> allUBuffer(NONCE_WORDS + totalUSize);
+    const U128 nonce = freshNonce();
+    writeNonce(allUBuffer, nonce);
     std::vector<U128> allTBuffer(numTiles * TILE_ROWS);
     {
         auto workerPhase1 = [&](size_t tStart, size_t tEnd) {
             alignas(32) U128 tRows[TILE_ROWS];
             alignas(32) U128 uRows[TILE_ROWS];
+            const Crypto::SeededPrg& prg0 = basePrg(_senderRank, 0);
+            const Crypto::SeededPrg& prg1 = basePrg(_senderRank, 1);
 
             for (size_t tileIdx = tStart; tileIdx < tEnd; ++tileIdx) {
                 const size_t offset = tileIdx * OTS_PER_TILE;
@@ -616,16 +603,14 @@ void IknpOtBatchOperator::receiverExtend() {
                         cBlock.hi |= (cb << (j - 64));
                 }
 
+                prg0.generate(nonce, tileIdx, tRows, 1);
+                prg1.generate(nonce, tileIdx, uRows, 1);
                 for (size_t i = 0; i < TILE_ROWS; ++i) {
-                    Crypto::AesCtrPrg prg0(derivedSeeds0[i] + tileIdx);
-                    Crypto::AesCtrPrg prg1(derivedSeeds1[i] + tileIdx);
-                    prg0.generateBlocks(&tRows[i], 1);
-                    prg1.generateBlocks(&uRows[i], 1);
                     uRows[i].lo = tRows[i].lo ^ uRows[i].lo ^ cBlock.lo;
                     uRows[i].hi = tRows[i].hi ^ uRows[i].hi ^ cBlock.hi;
                 }
 
-                std::memcpy(&allUBuffer[uOff], uRows, TILE_ROWS * sizeof(U128));
+                std::memcpy(&allUBuffer[NONCE_WORDS + uOff], uRows, TILE_ROWS * sizeof(U128));
                 std::memcpy(&allTBuffer[tileIdx * TILE_ROWS], tRows, TILE_ROWS * sizeof(U128));
             }
         };

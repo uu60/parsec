@@ -32,8 +32,11 @@ Shares, masks, BMT inputs, OT messages and choice bits are drawn from OpenSSL's 
 bias. `Math::randInt()` without arguments returns only non-negative values and is meant for generating plaintext test
 data, not for protocol randomness.
 
-Known limitation: the IKNP OT extension derives its PRG streams from 64-bit base-OT seeds expanded with fixed-key AES,
-so that component currently offers about 64-bit rather than 128-bit computational security.
+The IKNP OT extension between the servers transfers 128-bit seeds through 128 RSA-2048 base OTs per direction
+(RSA-2048 corresponds to roughly 112-bit security) and expands each seed with AES-128 keyed by that seed. The IKNP
+receiver picks a fresh 128-bit nonce for every execution, so PRG output is never reused, and the IKNP sender's choice
+bits never leave the sender. The OT output hash is a fixed-key AES construction with an index tweak; libraries such as
+MP-SPDZ and EMP use the stronger tweakable correlation-robust form from Guo et al. (2020).
 
 ## Observable information
 

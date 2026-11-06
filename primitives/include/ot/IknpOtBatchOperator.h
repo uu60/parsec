@@ -12,21 +12,17 @@
 
 namespace parsec {
 
-// Minimal IKNP OT extension operator (k=128).
+// IKNP OT extension (k = 128) between the two servers.
 //
-// Notes for this repo/version:
-// - The codebase already has ROT prepared in IntermediateDataSupport::prepareRot().
-// - To keep changes minimal and self-contained, this IKNP implementation uses 128 "base seeds"
-//   derived from ROT (two directional caches are optional; this version targets sender=0/1 with 2-party servers).
-// - Domain separation is derived deterministically from (taskTag, msgTagOffset) to avoid extra sync.
+// - 128 base OTs per direction transfer 128-bit seeds once, in IntermediateDataSupport::prepareIknp().
+// - Seeds are expanded with Crypto::SeededPrg (AES-128 keyed by each seed).
+// - Every execution uses a fresh 128-bit nonce chosen by the IKNP receiver and sent with its first message, so PRG
+//   output is never reused across executions, independent of task and message tags.
 class IknpOtBatchOperator : public AbstractOtBatchOperator {
   public:
     inline static std::atomic_int64_t _totalTime = 0;
 
     static constexpr int SECURITY_PARAM = 128;
-
-    // Sender side keeps two seeds per i, derived per-operator from base seeds.
-    std::vector<std::array<uint64_t, 2>> _senderSeeds; // [k] derived per-batch seeds
 
     // Packed-bits mode (compatible with RandOtBatchOperator bits constructor)
     bool _doBits{};
@@ -50,8 +46,6 @@ class IknpOtBatchOperator : public AbstractOtBatchOperator {
     static int tagStride();
 
   private:
-    void deriveSenderSeeds();
-
     void senderExtendForBits();
     void receiverExtendForBits();
 
