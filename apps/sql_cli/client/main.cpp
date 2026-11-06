@@ -2,6 +2,7 @@
 #include <iomanip>
 #include <sstream>
 #include <string>
+#include <cstdint>
 #include <cstring>
 #include <fstream>
 #include <sys/socket.h>

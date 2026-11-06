@@ -51,7 +51,7 @@
     },
     {
       "name": "ci-database",
-      "displayName": "CI database build",
+      "displayName": "CI database build and experiment checks",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/ci-database",
       "cacheVariables": {
@@ -59,8 +59,8 @@
         "PARSEC_BUILD_DATABASE": "ON",
         "PARSEC_BUILD_SQL_CLI": "ON",
         "PARSEC_BUILD_BENCHMARKS": "OFF",
-        "PARSEC_BUILD_EXPERIMENTS": "OFF",
-        "PARSEC_BUILD_TESTS": "OFF"
+        "PARSEC_BUILD_EXPERIMENTS": "ON",
+        "PARSEC_BUILD_TESTS": "ON"
       }
     },
     {
@@ -109,6 +109,18 @@
       "configurePreset": "ci",
       "output": {
         "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ci-database",
+      "configurePreset": "ci-database",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "include": {
+          "label": "database"
+        }
       }
     },
     {

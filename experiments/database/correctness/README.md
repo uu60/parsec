@@ -6,7 +6,15 @@ In check mode, each experiment uses a fixed test case and compares against a fix
 ## Build
 
 ```bash
-cmake --build build --target exp_1 exp_2 exp_3 exp_4 exp_5 exp_6 exp_7 exp_8 -j
+cmake --preset dev
+cmake --build --preset dev
+```
+
+When `PARSEC_BUILD_TESTS=ON`, these checks are also registered with CTest under the `database` label for both
+backends:
+
+```bash
+ctest --preset dev -L database
 ```
 
 ## Run
@@ -27,6 +35,9 @@ Optional argument:
 
 - `--comm=mpi|tcp` to select the communication backend. Default is `mpi`.
 - `--mpirun=<cmd>` to specify MPI launcher command.
+- `--bin-dir=<dir>` to point at the directory containing `exp_N`. By default the script uses
+  `$PARSEC_BUILD_DIR/experiments/database` when set, otherwise the first existing directory among `build/`,
+  `build/release/`, and `build/dev/`.
 - `--tcp-base-port=<port>` to specify the first TCP port used by TCP mode.
 - `--timeout=<seconds>` to set per-process timeout in TCP mode.
 

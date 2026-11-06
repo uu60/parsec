@@ -1,6 +1,7 @@
 
 #include "../../include/basis/View.h"
 
+#include <algorithm>
 #include <numeric>
 
 #include "compute/batch/bool/BoolAndBatchOperator.h"
@@ -1542,7 +1543,6 @@ void View::filterSingleBatch(std::vector<std::string> &fieldNames,
         }
     } else {
         std::vector<std::vector<int64_t> > andCols = std::move(collected);
-        int level = 0;
         while (andCols.size() > 1) {
             const int m = static_cast<int>(andCols.size());
             const int pairs = m / 2;
@@ -1553,11 +1553,13 @@ void View::filterSingleBatch(std::vector<std::string> &fieldNames,
 
             for (int p = 0; p < pairs; ++p) {
                 futures1.emplace_back(
-                    ThreadPoolSupport::submit([&, p, level]() {
+                    ThreadPoolSupport::submit([&, p]() {
                         auto &L = andCols[2 * p];
                         auto &R = andCols[2 * p + 1];
+                        // Pairs of one level run concurrently, so each needs its own full tag range. Levels run
+                        // one after another and may reuse the same ranges.
                         return BoolAndBatchOperator(&L, &R, 1, 0,
-                                                    msgTagBase + level * msgStride + p,
+                                                    msgTagBase + p * msgStride,
                                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
                     })
                 );
@@ -1570,7 +1572,6 @@ void View::filterSingleBatch(std::vector<std::string> &fieldNames,
             if (m % 2) nextCols.push_back(std::move(andCols.back()));
 
             andCols.swap(nextCols);
-            ++level;
         }
         result = std::move(andCols.front());
     }
@@ -1618,7 +1619,7 @@ void View::filterMultiBatches(std::vector<std::string> &fieldNames,
             auto ct = comparatorTypes[i];
 
             std::vector<std::future<std::vector<int64_t> > > batch_futures(batchNum);
-            const int startTag = tagOffset * batchNum * i;
+            const int startTag = msgTagBase + tagOffset * batchNum * i;
 
             for (int b = 0; b < batchNum; ++b) {
                 const int start = b * batchSize;
@@ -1693,7 +1694,6 @@ void View::filterMultiBatches(std::vector<std::string> &fieldNames,
         result = std::move(collected[0]);
     } else {
         std::vector<std::vector<int64_t> > andCols = std::move(collected);
-        int level = 0;
         while (andCols.size() > 1) {
             const int m = static_cast<int>(andCols.size());
             const int pairs = m / 2;
@@ -1704,11 +1704,13 @@ void View::filterMultiBatches(std::vector<std::string> &fieldNames,
 
             for (int p = 0; p < pairs; ++p) {
                 futures1.emplace_back(
-                    ThreadPoolSupport::submit([&, p, level]() {
+                    ThreadPoolSupport::submit([&, p]() {
                         auto &L = andCols[2 * p];
                         auto &R = andCols[2 * p + 1];
+                        // Pairs of one level run concurrently, so each needs its own full tag range. Levels run
+                        // one after another and may reuse the same ranges.
                         return BoolAndBatchOperator(&L, &R, 1, 0,
-                                                    msgTagBase + level * msgStride + p,
+                                                    msgTagBase + p * msgStride,
                                                     SecureOperator::NO_CLIENT_COMPUTE).execute()->_zis;
                     })
                 );
@@ -1721,7 +1723,6 @@ void View::filterMultiBatches(std::vector<std::string> &fieldNames,
             if (m % 2) nextCols.push_back(std::move(andCols.back()));
 
             andCols.swap(nextCols);
-            ++level;
         }
         result = std::move(andCols.front());
     }

@@ -1,3 +1,33 @@
+include(CheckCXXSourceCompiles)
+
+# Boost.Lockfree queues of 16-byte BMT records need double-width compare-and-swap. Some toolchains (for example
+# recent Clang on Linux) lower that to __atomic_compare_exchange, which lives in libatomic.
+set(PARSEC_ATOMIC_TEST_SOURCE [=[
+#include <atomic>
+#include <cstdint>
+struct Wide { std::int64_t a; std::int64_t b; };
+int main() {
+    std::atomic<Wide> value{Wide{0, 0}};
+    Wide expected = value.load();
+    value.compare_exchange_strong(expected, Wide{1, 1});
+    return static_cast<int>(value.load().a);
+}
+]=])
+set(CMAKE_REQUIRED_FLAGS "-std=c++17")
+check_cxx_source_compiles("${PARSEC_ATOMIC_TEST_SOURCE}" PARSEC_HAS_BUILTIN_WIDE_ATOMICS)
+set(PARSEC_ATOMIC_LIBS "")
+if (NOT PARSEC_HAS_BUILTIN_WIDE_ATOMICS)
+    set(CMAKE_REQUIRED_LIBRARIES atomic)
+    check_cxx_source_compiles("${PARSEC_ATOMIC_TEST_SOURCE}" PARSEC_HAS_LIBATOMIC_WIDE_ATOMICS)
+    unset(CMAKE_REQUIRED_LIBRARIES)
+    if (PARSEC_HAS_LIBATOMIC_WIDE_ATOMICS)
+        set(PARSEC_ATOMIC_LIBS atomic)
+    else ()
+        message(FATAL_ERROR "16-byte std::atomic operations are unavailable, even with libatomic")
+    endif ()
+endif ()
+unset(CMAKE_REQUIRED_FLAGS)
+
 set(PARSEC_RUNTIME_INCLUDE_DIRS
         "${CMAKE_CURRENT_SOURCE_DIR}/config/include"
         "${CMAKE_CURRENT_SOURCE_DIR}/comm/include"
@@ -10,7 +40,7 @@ function(parsec_add_runtime_object target)
     add_library(${target} OBJECT ${PARSEC_RUNTIME_SOURCES})
     target_compile_features(${target} PUBLIC cxx_std_17)
     target_include_directories(${target} PUBLIC ${PARSEC_RUNTIME_INCLUDE_DIRS})
-    target_link_libraries(${target} PUBLIC Boost::boost)
+    target_link_libraries(${target} PUBLIC Boost::boost ${PARSEC_ATOMIC_LIBS})
 
     if (TBB_FOUND)
         target_link_libraries(${target} PUBLIC ${TBB_LIBRARIES})
@@ -52,6 +82,7 @@ set(PARSEC_RUNTIME_OBJECT_MODULES
         parsec_utils
         PARENT_SCOPE)
 set(PARSEC_RUNTIME_LINK_LIBS
+        ${PARSEC_ATOMIC_LIBS}
         parsec_parallel
         MPI::MPI_CXX
         OpenSSL::SSL

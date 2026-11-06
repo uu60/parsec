@@ -24,7 +24,7 @@ if (PARSEC_BUILD_TESTS)
         cmake_parse_arguments(PARSEC_TEST "SLOW" "" "ARGS" ${ARGN})
         add_test(
                 NAME ${name}
-                COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 3
+                COMMAND ${MPIEXEC_EXECUTABLE} ${PARSEC_MPIEXEC_TEST_FLAGS_LIST} ${MPIEXEC_NUMPROC_FLAG} 3
                         ${MPIEXEC_PREFLAGS} $<TARGET_FILE:${target}>
                         ${PARSEC_TEST_ARGS} ${MPIEXEC_POSTFLAGS})
         set_tests_properties(${name} PROPERTIES
@@ -38,6 +38,31 @@ if (PARSEC_BUILD_TESTS)
         endif ()
     endfunction()
 
+    find_package(Python3 COMPONENTS Interpreter)
+    set(PARSEC_TCP_TEST_PORT 19000)
+
+    # Runs the same three-rank test over the TCP backend as independent processes. Each test gets its own port
+    # range so tests can run in parallel.
+    function(parsec_add_tcp_test name target)
+        cmake_parse_arguments(PARSEC_TEST "SLOW" "" "ARGS" ${ARGN})
+        if (NOT Python3_Interpreter_FOUND)
+            return()
+        endif ()
+        math(EXPR port "${PARSEC_TCP_TEST_PORT} + 10")
+        set(PARSEC_TCP_TEST_PORT ${port} PARENT_SCOPE)
+        add_test(
+                NAME ${name}
+                COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/run_tcp_ranks.py
+                        --base-port ${port} --timeout 100 $<TARGET_FILE:${target}> -- ${PARSEC_TEST_ARGS})
+        set_tests_properties(${name} PROPERTIES
+                LABELS "correctness;tcp"
+                PROCESSORS 3
+                TIMEOUT 120)
+        if (PARSEC_TEST_SLOW)
+            set_property(TEST ${name} APPEND PROPERTY LABELS slow)
+        endif ()
+    endfunction()
+
     parsec_add_mpi_test(correctness.base_ot_batch correctness_base_ot_batch)
     parsec_add_mpi_test(correctness.bitwise_bmt correctness_bitwise_bmt)
     parsec_add_mpi_test(correctness.iknp_ot correctness_iknp_ot_simple)
@@ -46,4 +71,12 @@ if (PARSEC_BUILD_TESTS)
     parsec_add_mpi_test(correctness.bool_equal_fixed correctness_bool_equal ARGS --bmt_method=bmt_fixed)
     parsec_add_mpi_test(correctness.secret_sort_arith correctness_secrets_sort SLOW ARGS --test_mode=arith)
     parsec_add_mpi_test(correctness.secret_sort_bool correctness_secrets_sort SLOW ARGS --test_mode=bool)
+
+    parsec_add_tcp_test(correctness.tcp.ot correctness_ot)
+    parsec_add_tcp_test(correctness.tcp.base_ot_batch correctness_base_ot_batch)
+    parsec_add_tcp_test(correctness.tcp.bitwise_bmt correctness_bitwise_bmt)
+    parsec_add_tcp_test(correctness.tcp.iknp_ot correctness_iknp_ot_simple)
+    parsec_add_tcp_test(correctness.tcp.bmt_ot_logic correctness_bmt_ot_logic)
+    parsec_add_tcp_test(correctness.tcp.bool_equal correctness_bool_equal)
+    parsec_add_tcp_test(correctness.tcp.secret_sort_arith correctness_secrets_sort SLOW ARGS --test_mode=arith)
 endif ()

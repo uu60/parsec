@@ -8,6 +8,8 @@ on:
 permissions:
   contents: read
 
+# Linux jobs are pinned to Ubuntu 24.04 (GCC 13, Open MPI 4.1) so results are reproducible. ubuntu-latest moved to
+# Ubuntu 26.04 with Open MPI 5, whose launcher currently fails to start the three test ranks on hosted runners.
 jobs:
   build-and-test:
     name: ${{ matrix.os }} / ${{ matrix.compiler }}
@@ -16,11 +18,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             compiler: gcc
             cc: gcc
             cxx: g++
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             compiler: clang
             cc: clang
             cxx: clang++
@@ -56,7 +58,7 @@ jobs:
 
   database-build:
     name: ubuntu / database
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -71,9 +73,31 @@ jobs:
       - name: Build
         run: cmake --build --preset ci-database --parallel 2
 
+      - name: Test
+        run: ctest --preset ci-database
+
+  latest-toolchain-build:
+    # Compile every target with the newest runner toolchain (GCC 15 on Ubuntu 26.04) to catch compiler regressions.
+    # Tests are not run here because the Open MPI 5 launcher on this image cannot start the three test ranks yet.
+    name: ubuntu-latest / build all targets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libopenmpi-dev openmpi-bin libssl-dev libboost-dev libreadline-dev
+
+      - name: Configure
+        run: cmake --preset dev
+
+      - name: Build
+        run: cmake --build --preset dev --parallel 2
+
   sanitizers:
     name: ubuntu / sanitizers
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 

@@ -14,6 +14,7 @@
 #include "secret/Secrets.h"
 #include "utils/StringUtils.h"
 #include "utils/Log.h"
+#include <algorithm>
 #include <cmath>
 #include <numeric>
 
