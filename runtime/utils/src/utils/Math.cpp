@@ -591,6 +591,16 @@ uint64_t Math::kdfSha256To8Bytes(const std::string& input) {
     return result;
 }
 
+std::array<uint64_t, 2> Math::kdfSha256To16Bytes(const std::string& input) {
+    unsigned char digest[SHA256_DIGEST_LENGTH];
+    if (SHA256(reinterpret_cast<const unsigned char*>(input.data()), input.size(), digest) == nullptr) {
+        throw std::runtime_error("kdfSha256To16Bytes: SHA256 failed");
+    }
+    std::array<uint64_t, 2> result{};
+    std::memcpy(result.data(), digest, sizeof(result));
+    return result;
+}
+
 std::string Math::getExponentE(const RsaKeyContext& ctx) {
     if (ctx.e == nullptr) {
         throw std::runtime_error("getExponentE: null exponent e");
