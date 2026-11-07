@@ -1,0 +1,62 @@
+
+#ifndef VIEWS_H
+#define VIEWS_H
+#include "parsec/db/View.h"
+#include <cstdint>
+
+#include <string>
+
+namespace parsec {
+
+class Views {
+  public:
+    static View selectAll(Table& t);
+
+    static View selectAllWithFieldPrefix(Table& t);
+
+    static View selectColumns(Table& t, std::vector<std::string>& fieldNames);
+
+    static View nestedLoopJoin(View& v0, View& v1, std::string& field0, std::string& field1, bool compress);
+
+    static View nestedLoopJoin(View& v0, View& v1, std::string& field0, std::string& field1);
+
+    static View hashJoin(View& v0, View& v1, std::string& field0, std::string& field1);
+
+    static View hashJoin(View& v0, View& v1, std::string& field0, std::string& field1, bool compress);
+
+    static View leftOuterJoin(View& v0, View& v1, std::string& field0, std::string& field1);
+
+    static View leftOuterJoin(View& v0, View& v1, std::string& field0, std::string& field1, bool doHashJoin,
+                              bool compress);
+
+    static std::string getAliasColName(std::string& tableName, std::string& fieldName);
+
+    static int64_t hash(int64_t keyValue);
+
+    static std::vector<int64_t> in(std::vector<int64_t>& col1, std::vector<int64_t>& col2,
+                                   std::vector<int64_t>& left_valid, std::vector<int64_t>& right_valid);
+
+    static void revealAndPrint(View& v);
+
+  private:
+    static std::vector<int64_t> inSingleBatch(std::vector<int64_t>& col1, std::vector<int64_t>& col2,
+                                              std::vector<int64_t>& left_valid, std::vector<int64_t>& right_valid);
+
+    static std::vector<int64_t> inMultiBatches(std::vector<int64_t>& col1, std::vector<int64_t>& col2,
+                                               std::vector<int64_t>& left_valid, std::vector<int64_t>& right_valid);
+
+    static void addRedundantCols(View& v);
+
+    static std::vector<std::vector<std::vector<int64_t>>> butterflyPermutation(View& view, int tagColIndex,
+                                                                               int msgTagBase);
+
+    static View performBucketJoins(std::vector<std::vector<std::vector<int64_t>>>& buckets0,
+                                   std::vector<std::vector<std::vector<int64_t>>>& buckets1, View& v0, View& v1,
+                                   std::string& field0, std::string& field1, bool compress);
+
+    static int butterflyPermutationTagStride(View& v);
+};
+
+} // namespace parsec
+
+#endif

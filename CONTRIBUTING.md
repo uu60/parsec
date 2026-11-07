@@ -24,15 +24,24 @@ cmake --build --preset ci
 ctest --preset ci
 ```
 
-Tests are labelled: `unit` tests run in a single process and finish in seconds, `mpi` and `tcp` tests start three
-ranks, and `database` tests run the experiment checks. Run one group with, for example:
+Tests live under `tests/` and are labelled by kind:
+
+| Directory | Label | What it runs |
+|---|---|---|
+| `tests/unit/` | `unit` | single-process GoogleTest cases; finish in seconds |
+| `tests/protocol/` | `protocol` (and `mpi` or `tcp`) | three-rank protocol tests, each registered over MPI and TCP |
+| `tests/database/` | `database` | `exp_1`..`exp_8` in check mode, compared with expected results |
+
+Run one group with, for example:
 
 ```bash
 ctest --preset ci -L unit
 ```
 
 New logic that does not need communication (ring arithmetic, encoding, crypto helpers) should get a GoogleTest case
-in `tests/unit/`.
+in `tests/unit/`. A new protocol test is a `.cpp` file in `tests/protocol/` that exits with a non-zero status on any
+mismatch; register it with `parsec_add_mpi_test` (and `parsec_add_tcp_test`) in `tests/protocol/CMakeLists.txt`.
+Benchmarks go in `benchmarks/` and are not run by CTest.
 
 Build all developer targets:
 

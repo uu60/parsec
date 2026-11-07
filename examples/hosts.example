@@ -1,6 +1,6 @@
 # Open MPI hostfile for a two-machine Parsec run. Copy it to `hosts` in the repository root (ignored by git) and
 # replace the documentation addresses below with your own.
 #
-#   mpirun -np 3 --hostfile hosts --rankfile ranks ./build/primitives/benchmark/correctness_ot
+#   mpirun -np 3 --hostfile hosts --rankfile ranks ./build/dev/tests/protocol/correctness_ot
 192.0.2.10 slots=1
 192.0.2.20 slots=2

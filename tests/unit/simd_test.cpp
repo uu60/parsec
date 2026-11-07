@@ -1,4 +1,4 @@
-#include "accelerate/SimdSupport.h"
+#include "parsec/accelerate/SimdSupport.h"
 
 #include <gtest/gtest.h>
 

@@ -1,0 +1,74 @@
+
+#include "parsec/compute/single/bool/BoolOperator.h"
+
+#include "parsec/comm/Comm.h"
+#include "parsec/conf/Conf.h"
+#include "parsec/ot/BaseOtOperator.h"
+#include "parsec/parallel/ThreadPoolSupport.h"
+#include "parsec/utils/Log.h"
+#include "parsec/utils/Math.h"
+#include "parsec/utils/System.h"
+
+namespace parsec {
+
+BoolOperator::BoolOperator(int64_t z, int l, int taskTag, int msgTagOffset, int clientRank)
+    : AbstractSingleOperator(l, taskTag, msgTagOffset) {
+    if (clientRank < 0) {
+        _zi = ring(z);
+    } else {
+        if (Comm::rank() == clientRank) {
+            int64_t z1 = ring(Math::randBits());
+            int64_t z0 = ring(z ^ z1);
+
+            auto r0 = Comm::sendAsync(z0, _width, 0, buildTag(_currentMsgTag));
+            auto r1 = Comm::sendAsync(z1, _width, 1, buildTag(_currentMsgTag));
+            Comm::wait(r0);
+            Comm::wait(r1);
+        } else {
+            Comm::receive(_zi, _width, clientRank, buildTag(_currentMsgTag));
+        }
+    }
+}
+
+BoolOperator::BoolOperator(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset, int clientRank)
+    : AbstractSingleOperator(l, taskTag, msgTagOffset) {
+    if (clientRank < 0) {
+        _xi = ring(x);
+        _yi = ring(y);
+    } else {
+        if (Comm::rank() == clientRank) {
+            int64_t x1 = 1;
+            int64_t x0 = ring(x ^ x1);
+            int64_t y1 = 1;
+            int64_t y0 = ring(y ^ y1);
+            std::vector xy0 = {x0, y0};
+            std::vector xy1 = {x1, y1};
+            auto r0 = Comm::sendAsync(xy0, _width, 0, buildTag(_currentMsgTag));
+            auto r1 = Comm::sendAsync(xy1, _width, 1, buildTag(_currentMsgTag));
+            Comm::wait(r0);
+            Comm::wait(r1);
+        } else {
+            std::vector<int64_t> temp;
+            Comm::receive(temp, _width, clientRank, buildTag(_currentMsgTag));
+            _xi = temp[0];
+            _yi = temp[1];
+        }
+    }
+}
+
+BoolOperator* BoolOperator::reconstruct(int clientRank) {
+    _currentMsgTag = _startMsgTag;
+    if (Comm::isServer()) {
+        Comm::send(_zi, _width, clientRank, buildTag(_currentMsgTag));
+    } else if (Comm::rank() == clientRank) {
+        int64_t temp0, temp1;
+        Comm::receive(temp0, _width, 0, buildTag(_currentMsgTag));
+        Comm::receive(temp1, _width, 1, buildTag(_currentMsgTag));
+        _result = ring(temp0 ^ temp1);
+    }
+    return this;
+}
+
+BoolOperator* BoolOperator::execute() { throw std::runtime_error("This method needs implementation."); }
+
+} // namespace parsec

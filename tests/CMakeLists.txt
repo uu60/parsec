@@ -1,0 +1,8 @@
+# unit/      single-process GoogleTest cases (label: unit)
+# protocol/  three-party protocol correctness over MPI and TCP (labels: protocol, mpi | tcp)
+# database/  check mode of the database experiments (label: database; needs PARSEC_BUILD_EXPERIMENTS)
+add_subdirectory(unit)
+add_subdirectory(protocol)
+if (TARGET exp_1)
+    add_subdirectory(database)
+endif ()

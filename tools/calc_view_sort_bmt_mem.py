@@ -4,8 +4,8 @@ Estimate how much Bitwise BMT memory `View::sort` would need if we pre-generated
  the whole sort process in advance.
 
 The model follows the actual code in:
-  - db/src/basis/View.cpp
-  - primitives/src/compute/batch/bool/*.cpp
+  - src/db/View.cpp
+  - src/compute/batch/bool/*.cpp
 
 Important assumptions:
   - `total_cols` means user/business columns only.

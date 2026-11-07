@@ -1,17 +1,17 @@
 
-#include "secret/Secrets.h"
-#include "utils/System.h"
+#include "parsec/secret/Secrets.h"
+#include "parsec/utils/System.h"
 
-#include "basis/Table.h"
-#include "basis/View.h"
-#include "basis/Views.h"
-#include "conf/DbConf.h"
-#include "utils/Log.h"
-#include "utils/StringUtils.h"
+#include "parsec/db/DbConf.h"
+#include "parsec/db/Table.h"
+#include "parsec/db/View.h"
+#include "parsec/db/Views.h"
+#include "parsec/utils/Log.h"
+#include "parsec/utils/StringUtils.h"
 
 #include <string>
 
-#include "utils/Math.h"
+#include "parsec/utils/Math.h"
 
 using namespace parsec;
 

@@ -1,11 +1,6 @@
-file(GLOB_RECURSE BENCH_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
-foreach (src ${BENCH_SRCS})
-    get_filename_component(execName ${src} NAME_WE)
-    add_executable(${execName} ${src})
-    target_include_directories(${execName} PRIVATE
-            ${CMAKE_SOURCE_DIR}/db/include
-    )
-    target_link_libraries(${execName} PRIVATE
-            db_core
-    )
+file(GLOB PARSEC_DATABASE_BENCHMARK_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
+foreach (src ${PARSEC_DATABASE_BENCHMARK_SOURCES})
+    get_filename_component(name ${src} NAME_WE)
+    add_executable(${name} ${src})
+    target_link_libraries(${name} PRIVATE parsec::db)
 endforeach ()

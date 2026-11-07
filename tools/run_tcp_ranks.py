@@ -2,7 +2,7 @@
 """Launch a Parsec executable as three local TCP ranks and report a combined result.
 
 Example:
-    tools/run_tcp_ranks.py --base-port 18000 build/ci/primitives/benchmark/correctness_ot -- --bmt_method=bmt_jit
+    tools/run_tcp_ranks.py --base-port 18000 build/ci/tests/protocol/correctness_ot -- --bmt_method=bmt_jit
 
 The exit status is non-zero when any rank fails, times out, or prints a line matching --fail-regex.
 """
