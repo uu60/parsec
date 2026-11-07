@@ -1,15 +1,15 @@
 
-#include "parsec/compute/batch/bool/BoolAndBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolAndBatchOperator.h"
 
-#include "parsec/accelerate/SimdSupport.h"
-#include "parsec/conf/Conf.h"
-#include "parsec/intermediate/BitwiseBmtBatchGenerator.h"
-#include "parsec/intermediate/BitwiseBmtGenerator.h"
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/utils/Log.h"
+#include "parsecdb/accelerate/SimdSupport.h"
+#include "parsecdb/conf/Conf.h"
+#include "parsecdb/intermediate/BitwiseBmtBatchGenerator.h"
+#include "parsecdb/intermediate/BitwiseBmtGenerator.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/utils/Log.h"
 #include <mpi.h>
 
-namespace parsec {
+namespace parsecdb {
 
 int BoolAndBatchOperator::prepareBmts(std::vector<BitwiseBmt>& bmts) {
     if (_bmts != nullptr) {
@@ -252,4 +252,4 @@ void BoolAndBatchOperator::executeForMutex() {
     }
 }
 
-} // namespace parsec
+} // namespace parsecdb

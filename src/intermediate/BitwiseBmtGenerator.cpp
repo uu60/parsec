@@ -1,10 +1,10 @@
-#include "parsec/intermediate/BitwiseBmtGenerator.h"
-#include "parsec/conf/Conf.h"
-#include "parsec/ot/IknpOtBatchOperator.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/intermediate/BitwiseBmtGenerator.h"
+#include "parsecdb/conf/Conf.h"
+#include "parsecdb/ot/IknpOtBatchOperator.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
+#include "parsecdb/utils/Math.h"
 
-namespace parsec {
+namespace parsecdb {
 
 BitwiseBmtGenerator* BitwiseBmtGenerator::execute() {
     _currentMsgTag = _startMsgTag;
@@ -91,4 +91,4 @@ SecureOperator* BitwiseBmtGenerator::reconstruct(int clientRank) { throw std::ru
 
 int BitwiseBmtGenerator::tagStride(int width) { return 2 * IknpOtBatchOperator::tagStride(); }
 
-} // namespace parsec
+} // namespace parsecdb

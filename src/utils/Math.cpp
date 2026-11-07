@@ -1,5 +1,5 @@
 
-#include "parsec/utils/Math.h"
+#include "parsecdb/utils/Math.h"
 #include <algorithm>
 #include <array>
 #include <cstring>
@@ -16,7 +16,7 @@
 #include <stdexcept>
 #include <string>
 
-namespace parsec {
+namespace parsecdb {
 
 RsaKeyContext::~RsaKeyContext() {
     if (pkey != nullptr) {
@@ -626,4 +626,4 @@ std::string Math::getExponentD(const RsaKeyContext& ctx) {
     return out;
 }
 
-} // namespace parsec
+} // namespace parsecdb

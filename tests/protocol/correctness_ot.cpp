@@ -2,15 +2,15 @@
 // Created by 杜建璋 on 26-1-17.
 //
 
-#include "parsec/ot/BaseOtBatchOperator.h"
-#include "parsec/ot/BaseOtOperator.h"
-#include "parsec/ot/RandOtBatchOperator.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
-#include "parsec/utils/StringUtils.h"
-#include "parsec/utils/System.h"
+#include "parsecdb/ot/BaseOtBatchOperator.h"
+#include "parsecdb/ot/BaseOtOperator.h"
+#include "parsecdb/ot/RandOtBatchOperator.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
+#include "parsecdb/utils/StringUtils.h"
+#include "parsecdb/utils/System.h"
 
-using namespace parsec;
+using namespace parsecdb;
 
 int main(int argc, char* argv[]) {
     System::init(argc, argv);

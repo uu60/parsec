@@ -1,14 +1,14 @@
 
-#include "parsec/compute/batch/bool/BoolMutexBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolMutexBatchOperator.h"
 
-#include "parsec/accelerate/SimdSupport.h"
-#include "parsec/compute/batch/bool/BoolAndBatchOperator.h"
-#include "parsec/compute/single/bool/BoolAndOperator.h"
-#include "parsec/conf/Conf.h"
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
+#include "parsecdb/accelerate/SimdSupport.h"
+#include "parsecdb/compute/batch/bool/BoolAndBatchOperator.h"
+#include "parsecdb/compute/single/bool/BoolAndOperator.h"
+#include "parsecdb/conf/Conf.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
 
-namespace parsec {
+namespace parsecdb {
 
 BoolMutexBatchOperator::BoolMutexBatchOperator(std::vector<int64_t>* xs, std::vector<int64_t>* ys,
                                                std::vector<int64_t>* conds, int width, int taskTag, int msgTagOffset,
@@ -143,4 +143,4 @@ int BoolMutexBatchOperator::bmtCount(int num, int width) {
     return 2 * BoolAndBatchOperator::bmtCount(num, width);
 }
 
-} // namespace parsec
+} // namespace parsecdb

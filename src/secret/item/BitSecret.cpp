@@ -1,14 +1,14 @@
 
-#include "parsec/secret/item/BitSecret.h"
+#include "parsecdb/secret/item/BitSecret.h"
 
-#include "parsec/comm/Comm.h"
-#include "parsec/compute/single/arith/ArithMutexOperator.h"
-#include "parsec/compute/single/arith/ArithOperator.h"
-#include "parsec/compute/single/bool/BoolAndOperator.h"
-#include "parsec/compute/single/bool/BoolLessOperator.h"
-#include "parsec/compute/single/bool/BoolXorOperator.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/compute/single/arith/ArithMutexOperator.h"
+#include "parsecdb/compute/single/arith/ArithOperator.h"
+#include "parsecdb/compute/single/bool/BoolAndOperator.h"
+#include "parsecdb/compute/single/bool/BoolLessOperator.h"
+#include "parsecdb/compute/single/bool/BoolXorOperator.h"
 
-namespace parsec {
+namespace parsecdb {
 
 BitSecret::BitSecret(bool x, int taskTag) : _data(x), _taskTag(taskTag) {}
 
@@ -53,4 +53,4 @@ BitSecret BitSecret::reconstruct(int clientRank) const {
 
 bool BitSecret::get() const { return _data; }
 
-} // namespace parsec
+} // namespace parsecdb

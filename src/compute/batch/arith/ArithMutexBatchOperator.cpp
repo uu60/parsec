@@ -1,18 +1,18 @@
 
-#include "parsec/compute/batch/arith/ArithMutexBatchOperator.h"
+#include "parsecdb/compute/batch/arith/ArithMutexBatchOperator.h"
 
-#include "parsec/comm/Comm.h"
-#include "parsec/compute/batch/arith/ArithMultiplyBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolToArithBatchOperator.h"
-#include "parsec/compute/single/bool/BoolToArithOperator.h"
-#include "parsec/conf/Conf.h"
-#include "parsec/intermediate/BmtBatchGenerator.h"
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/compute/batch/arith/ArithMultiplyBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolToArithBatchOperator.h"
+#include "parsecdb/compute/single/bool/BoolToArithOperator.h"
+#include "parsecdb/conf/Conf.h"
+#include "parsecdb/intermediate/BmtBatchGenerator.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
 
-namespace parsec {
+namespace parsecdb {
 
 ArithMutexBatchOperator::ArithMutexBatchOperator(std::vector<int64_t>* xs, std::vector<int64_t>* ys,
                                                  std::vector<int64_t>* conds, int width, int taskTag, int msgTagOffset,
@@ -85,4 +85,4 @@ ArithMutexBatchOperator* ArithMutexBatchOperator::setBmts(std::vector<Bmt>* bmts
     return this;
 }
 
-} // namespace parsec
+} // namespace parsecdb

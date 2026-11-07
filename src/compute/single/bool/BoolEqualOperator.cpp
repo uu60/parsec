@@ -1,12 +1,12 @@
 
-#include "parsec/compute/single/bool/BoolEqualOperator.h"
+#include "parsecdb/compute/single/bool/BoolEqualOperator.h"
 
-#include "parsec/comm/Comm.h"
-#include "parsec/compute/single/bool/BoolAndOperator.h"
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/compute/single/bool/BoolAndOperator.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/utils/Math.h"
 
-namespace parsec {
+namespace parsecdb {
 
 BoolEqualOperator* BoolEqualOperator::execute() {
     if (Comm::isServer()) {
@@ -63,4 +63,4 @@ BoolEqualOperator* BoolEqualOperator::setBmt(BitwiseBmt* bmt) {
     return this;
 }
 
-} // namespace parsec
+} // namespace parsecdb

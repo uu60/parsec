@@ -79,7 +79,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and
 ## Project Layout
 
 ```text
-include/parsec/          Public headers, included as "parsec/<module>/<Header>.h"
+include/parsecdb/        Public headers, included as "parsecdb/<module>/<Header>.h"
   comm/ conf/ parallel/ sync/ utils/     runtime: communication, configuration, threading, utilities
   base/ compute/ intermediate/ ot/       MPC operators, BMT/ROT preparation, oblivious transfer
   secret/ system/ accelerate/            secret containers, runtime lifecycle, SIMD helpers
@@ -155,22 +155,24 @@ preset builds the core library and registered correctness tests without the data
 
 ### Use from another CMake project
 
-Install Parsec and import it with `find_package`. Headers are installed under `include/parsec` with the same layout
-as in the source tree, so code includes them as `"parsec/utils/Math.h"` both in-tree and after installation:
+Install Parsec and import it with `find_package`. Headers are installed under `include/parsecdb` with the same
+layout as in the source tree, so code includes them as `"parsecdb/utils/Math.h"` both in-tree and after installation.
+The C++ namespace, include prefix and CMake package are all named `parsecdb`, which avoids clashes with other
+libraries called PaRSEC or Parsec:
 
 ```bash
 cmake --preset release
 cmake --build --preset release
-cmake --install build/release --prefix /opt/parsec
+cmake --install build/release --prefix /opt/parsecdb
 ```
 
 ```cmake
-find_package(parsec 0.1 REQUIRED)
-target_link_libraries(my_app PRIVATE parsec::parsec)  # MPC primitives and runtime
-target_link_libraries(my_app PRIVATE parsec::db)      # plus the secure database core
+find_package(parsecdb 0.1 REQUIRED)
+target_link_libraries(my_app PRIVATE parsecdb::parsecdb)  # MPC primitives and runtime
+target_link_libraries(my_app PRIVATE parsecdb::db)        # plus the secure database core
 ```
 
-A complete example is in [examples/find-package](examples/find-package). Pass `-DCMAKE_PREFIX_PATH=/opt/parsec` when
+A complete example is in [examples/find-package](examples/find-package). Pass `-DCMAKE_PREFIX_PATH=/opt/parsecdb` when
 configuring it.
 
 ## Run
@@ -291,18 +293,18 @@ Database options:
 
 Parsec is designed around replaceable abstractions rather than fixed implementations. Core modules expose base classes or facades so users can inherit and implement project-specific communication backends, secure operators, BMT/OT providers, thread-pool strategies, and database-layer functionality without rewriting the whole runtime.
 
-All library types and functions live in the `parsec` namespace. The examples below assume `using namespace parsec;`
-(or qualified names such as `parsec::System`).
+All library types and functions live in the `parsecdb` namespace. The examples below assume
+`using namespace parsecdb;` (or qualified names such as `parsecdb::System`).
 
 ### Runtime Lifecycle
 
 Every MPC executable should initialize and finalize the runtime:
 
 ```cpp
-#include "parsec/utils/System.h"
-#include "parsec/comm/Comm.h"
+#include "parsecdb/utils/System.h"
+#include "parsecdb/comm/Comm.h"
 
-using namespace parsec;
+using namespace parsecdb;
 
 int main(int argc, char **argv) {
     System::init(argc, argv);

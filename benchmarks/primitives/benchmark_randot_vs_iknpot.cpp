@@ -1,18 +1,18 @@
-#include "parsec/comm/Comm.h"
-#include "parsec/conf/Conf.h"
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/ot/IknpOtBatchOperator.h"
-#include "parsec/ot/RandOtBatchOperator.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
-#include "parsec/utils/System.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/conf/Conf.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/ot/IknpOtBatchOperator.h"
+#include "parsecdb/ot/RandOtBatchOperator.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
+#include "parsecdb/utils/System.h"
 
 #include <algorithm>
 #include <cstdint>
 #include <string>
 #include <vector>
 
-using namespace parsec;
+using namespace parsecdb;
 
 namespace {
 

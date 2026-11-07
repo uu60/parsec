@@ -1,18 +1,18 @@
 
-#include "parsec/compute/single/arith/ArithMutexOperator.h"
+#include "parsecdb/compute/single/arith/ArithMutexOperator.h"
 
-#include "parsec/comm/Comm.h"
-#include "parsec/compute/single/arith/ArithMultiplyOperator.h"
-#include "parsec/compute/single/bool/BoolOperator.h"
-#include "parsec/compute/single/bool/BoolToArithOperator.h"
-#include "parsec/intermediate/BitwiseBmtGenerator.h"
-#include "parsec/intermediate/BmtGenerator.h"
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/compute/single/arith/ArithMultiplyOperator.h"
+#include "parsecdb/compute/single/bool/BoolOperator.h"
+#include "parsecdb/compute/single/bool/BoolToArithOperator.h"
+#include "parsecdb/intermediate/BitwiseBmtGenerator.h"
+#include "parsecdb/intermediate/BmtGenerator.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
 
-namespace parsec {
+namespace parsecdb {
 
 ArithMutexOperator::ArithMutexOperator(int64_t x, int64_t y, bool cond, int l, int taskTag, int msgTagOffset,
                                        int clientRank)
@@ -81,4 +81,4 @@ ArithMutexOperator* ArithMutexOperator::setBmts(std::vector<Bmt>* bmts) {
 
 int ArithMutexOperator::bmtCount(int width) { return 2; }
 
-} // namespace parsec
+} // namespace parsecdb

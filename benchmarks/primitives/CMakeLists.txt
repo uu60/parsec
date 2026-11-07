@@ -2,5 +2,5 @@ file(GLOB PARSEC_PRIMITIVE_BENCHMARK_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_
 foreach (src ${PARSEC_PRIMITIVE_BENCHMARK_SOURCES})
     get_filename_component(name ${src} NAME_WE)
     add_executable(${name} ${src})
-    target_link_libraries(${name} PRIVATE parsec)
+    target_link_libraries(${name} PRIVATE parsecdb)
 endforeach ()

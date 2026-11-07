@@ -1,11 +1,11 @@
-#include "parsec/intermediate/BitwiseBmtBatchGenerator.h"
+#include "parsecdb/intermediate/BitwiseBmtBatchGenerator.h"
 
-#include "parsec/conf/Conf.h"
-#include "parsec/ot/IknpOtBatchOperator.h"
-#include "parsec/ot/RandOtOperator.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
+#include "parsecdb/conf/Conf.h"
+#include "parsecdb/ot/IknpOtBatchOperator.h"
+#include "parsecdb/ot/RandOtOperator.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
 
-namespace parsec {
+namespace parsecdb {
 
 BitwiseBmtBatchGenerator::BitwiseBmtBatchGenerator(int count, int width, int taskTag, int msgTagOffset)
     : AbstractBmtBatchGenerator(count, width, taskTag, msgTagOffset) {
@@ -99,4 +99,4 @@ SecureOperator* BitwiseBmtBatchGenerator::reconstruct(int clientRank) { throw st
 
 int BitwiseBmtBatchGenerator::tagStride() { return 2 * IknpOtBatchOperator::tagStride(); }
 
-} // namespace parsec
+} // namespace parsecdb

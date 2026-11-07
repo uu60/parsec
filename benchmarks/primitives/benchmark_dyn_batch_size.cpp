@@ -1,10 +1,10 @@
-#include "parsec/comm/Comm.h"
-#include "parsec/compute/batch/bool/BoolLessBatchOperator.h"
-#include "parsec/compute/single/arith/ArithLessOperator.h"
-#include "parsec/secret/Secrets.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
-#include "parsec/utils/System.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/compute/batch/bool/BoolLessBatchOperator.h"
+#include "parsecdb/compute/single/arith/ArithLessOperator.h"
+#include "parsecdb/secret/Secrets.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
+#include "parsecdb/utils/System.h"
 #include <algorithm>
 #include <cfloat>
 #include <chrono>
@@ -16,12 +16,12 @@
 #include <string>
 #include <unordered_set>
 
-#include "parsec/compute/batch/bool/BoolEqualBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolMutexBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolToArithBatchOperator.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
+#include "parsecdb/compute/batch/bool/BoolEqualBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolMutexBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolToArithBatchOperator.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
 
-using namespace parsec;
+using namespace parsecdb;
 
 void prepareOrigins(int num, std::vector<int64_t>& originsA, std::vector<int64_t>& originsB,
                     std::vector<int64_t>& conditions) {

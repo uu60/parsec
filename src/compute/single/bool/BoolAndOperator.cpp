@@ -1,14 +1,14 @@
 
-#include "parsec/compute/single/bool/BoolAndOperator.h"
+#include "parsecdb/compute/single/bool/BoolAndOperator.h"
 
-#include "parsec/comm/Comm.h"
-#include "parsec/compute/single/arith/ArithMultiplyOperator.h"
-#include "parsec/intermediate/BitwiseBmtGenerator.h"
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/compute/single/arith/ArithMultiplyOperator.h"
+#include "parsecdb/intermediate/BitwiseBmtGenerator.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
 
-namespace parsec {
+namespace parsecdb {
 
 BoolAndOperator* BoolAndOperator::execute() {
     _currentMsgTag = _startMsgTag;
@@ -63,4 +63,4 @@ BoolAndOperator* BoolAndOperator::setBmt(BitwiseBmt* bmt) {
     return this;
 }
 
-} // namespace parsec
+} // namespace parsecdb

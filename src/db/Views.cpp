@@ -1,28 +1,28 @@
 
-#include "parsec/db/Views.h"
+#include "parsecdb/db/Views.h"
 
-#include "parsec/comm/Comm.h"
-#include "parsec/compute/batch/arith/ArithAddBatchOperator.h"
-#include "parsec/compute/batch/arith/ArithLessBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolEqualBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolMutexBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolToArithBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolXorBatchOperator.h"
-#include "parsec/db/DbConf.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
-#include "parsec/secret/Secrets.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
-#include "parsec/utils/StringUtils.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/compute/batch/arith/ArithAddBatchOperator.h"
+#include "parsecdb/compute/batch/arith/ArithLessBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolEqualBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolMutexBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolToArithBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolXorBatchOperator.h"
+#include "parsecdb/db/DbConf.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
+#include "parsecdb/secret/Secrets.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
+#include "parsecdb/utils/StringUtils.h"
 #include <algorithm>
 #include <cmath>
 #include <numeric>
 
 #include <string>
 
-#include "parsec/compute/batch/bool/BoolAndBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolAndBatchOperator.h"
 
-namespace parsec {
+namespace parsecdb {
 
 View Views::selectAll(Table& t) {
     View v(t._tableName, t._fieldNames, t._fieldWidths);
@@ -1089,4 +1089,4 @@ void Views::addRedundantCols(View& v) {
     v._dataCols.emplace_back(v._dataCols[0].size());
 }
 
-} // namespace parsec
+} // namespace parsecdb

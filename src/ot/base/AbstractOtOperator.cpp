@@ -1,7 +1,7 @@
 
-#include "parsec/ot/base/AbstractOtOperator.h"
+#include "parsecdb/ot/base/AbstractOtOperator.h"
 
-namespace parsec {
+namespace parsecdb {
 
 AbstractOtOperator::AbstractOtOperator(int sender, int64_t m0, int64_t m1, int choice, int l, int taskTag,
                                        int msgTagOffset)
@@ -19,4 +19,4 @@ AbstractOtOperator* AbstractOtOperator::reconstruct(int clientRank) {
     throw std::runtime_error("Should not use reconstruct method on OT.");
 }
 
-} // namespace parsec
+} // namespace parsecdb

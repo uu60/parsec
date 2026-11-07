@@ -1,15 +1,15 @@
-#include "parsec/compute/single/bool/BoolToArithOperator.h"
+#include "parsecdb/compute/single/bool/BoolToArithOperator.h"
 
-#include "parsec/comm/Comm.h"
-#include "parsec/compute/single/arith/ArithOperator.h"
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/ot/IknpOtBatchOperator.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/compute/single/arith/ArithOperator.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/ot/IknpOtBatchOperator.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
+#include "parsecdb/utils/Math.h"
 
 #include <algorithm>
 
-namespace parsec {
+namespace parsecdb {
 
 BoolToArithOperator* BoolToArithOperator::execute() {
     _currentMsgTag = _startMsgTag;
@@ -78,4 +78,4 @@ BoolToArithOperator* BoolToArithOperator::reconstruct(int clientRank) {
     return this;
 }
 
-} // namespace parsec
+} // namespace parsecdb

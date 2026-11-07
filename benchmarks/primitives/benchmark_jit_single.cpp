@@ -3,13 +3,13 @@
 // Single test for JIT mode - to be called by Python script
 //
 
-#include "parsec/comm/Comm.h"
-#include "parsec/compute/batch/bool/BoolLessBatchOperator.h"
-#include "parsec/compute/single/arith/ArithLessOperator.h"
-#include "parsec/secret/Secrets.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
-#include "parsec/utils/System.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/compute/batch/bool/BoolLessBatchOperator.h"
+#include "parsecdb/compute/single/arith/ArithLessOperator.h"
+#include "parsecdb/secret/Secrets.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
+#include "parsecdb/utils/System.h"
 #include <chrono>
 #include <fstream>
 #include <iomanip>
@@ -17,13 +17,13 @@
 #include <numeric>
 #include <sstream>
 
-#include "parsec/compute/batch/bool/BoolEqualBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolMutexBatchOperator.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
+#include "parsecdb/compute/batch/bool/BoolEqualBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolMutexBatchOperator.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
 
 #include <string>
 
-using namespace parsec;
+using namespace parsecdb;
 
 static int task;
 

@@ -1,7 +1,7 @@
-#include "parsec/comm/TcpComm.h"
+#include "parsecdb/comm/TcpComm.h"
 
-#include "parsec/conf/AppConfig.h"
-#include "parsec/conf/Conf.h"
+#include "parsecdb/conf/AppConfig.h"
+#include "parsecdb/conf/Conf.h"
 
 #include <arpa/inet.h>
 #include <cerrno>
@@ -15,7 +15,7 @@
 #include <thread>
 #include <unistd.h>
 
-namespace parsec {
+namespace parsecdb {
 
 namespace {
 struct MessageHeader {
@@ -549,4 +549,4 @@ size_t TcpComm::elementSize(int width) {
     return sizeof(int64_t);
 }
 
-} // namespace parsec
+} // namespace parsecdb

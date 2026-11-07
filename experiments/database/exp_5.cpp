@@ -1,25 +1,25 @@
 
-#include "parsec/secret/Secrets.h"
-#include "parsec/utils/System.h"
+#include "parsecdb/secret/Secrets.h"
+#include "parsecdb/utils/System.h"
 
-#include "parsec/db/DbConf.h"
-#include "parsec/db/Table.h"
-#include "parsec/db/View.h"
-#include "parsec/db/Views.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
-#include "parsec/utils/StringUtils.h"
+#include "parsecdb/db/DbConf.h"
+#include "parsecdb/db/Table.h"
+#include "parsecdb/db/View.h"
+#include "parsecdb/db/Views.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
+#include "parsecdb/utils/StringUtils.h"
 
-#include "parsec/compute/batch/bool/BoolAndBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolLessBatchOperator.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
+#include "parsecdb/compute/batch/bool/BoolAndBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolLessBatchOperator.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
 
 #include <algorithm>
 #include <cstdint>
 #include <string>
 #include <vector>
 
-using namespace parsec;
+using namespace parsecdb;
 
 void generateRandomData(int rows, std::vector<int64_t>& id_data, std::vector<int64_t>& cs_data,
                         std::vector<int64_t>& year_data, std::vector<int64_t>& cs_plus_data, int64_t& chosen_year,

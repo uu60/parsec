@@ -1,13 +1,13 @@
 
-#include "parsec/compute/single/arith/ArithOperator.h"
+#include "parsecdb/compute/single/arith/ArithOperator.h"
 
-#include "parsec/comm/Comm.h"
-#include "parsec/conf/Conf.h"
-#include "parsec/ot/BaseOtOperator.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/conf/Conf.h"
+#include "parsecdb/ot/BaseOtOperator.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
+#include "parsecdb/utils/Math.h"
 
-namespace parsec {
+namespace parsecdb {
 
 ArithOperator::ArithOperator(int64_t z, int width, int taskTag, int msgTagOffset, int clientRank)
     : AbstractSingleOperator(width, taskTag, msgTagOffset) {
@@ -68,4 +68,4 @@ ArithOperator* ArithOperator::reconstruct(int clientRank) {
     return this;
 }
 
-} // namespace parsec
+} // namespace parsecdb

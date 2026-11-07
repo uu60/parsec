@@ -1,17 +1,17 @@
 
-#include "parsec/compute/single/arith/ArithToBoolOperator.h"
+#include "parsecdb/compute/single/arith/ArithToBoolOperator.h"
 
-#include "parsec/comm/Comm.h"
-#include "parsec/compute/single/bool/BoolAndOperator.h"
-#include "parsec/intermediate/BitwiseBmtBatchGenerator.h"
-#include "parsec/intermediate/BitwiseBmtGenerator.h"
-#include "parsec/intermediate/BmtGenerator.h"
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/compute/single/bool/BoolAndOperator.h"
+#include "parsecdb/intermediate/BitwiseBmtBatchGenerator.h"
+#include "parsecdb/intermediate/BitwiseBmtGenerator.h"
+#include "parsecdb/intermediate/BmtGenerator.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
 
-namespace parsec {
+namespace parsecdb {
 
 void ArithToBoolOperator::prepareBmts(BitwiseBmt& b0, BitwiseBmt& b1, BitwiseBmt& b2) const {
     if (_bmts != nullptr) {
@@ -122,4 +122,4 @@ ArithToBoolOperator* ArithToBoolOperator::reconstruct(int clientRank) {
 
 int ArithToBoolOperator::bmtCount(int width) { return 3; }
 
-} // namespace parsec
+} // namespace parsecdb

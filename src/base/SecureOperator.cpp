@@ -1,13 +1,13 @@
 
-#include "parsec/base/SecureOperator.h"
+#include "parsecdb/base/SecureOperator.h"
 
-#include "parsec/conf/Conf.h"
-#include "parsec/ot/RandOtBatchOperator.h"
-#include "parsec/ot/RandOtOperator.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/conf/Conf.h"
+#include "parsecdb/ot/RandOtBatchOperator.h"
+#include "parsecdb/ot/RandOtOperator.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
+#include "parsecdb/utils/Math.h"
 
-namespace parsec {
+namespace parsecdb {
 
 int SecureOperator::buildTag(int msgTag) const {
     int bits = 32 - Conf::TASK_TAG_BITS;
@@ -16,4 +16,4 @@ int SecureOperator::buildTag(int msgTag) const {
 
 int64_t SecureOperator::ring(int64_t raw) const { return Math::ring(raw, _width); }
 
-} // namespace parsec
+} // namespace parsecdb

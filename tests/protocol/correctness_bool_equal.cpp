@@ -1,14 +1,14 @@
-#include "parsec/compute/batch/bool/BoolEqualBatchOperator.h"
-#include "parsec/compute/single/bool/BoolEqualOperator.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
-#include "parsec/utils/System.h"
+#include "parsecdb/compute/batch/bool/BoolEqualBatchOperator.h"
+#include "parsecdb/compute/single/bool/BoolEqualOperator.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
+#include "parsecdb/utils/System.h"
 
 #include <array>
 #include <cstdint>
 #include <vector>
 
-using namespace parsec;
+using namespace parsecdb;
 
 namespace {
 bool testBatchWidth(int width) {

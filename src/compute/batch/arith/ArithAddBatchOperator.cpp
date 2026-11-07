@@ -1,8 +1,8 @@
 
-#include "parsec/compute/batch/arith/ArithAddBatchOperator.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/compute/batch/arith/ArithAddBatchOperator.h"
+#include "parsecdb/utils/Math.h"
 
-namespace parsec {
+namespace parsecdb {
 
 ArithAddBatchOperator* ArithAddBatchOperator::execute() {
     if (Comm::isClient()) {
@@ -20,4 +20,4 @@ ArithAddBatchOperator* ArithAddBatchOperator::execute() {
 
 int ArithAddBatchOperator::tagStride() { return 0; }
 
-} // namespace parsec
+} // namespace parsecdb

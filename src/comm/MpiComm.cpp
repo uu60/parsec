@@ -1,17 +1,17 @@
-#include "parsec/comm/MpiComm.h"
+#include "parsecdb/comm/MpiComm.h"
 #include <iostream>
 #include <limits>
 #include <memory>
 #include <mpi.h>
 #include <vector>
 
-#include "parsec/comm/item/MpiRequestWrapper.h"
-#include "parsec/conf/Conf.h"
-#include "parsec/utils/Log.h"
+#include "parsecdb/comm/item/MpiRequestWrapper.h"
+#include "parsecdb/conf/Conf.h"
+#include "parsecdb/utils/Log.h"
 
 #include <string>
 
-namespace parsec {
+namespace parsecdb {
 
 void MpiComm::finalize_() {
     MPI_Barrier(MPI_COMM_WORLD);
@@ -365,4 +365,4 @@ bool MpiComm::isServer_() { return _mpiRank == 0 || _mpiRank == 1; }
 
 bool MpiComm::isClient_() { return !isServer_(); }
 
-} // namespace parsec
+} // namespace parsecdb

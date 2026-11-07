@@ -1,20 +1,20 @@
 
-#include "parsec/compute/batch/arith/ArithToBoolBatchOperator.h"
+#include "parsecdb/compute/batch/arith/ArithToBoolBatchOperator.h"
 
-#include "parsec/comm/Comm.h"
-#include "parsec/compute/batch/bool/BoolAndBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolBatchOperator.h"
-#include "parsec/compute/single/arith/ArithToBoolOperator.h"
-#include "parsec/conf/Conf.h"
-#include "parsec/intermediate/BitwiseBmtBatchGenerator.h"
-#include "parsec/intermediate/BitwiseBmtGenerator.h"
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
-#include "parsec/utils/System.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/compute/batch/bool/BoolAndBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolBatchOperator.h"
+#include "parsecdb/compute/single/arith/ArithToBoolOperator.h"
+#include "parsecdb/conf/Conf.h"
+#include "parsecdb/intermediate/BitwiseBmtBatchGenerator.h"
+#include "parsecdb/intermediate/BitwiseBmtGenerator.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
+#include "parsecdb/utils/System.h"
 
-namespace parsec {
+namespace parsecdb {
 
 ArithToBoolBatchOperator::ArithToBoolBatchOperator(std::vector<int64_t>* xs, int width, int taskTag, int msgTagOffset,
                                                    int clientRank)
@@ -161,4 +161,4 @@ ArithToBoolBatchOperator* ArithToBoolBatchOperator::reconstruct(int clientRank) 
 
 int ArithToBoolBatchOperator::tagStride(int width) { return BoolAndBatchOperator::tagStride(); }
 
-} // namespace parsec
+} // namespace parsecdb

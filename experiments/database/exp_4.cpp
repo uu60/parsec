@@ -1,26 +1,26 @@
 
-#include "parsec/secret/Secrets.h"
-#include "parsec/utils/System.h"
+#include "parsecdb/secret/Secrets.h"
+#include "parsecdb/utils/System.h"
 
-#include "parsec/db/Table.h"
-#include "parsec/db/View.h"
-#include "parsec/db/Views.h"
+#include "parsecdb/db/Table.h"
+#include "parsecdb/db/View.h"
+#include "parsecdb/db/Views.h"
 
-#include "parsec/db/DbConf.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/db/DbConf.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
 
-#include "parsec/compute/batch/bool/BoolAndBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolEqualBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolAndBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolEqualBatchOperator.h"
 
 #include <algorithm>
 #include <string>
 #include <vector>
 
-#include "parsec/parallel/ThreadPoolSupport.h"
-#include "parsec/utils/StringUtils.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
+#include "parsecdb/utils/StringUtils.h"
 
-using namespace parsec;
+using namespace parsecdb;
 
 void generateTestData(int rows, std::vector<int64_t>& id_data, std::vector<int64_t>& pwd_data);
 

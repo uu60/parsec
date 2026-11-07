@@ -1,20 +1,20 @@
 
-#include "parsec/secret/Secrets.h"
+#include "parsecdb/secret/Secrets.h"
 #include <cmath>
 
-#include "parsec/accelerate/SimdSupport.h"
-#include "parsec/compute/batch/arith/ArithBatchOperator.h"
-#include "parsec/compute/batch/arith/ArithLessBatchOperator.h"
-#include "parsec/compute/batch/arith/ArithMutexBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolLessBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolMutexBatchOperator.h"
-#include "parsec/compute/single/bool/BoolMutexOperator.h"
-#include "parsec/conf/Conf.h"
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
-#include "parsec/utils/Log.h"
+#include "parsecdb/accelerate/SimdSupport.h"
+#include "parsecdb/compute/batch/arith/ArithBatchOperator.h"
+#include "parsecdb/compute/batch/arith/ArithLessBatchOperator.h"
+#include "parsecdb/compute/batch/arith/ArithMutexBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolLessBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolMutexBatchOperator.h"
+#include "parsecdb/compute/single/bool/BoolMutexOperator.h"
+#include "parsecdb/conf/Conf.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
+#include "parsecdb/utils/Log.h"
 
-namespace parsec {
+namespace parsecdb {
 
 using BatchOutput = std::tuple<std::vector<int>, std::vector<int>, std::vector<int64_t>>;
 
@@ -453,4 +453,4 @@ void doSort(std::vector<ArithSecret>& secrets, bool asc, int taskTag) {
 
 void Secrets::sort(std::vector<ArithSecret>& secrets, bool asc, int taskTag) { doSort(secrets, asc, taskTag); }
 
-} // namespace parsec
+} // namespace parsecdb

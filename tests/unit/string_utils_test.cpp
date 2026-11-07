@@ -1,11 +1,11 @@
-#include "parsec/utils/StringUtils.h"
+#include "parsecdb/utils/StringUtils.h"
 
 #include <gtest/gtest.h>
 
 #include <string>
 #include <vector>
 
-using namespace parsec;
+using namespace parsecdb;
 
 namespace {
 

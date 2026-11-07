@@ -1,27 +1,27 @@
 
-#include "parsec/db/DbConf.h"
-#include "parsec/secret/Secrets.h"
-#include "parsec/utils/System.h"
+#include "parsecdb/db/DbConf.h"
+#include "parsecdb/secret/Secrets.h"
+#include "parsecdb/utils/System.h"
 
-#include "parsec/db/Table.h"
-#include "parsec/db/View.h"
-#include "parsec/db/Views.h"
+#include "parsecdb/db/Table.h"
+#include "parsecdb/db/View.h"
+#include "parsecdb/db/Views.h"
 
-#include "parsec/parallel/ThreadPoolSupport.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
-#include "parsec/utils/StringUtils.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
+#include "parsecdb/utils/StringUtils.h"
 
 #include <algorithm>
 #include <map>
 #include <vector>
 
-#include "parsec/compute/batch/arith/ArithToBoolBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolAndBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolToArithBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolXorBatchOperator.h"
+#include "parsecdb/compute/batch/arith/ArithToBoolBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolAndBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolToArithBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolXorBatchOperator.h"
 
-using namespace parsec;
+using namespace parsecdb;
 
 struct OrderRow {
     int64_t cust;

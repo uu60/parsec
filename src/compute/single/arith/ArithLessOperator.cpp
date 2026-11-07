@@ -1,14 +1,14 @@
 
-#include "parsec/compute/single/arith/ArithLessOperator.h"
+#include "parsecdb/compute/single/arith/ArithLessOperator.h"
 
-#include "parsec/comm/Comm.h"
-#include "parsec/compute/single/arith/ArithToBoolOperator.h"
-#include "parsec/intermediate/BmtGenerator.h"
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/compute/single/arith/ArithToBoolOperator.h"
+#include "parsecdb/intermediate/BmtGenerator.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
 
-namespace parsec {
+namespace parsecdb {
 
 ArithLessOperator::ArithLessOperator(int64_t x, int64_t y, int l, int taskTag, int msgTagOffset, int clientRank)
     : ArithOperator(x, y, l, taskTag, msgTagOffset, clientRank) {}
@@ -51,4 +51,4 @@ ArithLessOperator* ArithLessOperator::setBmts(std::vector<BitwiseBmt>* bmts) {
     return this;
 }
 
-} // namespace parsec
+} // namespace parsecdb

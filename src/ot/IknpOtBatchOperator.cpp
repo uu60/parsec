@@ -1,13 +1,13 @@
-#include "parsec/ot/IknpOtBatchOperator.h"
+#include "parsecdb/ot/IknpOtBatchOperator.h"
 
-#include "parsec/accelerate/SimdSupport.h"
-#include "parsec/comm/Comm.h"
-#include "parsec/conf/Conf.h"
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
-#include "parsec/utils/Crypto.h"
-#include "parsec/utils/Math.h"
-#include "parsec/utils/System.h"
+#include "parsecdb/accelerate/SimdSupport.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/conf/Conf.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
+#include "parsecdb/utils/Crypto.h"
+#include "parsecdb/utils/Math.h"
+#include "parsecdb/utils/System.h"
 #include <algorithm>
 #include <cstring>
 #include <future>
@@ -15,7 +15,7 @@
 #include <stdexcept>
 #include <vector>
 
-namespace parsec {
+namespace parsecdb {
 
 constexpr size_t MAX_TILE_WIDTH = 64;
 constexpr size_t TILE_ROWS = 128;
@@ -689,4 +689,4 @@ void IknpOtBatchOperator::receiverExtend() {
     }
 }
 
-} // namespace parsec
+} // namespace parsecdb

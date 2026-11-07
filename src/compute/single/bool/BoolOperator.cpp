@@ -1,15 +1,15 @@
 
-#include "parsec/compute/single/bool/BoolOperator.h"
+#include "parsecdb/compute/single/bool/BoolOperator.h"
 
-#include "parsec/comm/Comm.h"
-#include "parsec/conf/Conf.h"
-#include "parsec/ot/BaseOtOperator.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
-#include "parsec/utils/System.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/conf/Conf.h"
+#include "parsecdb/ot/BaseOtOperator.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
+#include "parsecdb/utils/System.h"
 
-namespace parsec {
+namespace parsecdb {
 
 BoolOperator::BoolOperator(int64_t z, int l, int taskTag, int msgTagOffset, int clientRank)
     : AbstractSingleOperator(l, taskTag, msgTagOffset) {
@@ -71,4 +71,4 @@ BoolOperator* BoolOperator::reconstruct(int clientRank) {
 
 BoolOperator* BoolOperator::execute() { throw std::runtime_error("This method needs implementation."); }
 
-} // namespace parsec
+} // namespace parsecdb

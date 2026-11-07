@@ -1,12 +1,12 @@
 
-#include "parsec/ot/RandOtOperator.h"
+#include "parsecdb/ot/RandOtOperator.h"
 
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/utils/Log.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/utils/Log.h"
 
 #include <mutex>
 
-namespace parsec {
+namespace parsecdb {
 
 RandOtOperator* RandOtOperator::execute() {
     _currentMsgTag = _startMsgTag;
@@ -40,4 +40,4 @@ RandOtOperator* RandOtOperator::execute() {
 
 int RandOtOperator::tagStride(int width) { return 1; }
 
-} // namespace parsec
+} // namespace parsecdb

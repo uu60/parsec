@@ -1,4 +1,4 @@
-#include "parsec/utils/Crypto.h"
+#include "parsecdb/utils/Crypto.h"
 
 #include <gtest/gtest.h>
 #include <openssl/evp.h>
@@ -9,7 +9,7 @@
 #include <random>
 #include <vector>
 
-using namespace parsec;
+using namespace parsecdb;
 
 namespace {
 

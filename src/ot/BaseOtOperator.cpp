@@ -1,13 +1,13 @@
 
-#include "parsec/ot/BaseOtOperator.h"
+#include "parsecdb/ot/BaseOtOperator.h"
 
-#include "parsec/comm/Comm.h"
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/utils/Crypto.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/utils/Crypto.h"
+#include "parsecdb/utils/Math.h"
 #include <string>
 
-namespace parsec {
+namespace parsecdb {
 
 BaseOtOperator::BaseOtOperator(int sender, int64_t m0, int64_t m1, int choice, int l, int taskTag, int msgTagOffset)
     : AbstractOtOperator(sender, m0, m1, choice, l, taskTag, msgTagOffset) {}
@@ -64,4 +64,4 @@ void BaseOtOperator::process() {
 
 int BaseOtOperator::tagStride() { return 1; }
 
-} // namespace parsec
+} // namespace parsecdb

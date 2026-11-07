@@ -4,12 +4,12 @@
 #include <string>
 #include <utility>
 
-#include "parsec/db/Table.h"
+#include "parsecdb/db/Table.h"
 
-#include "parsec/utils/Log.h"
-#include "parsec/utils/StringUtils.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/StringUtils.h"
 
-namespace parsec {
+namespace parsecdb {
 
 Table::Table(std::string& tableName, std::vector<std::string>& fieldNames, std::vector<int>& fieldWidths,
              std::string keyField) {
@@ -59,4 +59,4 @@ size_t Table::rowNum() const {
     return _dataCols[0].size();
 }
 
-} // namespace parsec
+} // namespace parsecdb

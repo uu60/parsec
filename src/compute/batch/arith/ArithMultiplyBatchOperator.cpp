@@ -1,15 +1,15 @@
 
-#include "parsec/compute/batch/arith/ArithMultiplyBatchOperator.h"
+#include "parsecdb/compute/batch/arith/ArithMultiplyBatchOperator.h"
 
-#include "parsec/comm/Comm.h"
-#include "parsec/conf/Conf.h"
-#include "parsec/intermediate/BmtBatchGenerator.h"
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/conf/Conf.h"
+#include "parsecdb/intermediate/BmtBatchGenerator.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
 
-namespace parsec {
+namespace parsecdb {
 
 ArithMultiplyBatchOperator::ArithMultiplyBatchOperator(std::vector<int64_t>* xs, std::vector<int64_t>* ys, int width,
                                                        int taskTag, int msgTagOffset, int clientRank)
@@ -78,4 +78,4 @@ ArithMultiplyBatchOperator* ArithMultiplyBatchOperator::reconstruct(int clientRa
 
 int ArithMultiplyBatchOperator::tagStride(int width) { return BmtBatchGenerator::tagStride(); }
 
-} // namespace parsec
+} // namespace parsecdb

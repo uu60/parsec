@@ -1,16 +1,16 @@
 
-#include "parsec/utils/System.h"
+#include "parsecdb/utils/System.h"
 
-#include "parsec/base/SecureOperator.h"
-#include "parsec/comm/Comm.h"
-#include "parsec/comm/MpiComm.h"
-#include "parsec/conf/Conf.h"
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/base/SecureOperator.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/comm/MpiComm.h"
+#include "parsecdb/conf/Conf.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
 
-namespace parsec {
+namespace parsecdb {
 
 void System::init(int argc, char** argv) {
     Conf::init(argc, argv);
@@ -61,4 +61,4 @@ int64_t System::currentTimeMillis() {
     return millis;
 }
 
-} // namespace parsec
+} // namespace parsecdb

@@ -1,11 +1,11 @@
-#include "parsec/compute/batch/bool/BoolToArithBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolToArithBatchOperator.h"
 
-#include "parsec/ot/IknpOtBatchOperator.h"
-#include "parsec/ot/RandOtBatchOperator.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/ot/IknpOtBatchOperator.h"
+#include "parsecdb/ot/RandOtBatchOperator.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
 
-namespace parsec {
+namespace parsecdb {
 
 BoolToArithBatchOperator* BoolToArithBatchOperator::execute() {
     _currentMsgTag = _startMsgTag;
@@ -66,4 +66,4 @@ BoolToArithBatchOperator* BoolToArithBatchOperator::execute() {
 
 int BoolToArithBatchOperator::tagStride() { return IknpOtBatchOperator::tagStride(); }
 
-} // namespace parsec
+} // namespace parsecdb

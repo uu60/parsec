@@ -1,18 +1,18 @@
 
 #include <utility>
 
-#include "parsec/secret/item/ArithSecret.h"
+#include "parsecdb/secret/item/ArithSecret.h"
 
-#include "parsec/compute/single/arith/ArithAddOperator.h"
-#include "parsec/compute/single/arith/ArithLessOperator.h"
-#include "parsec/compute/single/arith/ArithMultiplyOperator.h"
-#include "parsec/compute/single/arith/ArithMutexOperator.h"
-#include "parsec/compute/single/arith/ArithOperator.h"
-#include "parsec/compute/single/arith/ArithToBoolOperator.h"
-#include "parsec/compute/single/bool/BoolOperator.h"
-#include "parsec/utils/Log.h"
+#include "parsecdb/compute/single/arith/ArithAddOperator.h"
+#include "parsecdb/compute/single/arith/ArithLessOperator.h"
+#include "parsecdb/compute/single/arith/ArithMultiplyOperator.h"
+#include "parsecdb/compute/single/arith/ArithMutexOperator.h"
+#include "parsecdb/compute/single/arith/ArithOperator.h"
+#include "parsecdb/compute/single/arith/ArithToBoolOperator.h"
+#include "parsecdb/compute/single/bool/BoolOperator.h"
+#include "parsecdb/utils/Log.h"
 
-namespace parsec {
+namespace parsecdb {
 
 ArithSecret::ArithSecret() = default;
 
@@ -66,4 +66,4 @@ ArithSecret ArithSecret::mux(ArithSecret yi, BitSecret cond_i) const {
             _width, _taskTag};
 }
 
-} // namespace parsec
+} // namespace parsecdb

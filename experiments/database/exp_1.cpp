@@ -1,11 +1,11 @@
 
-#include "parsec/secret/Secrets.h"
-#include "parsec/utils/System.h"
+#include "parsecdb/secret/Secrets.h"
+#include "parsecdb/utils/System.h"
 
-#include "parsec/db/View.h"
-#include "parsec/db/Views.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/StringUtils.h"
+#include "parsecdb/db/View.h"
+#include "parsecdb/db/Views.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/StringUtils.h"
 
 #include <algorithm>
 #include <random>
@@ -13,16 +13,16 @@
 #include <string>
 #include <vector>
 
-#include "parsec/compute/batch/arith/ArithAddBatchOperator.h"
-#include "parsec/compute/batch/arith/ArithMultiplyBatchOperator.h"
-#include "parsec/compute/batch/arith/ArithToBoolBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolAndBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolToArithBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolXorBatchOperator.h"
-#include "parsec/db/DbConf.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/compute/batch/arith/ArithAddBatchOperator.h"
+#include "parsecdb/compute/batch/arith/ArithMultiplyBatchOperator.h"
+#include "parsecdb/compute/batch/arith/ArithToBoolBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolAndBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolToArithBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolXorBatchOperator.h"
+#include "parsecdb/db/DbConf.h"
+#include "parsecdb/utils/Math.h"
 
-using namespace parsec;
+using namespace parsecdb;
 
 void generateTestData(int rows1, int rows2, std::vector<int64_t>& diagnosis_pid_data,
                       std::vector<int64_t>& diagnosis_diag_data, std::vector<int64_t>& diagnosis_extra_data,
