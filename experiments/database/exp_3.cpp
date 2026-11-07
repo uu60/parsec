@@ -1,20 +1,20 @@
 
-#include "secret/Secrets.h"
-#include "utils/System.h"
+#include "parsec/secret/Secrets.h"
+#include "parsec/utils/System.h"
 
-#include "basis/Table.h"
-#include "basis/View.h"
-#include "basis/Views.h"
+#include "parsec/db/Table.h"
+#include "parsec/db/View.h"
+#include "parsec/db/Views.h"
 
-#include "utils/Log.h"
-#include "utils/Math.h"
+#include "parsec/utils/Log.h"
+#include "parsec/utils/Math.h"
 
-#include "compute/batch/bool/BoolAndBatchOperator.h"
-#include "compute/batch/bool/BoolEqualBatchOperator.h"
-#include "compute/batch/bool/BoolLessBatchOperator.h"
+#include "parsec/compute/batch/bool/BoolAndBatchOperator.h"
+#include "parsec/compute/batch/bool/BoolEqualBatchOperator.h"
+#include "parsec/compute/batch/bool/BoolLessBatchOperator.h"
 
-#include "conf/DbConf.h"
-#include "parallel/ThreadPoolSupport.h"
+#include "parsec/db/DbConf.h"
+#include "parsec/parallel/ThreadPoolSupport.h"
 
 #include <algorithm>
 #include <string>

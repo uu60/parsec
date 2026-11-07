@@ -1,6 +1,6 @@
 // Compiles against the installed headers and links parsec::db; it does not start any ranks.
-#include "basis/View.h"
-#include "utils/Math.h"
+#include "parsec/db/View.h"
+#include "parsec/utils/Math.h"
 
 #include <iostream>
 

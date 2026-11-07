@@ -93,32 +93,16 @@ find_package(OpenSSL REQUIRED)
  endif ()
 
 include(GNUInstallDirs)
-# Installed headers keep their in-tree layout (for example `utils/Math.h`) under include/parsec.
-set(PARSEC_INSTALL_INCLUDEDIR "${CMAKE_INSTALL_INCLUDEDIR}/parsec")
 
-# Wrap source-tree include directories so they are used while building but not exported to consumers.
-function(parsec_build_include_dirs out)
-    set(result "")
-    foreach (dir ${ARGN})
-        list(APPEND result "$<BUILD_INTERFACE:${dir}>")
-    endforeach ()
-    set(${out} ${result} PARENT_SCOPE)
-endfunction()
-
-add_subdirectory(runtime)
-add_subdirectory(primitives)
-if (PARSEC_BUILD_TESTS)
-    add_subdirectory(tests/unit)
+add_subdirectory(src)
+if (PARSEC_BUILD_BENCHMARKS)
+    add_subdirectory(benchmarks)
 endif ()
-
-if (PARSEC_BUILD_DATABASE)
-    add_subdirectory(db)
-    if (PARSEC_BUILD_BENCHMARKS)
-        add_subdirectory(benchmarks/database)
-    endif ()
-    if (PARSEC_BUILD_EXPERIMENTS)
-        add_subdirectory(experiments/database)
-    endif ()
+if (PARSEC_BUILD_DATABASE AND PARSEC_BUILD_EXPERIMENTS)
+    add_subdirectory(experiments/database)
+endif ()
+if (PARSEC_BUILD_TESTS)
+    add_subdirectory(tests)
 endif ()
 
 # Package export: `find_package(parsec)` provides parsec::parsec and, when built, parsec::db.

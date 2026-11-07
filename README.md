@@ -57,7 +57,7 @@ For a full release build including the database components and benchmarks:
 ```bash
 cmake --preset release
 cmake --build --preset release
-mpirun -np 3 ./build/release/primitives/benchmark/correctness_ot
+mpirun -np 3 ./build/release/benchmarks/database/db_sort
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and
@@ -79,15 +79,23 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and
 ## Project Layout
 
 ```text
-runtime/        Configuration, communication, utilities, and parallel runtime support
-primitives/     MPC operators, OT, BMT generation, and secret-sharing primitives
-db/              Secure relational data structures and algorithms
-benchmarks/      Database performance benchmarks
-experiments/     Reproducible research experiments and correctness scripts
-tests/unit/      GoogleTest unit tests (single process, label `unit`)
-tools/           Development and utility scripts, including tools/run-local.sh
-examples/        MPI hostfile/rankfile templates and a find_package example project
-build.sh         Convenience build script
+include/parsec/          Public headers, included as "parsec/<module>/<Header>.h"
+  comm/ conf/ parallel/ sync/ utils/     runtime: communication, configuration, threading, utilities
+  base/ compute/ intermediate/ ot/       MPC operators, BMT/ROT preparation, oblivious transfer
+  secret/ system/ accelerate/            secret containers, runtime lifecycle, SIMD helpers
+  db/                                    secure relational tables, views, and operators
+src/<module>/            Implementation, one directory per header module
+tests/unit/              Single-process GoogleTest cases (label `unit`)
+tests/protocol/          Three-party protocol correctness over MPI and TCP (label `protocol`)
+tests/database/          Check mode of the database experiments (label `database`)
+benchmarks/primitives/   MPC primitive and OT benchmarks, with helper scripts
+benchmarks/database/     Secure database operator benchmarks, with helper scripts
+experiments/database/    Research experiments exp_1 to exp_8
+examples/                find_package example project and MPI hostfile/rankfile templates
+tools/                   Launch, formatting, and analysis scripts
+cmake/                   CMake package configuration
+docs/                    Security model
+build.sh                 Convenience build script
 ```
 
 ## Dependencies
@@ -147,8 +155,8 @@ preset builds the core library and registered correctness tests without the data
 
 ### Use from another CMake project
 
-Install Parsec and import it with `find_package`. Headers are installed under `include/parsec` with their in-tree
-layout, so includes such as `"utils/Math.h"` work unchanged:
+Install Parsec and import it with `find_package`. Headers are installed under `include/parsec` with the same layout
+as in the source tree, so code includes them as `"parsec/utils/Math.h"` both in-tree and after installation:
 
 ```bash
 cmake --preset release
@@ -171,10 +179,10 @@ configuring it.
 
 MPI is the default communication backend.
 
-Run a three-rank program locally:
+Run a three-rank program locally (protocol tests are built by the `dev` and `ci` presets):
 
 ```bash
-mpirun -np 3 ./build/primitives/benchmark/correctness_ot
+mpirun -np 3 ./build/dev/tests/protocol/correctness_ot
 ```
 
 Run a database benchmark:
@@ -188,8 +196,8 @@ mpirun -np 3 ./build/benchmarks/database/db_join
 `--oversubscribe`, so three ranks also start on machines with fewer cores:
 
 ```bash
-tools/run-local.sh ./build/primitives/benchmark/correctness_ot
-tools/run-local.sh --comm tcp ./build/primitives/benchmark/correctness_ot
+tools/run-local.sh ./build/dev/tests/protocol/correctness_ot
+tools/run-local.sh --comm tcp ./build/dev/tests/protocol/correctness_ot
 ```
 
 Run on multiple machines with an MPI hostfile and rankfile. Templates are in `examples/`; copy them to `hosts` and
@@ -198,7 +206,7 @@ Run on multiple machines with an MPI hostfile and rankfile. Templates are in `ex
 ```bash
 cp examples/hosts.example hosts
 cp examples/rankfile.example ranks
-mpirun -np 3 --hostfile hosts --rankfile ranks ./build/primitives/benchmark/correctness_ot
+mpirun -np 3 --hostfile hosts --rankfile ranks ./build/dev/tests/protocol/correctness_ot
 ```
 
 MPI ranks map directly to Parsec ranks: rank `0` and `1` are servers, rank `2` is the client.
@@ -210,16 +218,16 @@ TCP mode runs the same three logical ranks as independent OS processes. Use `--c
 Local example:
 
 ```bash
-./build/primitives/benchmark/correctness_ot --comm_type=tcp --tcp_rank=0 --tcp_size=3 --tcp_host=127.0.0.1 --tcp_base_port=18000 &
-./build/primitives/benchmark/correctness_ot --comm_type=tcp --tcp_rank=1 --tcp_size=3 --tcp_host=127.0.0.1 --tcp_base_port=18000 &
-./build/primitives/benchmark/correctness_ot --comm_type=tcp --tcp_rank=2 --tcp_size=3 --tcp_host=127.0.0.1 --tcp_base_port=18000
+./build/dev/tests/protocol/correctness_ot --comm_type=tcp --tcp_rank=0 --tcp_size=3 --tcp_host=127.0.0.1 --tcp_base_port=18000 &
+./build/dev/tests/protocol/correctness_ot --comm_type=tcp --tcp_rank=1 --tcp_size=3 --tcp_host=127.0.0.1 --tcp_base_port=18000 &
+./build/dev/tests/protocol/correctness_ot --comm_type=tcp --tcp_rank=2 --tcp_size=3 --tcp_host=127.0.0.1 --tcp_base_port=18000
 ```
 
 For local runs, `tools/run-local.sh --comm tcp` (a wrapper around `tools/run_tcp_ranks.py`) starts all three ranks,
 waits for them, and returns a non-zero status if any rank fails:
 
 ```bash
-tools/run-local.sh --comm tcp --base-port 18000 ./build/primitives/benchmark/correctness_ot
+tools/run-local.sh --comm tcp --base-port 18000 ./build/dev/tests/protocol/correctness_ot
 ```
 
 TCP rank `r` listens on `tcp_base_port + r`. With the default base port, ranks listen on ports `18000`, `18001`, and `18002`.
@@ -233,7 +241,7 @@ All runtime options use `--name=value` or `--flag` syntax.
 Display supported options:
 
 ```bash
-mpirun -np 3 ./build/primitives/benchmark/correctness_ot --help
+mpirun -np 3 ./build/dev/tests/protocol/correctness_ot --help
 ```
 
 Common runtime options:
@@ -291,8 +299,8 @@ All library types and functions live in the `parsec` namespace. The examples bel
 Every MPC executable should initialize and finalize the runtime:
 
 ```cpp
-#include "utils/System.h"
-#include "comm/Comm.h"
+#include "parsec/utils/System.h"
+#include "parsec/comm/Comm.h"
 
 using namespace parsec;
 

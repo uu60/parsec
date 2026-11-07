@@ -1,12 +1,12 @@
-#include "compute/batch/bool/BoolAndBatchOperator.h"
-#include "compute/batch/bool/BoolEqualBatchOperator.h"
-#include "compute/batch/bool/BoolLessBatchOperator.h"
-#include "conf/AppConfig.h"
-#include "conf/DbConf.h"
-#include "secret/Secrets.h"
-#include "utils/Log.h"
-#include "utils/Math.h"
-#include "utils/System.h"
+#include "parsec/compute/batch/bool/BoolAndBatchOperator.h"
+#include "parsec/compute/batch/bool/BoolEqualBatchOperator.h"
+#include "parsec/compute/batch/bool/BoolLessBatchOperator.h"
+#include "parsec/conf/AppConfig.h"
+#include "parsec/db/DbConf.h"
+#include "parsec/secret/Secrets.h"
+#include "parsec/utils/Log.h"
+#include "parsec/utils/Math.h"
+#include "parsec/utils/System.h"
 
 #include <algorithm>
 #include <cstdint>
