@@ -1,14 +1,14 @@
 
-#include "parsec/secret/item/BoolSecret.h"
+#include "parsecdb/secret/item/BoolSecret.h"
 
-#include "parsec/compute/single/bool/BoolAndOperator.h"
-#include "parsec/compute/single/bool/BoolLessOperator.h"
-#include "parsec/compute/single/bool/BoolMutexOperator.h"
-#include "parsec/compute/single/bool/BoolOperator.h"
-#include "parsec/compute/single/bool/BoolToArithOperator.h"
-#include "parsec/compute/single/bool/BoolXorOperator.h"
+#include "parsecdb/compute/single/bool/BoolAndOperator.h"
+#include "parsecdb/compute/single/bool/BoolLessOperator.h"
+#include "parsecdb/compute/single/bool/BoolMutexOperator.h"
+#include "parsecdb/compute/single/bool/BoolOperator.h"
+#include "parsecdb/compute/single/bool/BoolToArithOperator.h"
+#include "parsecdb/compute/single/bool/BoolXorOperator.h"
 
-namespace parsec {
+namespace parsecdb {
 
 BoolSecret::BoolSecret() = default;
 
@@ -68,4 +68,4 @@ BoolSecret BoolSecret::mux(BoolSecret yi, BitSecret cond_i) const {
             _width, _taskTag, _currentMsgTag};
 }
 
-} // namespace parsec
+} // namespace parsecdb

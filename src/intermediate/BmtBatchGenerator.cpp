@@ -1,12 +1,12 @@
-#include "parsec/intermediate/BmtBatchGenerator.h"
+#include "parsecdb/intermediate/BmtBatchGenerator.h"
 
-#include "parsec/conf/Conf.h"
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/ot/IknpOtBatchOperator.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/conf/Conf.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/ot/IknpOtBatchOperator.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
+#include "parsecdb/utils/Math.h"
 
-namespace parsec {
+namespace parsecdb {
 
 BmtBatchGenerator::BmtBatchGenerator(int count, int l, int taskTag, int msgTagOffset)
     : AbstractBmtBatchGenerator(count, l, taskTag, msgTagOffset) {}
@@ -116,4 +116,4 @@ BmtBatchGenerator* BmtBatchGenerator::execute() {
     return this;
 }
 
-} // namespace parsec
+} // namespace parsecdb

@@ -1,9 +1,9 @@
 
-#include "parsec/compute/batch/bool/BoolXorBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolXorBatchOperator.h"
 
-#include "parsec/accelerate/SimdSupport.h"
+#include "parsecdb/accelerate/SimdSupport.h"
 
-namespace parsec {
+namespace parsecdb {
 
 BoolXorBatchOperator* BoolXorBatchOperator::execute() {
     if (Conf::ENABLE_SIMD) {
@@ -19,4 +19,4 @@ BoolXorBatchOperator* BoolXorBatchOperator::execute() {
 
 int BoolXorBatchOperator::tagStride() { return 0; }
 
-} // namespace parsec
+} // namespace parsecdb

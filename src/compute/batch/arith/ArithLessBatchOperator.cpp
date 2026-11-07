@@ -1,16 +1,16 @@
 
-#include "parsec/compute/batch/arith/ArithLessBatchOperator.h"
+#include "parsecdb/compute/batch/arith/ArithLessBatchOperator.h"
 
-#include "parsec/comm/Comm.h"
-#include "parsec/compute/batch/arith/ArithToBoolBatchOperator.h"
-#include "parsec/conf/Conf.h"
-#include "parsec/intermediate/BitwiseBmtBatchGenerator.h"
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
-#include "parsec/utils/System.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/compute/batch/arith/ArithToBoolBatchOperator.h"
+#include "parsecdb/conf/Conf.h"
+#include "parsecdb/intermediate/BitwiseBmtBatchGenerator.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
+#include "parsecdb/utils/System.h"
 
-namespace parsec {
+namespace parsecdb {
 
 ArithLessBatchOperator::ArithLessBatchOperator(std::vector<int64_t>* xs, std::vector<int64_t>* ys, int width,
                                                int taskTag, int msgTagOffset, int clientRank)
@@ -67,4 +67,4 @@ ArithLessBatchOperator* ArithLessBatchOperator::reconstruct(int clientRank) {
 
 int ArithLessBatchOperator::tagStride(int width) { return ArithToBoolBatchOperator::tagStride(width); }
 
-} // namespace parsec
+} // namespace parsecdb

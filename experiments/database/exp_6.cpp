@@ -1,15 +1,15 @@
 
 
-#include "parsec/secret/Secrets.h"
-#include "parsec/utils/System.h"
+#include "parsecdb/secret/Secrets.h"
+#include "parsecdb/utils/System.h"
 
-#include "parsec/compute/batch/bool/BoolLessBatchOperator.h"
-#include "parsec/db/Table.h"
-#include "parsec/db/View.h"
-#include "parsec/db/Views.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/compute/batch/bool/BoolLessBatchOperator.h"
+#include "parsecdb/db/Table.h"
+#include "parsecdb/db/View.h"
+#include "parsecdb/db/Views.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
 
 #include <algorithm>
 #include <map>
@@ -18,11 +18,11 @@
 #include <string>
 #include <vector>
 
-#include "parsec/compute/batch/bool/BoolAndBatchOperator.h"
-#include "parsec/db/DbConf.h"
-#include "parsec/utils/StringUtils.h"
+#include "parsecdb/compute/batch/bool/BoolAndBatchOperator.h"
+#include "parsecdb/db/DbConf.h"
+#include "parsecdb/utils/StringUtils.h"
 
-using namespace parsec;
+using namespace parsecdb;
 
 static int64_t PLAIN_START_DATE = Math::randInt();
 static int64_t PLAIN_END_DATE = PLAIN_START_DATE + 3;

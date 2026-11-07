@@ -1,11 +1,11 @@
-#include "parsec/compute/batch/bool/BoolEqualBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolEqualBatchOperator.h"
 
-#include "parsec/compute/batch/bool/BoolAndBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolXorBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolAndBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolXorBatchOperator.h"
 
-#include "parsec/utils/Math.h"
+#include "parsecdb/utils/Math.h"
 
-namespace parsec {
+namespace parsecdb {
 
 BoolEqualBatchOperator* BoolEqualBatchOperator::execute() {
     if (Comm::isClient()) {
@@ -117,4 +117,4 @@ bool BoolEqualBatchOperator::prepareBmts(std::vector<BitwiseBmt>& bmts) {
     return false;
 }
 
-} // namespace parsec
+} // namespace parsecdb

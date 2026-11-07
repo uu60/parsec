@@ -1,16 +1,16 @@
 
-#include "parsec/compute/batch/bool/BoolLessBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolLessBatchOperator.h"
 
-#include "parsec/accelerate/SimdSupport.h"
-#include "parsec/compute/batch/bool/BoolAndBatchOperator.h"
-#include "parsec/compute/single/bool/BoolLessOperator.h"
-#include "parsec/conf/Conf.h"
-#include "parsec/intermediate/BitwiseBmtBatchGenerator.h"
-#include "parsec/intermediate/BitwiseBmtGenerator.h"
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
+#include "parsecdb/accelerate/SimdSupport.h"
+#include "parsecdb/compute/batch/bool/BoolAndBatchOperator.h"
+#include "parsecdb/compute/single/bool/BoolLessOperator.h"
+#include "parsecdb/conf/Conf.h"
+#include "parsecdb/intermediate/BitwiseBmtBatchGenerator.h"
+#include "parsecdb/intermediate/BitwiseBmtGenerator.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
 
-namespace parsec {
+namespace parsecdb {
 
 BoolLessBatchOperator* BoolLessBatchOperator::execute() {
     _currentMsgTag = _startMsgTag;
@@ -179,4 +179,4 @@ bool BoolLessBatchOperator::prepareBmts(std::vector<BitwiseBmt>& bmts) {
     return false;
 }
 
-} // namespace parsec
+} // namespace parsecdb

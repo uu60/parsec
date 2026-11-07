@@ -1,15 +1,15 @@
-#include "parsec/comm/Comm.h"
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/ot/IknpOtBatchOperator.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
-#include "parsec/utils/System.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/ot/IknpOtBatchOperator.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
+#include "parsecdb/utils/System.h"
 
 #include <algorithm>
 #include <cstdint>
 #include <vector>
 
-using namespace parsec;
+using namespace parsecdb;
 
 int main(int argc, char** argv) {
     System::init(argc, argv);

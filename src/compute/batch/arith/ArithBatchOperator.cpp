@@ -1,11 +1,11 @@
 
-#include "parsec/compute/batch/arith/ArithBatchOperator.h"
+#include "parsecdb/compute/batch/arith/ArithBatchOperator.h"
 
-#include "parsec/conf/Conf.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/conf/Conf.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
+#include "parsecdb/utils/Math.h"
 
-namespace parsec {
+namespace parsecdb {
 
 ArithBatchOperator::ArithBatchOperator(std::vector<int64_t>& zs, int width, int taskTag, int msgTagOffset,
                                        int clientRank)
@@ -96,4 +96,4 @@ ArithBatchOperator* ArithBatchOperator::reconstruct(int clientRank) {
 
 ArithBatchOperator* ArithBatchOperator::execute() { throw std::runtime_error("Needs implementation."); }
 
-} // namespace parsec
+} // namespace parsecdb

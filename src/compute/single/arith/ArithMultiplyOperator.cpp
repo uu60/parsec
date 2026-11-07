@@ -1,13 +1,13 @@
 
-#include "parsec/compute/single/arith/ArithMultiplyOperator.h"
+#include "parsecdb/compute/single/arith/ArithMultiplyOperator.h"
 
-#include "parsec/comm/Comm.h"
-#include "parsec/intermediate/BmtGenerator.h"
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/intermediate/BmtGenerator.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
 
-namespace parsec {
+namespace parsecdb {
 
 ArithMultiplyOperator* ArithMultiplyOperator::execute() {
     _currentMsgTag = _startMsgTag;
@@ -44,4 +44,4 @@ ArithMultiplyOperator* ArithMultiplyOperator::setBmt(Bmt* bmt) {
     return this;
 }
 
-} // namespace parsec
+} // namespace parsecdb

@@ -5,7 +5,7 @@ file(GLOB PARSEC_PROTOCOL_TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE
 foreach (src ${PARSEC_PROTOCOL_TEST_SOURCES})
     get_filename_component(name ${src} NAME_WE)
     add_executable(${name} ${src})
-    target_link_libraries(${name} PRIVATE parsec)
+    target_link_libraries(${name} PRIVATE parsecdb)
 endforeach ()
 
 function(parsec_add_mpi_test name target)

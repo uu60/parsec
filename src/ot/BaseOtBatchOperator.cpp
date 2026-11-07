@@ -1,15 +1,15 @@
-#include "parsec/ot/BaseOtBatchOperator.h"
+#include "parsecdb/ot/BaseOtBatchOperator.h"
 
-#include "parsec/comm/Comm.h"
-#include "parsec/conf/Conf.h"
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/utils/Math.h"
-#include "parsec/utils/System.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/conf/Conf.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/utils/Math.h"
+#include "parsecdb/utils/System.h"
 #include <cstring>
 #include <stdexcept>
 #include <string>
 
-namespace parsec {
+namespace parsecdb {
 
 BaseOtBatchOperator::BaseOtBatchOperator(int sender, std::vector<int64_t>* ms0, std::vector<int64_t>* ms1,
                                          std::vector<int>* choices, int width, int taskTag, int msgTagOffset)
@@ -273,4 +273,4 @@ void BaseOtBatchOperator::process() {
 
 int BaseOtBatchOperator::tagStride() { return 1; }
 
-} // namespace parsec
+} // namespace parsecdb

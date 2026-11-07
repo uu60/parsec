@@ -1,14 +1,14 @@
-#include "parsec/comm/Comm.h"
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/ot/IknpOtBatchOperator.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
-#include "parsec/utils/System.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/ot/IknpOtBatchOperator.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
+#include "parsecdb/utils/System.h"
 
 #include <cstdint>
 #include <vector>
 
-using namespace parsec;
+using namespace parsecdb;
 
 // Simulates BMT's computeMix logic to test if IKNP OT works correctly for it
 bool testBmtOtLogic(int sender, int task, int bc) {

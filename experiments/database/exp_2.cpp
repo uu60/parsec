@@ -1,10 +1,10 @@
 
-#include "parsec/secret/Secrets.h"
-#include "parsec/utils/System.h"
+#include "parsecdb/secret/Secrets.h"
+#include "parsecdb/utils/System.h"
 
-#include "parsec/db/View.h"
-#include "parsec/db/Views.h"
-#include "parsec/utils/Log.h"
+#include "parsecdb/db/View.h"
+#include "parsecdb/db/Views.h"
+#include "parsecdb/utils/Log.h"
 
 #include <algorithm>
 #include <future>
@@ -12,16 +12,16 @@
 #include <tuple>
 #include <vector>
 
-#include "parsec/compute/batch/bool/BoolAndBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolEqualBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolLessBatchOperator.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/compute/batch/bool/BoolAndBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolEqualBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolLessBatchOperator.h"
+#include "parsecdb/utils/Math.h"
 
-#include "parsec/db/DbConf.h"
-#include "parsec/db/Table.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
+#include "parsecdb/db/DbConf.h"
+#include "parsecdb/db/Table.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
 
-using namespace parsec;
+using namespace parsecdb;
 
 void generateRandomData(int num_records, std::vector<int64_t>& pid_data, std::vector<int64_t>& pid_hash_data,
                         std::vector<int64_t>& time_data, std::vector<int64_t>& time_plus_15_data,

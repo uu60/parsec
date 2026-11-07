@@ -1,12 +1,12 @@
 
-#include "parsec/compute/batch/bool/BoolBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolBatchOperator.h"
 
-#include "parsec/comm/item/MpiRequestWrapper.h"
-#include "parsec/conf/Conf.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/comm/item/MpiRequestWrapper.h"
+#include "parsecdb/conf/Conf.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
+#include "parsecdb/utils/Math.h"
 
-namespace parsec {
+namespace parsecdb {
 
 BoolBatchOperator::BoolBatchOperator(std::vector<int64_t>& zs, int width, int taskTag, int msgTagOffset, int clientRank)
     : AbstractBatchOperator(width, taskTag, msgTagOffset) {
@@ -96,4 +96,4 @@ BoolBatchOperator* BoolBatchOperator::reconstruct(int clientRank) {
 
 BoolBatchOperator* BoolBatchOperator::execute() { throw std::runtime_error("Needs implementation."); }
 
-} // namespace parsec
+} // namespace parsecdb

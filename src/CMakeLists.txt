@@ -28,10 +28,10 @@ if (NOT PARSEC_HAS_BUILTIN_WIDE_ATOMICS)
 endif ()
 unset(CMAKE_REQUIRED_FLAGS)
 
-# Public headers live in include/parsec and are included as "parsec/<module>/<Header>.h".
+# Public headers live in include/parsecdb and are included as "parsecdb/<module>/<Header>.h".
 set(PARSEC_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/include")
 
-# parsec: runtime (communication, configuration, parallel support, utilities) and MPC primitives.
+# parsecdb: runtime (communication, configuration, parallel support, utilities) and MPC primitives.
 set(PARSEC_MODULES
         comm conf utils             # runtime
         accelerate base compute intermediate ot secret system)  # primitives
@@ -41,28 +41,28 @@ foreach (module ${PARSEC_MODULES})
     list(APPEND PARSEC_SOURCES ${module_sources})
 endforeach ()
 
-add_library(parsec STATIC ${PARSEC_SOURCES})
-add_library(parsec::parsec ALIAS parsec)
-target_compile_features(parsec PUBLIC cxx_std_17)
-target_include_directories(parsec PUBLIC
+add_library(parsecdb STATIC ${PARSEC_SOURCES})
+add_library(parsecdb::parsecdb ALIAS parsecdb)
+target_compile_features(parsecdb PUBLIC cxx_std_17)
+target_include_directories(parsecdb PUBLIC
         $<BUILD_INTERFACE:${PARSEC_INCLUDE_DIR}>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
-target_link_libraries(parsec PUBLIC MPI::MPI_CXX OpenSSL::SSL OpenSSL::Crypto Boost::boost ${PARSEC_ATOMIC_LIBS})
+target_link_libraries(parsecdb PUBLIC MPI::MPI_CXX OpenSSL::SSL OpenSSL::Crypto Boost::boost ${PARSEC_ATOMIC_LIBS})
 if (TBB_FOUND)
-    target_link_libraries(parsec PUBLIC ${TBB_LIBRARIES})
+    target_link_libraries(parsecdb PUBLIC ${TBB_LIBRARIES})
     # Public headers change with this flag, so consumers must see it too.
     target_compile_definitions(parsec PUBLIC PARSEC_HAS_TBB)
 endif ()
-install(TARGETS parsec EXPORT parsecTargets)
+install(TARGETS parsecdb EXPORT parsecdbTargets)
 
-# parsec::db: secure relational data structures and operators.
+# parsecdb::db: secure relational data structures and operators.
 if (PARSEC_BUILD_DATABASE)
     file(GLOB_RECURSE PARSEC_DB_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/db/*.cpp")
     add_library(db_core STATIC ${PARSEC_DB_SOURCES})
-    add_library(parsec::db ALIAS db_core)
+    add_library(parsecdb::db ALIAS db_core)
     set_target_properties(db_core PROPERTIES EXPORT_NAME db)
-    target_link_libraries(db_core PUBLIC parsec)
-    install(TARGETS db_core EXPORT parsecTargets)
+    target_link_libraries(db_core PUBLIC parsecdb)
+    install(TARGETS db_core EXPORT parsecdbTargets)
 endif ()
 
 install(DIRECTORY "${PARSEC_INCLUDE_DIR}/" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h")

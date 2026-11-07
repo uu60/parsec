@@ -1,14 +1,14 @@
-#include "parsec/comm/Comm.h"
-#include "parsec/intermediate/BitwiseBmtBatchGenerator.h"
-#include "parsec/intermediate/BmtBatchGenerator.h"
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/System.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/intermediate/BitwiseBmtBatchGenerator.h"
+#include "parsecdb/intermediate/BmtBatchGenerator.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/System.h"
 
 #include <cstdint>
 #include <vector>
 
-using namespace parsec;
+using namespace parsecdb;
 
 int main(int argc, char** argv) {
     System::init(argc, argv);

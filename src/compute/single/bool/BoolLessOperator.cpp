@@ -1,16 +1,16 @@
 
 #include <cmath>
 
-#include "parsec/compute/single/bool/BoolAndOperator.h"
-#include "parsec/compute/single/bool/BoolLessOperator.h"
-#include "parsec/intermediate/BitwiseBmtBatchGenerator.h"
-#include "parsec/intermediate/BitwiseBmtGenerator.h"
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/compute/single/bool/BoolAndOperator.h"
+#include "parsecdb/compute/single/bool/BoolLessOperator.h"
+#include "parsecdb/intermediate/BitwiseBmtBatchGenerator.h"
+#include "parsecdb/intermediate/BitwiseBmtGenerator.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
 
-namespace parsec {
+namespace parsecdb {
 
 bool BoolLessOperator::prepareBmts(std::vector<BitwiseBmt>& bmts) {
     if (_bmts != nullptr) {
@@ -122,4 +122,4 @@ int64_t BoolLessOperator::shiftGreater(int64_t in, int r) const {
     return in;
 }
 
-} // namespace parsec
+} // namespace parsecdb

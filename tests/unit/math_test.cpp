@@ -1,4 +1,4 @@
-#include "parsec/utils/Math.h"
+#include "parsecdb/utils/Math.h"
 
 #include <gtest/gtest.h>
 
@@ -11,7 +11,7 @@
 #include <thread>
 #include <vector>
 
-using namespace parsec;
+using namespace parsecdb;
 
 namespace {
 

@@ -1,18 +1,18 @@
 
-#include "parsec/secret/Secrets.h"
-#include "parsec/utils/System.h"
+#include "parsecdb/secret/Secrets.h"
+#include "parsecdb/utils/System.h"
 
-#include "parsec/db/View.h"
-#include "parsec/db/Views.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/StringUtils.h"
+#include "parsecdb/db/View.h"
+#include "parsecdb/db/Views.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/StringUtils.h"
 
 #include <string>
 
-#include "parsec/ot/IknpOtBatchOperator.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/ot/IknpOtBatchOperator.h"
+#include "parsecdb/utils/Math.h"
 
-using namespace parsec;
+using namespace parsecdb;
 
 int main(int argc, char* argv[]) {
     System::init(argc, argv);

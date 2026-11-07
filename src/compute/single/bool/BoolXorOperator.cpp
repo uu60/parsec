@@ -1,9 +1,9 @@
 
-#include "parsec/compute/single/bool/BoolXorOperator.h"
+#include "parsecdb/compute/single/bool/BoolXorOperator.h"
 
-#include "parsec/compute/single/arith/ArithAddOperator.h"
+#include "parsecdb/compute/single/arith/ArithAddOperator.h"
 
-namespace parsec {
+namespace parsecdb {
 
 BoolXorOperator* BoolXorOperator::execute() {
     _zi = _xi ^ _yi;
@@ -12,4 +12,4 @@ BoolXorOperator* BoolXorOperator::execute() {
 
 int BoolXorOperator::tagStride() { return 0; }
 
-} // namespace parsec
+} // namespace parsecdb

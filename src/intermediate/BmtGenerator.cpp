@@ -1,13 +1,13 @@
-#include "parsec/intermediate/BmtGenerator.h"
+#include "parsecdb/intermediate/BmtGenerator.h"
 
-#include "parsec/comm/Comm.h"
-#include "parsec/conf/Conf.h"
-#include "parsec/ot/IknpOtBatchOperator.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/conf/Conf.h"
+#include "parsecdb/ot/IknpOtBatchOperator.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
 
-namespace parsec {
+namespace parsecdb {
 
 void BmtGenerator::generateRandomAB() {
     _bmt._a = ring(Math::randBits());
@@ -97,4 +97,4 @@ BmtGenerator* BmtGenerator::execute() {
     return this;
 }
 
-} // namespace parsec
+} // namespace parsecdb

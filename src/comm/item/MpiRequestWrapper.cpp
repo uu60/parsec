@@ -1,10 +1,10 @@
 
-#include "parsec/comm/item/MpiRequestWrapper.h"
+#include "parsecdb/comm/item/MpiRequestWrapper.h"
 
-#include "parsec/conf/Conf.h"
-#include "parsec/utils/Log.h"
+#include "parsecdb/conf/Conf.h"
+#include "parsecdb/utils/Log.h"
 
-namespace parsec {
+namespace parsecdb {
 
 MpiRequestWrapper::MpiRequestWrapper(bool recv) { _recv = recv; }
 
@@ -91,4 +91,4 @@ void MpiRequestWrapper::wait() {
         Log::i("3");
 }
 
-} // namespace parsec
+} // namespace parsecdb

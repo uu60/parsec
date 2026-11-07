@@ -1,28 +1,28 @@
 
-#include "parsec/db/View.h"
+#include "parsecdb/db/View.h"
 
 #include <algorithm>
 #include <numeric>
 
-#include "parsec/comm/Comm.h"
-#include "parsec/compute/batch/arith/ArithMultiplyBatchOperator.h"
-#include "parsec/compute/batch/arith/ArithMutexBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolAndBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolEqualBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolLessBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolMutexBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolToArithBatchOperator.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
-#include "parsec/secret/Secrets.h"
-#include "parsec/utils/Log.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/compute/batch/arith/ArithMultiplyBatchOperator.h"
+#include "parsecdb/compute/batch/arith/ArithMutexBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolAndBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolEqualBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolLessBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolMutexBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolToArithBatchOperator.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
+#include "parsecdb/secret/Secrets.h"
+#include "parsecdb/utils/Log.h"
 
 #include <string>
 
-#include "parsec/compute/batch/arith/ArithToBoolBatchOperator.h"
-#include "parsec/db/DbConf.h"
-#include "parsec/utils/StringUtils.h"
+#include "parsecdb/compute/batch/arith/ArithToBoolBatchOperator.h"
+#include "parsecdb/db/DbConf.h"
+#include "parsecdb/utils/StringUtils.h"
 
-namespace parsec {
+namespace parsecdb {
 
 View::View(std::vector<std::string>& fieldNames, std::vector<int>& fieldWidths)
     : Table(EMPTY_VIEW_NAME, fieldNames, fieldWidths, EMPTY_KEY_FIELD) {
@@ -3286,4 +3286,4 @@ void View::bitonicSortMultiBatches(const std::vector<std::string>& orderFields,
     }
 }
 
-} // namespace parsec
+} // namespace parsecdb

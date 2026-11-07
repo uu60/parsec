@@ -1,0 +1,18 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+find_dependency(MPI COMPONENTS CXX)
+find_dependency(OpenSSL)
+find_dependency(Boost CONFIG)
+if ("@TBB_FOUND@")
+    if (APPLE)
+        find_dependency(tbb CONFIG)
+    else ()
+        find_dependency(TBB CONFIG)
+    endif ()
+endif ()
+
+include("${CMAKE_CURRENT_LIST_DIR}/parsecdbTargets.cmake")
+
+check_required_components(parsecdb)

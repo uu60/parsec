@@ -1,10 +1,10 @@
-// Compiles against the installed headers and links parsec::db; it does not start any ranks.
-#include "parsec/db/View.h"
-#include "parsec/utils/Math.h"
+// Compiles against the installed headers and links parsecdb::db; it does not start any ranks.
+#include "parsecdb/db/View.h"
+#include "parsecdb/utils/Math.h"
 
 #include <iostream>
 
-using namespace parsec;
+using namespace parsecdb;
 
 int main() {
     std::cout << "ring(-1, 8) = " << Math::ring(-1, 8) << '\n';

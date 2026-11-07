@@ -1,26 +1,26 @@
 
-#include "parsec/secret/Secrets.h"
-#include "parsec/utils/System.h"
+#include "parsecdb/secret/Secrets.h"
+#include "parsecdb/utils/System.h"
 
-#include "parsec/db/Table.h"
-#include "parsec/db/View.h"
-#include "parsec/db/Views.h"
+#include "parsecdb/db/Table.h"
+#include "parsecdb/db/View.h"
+#include "parsecdb/db/Views.h"
 
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
 
-#include "parsec/compute/batch/bool/BoolAndBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolEqualBatchOperator.h"
-#include "parsec/compute/batch/bool/BoolLessBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolAndBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolEqualBatchOperator.h"
+#include "parsecdb/compute/batch/bool/BoolLessBatchOperator.h"
 
-#include "parsec/db/DbConf.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
+#include "parsecdb/db/DbConf.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
 
 #include <algorithm>
 #include <string>
 #include <vector>
 
-using namespace parsec;
+using namespace parsecdb;
 
 static int64_t kHD = Math::randInt();
 static int64_t kASP = Math::randInt();

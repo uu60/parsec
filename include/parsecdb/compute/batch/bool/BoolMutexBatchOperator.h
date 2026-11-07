@@ -1,0 +1,46 @@
+
+#ifndef BOOLMUTEXBATCHEXECUTOR_H
+#define BOOLMUTEXBATCHEXECUTOR_H
+#include "parsecdb/compute/batch/bool/BoolBatchOperator.h"
+#include "parsecdb/intermediate/item/BitwiseBmt.h"
+
+namespace parsecdb {
+
+class BoolMutexBatchOperator : public BoolBatchOperator {
+  public:
+    std::vector<int64_t>* _conds_i{};
+    inline static std::atomic_int64_t _totalTime = 0;
+
+  private:
+    std::vector<BitwiseBmt>* _bmts{};
+
+    bool _bidir{};
+
+  public:
+    BoolMutexBatchOperator(std::vector<int64_t>* xs, std::vector<int64_t>* ys, std::vector<int64_t>* conds, int width,
+                           int taskTag, int msgTagOffset, int clientRank);
+
+    BoolMutexBatchOperator(std::vector<int64_t>* xs, std::vector<int64_t>* ys, std::vector<int64_t>* conds, int width,
+                           int taskTag, int msgTagOffset);
+
+    ~BoolMutexBatchOperator() override;
+
+    BoolMutexBatchOperator* execute() override;
+
+    BoolMutexBatchOperator* setBmts(std::vector<BitwiseBmt>* bmts);
+
+    static int tagStride();
+
+    static int bmtCount(int num, int width);
+
+  private:
+    bool prepareBmts(std::vector<BitwiseBmt>& bmts);
+
+    void execute0();
+
+    void executeBidirectionally();
+};
+
+} // namespace parsecdb
+
+#endif

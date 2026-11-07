@@ -2,12 +2,12 @@
 // Created on 2026-02-17.
 //
 
-#include "parsec/ot/BaseOtBatchOperator.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/StringUtils.h"
-#include "parsec/utils/System.h"
+#include "parsecdb/ot/BaseOtBatchOperator.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/StringUtils.h"
+#include "parsecdb/utils/System.h"
 
-using namespace parsec;
+using namespace parsecdb;
 
 int main(int argc, char* argv[]) {
     System::init(argc, argv);

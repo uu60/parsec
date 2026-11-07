@@ -1,18 +1,18 @@
 
 #include <utility>
 
-#include "parsec/comm/Comm.h"
+#include "parsecdb/comm/Comm.h"
 
 #include <vector>
 
-#include "parsec/comm/MpiComm.h"
-#include "parsec/comm/TcpComm.h"
-#include "parsec/conf/Conf.h"
+#include "parsecdb/comm/MpiComm.h"
+#include "parsecdb/comm/TcpComm.h"
+#include "parsecdb/conf/Conf.h"
 
 #include <chrono>
 #include <string>
 
-namespace parsec {
+namespace parsecdb {
 
 namespace {
 int64_t currentTimeMillis() {
@@ -237,4 +237,4 @@ void Comm::wait(AbstractRequest* request) {
     }
 }
 
-} // namespace parsec
+} // namespace parsecdb

@@ -1,11 +1,11 @@
-#include "parsec/conf/Conf.h"
+#include "parsecdb/conf/Conf.h"
 
-#include "parsec/conf/AppConfig.h"
+#include "parsecdb/conf/AppConfig.h"
 
 #include <iostream>
 #include <stdexcept>
 
-namespace parsec {
+namespace parsecdb {
 
 namespace {
 Conf::BmtT parseBmtMethod(const std::string& value) {
@@ -142,4 +142,4 @@ void Conf::init(int argc, char** argv) {
     }
 }
 
-} // namespace parsec
+} // namespace parsecdb

@@ -1,11 +1,11 @@
 
-#include "parsec/compute/single/arith/ArithAddOperator.h"
-#include "parsec/comm/Comm.h"
-#include "parsec/utils/Math.h"
-#include "parsec/utils/System.h"
+#include "parsecdb/compute/single/arith/ArithAddOperator.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/utils/Math.h"
+#include "parsecdb/utils/System.h"
 #include <limits>
 
-namespace parsec {
+namespace parsecdb {
 
 ArithAddOperator* ArithAddOperator::execute() {
     if (Comm::isServer()) {
@@ -15,4 +15,4 @@ ArithAddOperator* ArithAddOperator::execute() {
     return this;
 }
 
-} // namespace parsec
+} // namespace parsecdb

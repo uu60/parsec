@@ -1,24 +1,24 @@
-#include "parsec/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
 
-#include "parsec/comm/Comm.h"
-#include "parsec/intermediate/BitwiseBmtBatchGenerator.h"
-#include "parsec/intermediate/BitwiseBmtGenerator.h"
-#include "parsec/intermediate/BmtGenerator.h"
-#include "parsec/ot/BaseOtOperator.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
-#include "parsec/sync/BoostLockFreeQueue.h"
-#include "parsec/sync/BoostSpscQueue.h"
-#include "parsec/sync/LockBlockingQueue.h"
-#include "parsec/utils/Log.h"
-#include "parsec/utils/Math.h"
+#include "parsecdb/comm/Comm.h"
+#include "parsecdb/intermediate/BitwiseBmtBatchGenerator.h"
+#include "parsecdb/intermediate/BitwiseBmtGenerator.h"
+#include "parsecdb/intermediate/BmtGenerator.h"
+#include "parsecdb/ot/BaseOtOperator.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
+#include "parsecdb/sync/BoostLockFreeQueue.h"
+#include "parsecdb/sync/BoostSpscQueue.h"
+#include "parsecdb/sync/LockBlockingQueue.h"
+#include "parsecdb/utils/Log.h"
+#include "parsecdb/utils/Math.h"
 #include <climits>
 #include <stdexcept>
 
-#include "parsec/intermediate/PipelineBitwiseBmtBatchGenerator.h"
-#include "parsec/ot/BaseOtBatchOperator.h"
-#include "parsec/utils/Crypto.h"
+#include "parsecdb/intermediate/PipelineBitwiseBmtBatchGenerator.h"
+#include "parsecdb/ot/BaseOtBatchOperator.h"
+#include "parsecdb/utils/Crypto.h"
 
-namespace parsec {
+namespace parsecdb {
 
 void IntermediateDataSupport::prepareBmt() {
     if (Conf::BMT_METHOD == Conf::BMT_FIXED) {
@@ -341,4 +341,4 @@ void IntermediateDataSupport::prepareIknpDirection(int iknpSender, int msgTagOff
     }
 }
 
-} // namespace parsec
+} // namespace parsecdb

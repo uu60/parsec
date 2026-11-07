@@ -1,13 +1,13 @@
 
-#include "parsec/ot/RandOtBatchOperator.h"
+#include "parsecdb/ot/RandOtBatchOperator.h"
 
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
-#include "parsec/utils/Log.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
+#include "parsecdb/utils/Log.h"
 
 #include <mutex>
 
-namespace parsec {
+namespace parsecdb {
 
 RandOtBatchOperator::RandOtBatchOperator(int sender, std::vector<int64_t>* bits0, std::vector<int64_t>* bits1,
                                          std::vector<int64_t>* choiceBits, int taskTag, int msgTagOffset)
@@ -271,4 +271,4 @@ RandOtBatchOperator* RandOtBatchOperator::execute() {
 
 int RandOtBatchOperator::tagStride() { return 1; }
 
-} // namespace parsec
+} // namespace parsecdb

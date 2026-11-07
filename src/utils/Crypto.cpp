@@ -90,7 +90,7 @@
 //
 //
 
-#include "parsec/utils/Crypto.h"
+#include "parsecdb/utils/Crypto.h"
 #include <cstring>
 #include <functional>
 #include <memory>
@@ -103,7 +103,7 @@
 #include <string>
 #include <vector>
 
-namespace parsec {
+namespace parsecdb {
 
 std::unordered_map<int, std::string> Crypto::_selfPubs = {};
 std::unordered_map<int, std::string> Crypto::_selfPris = {};
@@ -688,4 +688,4 @@ void Crypto::extract_uRaw_col0_col64_fast(const uint64_t* uRaw, size_t blocks, U
     }
 }
 
-} // namespace parsec
+} // namespace parsecdb

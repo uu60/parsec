@@ -1,10 +1,10 @@
 
-#include "parsec/intermediate/PipelineBitwiseBmtBatchGenerator.h"
+#include "parsecdb/intermediate/PipelineBitwiseBmtBatchGenerator.h"
 
-#include "parsec/intermediate/IntermediateDataSupport.h"
-#include "parsec/parallel/ThreadPoolSupport.h"
+#include "parsecdb/intermediate/IntermediateDataSupport.h"
+#include "parsecdb/parallel/ThreadPoolSupport.h"
 
-namespace parsec {
+namespace parsecdb {
 
 PipelineBitwiseBmtBatchGenerator* PipelineBitwiseBmtBatchGenerator::execute() {
     _currentMsgTag = _startMsgTag;
@@ -158,4 +158,4 @@ PipelineBitwiseBmtBatchGenerator* PipelineBitwiseBmtBatchGenerator::reconstruct(
     throw std::runtime_error("reconstruct not implemented");
 }
 
-} // namespace parsec
+} // namespace parsecdb

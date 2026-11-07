@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(parsec VERSION 0.1.0 LANGUAGES CXX)
+project(parsecdb VERSION 0.1.0 LANGUAGES CXX)
 
 option(PARSEC_BUILD_DATABASE "Build the secure database components" ON)
 option(PARSEC_BUILD_BENCHMARKS "Build benchmark executables" ON)
@@ -105,20 +105,20 @@ if (PARSEC_BUILD_TESTS)
     add_subdirectory(tests)
 endif ()
 
-# Package export: `find_package(parsec)` provides parsec::parsec and, when built, parsec::db.
+# Package export: `find_package(parsecdb)` provides parsecdb::parsecdb and, when built, parsecdb::db.
 include(CMakePackageConfigHelpers)
-set(PARSEC_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/parsec")
-install(EXPORT parsecTargets
-        NAMESPACE parsec::
+set(PARSEC_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/parsecdb")
+install(EXPORT parsecdbTargets
+        NAMESPACE parsecdb::
         DESTINATION ${PARSEC_INSTALL_CMAKEDIR})
 configure_package_config_file(
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/parsecConfig.cmake.in"
-        "${CMAKE_CURRENT_BINARY_DIR}/parsecConfig.cmake"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/parsecdbConfig.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/parsecdbConfig.cmake"
         INSTALL_DESTINATION ${PARSEC_INSTALL_CMAKEDIR})
 write_basic_package_version_file(
-        "${CMAKE_CURRENT_BINARY_DIR}/parsecConfigVersion.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/parsecdbConfigVersion.cmake"
         COMPATIBILITY SameMinorVersion)
 install(FILES
-        "${CMAKE_CURRENT_BINARY_DIR}/parsecConfig.cmake"
-        "${CMAKE_CURRENT_BINARY_DIR}/parsecConfigVersion.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/parsecdbConfig.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/parsecdbConfigVersion.cmake"
         DESTINATION ${PARSEC_INSTALL_CMAKEDIR})

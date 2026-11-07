@@ -1,4 +1,4 @@
-#include "parsec/accelerate/SimdSupport.h"
+#include "parsecdb/accelerate/SimdSupport.h"
 
 #include <gtest/gtest.h>
 
@@ -6,7 +6,7 @@
 #include <random>
 #include <vector>
 
-using namespace parsec;
+using namespace parsecdb;
 
 namespace {
 
